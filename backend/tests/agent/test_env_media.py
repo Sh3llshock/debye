@@ -30,7 +30,6 @@ def test_demo_transcript_without_key(monkeypatch, tmp_path):
     assert asyncio.run(media.transcribe(str(tmp_path / "x.ogg"))) == ""
 
 
-<<<<<<< HEAD
 def test_invoice_fallback_matches_demo_pdf(monkeypatch, tmp_path):
     from app import media
 
@@ -49,7 +48,8 @@ def test_outbox_follows_settings_demo_mode(client, monkeypatch):
     assert client.get("/webhooks/whatsapp/_outbox").status_code == 200
     monkeypatch.setattr(settings, "demo_mode", False)
     assert client.get("/webhooks/whatsapp/_outbox").status_code == 404
-=======
+
+
 def test_transcribe_switches_to_eu_endpoint(monkeypatch, tmp_path):
     import openai
 
@@ -95,4 +95,3 @@ def test_no_anthropic_key_falls_back_immediately(client, svc, monkeypatch):
     client.post("/webhooks/whatsapp", json=body)
     assert _t.perf_counter() - t0 < 3
     assert loop.last_turn_fallback is True
->>>>>>> origin/agent-voice
