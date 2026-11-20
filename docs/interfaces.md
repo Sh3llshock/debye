@@ -42,7 +42,7 @@ def record_event(case_id: str, actor: str, kind: str, summary: str, data: dict |
 ### 3.3 `services.py` (backend-core): what the agent calls
 ```python
 def get_contact_by_phone(phone_e164: str) -> Contact | None
-def get_unit_context(unit_id: str) -> dict            # property, unit, assets, lease, open cases (JSON-safe)
+def get_unit_context(unit_id: str) -> dict            # property, unit, assets, lease, open cases (JSON-safe)   # + "notices": [{id, title, body, kind, active, starts, ends}] (building notices; demo trigger maintenance_notice toggles one)
 def find_open_case_for_asset(asset_id: str) -> Case | None
 def open_case(reporter_contact_id: str, type: str, priority: str, summary: str,
               symptoms: str, error_code: str | None, asset_id: str | None,
@@ -128,6 +128,7 @@ All JSON. Errors: `{"detail": "..."}` with 4xx.
 ### Partner page (partner chosen by `partner_id` in the URL; no auth for the demo)
 | Method | Path | Body | Returns |
 |---|---|---|---|
+| GET | `/api/partners` | | `[manifest + {active, staff, open_jobs, total_jobs, technicians:[{tech_id,name,skills}]}]`, one per partner (staff "Partners" page) |
 | GET | `/api/partner/{partner_id}` | | partner profile from manifest |
 | GET | `/api/partner/{partner_id}/jobs` | | `[JobSummary]` |
 | GET | `/api/partner/{partner_id}/jobs/{case_id}` | | `JobDetail` (only consented context!) |
@@ -138,7 +139,7 @@ All JSON. Errors: `{"detail": "..."}` with 4xx.
 | POST | `/api/partner/{partner_id}/jobs/{case_id}/complete` | multipart: `notes`, `photo`, `invoice` (PDF) | `JobDetail` |
 
 ### Files and demo
-`GET /files/{document_id}`; `POST /demo/reset`, `POST /demo/skip-to-tomorrow`, `POST /demo/trigger/{name}` (only when `DEMO_MODE=1`).
+`GET /files/{document_id}`; `POST /demo/scenarios` (reset + 9 realistic demo cases built through the real services; units 4b and 2a stay empty; also `POST /demo/reset?scenarios=1`); `POST /demo/reset`, `POST /demo/skip-to-tomorrow`, `POST /demo/trigger/{name}` (only when `DEMO_MODE=1`).
 
 ### Shapes
 ```jsonc

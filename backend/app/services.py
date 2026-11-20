@@ -84,10 +84,17 @@ def _lease_for_unit(s, unit_id: str | None) -> Contract | None:
                                          Contract.type == "lease")).first()
 
 
-def _case_title(case_type: str, asset: Asset | None) -> str:
+TYPE_TITLES = {"repair.plumbing": "Plumbing problem", "repair.electrical": "Electrical problem",
+               "repair.hot_water": "No hot water", "repair.radiator": "Radiator problem"}
+
+
+def _case_title(case_type: str, asset: Asset | None, summary: str = "") -> str:
     if case_type == "repair.heating":
         return "No heating – central boiler" if asset and asset.unit_id is None else "Heating problem"
-    return case_type.replace(".", " ").capitalize()
+    if summary:  # e.g. "Water leaking under the kitchen sink" reads better than the type
+        t = summary.strip().rstrip(".")
+        return (t[:1].upper() + t[1:])[:70]
+    return TYPE_TITLES.get(case_type) or case_type.replace("repair.", "").replace("_", " ").capitalize()
 
 
 # Plain-English meaning of boiler error codes for the pages (judges don't know what F.28 is).
@@ -191,6 +198,8 @@ def get_unit_context(unit_id: str) -> dict:
         assets = [a for a in assets if a.unit_id in (None, unit_id)]
         tenant = _tenant_for_unit(s, unit_id)
         lease = _lease_for_unit(s, unit_id)
+        from .models import Notice
+        notices = s.exec(select(Notice).where(Notice.property_id == unit.property_id)).all()
         open_cases = [c for c in s.exec(select(Case).where(Case.property_id == unit.property_id)).all()
                       if c.status not in OPEN_STATUSES_EXCLUDED]
         return {
@@ -199,6 +208,9 @@ def get_unit_context(unit_id: str) -> dict:
             "assets": [a.model_dump() for a in assets],
             "tenant": tenant.model_dump() if tenant else None,
             "lease": lease.model_dump() if lease else None,
+            # building notices (planned maintenance etc.); only active ones matter for triage
+            "notices": [{"id": n.id, "title": n.title, "body": n.body, "kind": n.kind,
+                         "active": n.active, "starts": n.starts, "ends": n.ends} for n in notices],
             "open_cases": [{"case_id": c.id, "type": c.type, "status": c.status,
                             "asset_id": c.asset_id, "unit_id": c.unit_id, "title": c.title,
                             "summary": c.summary, "error_code": c.error_code,
@@ -314,7 +326,7 @@ def open_case(reporter_contact_id: str, type: str, priority: str, summary: str,
         estimate = rules.estimate_cost(s, error_code, fw.partner_id if fw else None)
         ts = now_iso()
         case = Case(
-            id=next_id(s, Case, "case"), type=type, title=_case_title(type, asset),
+            id=next_id(s, Case, "case"), type=type, title=_case_title(type, asset, summary),
             status="new", priority=priority or "normal", summary=summary or "",
             symptoms=symptoms or "", error_code=error_code, property_id=property_id,
             unit_id=reporter.unit_id, asset_id=asset.id if asset else None,
@@ -865,7 +877,8 @@ def technician_confirm(case_id: str, tech_id: str) -> dict:
 
 async def record_completion(case_id: str, partner_id: str, notes: str,
                             photo: tuple[str, str, bytes] | None,
-                            invoice: tuple[str, str, bytes] | None) -> dict:
+                            invoice: tuple[str, str, bytes] | None,
+                            extracted: dict | None = None) -> dict:
     """Partner marks done: store photo + PDF, extract + price-check the invoice,
     attach both to case and unit. (filename, mime, bytes) tuples."""
     from . import media  # late import: agent-whatsapp replaces this module
@@ -894,7 +907,8 @@ async def record_completion(case_id: str, partner_id: str, notes: str,
         fname, mime, data = invoice
         p = folder / Path(fname).name
         p.write_bytes(data)
-        extracted = await media.extract_invoice(str(p))
+        if extracted is None:  # demo scenarios pass known numbers instead of calling the model
+            extracted = await media.extract_invoice(str(p))
         with get_session() as s:
             check = rules.price_check(s, partner_id, extracted)
         doc = attach_document(case_id, "invoice", p.name, mime or "application/pdf", str(p),

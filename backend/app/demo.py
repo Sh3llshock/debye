@@ -55,12 +55,28 @@ def _reset_agent_state() -> None:
 
 
 @router.post("/reset")
-async def reset() -> dict:
+async def reset(scenarios: bool = False) -> dict:
+    """?scenarios=1 also loads the demo scenarios (see /demo/scenarios)."""
     _require_demo()
+    if scenarios:
+        return await load_scenarios()
     seed(reset=True)
     _reset_agent_state()  # agent conversation state + fake-send outbox (agent-whatsapp)
     await publish("demo.reset", None, {"ts": now_iso()})
     return {"ok": True}
+
+
+@router.post("/scenarios")
+async def load_scenarios() -> dict:
+    """Reset, then create realistic cases through the real services (app/scenarios.py).
+    Luka's unit 4b and Jonas' unit 2a stay empty for the live WhatsApp demo."""
+    from . import scenarios as sc
+    _require_demo()
+    seed(reset=True)
+    _reset_agent_state()
+    created = await sc.load()
+    await publish("demo.reset", None, {"ts": now_iso(), "scenarios": len(created)})
+    return {"ok": True, "cases": created}
 
 
 @router.post("/skip-to-tomorrow")
@@ -252,6 +268,23 @@ async def t_notify(body: dict) -> dict:
     return {"ok": True}
 
 
+async def t_maintenance_notice(body: dict) -> dict:
+    """Switch a building notice on/off: {"notice_id": "notice_12_maint", "active": true}.
+    With it active, Debye can answer "no hot water" with the planned-maintenance shortcut."""
+    from .models import Notice
+    nid = body.get("notice_id", "notice_12_maint")
+    with get_session() as s:
+        n = s.get(Notice, nid)
+        if not n:
+            raise HTTPException(404, f"notice {nid} not found")
+        n.active = bool(body.get("active", True))
+        s.add(n)
+        s.commit()
+        out = {"notice_id": n.id, "property_id": n.property_id, "title": n.title, "active": n.active}
+    await publish("notice.updated", None, out)
+    return out
+
+
 TRIGGERS = {
     "tenant_report": t_tenant_report,
     "neighbour_report": t_neighbour_report,
@@ -261,6 +294,7 @@ TRIGGERS = {
     "fixed": t_fixed,
     "expensive_repair": t_expensive_repair,
     "notify": t_notify,
+    "maintenance_notice": t_maintenance_notice,
 }
 
 

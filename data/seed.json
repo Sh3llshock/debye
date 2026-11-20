@@ -13,6 +13,20 @@
         "class": "E",
         "valid_until": "2029-03-31"
       }
+    },
+    {
+      "id": "prop_41",
+      "address": "Lothringerstraße 41, 52062 Aachen",
+      "postcode": "52062",
+      "city": "Aachen",
+      "building_year": 1988,
+      "heating_type": "gas central heating",
+      "heating_central": true,
+      "fibre_available": false,
+      "energy_certificate": {
+        "class": "D",
+        "valid_until": "2030-06-30"
+      }
     }
   ],
   "units": [
@@ -45,6 +59,54 @@
           "number": "1ESY1160123401"
         }
       ]
+    },
+    {
+      "id": "unit_1a",
+      "property_id": "prop_12",
+      "floor": 0,
+      "size_sqm": 52,
+      "rooms": 2,
+      "meters": []
+    },
+    {
+      "id": "unit_3b",
+      "property_id": "prop_12",
+      "floor": 3,
+      "size_sqm": 71,
+      "rooms": 3,
+      "meters": []
+    },
+    {
+      "id": "unit_3c",
+      "property_id": "prop_12",
+      "floor": 3,
+      "size_sqm": 45,
+      "rooms": 2,
+      "meters": []
+    },
+    {
+      "id": "unit_41_1",
+      "property_id": "prop_41",
+      "floor": 0,
+      "size_sqm": 64,
+      "rooms": 3,
+      "meters": []
+    },
+    {
+      "id": "unit_41_2",
+      "property_id": "prop_41",
+      "floor": 1,
+      "size_sqm": 58,
+      "rooms": 2,
+      "meters": []
+    },
+    {
+      "id": "unit_41_3",
+      "property_id": "prop_41",
+      "floor": 2,
+      "size_sqm": 80,
+      "rooms": 4,
+      "meters": []
     }
   ],
   "assets": [
@@ -62,6 +124,32 @@
         "F.28": "Ignition failed at start-up (no flame detected)",
         "F.29": "Flame lost during operation"
       }
+    },
+    {
+      "id": "asset_boiler_41",
+      "property_id": "prop_41",
+      "unit_id": null,
+      "type": "gas_boiler",
+      "make": "Viessmann",
+      "model": "Vitodens 200-W B2HF",
+      "installed": "2017-03-02",
+      "last_service": "2025-09-18",
+      "known_error_codes": {
+        "F4": "No flame signal at start-up (ignition failed)",
+        "F2": "Burner fault, safety lockout",
+        "0A": "Water pressure too low"
+      }
+    },
+    {
+      "id": "asset_heater_3b",
+      "property_id": "prop_12",
+      "unit_id": "unit_3b",
+      "type": "electric_instant_heater",
+      "make": "Stiebel Eltron",
+      "model": "DHB-E 21 LCD",
+      "installed": "2019-05-14",
+      "last_service": null,
+      "known_error_codes": {}
     }
   ],
   "contacts": [
@@ -120,6 +208,72 @@
       "property_ids": [
         "prop_12"
       ]
+    },
+    {
+      "id": "c_204",
+      "role": "tenant",
+      "name": "Aylin Demir",
+      "phone_e164": "+490000000011",
+      "email": "aylin@example.com",
+      "language": "en",
+      "unit_id": "unit_1a",
+      "move_in": "2023-02-01",
+      "whatsapp_opt_in": true
+    },
+    {
+      "id": "c_205",
+      "role": "tenant",
+      "name": "Mateusz Kowalski",
+      "phone_e164": "+490000000012",
+      "email": "mateusz@example.com",
+      "language": "en",
+      "unit_id": "unit_3b",
+      "move_in": "2022-08-01",
+      "whatsapp_opt_in": true
+    },
+    {
+      "id": "c_206",
+      "role": "tenant",
+      "name": "Grace Okafor",
+      "phone_e164": "+490000000013",
+      "email": "grace@example.com",
+      "language": "en",
+      "unit_id": "unit_3c",
+      "move_in": "2024-10-01",
+      "whatsapp_opt_in": true
+    },
+    {
+      "id": "c_207",
+      "role": "tenant",
+      "name": "Sofia Rossi",
+      "phone_e164": "+490000000014",
+      "email": "sofia@example.com",
+      "language": "en",
+      "unit_id": "unit_41_1",
+      "move_in": "2020-04-01",
+      "whatsapp_opt_in": true
+    },
+    {
+      "id": "c_208",
+      "role": "tenant",
+      "name": "Yusuf Haddad",
+      "phone_e164": "+490000000015",
+      "email": "yusuf@example.com",
+      "language": "en",
+      "unit_id": "unit_41_2",
+      "move_in": "2025-01-01",
+      "whatsapp_opt_in": true
+    },
+    {
+      "id": "c_209",
+      "role": "tenant",
+      "name": "Hannah Vogel",
+      "phone_e164": "+490000000016",
+      "email": "hannah@example.com",
+      "language": "en",
+      "unit_id": "unit_41_3",
+      "move_in": "2018-07-01",
+      "whatsapp_opt_in": true
     }
   ],
   "contracts": [
@@ -152,6 +306,66 @@
         "callout_fee_eur": 89,
         "hourly_eur": 72,
         "valid_until": "2027-12-31"
+      }
+    },
+    {
+      "id": "ct_lease_1a",
+      "type": "lease",
+      "unit_id": "unit_1a",
+      "contact_id": "c_204",
+      "data": {
+        "rent_cold_eur": 540,
+        "start": "2023-02-01"
+      }
+    },
+    {
+      "id": "ct_lease_3b",
+      "type": "lease",
+      "unit_id": "unit_3b",
+      "contact_id": "c_205",
+      "data": {
+        "rent_cold_eur": 820,
+        "start": "2022-08-01"
+      }
+    },
+    {
+      "id": "ct_lease_3c",
+      "type": "lease",
+      "unit_id": "unit_3c",
+      "contact_id": "c_206",
+      "data": {
+        "rent_cold_eur": 495,
+        "start": "2024-10-01"
+      }
+    },
+    {
+      "id": "ct_lease_41_1",
+      "type": "lease",
+      "unit_id": "unit_41_1",
+      "contact_id": "c_207",
+      "data": {
+        "rent_cold_eur": 690,
+        "start": "2020-04-01"
+      }
+    },
+    {
+      "id": "ct_lease_41_2",
+      "type": "lease",
+      "unit_id": "unit_41_2",
+      "contact_id": "c_208",
+      "data": {
+        "rent_cold_eur": 610,
+        "start": "2025-01-01"
+      }
+    },
+    {
+      "id": "ct_lease_41_3",
+      "type": "lease",
+      "unit_id": "unit_41_3",
+      "contact_id": "c_209",
+      "data": {
+        "rent_cold_eur": 880,
+        "start": "2018-07-01"
       }
     }
   ],
@@ -287,5 +501,23 @@
     }
   ],
   "_technicians_notes": "busy windows are relative to the demo day: day 1 = tomorrow; window 08-10 | 10-12 | 14-16 | all.",
-  "_notes": "Replace the +4900000000xx placeholders with the team's real demo phone numbers in a local, uncommitted override (data/seed.local.json)."
+  "_notes": "Replace the +4900000000xx placeholders with the team's real demo phone numbers in a local, uncommitted override (data/seed.local.json).",
+  "notices": [
+    {
+      "id": "notice_12_maint",
+      "property_id": "prop_12",
+      "kind": "maintenance",
+      "active": false,
+      "title": "Planned maintenance: hot water off today 9:00–13:00",
+      "body": "The heating company services the central boiler. Hot water and heating are off from 9:00 to 13:00."
+    },
+    {
+      "id": "notice_41_service",
+      "property_id": "prop_41",
+      "kind": "maintenance",
+      "active": false,
+      "title": "Annual boiler service next Tuesday 8:00–12:00",
+      "body": "Heizung Schmidt services the Viessmann boiler. Short interruptions of hot water are possible."
+    }
+  ]
 }
