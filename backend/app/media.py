@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import logging
 import os
+import time
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -14,6 +15,9 @@ MODEL = "claude-opus-5-5"
 
 
 # ---------------------------------------------------------------- transcription (OpenAI, event sponsor)
+EU_OPENAI_BASE_URL = "https://eu.api.openai.com/v1"
+_openai_base_url: str | None = os.getenv("OPENAI_BASE_URL") or None  # None = SDK default
+
 DEMO_TRANSCRIPT = "Hi, die Heizung ist kalt seit heute Morgen."
 
 
@@ -28,23 +32,34 @@ async def transcribe(path: str, language: str = "de") -> str:
     if not os.getenv("OPENAI_API_KEY"):
         log.warning("OPENAI_API_KEY not set; %s", "using demo transcript" if _demo_mode() else "no transcript")
         return DEMO_TRANSCRIPT if _demo_mode() else ""
+    global _openai_base_url
     from openai import AsyncOpenAI
 
-    client = AsyncOpenAI(timeout=20)
+    audio = Path(path).read_bytes()
     for model in ("gpt-4o-transcribe", "whisper-1"):
-        try:
-            with open(path, "rb") as f:
+        for _attempt in range(2):
+            client = AsyncOpenAI(timeout=20, base_url=_openai_base_url)
+            t0 = time.perf_counter()
+            try:
                 result = await client.audio.transcriptions.create(
                     model=model,
-                    file=(Path(path).name, f.read()),
+                    file=(Path(path).name, audio),
                     language=language,
                     prompt="Mieterin meldet ein Problem mit der Heizung in ihrer Wohnung.",
                 )
+            except Exception as exc:
+                # EU-resident OpenAI projects must use the EU endpoint; switch once and remember.
+                if "geography" in str(exc).lower() and _openai_base_url != EU_OPENAI_BASE_URL:
+                    log.warning("OpenAI project is region-bound; switching to %s", EU_OPENAI_BASE_URL)
+                    _openai_base_url = EU_OPENAI_BASE_URL
+                    continue
+                log.exception("transcription with %s failed", model)
+                break
             text = (getattr(result, "text", None) or "").strip()
+            log.info("transcribed %s with %s in %.2fs", Path(path).name, model, time.perf_counter() - t0)
             if text:
                 return text
-        except Exception:
-            log.exception("transcription with %s failed", model)
+            break
     return DEMO_TRANSCRIPT if _demo_mode() else ""
 
 
