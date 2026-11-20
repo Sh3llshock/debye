@@ -10,6 +10,18 @@ About 30–45 minutes. You need a Facebook account and the 3 demo phones: the re
 | `WA_VERIFY_TOKEN` | you pick it (6) |
 | `WA_GRAPH_VERSION` | optional, default `v21.0`; use the version shown on the API Setup page |
 
+## Linked phone (demo route, `WA_PROVIDER=wweb`)
+
+Meta's business account is locked, and Twilio's trial blocks free-text replies. So for the demo, Debye runs on a **separate phone's normal WhatsApp account**, linked as a device like WhatsApp Web. This uses the unofficial WhatsApp Web protocol (Baileys). It's against WhatsApp's terms and the number can get banned; we accept that for the demo. Meta and Twilio stay in the code as the production route.
+
+1. `.env`: `WA_PROVIDER=wweb`, `WWEB_SECRET=<random string>` (the bridge and the backend read the same `.env`). `WWEB_BRIDGE_URL` defaults to `http://127.0.0.1:3010`.
+2. Start the backend as usual, then the bridge in a second terminal: `.\scripts\start_bridge.ps1`. Needs Node 20+; the first run installs the dependencies.
+3. The first start prints a QR code in the terminal and saves it as `bridge\qr.png`. On the Debye phone: **WhatsApp → Settings → Linked Devices → Link a Device**, then scan. The terminal shows `WhatsApp connected`. The session is kept in `bridgeuth\`, so later starts need no QR. Delete that folder to link another phone.
+4. The real resident numbers go in `data/seed.local.json` (E.164).
+5. Test: send "hi" to the Debye phone from Luka's phone. The bridge logs `inbound`, the backend handles it, and the bridge logs `sent`. Buttons and lists arrive as numbered choices ("Reply with the number: 1 = All cold …"); voice replies arrive as voice notes.
+
+The bridge ignores groups, status updates and its own messages, and reconnects by itself. `GET http://127.0.0.1:3010/health` shows `{"ready": true}` once linked. "bad signature" means `WWEB_SECRET` differs between the bridge and the backend.
+
 ## Twilio WhatsApp sandbox (current route: Meta locked the business account)
 
 Debye sends through Twilio when `WA_PROVIDER=twilio`, or when `WA_PROVIDER` is unset and `TWILIO_ACCOUNT_SID` is set. The Meta steps below stay valid for `WA_PROVIDER=meta`.

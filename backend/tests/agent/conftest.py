@@ -12,7 +12,7 @@ os.environ["DEBYE_NO_DOTENV"] = "1"  # never pick up real keys from .env in test
 os.environ["WA_TOKEN"] = ""  # fake-send
 os.environ["WA_FAKE_SEND"] = "1"
 for _k in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_WHATSAPP_FROM", "WA_PROVIDER",
-           "TWILIO_VALIDATE_SIGNATURE", "ELEVENLABS_API_KEY"):
+           "TWILIO_VALIDATE_SIGNATURE", "ELEVENLABS_API_KEY", "WWEB_SECRET", "WWEB_BRIDGE_URL"):
     os.environ.pop(_k, None)  # never use real Twilio/ElevenLabs in tests
 os.environ["WA_APP_SECRET"] = ""
 os.environ["WA_VERIFY_TOKEN"] = "verify-me"

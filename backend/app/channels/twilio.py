@@ -43,9 +43,9 @@ def _env(name: str) -> str:
 
 
 def wa_provider() -> str:
-    """WA_PROVIDER=twilio|meta; default twilio when TWILIO_ACCOUNT_SID is set."""
+    """WA_PROVIDER=wweb|twilio|meta; default twilio when TWILIO_ACCOUNT_SID is set, else meta."""
     p = _env("WA_PROVIDER").strip().lower()
-    if p in ("twilio", "meta"):
+    if p in ("twilio", "meta", "wweb"):
         return p
     return "twilio" if _env("TWILIO_ACCOUNT_SID") else "meta"
 

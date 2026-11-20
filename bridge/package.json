@@ -1,0 +1,18 @@
+{
+  "name": "debye-wweb-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Demo route: Debye on a linked WhatsApp account (WhatsApp Web protocol via Baileys).",
+  "type": "module",
+  "main": "index.mjs",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "pino": "10.4.0",
+    "qrcode": "1.5.4",
+    "qrcode-terminal": "0.12.0"
+  }
+}
