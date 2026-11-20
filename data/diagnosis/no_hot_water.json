@@ -1,6 +1,12 @@
 {
   "symptom": "no_hot_water",
-  "applies_to": ["cold shower", "no hot water", "water only lukewarm", "kein warmes Wasser", "Dusche kalt"],
+  "applies_to": [
+    "cold shower",
+    "no hot water",
+    "water only lukewarm",
+    "kein warmes Wasser",
+    "Dusche kalt"
+  ],
   "context_from_centrix": [
     "property.heating_type and heating_central (central gas boiler with hot water tank in the demo building)",
     "asset.make/model/last_service of the boiler",
@@ -18,24 +24,142 @@
     }
   },
   "questions": [
-    { "id": "q_scope", "text": "Is it only the shower, or is the hot water cold at the sinks too?", "answers": { "only_shower": "only the shower is cold, sinks are hot", "everywhere": "cold or lukewarm everywhere" } },
-    { "id": "q_radiators", "text": "Are the radiators cold as well?", "answers": { "yes": "radiators cold too", "no": "radiators are warm" } },
-    { "id": "q_recent_use", "text": "Did someone else shower or use a lot of hot water just before you?", "answers": { "yes": "others used hot water just before", "no": "nobody used much hot water" } },
-    { "id": "q_waited", "text": "Did you let the hot water run for one or two minutes?", "answers": { "yes": "ran it 1–2 minutes", "no": "only briefly" } },
-    { "id": "q_display", "text": "Could you send a photo of the boiler's display? It usually shows an error code if something's wrong.", "answers": { "code": "display shows an error code (read from photo)", "normal": "display looks normal", "dark": "display is dark / off" } },
-    { "id": "q_power", "text": "Are the lights and other electrics working in your apartment?", "answers": { "yes": "power is on", "no": "power is off" } },
-    { "id": "q_gas_stove", "text": "If you have a gas stove: does it light normally?", "answers": { "yes": "gas stove works", "no": "gas stove doesn't light", "none": "no gas stove" } },
-    { "id": "q_knob", "text": "Could you check the shower's temperature knob: is it turned fully to warm, and is there a safety button at 38°C you need to press to go hotter?", "answers": { "was_wrong": "knob was set too cold / limiter", "correct": "knob is fully on warm" } },
-    { "id": "q_pressure", "text": "On the boiler there's a small pressure gauge. Is the needle below 1 bar?", "answers": { "low": "pressure below 1 bar", "ok": "pressure 1–2 bar" } },
-    { "id": "q_timing", "text": "Does the water eventually get warm if you wait longer, or does it stay cold?", "answers": { "slow": "gets lukewarm after a long wait", "stays_cold": "stays cold" } },
-    { "id": "q_weather_pipe", "text": "Is it just this one tap, with very weak flow, maybe on an outside wall?", "answers": { "yes": "one tap, weak flow, outside wall", "no": "flow is normal" } }
+    {
+      "id": "q_scope",
+      "text": "Is it only the shower, or is the hot water cold at the sinks too?",
+      "answers": {
+        "only_shower": "only the shower is cold, sinks are hot",
+        "everywhere": "cold or lukewarm everywhere"
+      }
+    },
+    {
+      "id": "q_radiators",
+      "text": "Are the radiators cold as well?",
+      "answers": {
+        "yes": "radiators cold too",
+        "no": "radiators are warm"
+      }
+    },
+    {
+      "id": "q_recent_use",
+      "text": "Did someone else shower or use a lot of hot water just before you?",
+      "answers": {
+        "yes": "others used hot water just before",
+        "no": "nobody used much hot water"
+      }
+    },
+    {
+      "id": "q_waited",
+      "text": "Did you let the hot water run for one or two minutes?",
+      "answers": {
+        "yes": "ran it 1–2 minutes",
+        "no": "only briefly"
+      }
+    },
+    {
+      "id": "q_display",
+      "text": "Could you send a photo of the boiler's display? It usually shows an error code if something's wrong.",
+      "answers": {
+        "code": "display shows an error code (read from photo)",
+        "normal": "display looks normal",
+        "dark": "display is dark / off"
+      }
+    },
+    {
+      "id": "q_power",
+      "text": "Are the lights and other electrics working in your apartment?",
+      "answers": {
+        "yes": "power is on",
+        "no": "power is off"
+      }
+    },
+    {
+      "id": "q_gas_stove",
+      "text": "If you have a gas stove: does it light normally?",
+      "answers": {
+        "yes": "gas stove works",
+        "no": "gas stove doesn't light",
+        "none": "no gas stove"
+      }
+    },
+    {
+      "id": "q_knob",
+      "text": "Could you check the shower's temperature knob: is it turned fully to warm, and is there a safety button at 38°C you need to press to go hotter?",
+      "answers": {
+        "was_wrong": "knob was set too cold / limiter",
+        "correct": "knob is fully on warm"
+      }
+    },
+    {
+      "id": "q_pressure",
+      "text": "On the boiler there's a small pressure gauge. Is the needle below 1 bar?",
+      "answers": {
+        "low": "pressure below 1 bar",
+        "ok": "pressure 1–2 bar"
+      }
+    },
+    {
+      "id": "q_timing",
+      "text": "Does the water eventually get warm if you wait longer, or does it stay cold?",
+      "answers": {
+        "slow": "gets lukewarm after a long wait",
+        "stays_cold": "stays cold"
+      }
+    },
+    {
+      "id": "q_weather_pipe",
+      "text": "Is it just this one tap, with very weak flow, maybe on an outside wall?",
+      "answers": {
+        "yes": "one tap, weak flow, outside wall",
+        "no": "flow is normal"
+      }
+    },
+    {
+      "id": "q_other_tap",
+      "text": "Was another shower, the dishwasher or a hot tap running at the same time?",
+      "answers": {
+        "yes": "another hot tap or appliance was running",
+        "no": "nothing else was running"
+      }
+    },
+    {
+      "id": "q_recent_work",
+      "text": "Has a plumber or anyone worked on the bathroom or the pipes recently?",
+      "answers": {
+        "yes": "plumbing work happened recently",
+        "no": "no recent work"
+      }
+    },
+    {
+      "id": "q_handle_feel",
+      "text": "When you turn the shower handle towards hot, does it feel normal, or does it slip or hit a hard stop early?",
+      "answers": {
+        "slips_or_stops": "handle slips or stops early",
+        "normal": "handle turns normally"
+      }
+    },
+    {
+      "id": "q_heater_type",
+      "text": "Is there a small electric water heater box on the wall in your bathroom or kitchen?",
+      "answers": {
+        "yes": "electric instantaneous heater in the flat",
+        "no": "no heater box"
+      }
+    }
   ],
   "causes": [
     {
       "id": "hot_water_used_up",
       "label": "Hot water tank used up (others showered just before)",
-      "signals": ["q_recent_use=yes", "q_radiators=no", "q_scope=everywhere"],
-      "ask_order": ["q_recent_use", "q_scope"],
+      "signals": [
+        "q_recent_use=yes",
+        "q_radiators=no",
+        "q_scope=everywhere"
+      ],
+      "ask_order": [
+        "q_recent_use",
+        "q_scope"
+      ],
       "outcome": "self_help",
       "trade": null,
       "technician_needed": false,
@@ -45,8 +169,13 @@
     {
       "id": "not_run_long_enough",
       "label": "Hot water not run long enough (long pipe to the shower)",
-      "signals": ["q_waited=no", "q_radiators=no"],
-      "ask_order": ["q_waited"],
+      "signals": [
+        "q_waited=no",
+        "q_radiators=no"
+      ],
+      "ask_order": [
+        "q_waited"
+      ],
       "outcome": "self_help",
       "trade": null,
       "technician_needed": false,
@@ -54,19 +183,37 @@
     },
     {
       "id": "shower_knob_or_limiter",
-      "label": "Shower thermostat set too cold or scald limiter engaged",
-      "signals": ["q_scope=only_shower", "q_knob=was_wrong"],
-      "ask_order": ["q_scope", "q_knob"],
+      "label": "Shower thermostat set too cold, scald limiter engaged, or handle slipping / limit stop set too low",
+      "signals": [
+        "q_scope=only_shower",
+        "q_knob=was_wrong",
+        "q_handle_feel=slips_or_stops"
+      ],
+      "ask_order": [
+        "q_scope",
+        "q_knob"
+      ],
       "outcome": "self_help",
       "trade": null,
       "technician_needed": false,
-      "tenant_message": "Most shower thermostats stop at 38°C: press the small button on the knob and turn further to go hotter. Let me know if that does it!"
+      "tenant_message": "Most shower thermostats stop at 38°C: press the small button on the knob and turn further to go hotter. Let me know if that does it!",
+      "note": "If the limiter button doesn't help or the handle slips, escalate to plumbing (stripped handle / limit stop adjustment)."
     },
     {
       "id": "shower_mixer_faulty",
-      "label": "Shower mixer / thermostatic cartridge faulty",
-      "signals": ["q_scope=only_shower", "q_knob=correct", "q_waited=yes"],
-      "ask_order": ["q_scope", "q_knob", "q_waited"],
+      "label": "Shower mixer cartridge stuck, thermostat out of calibration, or debris in the hot inlet filter",
+      "signals": [
+        "q_scope=only_shower",
+        "q_knob=correct",
+        "q_waited=yes",
+        "q_handle_feel=normal",
+        "spray weaker towards hot"
+      ],
+      "ask_order": [
+        "q_scope",
+        "q_knob",
+        "q_waited"
+      ],
       "outcome": "technician",
       "trade": "plumbing",
       "technician_needed": true,
@@ -76,8 +223,15 @@
     {
       "id": "boiler_fault",
       "label": "Boiler fault (e.g. F.28 ignition failed)",
-      "signals": ["q_radiators=yes", "q_display=code", "neighbour_reported"],
-      "ask_order": ["q_radiators", "q_display"],
+      "signals": [
+        "q_radiators=yes",
+        "q_display=code",
+        "neighbour_reported"
+      ],
+      "ask_order": [
+        "q_radiators",
+        "q_display"
+      ],
       "outcome": "technician",
       "trade": "heating",
       "brand_required": "asset.make",
@@ -88,8 +242,15 @@
     {
       "id": "low_system_pressure",
       "label": "Heating water pressure too low (F.22)",
-      "signals": ["q_pressure=low", "q_display=code:F.22", "q_radiators=yes"],
-      "ask_order": ["q_display", "q_pressure"],
+      "signals": [
+        "q_pressure=low",
+        "q_display=code:F.22",
+        "q_radiators=yes"
+      ],
+      "ask_order": [
+        "q_display",
+        "q_pressure"
+      ],
       "outcome": "caretaker",
       "trade": "caretaker",
       "technician_needed": false,
@@ -101,8 +262,15 @@
     {
       "id": "circulation_pump_faulty",
       "label": "Hot water circulation pump faulty",
-      "signals": ["q_scope=everywhere", "q_timing=slow", "q_radiators=no"],
-      "ask_order": ["q_scope", "q_timing"],
+      "signals": [
+        "q_scope=everywhere",
+        "q_timing=slow",
+        "q_radiators=no"
+      ],
+      "ask_order": [
+        "q_scope",
+        "q_timing"
+      ],
       "outcome": "technician",
       "trade": "heating",
       "technician_needed": true,
@@ -112,8 +280,17 @@
     {
       "id": "tank_thermostat_or_scale",
       "label": "Hot water tank thermostat or scale build-up",
-      "signals": ["q_scope=everywhere", "q_timing=stays_cold", "q_radiators=no", "q_display=normal"],
-      "ask_order": ["q_scope", "q_radiators", "q_display"],
+      "signals": [
+        "q_scope=everywhere",
+        "q_timing=stays_cold",
+        "q_radiators=no",
+        "q_display=normal"
+      ],
+      "ask_order": [
+        "q_scope",
+        "q_radiators",
+        "q_display"
+      ],
       "outcome": "technician",
       "trade": "heating",
       "technician_needed": true,
@@ -123,8 +300,14 @@
     {
       "id": "no_power_to_boiler",
       "label": "Boiler has no power (tripped fuse / outage)",
-      "signals": ["q_display=dark", "q_power=no"],
-      "ask_order": ["q_display", "q_power"],
+      "signals": [
+        "q_display=dark",
+        "q_power=no"
+      ],
+      "ask_order": [
+        "q_display",
+        "q_power"
+      ],
       "outcome": "caretaker",
       "trade": "caretaker",
       "technician_needed": false,
@@ -135,8 +318,13 @@
     {
       "id": "gas_supply_interrupted",
       "label": "Gas supply interrupted",
-      "signals": ["q_gas_stove=no", "q_display=code"],
-      "ask_order": ["q_gas_stove"],
+      "signals": [
+        "q_gas_stove=no",
+        "q_display=code"
+      ],
+      "ask_order": [
+        "q_gas_stove"
+      ],
       "outcome": "utility",
       "trade": "gas_utility",
       "technician_needed": false,
@@ -145,7 +333,9 @@
     {
       "id": "planned_maintenance",
       "label": "Planned maintenance / water shut-off (known in centrix)",
-      "signals": ["building_notice_today"],
+      "signals": [
+        "building_notice_today"
+      ],
       "ask_order": [],
       "outcome": "self_help",
       "trade": null,
@@ -155,13 +345,108 @@
     {
       "id": "frozen_or_damaged_pipe",
       "label": "Frozen or damaged pipe",
-      "signals": ["q_weather_pipe=yes", "q_scope=only_shower"],
-      "ask_order": ["q_weather_pipe"],
+      "signals": [
+        "q_weather_pipe=yes",
+        "q_scope=only_shower"
+      ],
+      "ask_order": [
+        "q_weather_pipe"
+      ],
       "outcome": "technician",
       "trade": "plumbing",
       "technician_needed": true,
       "estimated_cost_eur": 220,
       "tenant_message": "Weak flow at just one tap on an outside wall sounds like a frozen or damaged pipe. Please don't try to heat it with an open flame. I'm sending a plumber."
+    },
+    {
+      "id": "simultaneous_use",
+      "label": "Another hot tap or appliance running at the same time",
+      "signals": [
+        "q_other_tap=yes",
+        "q_radiators=no"
+      ],
+      "ask_order": [
+        "q_other_tap"
+      ],
+      "outcome": "self_help",
+      "trade": null,
+      "technician_needed": false,
+      "tenant_message": "That's likely just the hot water being shared: if the dishwasher or another shower runs at the same time, there's less for you. Try again once it's off, and tell me if it stays cold.",
+      "follow_up_minutes": 30
+    },
+    {
+      "id": "diverter_valve_stuck",
+      "label": "Boiler's switch between heating and tap water stuck (radiators hot, taps cold)",
+      "signals": [
+        "q_radiators=no",
+        "q_scope=everywhere",
+        "radiators warm but taps cold"
+      ],
+      "ask_order": [
+        "q_radiators",
+        "q_scope"
+      ],
+      "outcome": "technician",
+      "trade": "heating",
+      "brand_required": "asset.make",
+      "technician_needed": true,
+      "estimated_cost_eur": 290,
+      "tenant_message": "Since the radiators are warm but all the taps are cold, the boiler's switch between heating and hot water is probably stuck. That needs a heating technician. I'll arrange one."
+    },
+    {
+      "id": "supply_valve_closed_after_work",
+      "label": "Hot supply valve to the shower left closed after plumbing work",
+      "signals": [
+        "q_scope=only_shower",
+        "q_recent_work=yes",
+        "centrix: recent work order in the unit"
+      ],
+      "ask_order": [
+        "q_scope",
+        "q_recent_work"
+      ],
+      "outcome": "technician",
+      "trade": "plumbing",
+      "technician_needed": true,
+      "estimated_cost_eur": 95,
+      "tenant_message": "Because it started right after the recent plumbing work, a hot-water valve was probably left closed. Quick fix: I'll ask a plumber to come and reopen and test it."
+    },
+    {
+      "id": "boiler_schedule_or_settings",
+      "label": "Boiler hot-water timer, holiday mode or temperature set too low",
+      "signals": [
+        "q_scope=everywhere",
+        "q_display=normal",
+        "lukewarm everywhere at certain times",
+        "centrix: building recently vacant/maintenance"
+      ],
+      "ask_order": [
+        "q_scope",
+        "q_timing"
+      ],
+      "outcome": "caretaker",
+      "trade": "caretaker",
+      "technician_needed": false,
+      "escalate_to": "heating",
+      "escalate_if": "settings are correct but still lukewarm",
+      "tenant_message": "It sounds like the boiler's hot-water schedule or temperature is set wrong. Our caretaker can fix that in a few minutes, so no technician needed. I've let them know."
+    },
+    {
+      "id": "electric_instant_heater",
+      "label": "Electric instantaneous water heater in the flat (circuit tripped, low-power mode or element failed)",
+      "applies_if": "unit has an electric instantaneous heater (centrix asset) or q_heater_type=yes",
+      "signals": [
+        "q_heater_type=yes"
+      ],
+      "ask_order": [
+        "q_heater_type",
+        "q_power"
+      ],
+      "outcome": "technician",
+      "trade": "electrical",
+      "technician_needed": true,
+      "estimated_cost_eur": 160,
+      "tenant_message": "Your flat's hot water comes from the small electric heater. First check its fuse in the fuse box; if it's not that, the heater needs an electrician, and I'll arrange one."
     }
   ],
   "strategy": [
@@ -171,6 +456,12 @@
     "Stop as soon as one cause is clearly most likely (≤ 3 questions typical); never ask more than 5.",
     "Self-help outcomes: give the tip, schedule a follow-up check, and do NOT dispatch anyone.",
     "Technician outcomes: pick partners whose trades include the cause's trade (and brand if required), then staff approval.",
-    "Always tell the tenant the likely cause in plain words, and record the diagnosis with the reasoning on the case."
+    "Always tell the tenant the likely cause in plain words, and record the diagnosis with the reasoning on the case.",
+    "Ask q_heater_type only if centrix doesn't already know the unit's hot water source."
+  ],
+  "sources": [
+    "Team troubleshooting sheet (33 situations, adapted from hotel to rental-flat context)",
+    "Vaillant 'no hot water' guidance",
+    "Moen / Triton / A. O. Smith troubleshooting guides"
   ]
 }
