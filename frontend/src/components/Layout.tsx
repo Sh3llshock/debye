@@ -113,6 +113,7 @@ export function StaffLayout({ children }: { children: ReactNode }) {
         items={[
           { to: '/staff', label: t('Cases'), icon: 'cases', end: true },
           { to: '/staff/units', label: t('Units'), icon: 'building' },
+          { to: '/staff/partners', label: t('Partners'), icon: 'wrench' },
         ]}
         crumbs={crumbs}
         right={

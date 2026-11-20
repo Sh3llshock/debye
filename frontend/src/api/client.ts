@@ -32,6 +32,8 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
 }
 
 const enc = encodeURIComponent
+// Partner ids from partners/*.json, used only while GET /api/partners does not exist.
+const KNOWN_PARTNERS = ['heizung-schmidt', 'waerme-wagner', 'heiztechnik-gruen', 'elektro-klein', 'example-fibre']
 
 const http = {
   staffUnits: () => req<UnitSummary[]>('GET', '/api/staff/units'),
@@ -53,6 +55,17 @@ const http = {
   techJob: (tid: string, cid: string) => req<JobDetail>('GET', `/api/tech/${enc(tid)}/jobs/${enc(cid)}`),
   techConfirm: (tid: string, cid: string) => req<JobDetail>('POST', `/api/tech/${enc(tid)}/jobs/${enc(cid)}/confirm`),
   complete: (pid: string, cid: string, form: FormData) => req<JobDetail>('POST', `/api/partner/${enc(pid)}/jobs/${enc(cid)}/complete`, form),
+  /** GET /api/partners; until the backend has it, fetch each known partner (ids from partners/*.json). */
+  partners: async (): Promise<PartnerProfile[]> => {
+    try {
+      return await req<PartnerProfile[]>('GET', '/api/partners')
+    } catch (e) {
+      if (!(e instanceof ApiError) || (e.status !== 404 && e.status !== 405)) throw e
+      const got = await Promise.all(KNOWN_PARTNERS.map((pid) => req<PartnerProfile>('GET', `/api/partner/${enc(pid)}`).catch(() => null)))
+      return got.filter((p): p is PartnerProfile => !!p)
+    }
+  },
+  demoScenarios: () => req<unknown>('POST', '/demo/scenarios'),
   demoReset: () => req<void>('POST', '/demo/reset'),
   demoSkip: () => req<void>('POST', '/demo/skip-to-tomorrow'),
 }

@@ -18,7 +18,7 @@ const FILTERS: { key: Filter; label: string; test: (c: CaseSummary) => boolean }
   { key: 'all', label: 'All', test: () => true },
   { key: 'open', label: 'Open', test: (c) => c.status !== 'closed' && c.status !== 'rejected' },
   { key: 'decision', label: 'Needs approval', test: (c) => needsApproval(c.status) },
-  { key: 'closed', label: 'Closed', test: (c) => c.status === 'closed' },
+  { key: 'closed', label: 'Closed', test: (c) => c.status === 'closed' || c.status === 'rejected' },
 ]
 
 /** Every job needs staff approval: an amber "Needs your approval" row at the top of the table. */
@@ -83,7 +83,8 @@ export default function StaffCases() {
 
   const shown = data?.filter(FILTERS.find((f) => f.key === filter)!.test) ?? []
   const decisions = shown.filter((c) => needsApproval(c.status))
-  const rows = shown.filter((c) => !needsApproval(c.status))
+  // Needs-approval rows first (above), then everything else by last update.
+  const rows = shown.filter((c) => !needsApproval(c.status)).sort((a, b) => b.updated_at.localeCompare(a.updated_at))
   const open = data?.filter((c) => c.status !== 'closed' && c.status !== 'rejected').length ?? 0
   const need = data?.filter((c) => needsApproval(c.status)).length ?? 0
 
@@ -108,6 +109,7 @@ export default function StaffCases() {
               className={`rounded px-4 py-2 text-body transition-colors ${filter === f.key ? 'bg-ink font-semibold text-on-action' : 'text-ink hover:bg-sub'}`}
             >
               {t(f.label)}
+              {data && <span className={`ml-1.5 ${filter === f.key ? 'text-on-action/70' : 'text-muted'}`}>{data.filter(f.test).length}</span>}
             </button>
           ))}
         </div>
