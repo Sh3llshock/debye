@@ -130,7 +130,7 @@ def _next_question(d: dict, cause_id: str) -> str | None:
 def next_step(conv: st.Conversation) -> tuple[str, str, float]:
     """Deterministic policy (fallback + guard): ("ask", qid, 0) or ("conclude", cause_id, confidence)."""
     d = conv.diagnosis
-    if not d["answers"] and "q_scope" not in d["asked"]:
+    if not d["asked"] and "q_scope" not in d["answers"]:
         return "ask", "q_scope", 0.0  # strategy: usually q_scope first
     ranked = score(d, conv.error_code)
     out_of_questions = len(d["asked"]) >= MAX_QUESTIONS
@@ -166,7 +166,8 @@ def context_block(conv: st.Conversation) -> dict:
         "strategy": kb()["strategy"],
         "questions": [{"id": q["id"], "text": q["text"], "answers": q["answers"]} for q in kb()["questions"]],
         "causes": [{"id": c["id"], "label": c["label"], "signals": c["signals"], "outcome": c["outcome"],
-                    "trade": c.get("trade")} for c in kb()["causes"]],
+                    "trade": c.get("trade"), **({"applies_if": c["applies_if"]} if c.get("applies_if") else {})}
+                   for c in kb()["causes"]],
         "answers_so_far": d["answers"],
         "questions_asked": len(d["asked"]),
         "max_questions": MAX_QUESTIONS,
@@ -201,9 +202,31 @@ async def ask(contact, conv: st.Conversation, qid: str, lead: str | None = None)
     await out.buttons(contact, conv.case_id, f"{lead} {text}" if lead else text, opts)
 
 
+ELECTRIC_HEATER_TYPES = ("electric_instant_heater", "instant_water_heater", "instantaneous_heater",
+                         "durchlauferhitzer", "electric_water_heater")
+
+
+def facts_from_centrix(contact, conv: st.Conversation) -> None:
+    """What centrix already knows: the unit's hot-water source answers q_heater_type, so it isn't asked."""
+    from . import flow
+
+    if "q_heater_type" not in questions():
+        return
+    ctx = flow.unit_context_for(contact)
+    assets = ctx.get("assets") or []
+    types = {str(be.attr(a, "type") or "").lower() for a in assets}
+    if any(t in ELECTRIC_HEATER_TYPES or "instant" in t for t in types):
+        conv.diagnosis["answers"]["q_heater_type"] = "yes"
+        conv.diagnosis["facts"].append("centrix: electric instantaneous heater in the unit")
+    elif (ctx.get("property") or {}).get("heating_central") and "gas_boiler" in types:
+        conv.diagnosis["answers"]["q_heater_type"] = "no"
+        conv.diagnosis["facts"].append("centrix: hot water from the central gas boiler")
+
+
 async def begin(contact, conv: st.Conversation, complaint: str | None) -> None:
     """Start: empathy line + safety question (code, always first)."""
     start(conv, complaint)
+    facts_from_centrix(contact, conv)
     name = (be.attr(contact, "name") or "").split(" ")[0]
     lead = f"Oh no{', ' + name if name else ''}, a cold shower is the worst 😕 Let me figure out what's going on."
     await ask(contact, conv, SAFETY_QID, lead=lead)
