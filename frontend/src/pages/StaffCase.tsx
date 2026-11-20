@@ -3,7 +3,7 @@ import { api } from '../api/client'
 import type { DocumentItem } from '../api/types'
 import { Activity, ApprovalCard, Conversation, Inspector, PartnerChoice, ServiceLine, ZeroFormsStrip } from '../components/case/CasePanels'
 import { useCrumbs } from '../components/Layout'
-import { DiagnosisPanel } from '../components/case/Diagnosis'
+import { DiagnosisPanel, isNoTechnician } from '../components/case/Diagnosis'
 import { ErrorBox, Loading, PriorityChip, StatusChip } from '../components/ui'
 import { fmtDateTime } from '../lib/format'
 import { lineState, needsApproval, NO_TECH_STATIONS, STAFF_STATIONS } from '../lib/lifecycle'
@@ -63,7 +63,7 @@ export default function StaffCase() {
 
   const partnerName = (id: string) => c.ranking.find((r) => r.partner_id === id)?.name ?? (c.partner?.partner_id === id ? c.partner.name : id)
   const who = c.reporters[0]?.name.split(' ')[0] ?? t('the resident')
-  const noTech = ['self_help', 'caretaker'].includes(c.diagnosis?.outcome ?? '')
+  const noTech = isNoTechnician(c)
   const line = lineState(noTech ? NO_TECH_STATIONS : STAFF_STATIONS, c.status, c.events)
 
   // Case documents first (newest first), then the unit's other records (lease, certificates).
