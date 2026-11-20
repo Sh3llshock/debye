@@ -127,8 +127,18 @@ async def _reply(ctx: TurnContext, text: str) -> dict:
     return {"ok": True, "delivered": True}
 
 
+def _no_free_questions_in_diagnosis(ctx: TurnContext) -> None:
+    from . import diagnosis
+
+    if diagnosis.active(ctx.conv):
+        raise ValueError("A diagnosis is running: ask only with ask_question (or reply without a question). "
+                         + ("A question was already sent this turn; stop now." if ctx.sent else ""))
+
+
 async def _ask_buttons(ctx: TurnContext, text: str, options: list[dict]) -> dict:
     import time
+
+    _no_free_questions_in_diagnosis(ctx)
 
     if not options:
         raise ValueError("options must not be empty")
@@ -145,6 +155,7 @@ async def _ask_buttons(ctx: TurnContext, text: str, options: list[dict]) -> dict
 
 
 async def _ask_list(ctx: TurnContext, text: str, button_label: str, rows: list[dict]) -> dict:
+    _no_free_questions_in_diagnosis(ctx)
     if not rows:
         raise ValueError("rows must not be empty")
     await out.list_(ctx.contact, ctx.conv.case_id, text, button_label, [Option(r["id"], r["title"]) for r in rows])
@@ -211,7 +222,7 @@ async def _ask_question(ctx: TurnContext, question_id: str, lead_in: str | None)
     if len(d["asked"]) >= diagnosis.MAX_QUESTIONS:
         raise ValueError("5 questions asked: call conclude_diagnosis now with the most likely cause")
     if ctx.conv.step == st.DIAGNOSIS and d["asked"] and d["asked"][-1] not in d["answers"] and ctx.sent:
-        raise ValueError("one question at a time")
+        raise ValueError("A question was already sent this turn. Stop now and send nothing else.")
     if lead_in and "?" in lead_in:  # the KB question follows; never ask twice
         head = lead_in.split("?")[0]
         lead_in = head.rsplit(".", 1)[0].strip() + "." if "." in head else None
