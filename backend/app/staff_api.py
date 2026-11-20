@@ -29,6 +29,8 @@ def case_summary(s, c: Case) -> dict:
         "priority": c.priority, "unit_id": c.unit_id,
         "error_code": c.error_code, "error_label": services.error_label(c.error_code),
         "trade": services.case_trade(c),
+        "resolution": (c.data or {}).get("resolution"),
+        "saving_eur": (c.data or {}).get("saving_eur"),
         "technician": ({"tech_id": c.data["technician"]["tech_id"], "name": c.data["technician"]["name"]}
                        if (c.data or {}).get("technician") else None),
         "address": prop.address if prop else None,
@@ -49,7 +51,8 @@ def _approval_card(s, c: Case, approval: dict) -> dict:
     diag = data.get("diagnosis")
     if diag:
         out["diagnosis"] = {"cause_id": diag.get("cause_id"), "label": diag.get("label"),
-                            "confidence": diag.get("confidence"), "reasoning": diag.get("reasoning")}
+                            "confidence": diag.get("confidence"), "reasoning": diag.get("reasoning"),
+                            "outcome": diag.get("outcome"), "estimated_cost_eur": diag.get("estimated_cost_eur")}
     pid = c.partner_id or data.get("pending_partner_id") or \
         ((data.get("ranking") or [{}])[0].get("partner_id"))
     p = s.get(Partner, pid) if pid else None
@@ -93,6 +96,8 @@ def case_detail(s, c: Case) -> dict:
         "trade": services.case_trade(c),
         "diagnosis": data.get("diagnosis"),
         "caretaker": data.get("caretaker"),
+        "resolution": data.get("resolution"),
+        "saving_eur": data.get("saving_eur"),
         "reporters": reporters,
         "asset": {"asset_id": asset.id, "type": asset.type, "make": asset.make, "model": asset.model,
                   "error_code": c.error_code,

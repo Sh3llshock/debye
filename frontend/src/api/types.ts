@@ -228,6 +228,11 @@ export interface PartnerProfile {
   name: string
   category?: string
   rating?: number
+  capabilities?: { trades?: string[]; brands_certified?: string[]; [k: string]: unknown }
+  service_area?: { postcodes?: string[] }
+  active?: boolean
+  staff?: { contact_id: string; name: string }[]
+  open_jobs?: number
   [k: string]: unknown
 }
 

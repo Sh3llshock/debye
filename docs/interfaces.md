@@ -50,6 +50,9 @@ def open_case(reporter_contact_id: str, type: str, priority: str, summary: str,
     # trade: heating | plumbing | electrical (from the diagnosis); diagnosis: see §4c
 def set_case_diagnosis(case_id: str, diagnosis: dict, trade: str | None = None) -> Case   # §4c, later diagnosis
 def notify_caretaker(case_id: str, reason: str) -> dict   # §4c, caretaker outcome, no partner
+def close_self_help(case_id: str, resolution_text: str = "") -> dict   # = close_without_partner(case_id, "self_help", text)
+def close_without_partner(case_id: str, resolution: str = "self_help", note: str = "") -> dict
+    # §4c: self_help | caretaker | utility → status closed, no partner, saving shown on the staff page
 def link_contact_to_case(case_id: str, contact_id: str, relation: str) -> None
 def attach_document(case_id: str, kind: str, filename: str, mime: str, path: str,
                     extracted: dict | None = None) -> Document
@@ -206,13 +209,21 @@ A reltix staff member confirms **every** job before the partner is contacted, so
 
 The knowledge base is `data/diagnosis/no_hot_water.json` ([docs/diagnosis.md](diagnosis.md)). The agent diagnoses and backend-core stores the result and routes on it.
 
-- `open_case(..., trade=None, diagnosis=None)` stores both on the case (`case.data.trade`, `case.data.diagnosis`). A diagnosis records the event `diagnosis.recorded` "Likely cause: Shower mixer cartridge faulty, 80% sure → plumbing". `set_case_diagnosis(case_id, diagnosis, trade=None)` does the same after the case was opened.
-- `diagnosis` = `{cause_id, label, confidence (0–1), reasoning, questions_asked[]}` (`outcome` optional), `cause_id` from the KB.
+- `open_case(..., trade=None, diagnosis=None)` stores both on the case (`case.data.trade`, `case.data.diagnosis`). A diagnosis records the event `diagnosis.recorded` "Debye diagnosed: Shower mixer / thermostatic cartridge faulty (85%)". `set_case_diagnosis(case_id, diagnosis, trade=None)` does the same when the agent concludes after the case was opened.
+- **Input** (agent): `{cause_id, confidence, reasoning, questions_asked}`, plus optional `label`, `outcome`, `trade`, `estimated_cost_eur`, `estimated_saving_eur`. Missing fields are filled from the KB cause (`cause_id`). `confidence` may be 0–1 or a percentage (85 → 0.85). `questions_asked` items may be `{question, answer}` dicts or plain strings or KB question ids (an id is replaced by the KB wording, answer null).
+- **Stored and returned** `CaseDetail.diagnosis` = `{cause_id, label, confidence (0–1), reasoning, questions_asked:[{question, answer}], outcome (self_help|caretaker|technician|utility|emergency), trade, estimated_cost_eur, estimated_saving_eur}`.
+  - `estimated_cost_eur` comes from the KB cause and also becomes the case estimate when there's no partner yet.
+  - `estimated_saving_eur` is only set for self_help/caretaker: the cause's `estimated_saving_eur` if the KB has one, else €180 (a typical plumber visit).
+- **Closed without a partner:** `close_without_partner(case_id, resolution, note)` (resolution `self_help` | `caretaker` | `utility`). Status `closed`, `case.partner` null. Event `case.closed` "Closed without a technician (self-help), saved ~€180: tank reheated". CaseSummary and CaseDetail get `resolution` and `saving_eur`. 409 (RuleViolation `has_partner`) if a partner is already on the job; use `close_case` then.
 - Without an explicit trade, the trade comes from the case type (`repair.heating` → `heating`).
 - **Ranking** (`rank_partners`) filters by trade: partners whose manifest `capabilities.trades` include the case trade. Plumbing → Heizung Schmidt (its `plumbing` trade); electrical → Elektro Klein. The brand bonus (Vaillant-certified) applies only to heating; for other trades its weight goes to the trade match (reason "plumbing trade").
 - **Technician pre-selection** (auto-assign and the approval-card suggestion) only considers technicians with the trade skill when the partner has any. Plumbing → Ali Yilmaz; electrical → Marco Klein. For heating the Vaillant skill still comes first.
 - **Caretaker outcome:** `notify_caretaker(case_id, reason)` stores `case.data.caretaker = {contact_id, name, phone_e164, reason, notified_at}` and records the event `caretaker.notified` "Caretaker Peter Wolf notified: top up system pressure". No partner and no approval; the case status is unchanged.
-- **Shapes:** CaseSummary gets `trade`. CaseDetail gets `trade`, `diagnosis`, `caretaker`. The staff approval card (`CaseDetail.approval`, §4b) gets `trade` and `diagnosis: {cause_id, label, confidence, reasoning}`.
+- **Shapes:** CaseSummary gets `trade`, `resolution`, `saving_eur`. CaseDetail gets `trade`, `diagnosis`, `caretaker`, `resolution`, `saving_eur`. The staff approval card (`CaseDetail.approval`, §4b) gets `trade` and `diagnosis: {cause_id, label, confidence, reasoning, outcome, estimated_cost_eur}`.
+- **Agent call sequence:**
+  - technician outcome: `open_case(..., trade, diagnosis)` → consent → `dispatch_job` (approval_pending)
+  - self-help: `open_case(..., diagnosis)` → `close_without_partner(case_id, "self_help", note)` once the tenant confirms it worked (or right away)
+  - caretaker: `open_case(..., diagnosis)` → `notify_caretaker(case_id, reason)` → later `close_without_partner(case_id, "caretaker")`
 
 ## 5. Definition of done for any PR
 - Runs locally from a clean clone with the README steps.
