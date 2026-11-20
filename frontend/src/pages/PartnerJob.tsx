@@ -268,15 +268,20 @@ function Dispatch({ job, partnerId, jobs, onChange }: ActionProps) {
   }, [list, techId, job.asset?.make])
   const tech = list.find((x) => x.tech_id === techId) ?? null
 
+  // Grid days: the days the technicians have free slots on (from the API), else the next four working days.
+  const freeKey = list.map((x) => x.free_slots.map((f) => f.start).join()).join('|')
   const days = useMemo(() => {
-    const out: { date: string; label: string; off: string }[] = []
+    const dayOf = (d: Date) => ({ date: berlinDate(d), label: d.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Berlin' }), off: berlinOffset(d) })
+    const fromApi = [...new Set(list.flatMap((x) => x.free_slots.map((f) => f.start.slice(0, 10))))].sort().slice(0, 4)
+    if (fromApi.length) return fromApi.map((date) => dayOf(new Date(`${date}T12:00:00${list[0].free_slots[0].start.slice(19) || '+01:00'}`)))
+    const out: ReturnType<typeof dayOf>[] = []
     for (let i = 1; out.length < 4 && i < 10; i++) {
       const d = new Date(Date.now() + i * 86400_000)
       if (new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', weekday: 'short' }).format(d) === 'Sun') continue
-      out.push({ date: berlinDate(d), label: d.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Berlin' }), off: berlinOffset(d) })
+      out.push(dayOf(d))
     }
     return out
-  }, [])
+  }, [freeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // With technicians: free = the technician's free slots. Without (older backend): busy = other booked jobs.
   const otherBooked = jobs.filter((j) => j.case_id !== job.case_id && j.slot).map((j) => j.slot!)
