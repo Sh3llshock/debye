@@ -97,7 +97,7 @@ def test_call_opens_case_and_continues_on_whatsapp(app_client):
         "interactive": {"type": "button_reply",
                         "button_reply": {"id": f"consent_yes:{case_id}", "title": "Ja, gerne"}}}]}}]}]}
     c.post("/webhooks/whatsapp", json=tap)
-    assert case_detail(c, case_id)["status"] in ("requested", "awaiting_approval")
+    assert case_detail(c, case_id)["status"] in ("requested", "approval_pending")
 
 
 def test_call_without_triage_answer_asks_on_whatsapp(app_client):

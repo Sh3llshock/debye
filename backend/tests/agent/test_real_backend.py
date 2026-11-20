@@ -88,6 +88,9 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
     real.post("/webhooks/whatsapp", json=tap(LUKA, f"cold_all:{case_id}", "All cold"))
     assert ids(last(real)) == [f"consent_yes:{case_id}", f"consent_no:{case_id}"]
     real.post("/webhooks/whatsapp", json=tap(LUKA, f"consent_yes:{case_id}", "Yes, go ahead"))
+    # APPROVAL_POLICY=always: reltix staff approve every job before the partner is contacted
+    assert real.get(f"/api/staff/cases/{case_id}").json()["status"] == "approval_pending"
+    assert real.post(f"/api/staff/cases/{case_id}/approve").status_code == 200
     detail = real.get(f"/api/staff/cases/{case_id}").json()
     assert detail["consents"] and detail["partner"]["partner_id"]
     partner = detail["partner"]["partner_id"]

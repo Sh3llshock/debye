@@ -87,7 +87,8 @@ backend-core ships a stub that only logs; agent-whatsapp replaces it.
 async def notify_tenant(case_id: str, event: str, data: dict) -> None
 # event ∈ "job_accepted" | "slots_proposed" (data.slots=[{start,end,label}], data.technician_name)
 #        | "technician_confirmed" (data.technician_name, data.tech_id, data.slot={start,end})
-#        | "job_completed" | "approval_granted" | "partner_declined"
+#        | "job_completed" | "approval_granted" (data.partner_name) | "approval_rejected" (data.partner_name, data.reason)
+#        | "partner_declined"
 # Sends the right WhatsApp message (e.g. list message with slots; "Is it warm again?" buttons).
 ```
 
@@ -113,7 +114,8 @@ All JSON. Errors: `{"detail": "..."}` with 4xx.
 | GET | `/api/staff/units/{unit_id}` | `UnitDetail` (property, unit, assets, tenant, lease, documents, cases) |
 | GET | `/api/staff/cases` | `[CaseSummary]` newest first |
 | GET | `/api/staff/cases/{case_id}` | `CaseDetail` |
-| POST | `/api/staff/cases/{case_id}/approve` | `CaseDetail` |
+| POST | `/api/staff/cases/{case_id}/approve` | `CaseDetail` (dispatches the job, see §4b) |
+| POST | `/api/staff/cases/{case_id}/reject` | `CaseDetail`, body `{reason}` (status `rejected`, see §4b) |
 | GET | `/api/stream` | SSE, each `data:` line is `{"type", "case_id", "event"}` |
 
 ### Partner page (partner chosen by `partner_id` in the URL; no auth for the demo)
@@ -172,7 +174,7 @@ The partner's dispatcher assigns one of the partner's technicians. The tenant th
 3. The tenant picks on WhatsApp: `services.confirm_slot(case_id, n)` (1-based, unchanged) → **`awaiting_technician`** (only `scheduled` if no technician was assigned). Event `slot.confirmed`.
 4. The technician confirms: `POST /api/tech/{tech_id}/jobs/{case_id}/confirm` → **`scheduled`**. This books the slot on the technician's calendar, records the event `technician.confirmed` "Technician Tom Schmidt confirmed Sat 08:00–10:00" (actor `partner`), and calls `notify.notify_tenant(case_id, "technician_confirmed", {technician_name, tech_id, slot:{start, end, label}})`. The label is the one the tenant picked. 409 if the tenant hasn't picked yet or the job is already confirmed.
 
-Status lifecycle: `new → [awaiting_approval] → requested → accepted → slots_proposed → awaiting_technician → scheduled → completed → invoiced → closed` (side states `partner_declined`, `reopened`).
+Status lifecycle: `new → approval_pending → requested → accepted → slots_proposed → awaiting_technician → scheduled → completed → invoiced → closed` (side states `rejected`, `partner_declined`, `reopened`).
 
 **Technician phone page API** (technician chosen by `tech_id` in the URL; no auth for the demo):
 | Method | Path | Returns |
@@ -185,6 +187,16 @@ Status lifecycle: `new → [awaiting_approval] → requested → accepted → sl
 **Shapes.** CaseSummary, CaseDetail, JobSummary and JobDetail get `technician: {tech_id, name} | null`. Technician jobs: `slot` (= `chosen_slot`) is the slot the tenant picked. The close-case result payload `service_job.technician` is the technician's name.
 
 Services (additive): `get_technicians(partner_id)`, `get_technician(tech_id)`, `technician_confirm(case_id, tech_id)`; `propose_slots(case_id, partner_id, slots, tech_id=None)`.
+
+## 4b. Staff approval (APPROVAL_POLICY)
+
+A reltix staff member confirms **every** job before the partner is contacted, so no technician goes out for nothing.
+
+- `APPROVAL_POLICY=always` (default): approval is always required. `APPROVAL_POLICY=limit` keeps the old rule (auto-approve below the framework contract's `auto_approve_limit_eur`, €500 for Heizung Schmidt).
+- After consent, `services.dispatch_job(case_id, partner_id)` does **not** send the job. The case goes to **`approval_pending`** (`case.data.pending_partner_id` = the partner), the event `approval.required` is recorded ("Waiting for staff approval: Heizung Schmidt GmbH, est. €263"), and `rules.RuleViolation("approval_required")` is raised. Calling it again records no second event. The caller (agent) tells the tenant that staff are approving. The backend sends no extra `approval_pending` notification, so the tenant doesn't get it twice.
+- `POST /api/staff/cases/{id}/approve` records `approval.granted` ("Staff approved the job for Heizung Schmidt GmbH (est. €263)"), dispatches the job (`job.sent`, status `requested`; the partner sees it only now), and calls `notify_tenant(case_id, "approval_granted", {partner_name, dispatched})`.
+- `POST /api/staff/cases/{id}/reject {reason}` is only allowed in `approval_pending` (409 otherwise). It sets status **`rejected`**, records `approval.rejected` ("Staff rejected the job for Heizung Schmidt GmbH: <reason>"), and calls `notify_tenant(case_id, "approval_rejected", {partner_name, reason})`. The partner is never contacted. A rejected case doesn't count as open, so a new report opens a new case.
+- CaseDetail `approval` (the staff card): `{required, granted, rejected, reason, rule, amount_eur, partner:{partner_id,name}, suggested_technician:{tech_id,name}|null, suggested_slot:{start,end,label}|null}`. `partner` is the pending partner, because `case.partner` stays null until the job is sent. The suggestion (only while `approval_pending`) is what auto-assign would pick for the earliest free slot, e.g. Tom Schmidt, "Tomorrow 8–10"; it's informational and nothing is booked. With `always` the rule is "reltix staff approve every job before the partner is contacted". The old status `awaiting_approval` is gone; use `approval_pending`.
 
 ## 5. Definition of done for any PR
 - Runs locally from a clean clone with the README steps.

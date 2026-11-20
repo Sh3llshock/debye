@@ -67,10 +67,14 @@ def auto_approve_limit(session: Session, partner_id: str) -> float:
 
 
 def approval_status(session: Session, case: Case, partner_id: str) -> dict:
-    """{"required": bool, "rule": str, "granted": bool}"""
+    """{"required": bool, "rule": str, "granted": bool}. Policy from settings.approval_policy."""
+    from .config import settings
     limit = auto_approve_limit(session, partner_id)
     est = case.estimated_cost_eur or 0
     granted = bool((case.data or {}).get("approval", {}).get("granted"))
+    if (settings.approval_policy or "always").lower() != "limit":
+        return {"required": True, "granted": granted, "policy": "always",
+                "rule": "reltix staff approve every job before the partner is contacted"}
     if limit <= 0:
         return {"required": True, "granted": granted,
                 "rule": "no framework agreement: PM approval needed"}
