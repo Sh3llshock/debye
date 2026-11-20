@@ -1,0 +1,582 @@
+"""What the agent (and the APIs) call. Signatures per interfaces §3.3; everything is sync.
+
+Case status lifecycle:
+  new → [awaiting_approval] → requested → accepted → slots_proposed → scheduled
+      → completed → invoiced → closed
+  side states: partner_declined (back to ranking), reopened (tenant says not fixed)
+
+Extras beyond the contract (safe to use): log_message, add_tenant_input, propose_slots,
+partner_accept, partner_decline, record_completion, approve_case, case_label_slot.
+"""
+from __future__ import annotations
+
+import json
+from datetime import datetime
+from pathlib import Path
+
+from sqlmodel import select
+
+from . import rules
+from .config import TZ, now, now_iso, settings
+from .db import get_session, next_id
+from .events import publish_sync, record_event
+from .models import (Asset, Case, CaseContact, Consent, Contact, Contract, Document, Message,
+                     Partner, Property, Unit)
+from .partners.manifest import Manifest
+from .partners.ranking import rank
+
+OPEN_STATUSES_EXCLUDED = {"closed", "cancelled"}
+
+
+class NotFound(Exception):
+    pass
+
+
+# --------------------------------------------------------------------------- helpers
+
+def _get(s, model, id_: str | None):
+    obj = s.get(model, id_) if id_ else None
+    if obj is None:
+        raise NotFound(f"{model.__name__} {id_} not found")
+    return obj
+
+
+def _patch_data(case: Case, **kv) -> None:
+    case.data = {**(case.data or {}), **kv}
+
+
+def _save_case(s, case: Case) -> Case:
+    case.updated_at = now_iso()
+    s.add(case)
+    s.commit()
+    s.refresh(case)
+    return case
+
+
+def get_case(case_id: str) -> Case | None:
+    with get_session() as s:
+        return s.get(Case, case_id)
+
+
+def get_partner_manifest(partner_id: str) -> Manifest | None:
+    with get_session() as s:
+        p = s.get(Partner, partner_id)
+        return Manifest.model_validate(p.manifest) if p else None
+
+
+def _tenant_for_unit(s, unit_id: str | None) -> Contact | None:
+    if not unit_id:
+        return None
+    return s.exec(select(Contact).where(Contact.unit_id == unit_id,
+                                        Contact.role == "tenant")).first()
+
+
+def _lease_for_unit(s, unit_id: str | None) -> Contract | None:
+    if not unit_id:
+        return None
+    return s.exec(select(Contract).where(Contract.unit_id == unit_id,
+                                         Contract.type == "lease")).first()
+
+
+def _case_title(case_type: str, asset: Asset | None) -> str:
+    if case_type == "repair.heating":
+        return "No heating – central boiler" if asset and asset.unit_id is None else "Heating problem"
+    return case_type.replace(".", " ").capitalize()
+
+
+GERMAN_DAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+
+
+def case_label_slot(start: str, end: str) -> str:
+    """'Morgen 8–10' / 'Heute 14–16' / 'Do 26.11. 8–10'."""
+    s = datetime.fromisoformat(start).astimezone(TZ)
+    e = datetime.fromisoformat(end).astimezone(TZ)
+    today = now().date()
+    hours = f"{s.hour}" + (f":{s.minute:02d}" if s.minute else "") + "–" + \
+            f"{e.hour}" + (f":{e.minute:02d}" if e.minute else "")
+    delta = (s.date() - today).days
+    if delta == 0:
+        day = "Heute"
+    elif delta == 1:
+        day = "Morgen"
+    else:
+        day = f"{GERMAN_DAYS[s.weekday()]} {s.day:02d}.{s.month:02d}."
+    return f"{day} {hours}"
+
+
+# --------------------------------------------------------------------------- contract §3.3
+
+def get_contact_by_phone(phone_e164: str) -> Contact | None:
+    phone = (phone_e164 or "").strip().replace(" ", "")
+    if phone and not phone.startswith("+"):
+        phone = "+" + phone  # WhatsApp webhooks send numbers without "+"
+    with get_session() as s:
+        return s.exec(select(Contact).where(Contact.phone_e164 == phone)).first()
+
+
+def get_unit_context(unit_id: str) -> dict:
+    with get_session() as s:
+        unit = _get(s, Unit, unit_id)
+        prop = s.get(Property, unit.property_id)
+        assets = s.exec(select(Asset).where(Asset.property_id == unit.property_id)).all()
+        assets = [a for a in assets if a.unit_id in (None, unit_id)]
+        tenant = _tenant_for_unit(s, unit_id)
+        lease = _lease_for_unit(s, unit_id)
+        open_cases = [c for c in s.exec(select(Case).where(Case.property_id == unit.property_id)).all()
+                      if c.status not in OPEN_STATUSES_EXCLUDED]
+        return {
+            "property": prop.model_dump() if prop else None,
+            "unit": unit.model_dump(),
+            "assets": [a.model_dump() for a in assets],
+            "tenant": tenant.model_dump() if tenant else None,
+            "lease": lease.model_dump() if lease else None,
+            "open_cases": [{"case_id": c.id, "type": c.type, "status": c.status,
+                            "asset_id": c.asset_id, "unit_id": c.unit_id, "title": c.title,
+                            "summary": c.summary, "error_code": c.error_code,
+                            "created_at": c.created_at} for c in open_cases],
+        }
+
+
+def find_open_case_for_asset(asset_id: str) -> Case | None:
+    with get_session() as s:
+        cases = s.exec(select(Case).where(Case.asset_id == asset_id)
+                       .order_by(Case.created_at.desc())).all()
+        for c in cases:
+            if c.status not in OPEN_STATUSES_EXCLUDED:
+                return c
+        return None
+
+
+PREFILLED_FROM_CENTRIX = [
+    "tenant name", "phone", "address", "unit", "floor", "building year", "heating type",
+    "boiler make", "boiler model", "boiler installed", "last service", "lease",
+    "cost bearer", "framework partner",
+]
+
+
+def open_case(reporter_contact_id: str, type: str, priority: str, summary: str,
+              symptoms: str, error_code: str | None, asset_id: str | None) -> Case:
+    with get_session() as s:
+        reporter = _get(s, Contact, reporter_contact_id)
+        unit = s.get(Unit, reporter.unit_id) if reporter.unit_id else None
+        asset = s.get(Asset, asset_id) if asset_id else None
+        property_id = (unit.property_id if unit else None) or (asset.property_id if asset else None)
+        if asset is None and type.startswith("repair.heating") and property_id:
+            asset = s.exec(select(Asset).where(Asset.property_id == property_id,
+                                               Asset.type.in_(["gas_boiler", "heat_pump"]))).first()
+        # pre-visit estimate against the framework partner's prices (if any)
+        fw = s.exec(select(Contract).where(Contract.type == "framework")).first()
+        estimate = rules.estimate_cost(s, error_code, fw.partner_id if fw else None)
+        ts = now_iso()
+        case = Case(
+            id=next_id(s, Case, "case"), type=type, title=_case_title(type, asset),
+            status="new", priority=priority or "normal", summary=summary or "",
+            symptoms=symptoms or "", error_code=error_code, property_id=property_id,
+            unit_id=reporter.unit_id, asset_id=asset.id if asset else None,
+            reporter_contact_id=reporter.id, cost_bearer="landlord",
+            estimated_cost_eur=estimate, created_at=ts, updated_at=ts,
+            data={"prefilled_fields": PREFILLED_FROM_CENTRIX, "tenant_inputs": []},
+        )
+        s.add(case)
+        s.add(CaseContact(case_id=case.id, contact_id=reporter.id, relation="reporter"))
+        # attach any not-yet-linked media this reporter sent in the last minutes
+        s.commit()
+        s.refresh(case)
+        first = reporter.name.split()[0]
+    record_event(case.id, "debye", "case.created", f"Case opened from {first}'s report",
+                 {"priority": case.priority, "error_code": error_code, "asset_id": case.asset_id,
+                  "estimated_cost_eur": estimate})
+    _claim_orphan_media(case.id, reporter_contact_id)
+    return get_case(case.id)
+
+
+def _claim_orphan_media(case_id: str, contact_id: str) -> None:
+    """Messages/documents the reporter sent before the case existed get linked to it."""
+    with get_session() as s:
+        case = s.get(Case, case_id)
+        msgs = s.exec(select(Message).where(Message.contact_id == contact_id,
+                                            Message.case_id == None)).all()  # noqa: E711
+        doc_ids = set()
+        for m in msgs:
+            m.case_id = case_id
+            doc_ids |= set(m.media_ids or [])
+            s.add(m)
+        for d_id in doc_ids:
+            d = s.get(Document, d_id)
+            if d and d.case_id is None:
+                d.case_id = case_id
+                d.unit_id = d.unit_id or case.unit_id
+                s.add(d)
+        s.commit()
+
+
+def link_contact_to_case(case_id: str, contact_id: str, relation: str) -> None:
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        contact = _get(s, Contact, contact_id)
+        existing = s.get(CaseContact, (case_id, contact_id))
+        if existing:
+            existing.relation = relation
+            s.add(existing)
+        else:
+            s.add(CaseContact(case_id=case_id, contact_id=contact_id, relation=relation))
+        s.commit()
+        unit = contact.unit_id
+    record_event(case_id, "debye", "case.linked_reporter",
+                 f"{contact.name} ({unit}) reported the same problem – linked to this case",
+                 {"contact_id": contact_id, "unit_id": unit, "relation": relation})
+    _claim_orphan_media(case_id, contact_id)
+
+
+def attach_document(case_id: str, kind: str, filename: str, mime: str, path: str,
+                    extracted: dict | None = None) -> Document:
+    with get_session() as s:
+        case = s.get(Case, case_id) if case_id else None
+        doc = Document(id=next_id(s, Document, "doc"), case_id=case_id or None,
+                       unit_id=case.unit_id if case else None, kind=kind, filename=filename,
+                       mime=mime, path=str(path), extracted=extracted, created_at=now_iso())
+        s.add(doc)
+        s.commit()
+        s.refresh(doc)
+    if case_id:
+        record_event(case_id, "system", "document.attached", f"{kind.capitalize()} {filename} attached",
+                     {"document_id": doc.id, "kind": kind, "filename": filename,
+                      "url": f"/files/{doc.id}", "unit_id": doc.unit_id})
+    return doc
+
+
+def record_consent(contact_id: str, partner_id: str, case_id: str, fields: list[str],
+                   purpose: str, channel: str) -> Consent:
+    with get_session() as s:
+        _get(s, Contact, contact_id)
+        partner = _get(s, Partner, partner_id)
+        consent = Consent(id=next_id(s, Consent, "consent"), contact_id=contact_id,
+                          partner_id=partner_id, case_id=case_id,
+                          data_shared=[rules.norm_field(f) for f in fields], purpose=purpose,
+                          channel=channel, given_at=now_iso())
+        s.add(consent)
+        s.commit()
+        s.refresh(consent)
+        name = partner.manifest.get("name", partner_id)
+    record_event(case_id, "tenant", "consent.recorded",
+                 f"Consent given to share {', '.join(consent.data_shared)} with {name}",
+                 consent.model_dump())
+    return consent
+
+
+def rank_partners(case_id: str) -> list[dict]:
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        prop = s.get(Property, case.property_id) if case.property_id else None
+        unit = s.get(Unit, case.unit_id) if case.unit_id else None
+        asset = s.get(Asset, case.asset_id) if case.asset_id else None
+        tenant = s.get(Contact, case.reporter_contact_id) if case.reporter_contact_id else None
+        ctx = {
+            "property": prop.model_dump() if prop else {},
+            "unit": unit.model_dump(exclude={"meters"}) if unit else {},
+            "asset": asset.model_dump(exclude={"known_error_codes"}) if asset else {},
+            "tenant": tenant.model_dump() if tenant else {},
+            "case": {"type": case.type, "error_code": case.error_code},
+        }
+        manifests = [Manifest.model_validate(p.manifest)
+                     for p in s.exec(select(Partner).where(Partner.active == True)).all()]  # noqa: E712
+        fw_ids = {c.partner_id for c in s.exec(select(Contract).where(Contract.type == "framework")).all()}
+        declined = set((case.data or {}).get("declined_by", []))
+        full = [r for r in rank(case.type, ctx, manifests, fw_ids, case.property_id)
+                if r["partner_id"] not in declined]
+        top = [r for r in full if r["eligible"]][:3]
+        _patch_data(case, ranking=top)
+        _save_case(s, case)
+    record_event(case_id, "debye", "partner.ranked",
+                 f"Ranked {len(top)} partners – {top[0]['name']} first" if top else "No eligible partner",
+                 {"ranking": top})
+    return [{"partner_id": r["partner_id"], "name": r["name"], "score": r["score"],
+             "reasons": r["reasons"]} for r in top]
+
+
+def dispatch_job(case_id: str, partner_id: str) -> dict:
+    """Code-gated: needs consent + (estimate ≤ limit or PM approval).
+    Raises rules.RuleViolation("consent_missing" | "approval_required")."""
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        partner = _get(s, Partner, partner_id)
+        name = partner.manifest.get("name", partner_id)
+        try:
+            approval = rules.check_dispatch(s, case, partner_id)
+        except rules.RuleViolation as rv:
+            if rv.code == "approval_required" and case.status != "awaiting_approval":
+                approval = rules.approval_status(s, case, partner_id)
+                _patch_data(case, pending_partner_id=partner_id,
+                            approval={**approval, "granted": False})
+                case.status = "awaiting_approval"
+                _save_case(s, case)
+                est = case.estimated_cost_eur or 0
+                record_event(case_id, "system", "approval.required",
+                             f"Approve €{est:.0f} repair by {name}? ({approval['rule']})",
+                             {"partner_id": partner_id, "estimated_cost_eur": est, **approval})
+            raise
+        case.partner_id = partner_id
+        case.status = "requested"
+        _patch_data(case, approval={**approval, "granted": approval.get("granted", False)},
+                    pending_partner_id=None)
+        _save_case(s, case)
+        transport = partner.manifest.get("transport", {})
+    record_event(case_id, "debye", "job.sent", f"Job sent to {name}",
+                 {"partner_id": partner_id, "transport": transport.get("type"),
+                  "url": transport.get("url")})
+    return {"case_id": case_id, "partner_id": partner_id, "partner_name": name,
+            "status": "requested", "approval": approval}
+
+
+def approve_case(case_id: str, actor: str = "staff") -> dict:
+    """PM approves; if a partner was waiting, the job is dispatched right away."""
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        approval = {**(case.data or {}).get("approval", {}), "granted": True,
+                    "granted_at": now_iso()}
+        _patch_data(case, approval=approval)
+        pending = (case.data or {}).get("pending_partner_id")
+        if case.status == "awaiting_approval":
+            case.status = "new"
+        _save_case(s, case)
+        est = case.estimated_cost_eur or 0
+    record_event(case_id, actor, "approval.granted", f"Property manager approved €{est:.0f}",
+                 {"estimated_cost_eur": est})
+    result = {"case_id": case_id, "approved": True, "dispatched": None}
+    if pending:
+        result["dispatched"] = dispatch_job(case_id, pending)
+    return result
+
+
+def partner_accept(case_id: str, partner_id: str) -> Case:
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        if case.partner_id != partner_id:
+            raise rules.RuleViolation("not_assigned", "this job is not assigned to you")
+        case.status = "accepted"
+        _save_case(s, case)
+        name = s.get(Partner, partner_id).manifest.get("name", partner_id)
+    record_event(case_id, "partner", "job.accepted", f"{name} accepted the job",
+                 {"partner_id": partner_id})
+    return get_case(case_id)
+
+
+def partner_decline(case_id: str, partner_id: str, reason: str) -> Case:
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        if case.partner_id != partner_id:
+            raise rules.RuleViolation("not_assigned", "this job is not assigned to you")
+        declined = list((case.data or {}).get("declined_by", []))
+        if partner_id not in declined:
+            declined.append(partner_id)
+        _patch_data(case, declined_by=declined, decline_reason=reason)
+        case.partner_id = None
+        case.status = "partner_declined"
+        _save_case(s, case)
+        name = s.get(Partner, partner_id).manifest.get("name", partner_id)
+    record_event(case_id, "partner", "job.declined",
+                 f"{name} declined" + (f": {reason}" if reason else ""),
+                 {"partner_id": partner_id, "reason": reason})
+    return get_case(case_id)
+
+
+def propose_slots(case_id: str, partner_id: str, slots: list[dict]) -> list[dict]:
+    """slots: [{start, end}] ISO → stored with labels; returns [{start, end, label}]."""
+    labelled = []
+    for sl in slots:
+        start = datetime.fromisoformat(sl["start"])
+        end = datetime.fromisoformat(sl["end"])
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=TZ)
+        if end.tzinfo is None:
+            end = end.replace(tzinfo=TZ)
+        st, en = start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds")
+        labelled.append({"start": st, "end": en, "label": case_label_slot(st, en)})
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        if case.partner_id != partner_id:
+            raise rules.RuleViolation("not_assigned", "this job is not assigned to you")
+        _patch_data(case, proposed_slots=labelled)
+        case.status = "slots_proposed"
+        _save_case(s, case)
+    record_event(case_id, "partner", "slot.proposed",
+                 "Proposed " + " or ".join(sl["label"] for sl in labelled),
+                 {"slots": labelled})
+    return labelled
+
+
+def confirm_slot(case_id: str, slot_index: int) -> dict:
+    """slot_index is 1-based, matching the WhatsApp list ids slot_1, slot_2, ..."""
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        slots = (case.data or {}).get("proposed_slots") or []
+        if not 1 <= slot_index <= len(slots):
+            raise rules.RuleViolation("invalid_slot", f"slot {slot_index} does not exist")
+        slot = slots[slot_index - 1]
+        case.slot_start, case.slot_end = slot["start"], slot["end"]
+        case.status = "scheduled"
+        _save_case(s, case)
+        partner_name = None
+        if case.partner_id:
+            partner_name = s.get(Partner, case.partner_id).manifest.get("name")
+    add_tenant_input(case_id, f"tap: {slot['label']}")
+    record_event(case_id, "tenant", "slot.confirmed", f"Visit booked: {slot['label']}", {"slot": slot})
+    return {"case_id": case_id, "slot": slot, "partner_name": partner_name, "status": "scheduled"}
+
+
+async def record_completion(case_id: str, partner_id: str, notes: str,
+                            photo: tuple[str, str, bytes] | None,
+                            invoice: tuple[str, str, bytes] | None) -> dict:
+    """Partner marks done: store photo + PDF, extract + price-check the invoice,
+    attach both to case and unit. (filename, mime, bytes) tuples."""
+    from . import media  # late import: agent-whatsapp replaces this module
+
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        if case.partner_id != partner_id:
+            raise rules.RuleViolation("not_assigned", "this job is not assigned to you")
+        case.status = "completed"
+        _patch_data(case, completion={"notes": notes, "completed_at": now_iso()})
+        _save_case(s, case)
+        name = s.get(Partner, partner_id).manifest.get("name", partner_id)
+    record_event(case_id, "partner", "job.completed", f"{name} marked the job done" +
+                 (f": {notes}" if notes else ""), {"notes": notes})
+
+    out: dict = {"photo": None, "invoice": None, "price_check": None}
+    folder = Path(settings.storage_dir) / case_id
+    folder.mkdir(parents=True, exist_ok=True)
+    if photo:
+        fname, mime, data = photo
+        base = Path(fname).name
+        p = folder / (base if base.startswith("after") else f"after_{base}")
+        p.write_bytes(data)
+        out["photo"] = attach_document(case_id, "photo", p.name, mime or "image/jpeg", str(p)).id
+    if invoice:
+        fname, mime, data = invoice
+        p = folder / Path(fname).name
+        p.write_bytes(data)
+        extracted = await media.extract_invoice(str(p))
+        with get_session() as s:
+            check = rules.price_check(s, partner_id, extracted)
+        doc = attach_document(case_id, "invoice", p.name, mime or "application/pdf", str(p),
+                              {**extracted, "price_check": check})
+        out["invoice"] = doc.id
+        out["price_check"] = check
+        with get_session() as s:
+            case = s.get(Case, case_id)
+            case.status = "invoiced"
+            _patch_data(case, invoice={"document_id": doc.id, **extracted}, price_check=check)
+            _save_case(s, case)
+        gross = extracted.get("gross_eur")
+        record_event(case_id, "debye", "invoice.checked",
+                     f"Invoice {extracted.get('invoice_number')} €{gross} – price check {check['result']}",
+                     {"document_id": doc.id, "price_check": check, "invoice": extracted})
+    return out
+
+
+def tenant_confirms_fixed(case_id: str, fixed: bool) -> dict:
+    add_tenant_input(case_id, "tap: fixed" if fixed else "tap: not fixed")
+    if fixed:
+        record_event(case_id, "tenant", "tenant.confirmed_fixed", "Tenant confirmed: warm again")
+        with get_session() as s:
+            case = _get(s, Case, case_id)
+            resolution = ((case.data or {}).get("completion") or {}).get("notes") or "Repaired"
+        return close_case(case_id, resolution)
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        case.status = "reopened"
+        _save_case(s, case)
+    record_event(case_id, "tenant", "case.reopened", "Tenant says it is still not working")
+    return {"case_id": case_id, "status": "reopened"}
+
+
+def close_case(case_id: str, resolution: str) -> dict:
+    """Writes the result payload (technical-plan §12) to the case and as a report on the unit."""
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        partner = s.get(Partner, case.partner_id) if case.partner_id else None
+        links = s.exec(select(CaseContact).where(CaseContact.case_id == case_id)).all()
+        affected_units = []
+        for l in links:
+            c = s.get(Contact, l.contact_id)
+            if c and c.unit_id and c.unit_id not in affected_units:
+                affected_units.append(c.unit_id)
+        consent = None
+        if case.partner_id:
+            consent = s.exec(select(Consent).where(Consent.case_id == case_id,
+                                                   Consent.partner_id == case.partner_id)
+                             .order_by(Consent.given_at.desc())).first()
+        inv = (case.data or {}).get("invoice") or {}
+        check = (case.data or {}).get("price_check") or {}
+        result = {
+            "unit_id": case.unit_id,
+            "contact_id": case.reporter_contact_id,
+            "service_job": {
+                "partner": partner.manifest.get("name") if partner else None,
+                "category": case.type,
+                "case_id": case.id,
+                "status": "closed",
+                "visit": {"start": case.slot_start, "end": case.slot_end},
+                "resolution": resolution,
+                "invoice": {"number": inv.get("invoice_number"), "gross_eur": inv.get("gross_eur"),
+                            "document_id": inv.get("document_id"),
+                            "price_check": check.get("result")} if inv else None,
+                "affected_units": affected_units,
+                "consent": {"data_shared": consent.data_shared, "given_at": consent.given_at,
+                            "channel": consent.channel} if consent else None,
+            },
+        }
+        case.status = "closed"
+        case.closed_at = now_iso()
+        _patch_data(case, result=result, resolution=resolution)
+        _save_case(s, case)
+    folder = Path(settings.storage_dir) / case_id
+    folder.mkdir(parents=True, exist_ok=True)
+    report = folder / f"report_{case_id}.json"
+    report.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    attach_document(case_id, "report", report.name, "application/json", str(report), result)
+    record_event(case_id, "debye", "case.closed", f"Case closed: {resolution}",
+                 {"result": result})
+    return result
+
+
+# --------------------------------------------------------------------------- extras
+
+def add_tenant_input(case_id: str, label: str) -> None:
+    """Zero-forms counter: record one tenant input (voice note, tap, photo)."""
+    with get_session() as s:
+        case = s.get(Case, case_id)
+        if not case:
+            return
+        inputs = list((case.data or {}).get("tenant_inputs", []))
+        inputs.append(label)
+        _patch_data(case, tenant_inputs=inputs)
+        _save_case(s, case)
+
+
+def log_message(contact_id: str | None, case_id: str | None, direction: str, text: str | None,
+                channel: str = "whatsapp", media_ids: list[str] | None = None,
+                wa_message_id: str | None = None) -> Message:
+    """Store a WhatsApp message and publish message.in / message.out for the staff page."""
+    with get_session() as s:
+        msg = Message(id=next_id(s, Message, "msg"), case_id=case_id, contact_id=contact_id,
+                      channel=channel, direction=direction, wa_message_id=wa_message_id,
+                      text=text, media_ids=media_ids or [], ts=now_iso())
+        s.add(msg)
+        s.commit()
+        s.refresh(msg)
+        contact = s.get(Contact, contact_id) if contact_id else None
+    payload = {"ts": msg.ts, "direction": direction,
+               "contact": contact.name if contact else None, "contact_id": contact_id,
+               "text": text, "media": [{"document_id": d, "url": f"/files/{d}"} for d in msg.media_ids],
+               "message_id": msg.id}
+    publish_sync("message.in" if direction == "in" else "message.out", case_id, payload)
+    return msg
+
+
+def message_seen(wa_message_id: str) -> bool:
+    """Dedupe helper for webhook retries."""
+    if not wa_message_id:
+        return False
+    with get_session() as s:
+        return s.exec(select(Message).where(Message.wa_message_id == wa_message_id)).first() is not None
