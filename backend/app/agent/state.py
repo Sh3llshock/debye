@@ -32,6 +32,7 @@ class Conversation:
 @dataclass
 class CaseState:
     case_id: str
+    reporter_contact_id: str | None = None
     partner_id: str | None = None
     partner_name: str | None = None
     consent_fields: list[str] = field(default_factory=lambda: ["name", "phone", "address", "unit_floor", "photos"])

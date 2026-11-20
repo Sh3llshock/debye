@@ -197,3 +197,17 @@ def test_tool_error_is_reported_to_claude(client, svc, claude):
     second = stub.requests[1]["messages"][-1]["content"][0]
     assert second["is_error"] is True
     assert last_payload(client)["text"]["body"] == "Wie kann ich helfen?"
+
+
+def test_slots_go_to_reporter_neighbour_gets_update(client, svc, claude):
+    from app import notify
+
+    claude([RuntimeError("down"), RuntimeError("down")])
+    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="text", text={"body": "Heizung kalt"}))
+    client.post("/webhooks/whatsapp", json=wa_body(JONAS, type="text", text={"body": "auch kalt"}))
+    asyncio.run(notify.notify_tenant("case_0001", "slots_proposed", {"slots": [{"start": "a", "end": "b", "label": "Morgen 8–10"}]}))
+    lists = [m for m in outbox(client) if m["payload"].get("type") == "interactive" and m["payload"]["interactive"]["type"] == "list"]
+    assert [m["to"] for m in lists] == ["+490000000001"]
+    client.post("/webhooks/whatsapp", json=list_reply(LENA, "slot_1:case_0001"))
+    assert outbox(client)[-1]["to"] == "+490000000002"
+    assert "Morgen 8–10" in outbox(client)[-1]["payload"]["text"]["body"]

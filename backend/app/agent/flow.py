@@ -47,9 +47,10 @@ def first_name(contact) -> str:
 def tenant_contacts(case_id: str, reporter_only: bool = False) -> list:
     contacts = [c for c in be.get_case_contacts(case_id) if be.attr(c, "phone_e164")]
     if reporter_only:
-        # The reporter is linked first; fall back to the first contact.
-        rep = [c for c in contacts if be.attr(c, "relation") in (None, "reporter")]
-        return rep[:1] or contacts[:1]
+        rid = st.case_state(case_id).reporter_contact_id
+        rep = [c for c in contacts if rid and be.attr(c, "id") == rid]
+        rep = rep or [c for c in contacts if be.attr(c, "relation") == "reporter"]
+        return rep[:1] or contacts[:1]  # reporter is linked first
     return contacts
 
 
@@ -108,6 +109,7 @@ async def ensure_case(
         asset_id=asset_id,
     )
     cid = case_id_of(case)
+    st.case_state(cid).reporter_contact_id = be.attr(contact, "id")
     conv.case_id, conv.step = cid, st.TRIAGE
     attach_photos(conv, cid)
     return {"case_id": cid, "duplicate": False}
