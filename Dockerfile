@@ -8,7 +8,7 @@ RUN if [ -f frontend/package.json ]; then \
     else mkdir -p frontend/dist; fi
 
 FROM python:3.12-slim
-ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 DEMO_MODE=1
+ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 DEMO_MODE=1 RESEED_ON_BOOT=1 PYTHONIOENCODING=utf-8
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY backend/requirements*.txt backend/

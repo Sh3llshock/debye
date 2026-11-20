@@ -238,6 +238,7 @@ async def t_notify(body: dict) -> dict:
 TRIGGERS = {
     "tenant_report": t_tenant_report,
     "neighbour_report": t_neighbour_report,
+    "neighbour": t_neighbour_report,  # alias: Jonas (unit 2a) reports the same boiler
     "consent": t_consent,
     "pick_slot": t_pick_slot,
     "fixed": t_fixed,
