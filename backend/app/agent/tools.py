@@ -106,6 +106,9 @@ async def _ask_buttons(ctx: TurnContext, text: str, options: list[dict]) -> dict
     if not options:
         raise ValueError("options must not be empty")
     is_cold = any(o["id"].startswith(("cold_all:", "cold_some:")) for o in options)
+    if is_cold and not ctx.conv.case_id:
+        raise ValueError("No case is open for this resident yet: call open_case first (it also links them to "
+                         "a neighbour's open case).")
     if is_cold and ctx.conv.step == st.TRIAGE and st.TRIAGE in ctx.conv.asked_at:
         raise ValueError("The 'all radiators cold?' question is still open (buttons already sent). Do not ask it "
                          "again; use reply to acknowledge in one sentence without repeating the question.")
@@ -125,7 +128,16 @@ async def _ask_list(ctx: TurnContext, text: str, button_label: str, rows: list[d
     return {"ok": True, "delivered": True}
 
 
+def _clean_code(code) -> str | None:
+    """Small models send "None" / "null" / "unknown" as strings; keep only real display codes like F.28."""
+    import re
+
+    m = re.fullmatch(r"([A-Za-z]{1,3})[.\s-]?(\d{1,3})", str(code or "").strip())
+    return f"{m.group(1).upper()}.{m.group(2)}" if m else None
+
+
 async def _open_case(ctx: TurnContext, summary: str, symptoms: str, error_code: str | None, priority: str) -> dict:
+    error_code = _clean_code(error_code)
     res = await flow.ensure_case(
         ctx.contact, summary=summary, symptoms=symptoms, error_code=error_code, priority=priority
     )

@@ -3,7 +3,7 @@
 1. Fast path, no model: the number, the option's title, yes/no words, ordinals ("the first one"),
    a slot's time or weekday ("8-10", "Saturday works").
 2. Model step: a small gpt-6-luna classification against the open options (strict schema,
-   reasoning "none", 8 s timeout). Anything unclear → None, and the agent asks again.
+   reasoning "none", 8 s timeout); with LLM_PROVIDER=ollama the local model does it (20 s). Anything unclear → None, and the agent asks again.
 The caller then runs the same deterministic handler as a tap, so nothing is confirmed to the
 resident that wasn't actually recorded.
 """
@@ -94,7 +94,10 @@ def fast_match(text: str | None, options: list[Option]) -> Option | None:
 
 async def model_match(text: str, options: list[Option], question: str | None = None) -> Option | None:
     """gpt-6-luna classification; None when unsure, no key or any error."""
-    if not os.getenv("OPENAI_API_KEY") or (os.getenv("LLM_PROVIDER") or "openai").lower() != "openai":
+    from app import local_llm
+
+    local = local_llm.enabled()
+    if not local and (not os.getenv("OPENAI_API_KEY") or local_llm.provider() != "openai"):
         return None
     try:
         from openai import AsyncOpenAI
@@ -105,14 +108,19 @@ async def model_match(text: str, options: list[Option], question: str | None = N
         schema = {"type": "object", "additionalProperties": False, "required": ["choice"],
                   "properties": {"choice": {"type": "string", "enum": ids}}}
         listing = "\n".join(f"- {o.id}: {o.title}" for o in options)
-        extra = {}
-        effort = os.getenv("OPENAI_REASONING_EFFORT")
-        effort = "none" if effort is None else effort
-        if effort:
-            extra["reasoning_effort"] = effort
-        client = AsyncOpenAI(base_url=openai_base_url(), timeout=8, max_retries=0)
+        if local:  # Ollama: structured output via the same json_schema response_format; slower on CPU
+            client, model, extra = local_llm.client(timeout=20), local_llm.model(), local_llm.extra_params()
+            extra["temperature"] = 0
+        else:
+            extra = {}
+            effort = os.getenv("OPENAI_REASONING_EFFORT")
+            effort = "none" if effort is None else effort
+            if effort:
+                extra["reasoning_effort"] = effort
+            client = AsyncOpenAI(base_url=openai_base_url(), timeout=8, max_retries=0)
+            model = os.getenv("OPENAI_CHAT_MODEL") or "gpt-6-luna"
         r = await client.chat.completions.create(
-            model=os.getenv("OPENAI_CHAT_MODEL") or "gpt-6-luna",
+            model=model,
             messages=[
                 {"role": "system", "content": "A resident answered a WhatsApp question in free text (any language). "
                  "If the answer addresses the question, pick the closest option, even when it isn't worded like "

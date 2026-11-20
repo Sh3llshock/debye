@@ -1,7 +1,8 @@
 """Debye agent turn (technical-plan §7.2).
 
 LLM_PROVIDER picks the model: "openai" (default, agent/openai_loop.py,
-OPENAI_CHAT_MODEL, default gpt-6-luna) or "anthropic" (the Claude loop below).
+OPENAI_CHAT_MODEL, default gpt-6-luna), "ollama" (fully local open-source model through
+Ollama's OpenAI-compatible API, same loop, app/local_llm.py) or "anthropic" (the Claude loop below).
 The agent speaks only through tools. If the model errors, refuses or takes longer
 than TURN_TIMEOUT, and nothing has been sent yet this turn, the scripted
 fallback for the current step runs instead (flow.scripted_fallback).
@@ -28,6 +29,15 @@ log = logging.getLogger("debye.agent")
 
 MODEL = "claude-opus-5-5"
 TURN_TIMEOUT = float(os.getenv("AGENT_TIMEOUT", "20"))
+
+
+def turn_timeout() -> float:
+    """AGENT_TIMEOUT if set; else 20 s, or 60 s for a local model on CPU (LLM_PROVIDER=ollama)."""
+    if os.getenv("AGENT_TIMEOUT"):
+        return float(os.getenv("AGENT_TIMEOUT"))
+    from app import local_llm
+
+    return local_llm.DEFAULT_TURN_TIMEOUT if local_llm.enabled() else TURN_TIMEOUT
 MAX_ITERATIONS = 6
 _KEEP_BLOCKS = {"text", "thinking", "redacted_thinking", "tool_use"}
 
@@ -62,9 +72,16 @@ def _image_block(path: str) -> dict | None:
     suffix = Path(path).suffix.lower()
     mime = {".png": "image/png", ".webp": "image/webp", ".gif": "image/gif"}.get(suffix, "image/jpeg")
     try:
-        data = base64.standard_b64encode(Path(path).read_bytes()).decode()
+        raw = Path(path).read_bytes()
     except OSError:
         return None
+    from app import local_llm
+
+    if local_llm.enabled():
+        small = local_llm.shrink_image(raw)
+        if small:
+            raw, mime = small
+    data = base64.standard_b64encode(raw).decode()
     return {"type": "image", "source": {"type": "base64", "media_type": mime, "data": data}}
 
 
@@ -140,18 +157,20 @@ async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | No
         conv.history, conv.history_provider = [], provider
     ctx = TurnContext(contact=contact, conv=conv, effort="low")
     blocks = build_user_content(contact, conv, text, image_paths or [])
-    if provider == "openai":
+    openai_style = provider in ("openai", "ollama")  # Ollama speaks the OpenAI Chat Completions API
+    timeout = turn_timeout()
+    if openai_style:
         user_msg = {"role": "user", "content": openai_loop.to_openai_content(blocks)}
-        runner = openai_loop.run_loop(list(conv.history) + [user_msg], ctx, TURN_TIMEOUT)
+        runner = openai_loop.run_loop(list(conv.history) + [user_msg], ctx, timeout)
     else:
         user_msg = {"role": "user", "content": blocks}
         runner = _run_loop(list(conv.history) + [user_msg], ctx)
     t0 = time.perf_counter()
     try:
-        messages = await asyncio.wait_for(runner, timeout=TURN_TIMEOUT)
+        messages = await asyncio.wait_for(runner, timeout=timeout)
         log.info("agent turn (%s) %.2fs, tools=%s", provider, time.perf_counter() - t0, ",".join(ctx.calls) or "-")
         if messages[-1]["role"] in ("user", "tool"):  # ended on tool results (iteration cap): close cleanly
-            if provider == "openai":
+            if openai_style:
                 messages.append({"role": "assistant", "content": "(turn ended)"})
             else:
                 messages.append({"role": "assistant", "content": [{"type": "text", "text": "(turn ended)"}]})
@@ -175,7 +194,7 @@ async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | No
             await flow.scripted_fallback(contact, conv, image_paths)
     # Keep history valid (alternating, no dangling tool calls) after a failed turn.
     only_text = [b for b in user_msg["content"] if b["type"] == "text"]
-    if provider == "openai":
+    if openai_style:
         conv.history = list(conv.history) + [
             {"role": "user", "content": only_text},
             {"role": "assistant", "content": "(scripted reply sent)"},

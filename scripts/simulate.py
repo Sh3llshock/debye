@@ -162,7 +162,7 @@ def _option_ids(item: dict) -> list[str]:
 
 class Sim:
     def __init__(self, base: str, direct: bool, wait: float, upload: bool = True):
-        self.c = httpx.Client(base_url=base, timeout=60)
+        self.c = httpx.Client(base_url=base, timeout=180)  # local models on CPU: invoice extraction ~1 min
         self.direct = direct
         self.wait = wait
         self.upload_media = upload
