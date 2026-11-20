@@ -52,6 +52,16 @@ def load_env_files() -> None:
 load_env_files()
 
 
+def demo_mode() -> bool:
+    """Same flag as backend-core's /demo router (app.config.settings.demo_mode, default on)."""
+    try:
+        from app.config import settings
+
+        return bool(settings.demo_mode)
+    except Exception:
+        return os.getenv("DEMO_MODE", "1").lower() in ("1", "true", "yes")
+
+
 def storage_dir() -> Path:
     raw = os.getenv("STORAGE_DIR")
     if not raw:

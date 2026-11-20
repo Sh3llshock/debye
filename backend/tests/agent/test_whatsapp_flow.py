@@ -213,3 +213,30 @@ def test_slots_go_to_reporter_neighbour_gets_update(client, svc, claude):
     client.post("/webhooks/whatsapp", json=list_reply(LENA, "slot_1:case_0001"))
     assert outbox(client)[-1]["to"] == "+490000000002"
     assert "Morgen 8–10" in outbox(client)[-1]["payload"]["text"]["body"]
+
+
+def test_fallback_names_error_code_from_text(client, svc, claude):
+    claude([RuntimeError("down")])
+    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="text", text={"body": "Heizung kalt, am Kessel steht F28"}))
+    body = last_payload(client)["interactive"]["body"]["text"]
+    assert "F.28" in body and "Zündung" in body
+    assert ("open_case", "case_0001", "Heizung kalt, Fehler F.28", "F.28") in svc.calls
+
+
+def test_fallback_reads_demo_photo_after_voice_note(client, svc, claude, tmp_path):
+    demo_photo = Path(__file__).resolve().parents[3] / "data" / "demo" / "boiler_display_F28.jpg"
+    if not demo_photo.exists():
+        import pytest
+
+        pytest.skip("demo asset missing")
+    other = tmp_path / "other.jpg"
+    other.write_bytes(b"\xff\xd8 not the demo photo")
+    claude([RuntimeError("down"), RuntimeError("down"), RuntimeError("down")])
+    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="text", text={"body": "Heizung ist kalt"}))
+    assert "F.28" not in last_payload(client)["interactive"]["body"]["text"]
+    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="image", image={"id": f"local:{other}", "mime_type": "image/jpeg"}))
+    n = len(outbox(client))  # unknown photo: no code claimed, no repeated question
+    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="image", image={"id": f"local:{demo_photo}", "mime_type": "image/jpeg"}))
+    msgs = outbox(client)
+    assert len(msgs) == n + 1
+    assert msgs[-1]["payload"]["text"]["body"].startswith("Am Display sehe ich F.28 – die Zündung ist fehlgeschlagen.")

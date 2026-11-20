@@ -5,7 +5,7 @@ Mount with:  from app.channels.whatsapp import router as whatsapp_router
 
 Fake-send mode (no Meta account needed): on when WA_TOKEN is empty or
 WA_FAKE_SEND=1. Outbound messages are printed and kept in an in-memory outbox,
-readable at GET /webhooks/whatsapp/_outbox (DEMO_MODE=1 only). Inbound media ids
+readable at GET /webhooks/whatsapp/_outbox (demo mode only, settings.demo_mode). Inbound media ids
 of the form `local:<path>` are read from disk, so scripts/simulate.py can send
 real audio/photo/PDF files.
 """
@@ -39,6 +39,7 @@ from .base import (
     Media,
     Option,
     clamp_options,
+    demo_mode,
     normalize_phone,
     register,
     remember,
@@ -326,6 +327,6 @@ async def webhook(request: Request, background: BackgroundTasks):
 
 @router.get("/webhooks/whatsapp/_outbox")
 async def get_outbox(since: int = 0):
-    if _env("DEMO_MODE") != "1":
+    if not demo_mode():
         raise HTTPException(status_code=404)
     return {"fake_send": fake_send_enabled(), "messages": outbox(since)}
