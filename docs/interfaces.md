@@ -54,10 +54,26 @@ def record_consent(contact_id: str, partner_id: str, case_id: str, fields: list[
 def rank_partners(case_id: str) -> list[dict]          # [{partner_id, name, score, reasons: [str]}], top 3
 def dispatch_job(case_id: str, partner_id: str) -> dict
     # raises rules.RuleViolation("consent_missing" | "approval_required")
-def confirm_slot(case_id: str, slot_index: int) -> dict
+def confirm_slot(case_id: str, slot_index: int) -> dict   # 0-based index into the slots the partner proposed
+def log_message(contact_id: str, case_id: str | None, channel: str, direction: str,
+                text: str | None, wa_message_id: str | None, media_ids: list[str]) -> Message
+    # direction "in" | "out"; writes a message row and publishes message.in / message.out
+def get_case_contacts(case_id: str) -> list[Contact]       # reporter + affected tenants (notify_tenant messages all of them)
 def tenant_confirms_fixed(case_id: str, fixed: bool) -> dict   # fixed=True closes the case, returns result payload
 def close_case(case_id: str, resolution: str) -> dict          # result payload (technical-plan §12)
 ```
+
+### 3.3a Responsibilities (who records what)
+- `open_case` does NOT assign a partner; `dispatch_job` sets `case.partner_id` and status `requested`.
+- The agent/router records conversational events itself via `events.record_event` (e.g. actor `tenant`, kind `triage.answer`); services record only the events of the state changes they perform (`case.created`, `consent.recorded`, `job.sent`, `slot.confirmed`, `case.closed`, ...). Never record the same event twice.
+
+### 3.3b Mounting (backend-core `main.py`)
+```python
+from app.channels.whatsapp import router as whatsapp_router   # GET/POST /webhooks/whatsapp, GET /webhooks/whatsapp/_outbox (DEMO_MODE)
+from app.channels.webchat import router as webchat_router     # WS /ws/chat/{contact_id}, GET /chat/{contact_id}
+app.include_router(whatsapp_router); app.include_router(webchat_router)
+```
+Fake send is on when `WA_TOKEN` is empty or `WA_FAKE_SEND=1`; outbound messages then go to the `_outbox` log. In fake mode a media id `local:<path>` is read from disk (simulator convention).
 
 ### 3.4 `notify.py` (agent-whatsapp): what the backend calls when staff/partner act
 backend-core ships a stub that only logs; agent-whatsapp replaces it.
