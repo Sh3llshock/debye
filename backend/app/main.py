@@ -50,6 +50,11 @@ try:
     app.include_router(webchat_router)
 except ImportError as e:
     log.warning("webchat router not mounted: %s", e)
+try:
+    from app.voice import router as voice_router  # /api/voice/*, /call (ElevenLabs calls)
+    app.include_router(voice_router)
+except ImportError as e:
+    log.warning("voice router not mounted: %s", e)
 
 @app.get("/healthz")
 @app.get("/api/health")
