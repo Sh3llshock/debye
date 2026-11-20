@@ -10,6 +10,7 @@ Put the printed id into .env as ELEVENLABS_AGENT_ID. See docs/voice-setup.md.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -17,32 +18,50 @@ from pathlib import Path
 import httpx
 
 API = "https://api.elevenlabs.io/v1"
-AGENT_NAME = "Debye"
-TOOL_PREFIX = "debye_"  # tool names in the workspace: debye_identify_caller, debye_report_issue
+AGENT_NAME = os.getenv("ELEVENLABS_AGENT_NAME") or "Debye"  # another name = separate test agent + tools
+TOOL_PREFIX = ("debye" if AGENT_NAME == "Debye" else AGENT_NAME.lower().replace(" ", "_")) + "_"  # debye_identify_caller, debye_report_issue
 DEFAULT_VOICE = "EXAVITQu4vr4xnSDxMaL"  # "Sarah": ElevenLabs default voice (English, warm, calm), in every workspace
 LANGUAGE = "en"
 DEFAULT_LLM = "gemini-2.5-flash"  # low latency on a phone line
 TTS_MODEL = "eleven_flash_v2"  # English agents require turbo/flash v2 (ElevenLabs rule); lowest latency
 
 PROMPT = """\
-You are Debye, the AI assistant of the property manager reltix. Residents call you, usually because their \
-heating has stopped working. On the phone you are the same Debye as on WhatsApp: the case continues in the chat afterwards.
+You are Debye, the AI assistant of the property manager reltix. Residents call you about problems in their \
+apartment, usually heating or hot water. On the phone you are the same Debye as on WhatsApp: the case continues \
+in the chat afterwards.
+
+What you already know about the caller (from reltix / centrix)
+- Name: {{tenant_name}}. Unit: {{unit_label}}. Address: {{address}}. Boiler: {{boiler}}.
+- Open cases: {{open_case_summary}}
+If the address is not "unknown", you already know who is calling: do NOT call identify_caller. Never ask for \
+name, address, floor or boiler model. Only if the address is "unknown" (a phone call from a number we could not \
+look up yet) call identify_caller once.
 
 How you speak
 - English, friendly and calm, like a kind property manager. Very short sentences, this is a phone call. \
 At most one question at a time. No lists, no jargon.
+- Before a tool call say a short filler like "One second, I'll note that." Use at most one tool call per call (plus end_call). Tools answer within seconds. If a \
+tool fails or takes too long, don't call it again: say "Sorry, my system is a bit slow. I'll send you everything \
+on WhatsApp right after this call." and continue.
 
-Steps
-1. Call identify_caller first. Greet the person by first name. Never ask for address, floor, name or \
-boiler model: reltix already knows them (they are in the identify_caller result).
-2. If open_cases already contains a heating case, say it has already been reported and is being handled. \
-Do not open a new one.
-3. Otherwise: let them describe the problem briefly. Ask once whether all radiators are cold or only one. \
-If the person reads out an error code from the display (e.g. "F 28"), don't ask about it again.
-4. Call report_issue (summary: one short English sentence, e.g. "Heating cold since this morning"; \
+Heating (radiators cold)
+1. If open cases says a heating case for the building is already open, say it's already reported and being \
+handled. Do not open a new one.
+2. Otherwise let them describe it. Ask once whether all radiators are cold or only one. If they read out a display \
+code (e.g. "F 28"), don't ask about it again.
+3. Call report_issue with issue_type "heating" (summary: one short English sentence without the code; \
 all_radiators_cold: "yes"/"no"/"unknown"; error_code only if mentioned).
-5. Then read out the "say" sentence from the report_issue result word for word, with no explanation of your own before it. It already explains an error code correctly: meaning first, then the code. Never start with the code yourself ("F.28 means ..." is wrong). Never mention a code without its meaning.
-6. Do NOT ask for consent to share data on the phone; that happens afterwards on WhatsApp. Don't repeat "say". Say a short goodbye using their name and end the conversation with end_call.
+4. Read the "say" sentence from the result word for word. It explains an error code correctly: meaning first, \
+then the code. Never start with the code yourself.
+
+Hot water (cold shower, no warm water)
+Ask these one at a time, in your own short words, and skip any the caller already answered. No tool call in between:
+{hot_water_questions}
+Then call report_issue ONCE with issue_type "hot_water", the caller's words as symptoms, and answers like "q_safety=no; q_scope=only_shower; q_recent_use=no; q_waited=yes" (only the keys listed above). If the caller smells gas: call report_issue right away with answers "q_safety=yes" and priority "emergency", then read its "say" calmly and end the call. Otherwise read the "say" sentence from the result.
+
+Ending
+- Do NOT ask for consent to share data on the phone; that happens afterwards on WhatsApp. Say the WhatsApp \
+follow-up only once. Say a short goodbye using their name and end the conversation with end_call.
 
 Rules
 - Never promise costs or appointments. The heating company proposes times.
@@ -52,7 +71,12 @@ main water valve, call 112 (for gas, the gas supplier's emergency line), then re
 - Other topics (rent, contract): answer briefly if you know, otherwise the property manager will get back to them.
 """
 
-FIRST_MESSAGE = "Hi, this is Debye from reltix. One moment, let me check who's calling."
+FIRST_MESSAGE = "Hi {{tenant_name}}, this is Debye from reltix. What's going on?"
+
+DYNAMIC_DEFAULTS = {  # used when a call starts without them (e.g. a phone call before the init webhook is set up)
+    "contact_id": "unknown", "tenant_name": "there", "unit_label": "unknown", "address": "unknown",
+    "boiler": "unknown", "open_case_summary": "unknown",
+}
 
 CALLER_PROPS = {
     "conversation_id": {"type": "string", "dynamic_variable": "system__conversation_id"},
@@ -60,54 +84,62 @@ CALLER_PROPS = {
     "contact_id": {"type": "string", "dynamic_variable": "contact_id"},
 }
 
+KB = Path(__file__).resolve().parents[1] / "data" / "diagnosis" / "no_hot_water.json"
+PHONE_QUESTIONS = ("q_scope", "q_recent_use", "q_waited")  # same list as backend/app/voice/calls.py
+
+
+def hot_water_questions() -> str:
+    kb = json.loads(KB.read_text(encoding="utf-8"))
+    qs = {q["id"]: q for q in kb["questions"]}
+    lines = [f'- q_safety: "{kb["safety_first"]["question"]}" (always first). Keys: yes, no']
+    for qid in PHONE_QUESTIONS:
+        q = qs[qid]
+        keys = ", ".join(f"{k} ({v})" for k, v in q["answers"].items())
+        lines.append(f'- {qid}: "{q["text"]}" Keys: {keys}')
+    return "\n".join(lines)
+
+
+TOOL_TIMEOUT = 5  # seconds; our endpoints answer in well under 1 s
+
+
+def _webhook(base: str, secret: str, name: str, description: str, path: str, props: dict, required: list[str],
+             interruptible: bool = False) -> dict:
+    return {
+        "type": "webhook",
+        "name": TOOL_PREFIX + name,
+        "description": description,
+        "response_timeout_secs": TOOL_TIMEOUT,
+        "force_pre_tool_speech": True,  # say a filler first, so the caller doesn't talk over a silent tool call
+        "disable_interruptions": not interruptible,  # caller speech must not abandon the tool call
+        "api_schema": {
+            "url": f"{base}{path}",
+            "method": "POST",
+            "request_headers": {"X-Debye-Voice-Secret": secret},
+            "request_body_schema": {"type": "object", "description": "Tool input", "properties": props,
+                                    "required": required},
+        },
+    }
+
 
 def tool_configs(base: str, secret: str) -> list[dict]:
-    headers = {"X-Debye-Voice-Secret": secret}
     return [
-        {
-            "type": "webhook",
-            "name": TOOL_PREFIX + "identify_caller",
-            "description": "Look up who is calling in reltix (centrix): first name, address, floor, heating "
-                           "system, open cases. Call this first, before anything else.",
-            "response_timeout_secs": 10,
-            "api_schema": {
-                "url": f"{base}/api/voice/tools/identify_caller",
-                "method": "POST",
-                "request_headers": headers,
-                "request_body_schema": {
-                    "type": "object",
-                    "description": "Caller identity (filled automatically)",
-                    "properties": CALLER_PROPS,
-                    "required": [],
-                },
-            },
-        },
-        {
-            "type": "webhook",
-            "name": TOOL_PREFIX + "report_issue",
-            "description": "Open (or join) the repair case for the caller's problem. Call as soon as you "
-                           "understand it is a heating or hot-water fault; call again if you learn whether all "
-                           "radiators are cold.",
-            "response_timeout_secs": 15,
-            "api_schema": {
-                "url": f"{base}/api/voice/tools/report_issue",
-                "method": "POST",
-                "request_headers": headers,
-                "request_body_schema": {
-                    "type": "object",
-                    "description": "The reported problem",
-                    "properties": {
-                        **CALLER_PROPS,
-                        "summary": {"type": "string", "description": "One short English sentence without the error code, e.g. 'Heating cold since this morning'"},
-                        "symptoms": {"type": "string", "description": "What the caller said, in English"},
-                        "error_code": {"type": "string", "description": "Boiler display code if the caller read one out, e.g. 'F.28'. Empty if none."},
-                        "all_radiators_cold": {"type": "string", "description": "'yes', 'no' (only one room) or 'unknown'"},
-                        "priority": {"type": "string", "description": "'urgent' normally, 'emergency' for gas smell, smoke, flooding"},
-                    },
-                    "required": ["summary"],
-                },
-            },
-        },
+        _webhook(base, secret, "identify_caller",
+                 "Phone calls only, and only if the caller's address is 'unknown': look up the caller in reltix "
+                 "(first name, address, heating, open cases). Never call it when the caller is already known.",
+                 "/api/voice/tools/identify_caller", CALLER_PROPS, []),
+        _webhook(base, secret, "report_issue",
+                 "Report the caller's problem, once, after the questions. Heating: opens (or joins) the repair "
+                 "case. Hot water: records the diagnosis answers; the diagnosis continues on WhatsApp.",
+                 "/api/voice/tools/report_issue", {
+                     **CALLER_PROPS,
+                     "issue_type": {"type": "string", "description": "'heating' (radiators cold), 'hot_water' (cold shower / no warm water) or 'other'"},
+                     "summary": {"type": "string", "description": "One short English sentence without the error code, e.g. 'Heating cold since this morning'"},
+                     "symptoms": {"type": "string", "description": "What the caller said, in English"},
+                     "error_code": {"type": "string", "description": "Boiler display code if the caller read one out, e.g. 'F.28'. Empty if none."},
+                     "all_radiators_cold": {"type": "string", "description": "Heating only: 'yes', 'no' (only one room) or 'unknown'"},
+                     "priority": {"type": "string", "description": "'urgent' normally, 'emergency' for gas smell, smoke, flooding"},
+                     "answers": {"type": "string", "description": "Hot water only: the diagnosis answers as 'q_safety=no; q_scope=only_shower; ...'"},
+                 }, ["summary", "issue_type"]),
     ]
 
 
@@ -176,13 +208,13 @@ def agent_body(tool_ids: list[str], voice_id: str) -> dict:
                 "language": LANGUAGE,
                 "first_message": FIRST_MESSAGE,
                 "prompt": {
-                    "prompt": PROMPT,
+                    "prompt": PROMPT.replace("{hot_water_questions}", hot_water_questions()),
                     "llm": os.getenv("ELEVENLABS_AGENT_LLM") or DEFAULT_LLM,
                     "temperature": 0.3,
                     "tool_ids": tool_ids,
                     "built_in_tools": {"end_call": {"name": "end_call", "description": "", "params": {"system_tool_type": "end_call"}}},
                 },
-                "dynamic_variables": {"dynamic_variable_placeholders": {"contact_id": "unknown"}},
+                "dynamic_variables": {"dynamic_variable_placeholders": DYNAMIC_DEFAULTS},
             },
             "tts": {"voice_id": voice_id, "model_id": TTS_MODEL},
             "conversation": {"max_duration_seconds": 300},

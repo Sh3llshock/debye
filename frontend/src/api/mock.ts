@@ -469,6 +469,7 @@ function jobFor(partnerId: string, c: CaseDetail): JobDetail {
     created_at: c.created_at,
     events: c.events.filter((e) => /^(job|slot|technician|invoice|case\.closed)/.test(e.kind)),
     technician: c.technician ?? null,
+    approval: { granted: true, granted_by: 'Anna Becker', granted_at: c.approval?.granted_at ?? c.created_at, text: 'Approved by reltix staff (Anna Becker)' },
   }
 }
 const jobSummary = (j: JobDetail): JobSummary => ({
@@ -525,7 +526,7 @@ export const mockApi = {
   async approve(caseId: string): Promise<CaseDetail> {
     await delay()
     const c = state.cases[caseId]
-    c.approval = { ...(c.approval ?? { rule: '' }), required: false, granted: true, granted_at: now(), granted_by: 'staff', rule: 'Approved by Anna Becker' }
+    c.approval = { ...(c.approval ?? { rule: '' }), required: false, granted: true, granted_at: now(), granted_by: 'Anna Becker', rule: 'Approved by Anna Becker' }
     c.status = 'requested'
     addEvent(c, 'staff', 'approval.granted', `Anna Becker approved: send to ${c.partner?.name}, est. €${c.estimated_cost_eur}`)
     addEvent(c, 'debye', 'job.sent', `Job sent to ${c.partner?.name}`)
@@ -534,7 +535,7 @@ export const mockApi = {
   async reject(caseId: string, reason: string): Promise<CaseDetail> {
     await delay()
     const c = state.cases[caseId]
-    c.approval = { ...(c.approval ?? { rule: '' }), required: false, granted: false, rejected: true, reason }
+    c.approval = { ...(c.approval ?? { rule: '' }), required: false, granted: false, rejected: true, rejected_by: 'Anna Becker', reason }
     c.status = 'rejected'
     addEvent(c, 'staff', 'approval.rejected', `Anna Becker rejected: ${reason}`, { reason })
     addMessage(c, 'out', c.reporters[0].name, 'Die Hausverwaltung hat den Auftrag noch nicht freigegeben. Ich melde mich, sobald es weitergeht.')
