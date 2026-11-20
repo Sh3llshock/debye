@@ -13,7 +13,7 @@ log = logging.getLogger("debye.notify")
 
 async def notify_tenant(case_id: str, event: str, data: dict) -> None:
     """event ∈ job_accepted | slots_proposed (data.slots, data.technician_name) | technician_confirmed
-    (data.technician_name, data.slot) | job_completed | approval_granted | partner_declined."""
+    (data.technician_name, data.slot) | job_completed | approval_pending | approval_granted | partner_declined."""
     data = data or {}
     cs = st.case_state(case_id)
     if data.get("partner_name"):
@@ -34,13 +34,16 @@ async def notify_tenant(case_id: str, event: str, data: dict) -> None:
                     case_id,
                     f"Good news: {flow.partner_label(case_id)} has taken the job 🙌 They'll suggest times shortly.",
                 )
+        elif event == "approval_pending":
+            await flow.tell_approval_pending(case_id)
         elif event == "approval_granted":
+            cs.approval_notice_sent = False
             for c in flow.tenant_contacts(case_id, reporter_only=True):
                 st.conversation(be.attr(c, "id")).step = st.DISPATCHED
                 await out.text(
                     c,
                     case_id,
-                    f"The property management has given the green light 👍 {flow.partner_label(case_id)} will suggest times shortly.",
+                    f"Good news, your property manager approved the repair 👍 {flow.partner_label(case_id)} will suggest times shortly.",
                 )
         elif event == "partner_declined":
             nxt = data.get("next_partner_name")

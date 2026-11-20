@@ -185,7 +185,7 @@ def test_approval_required(client, svc, claude):
     client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "kalt"}))
     client.post("/webhooks/whatsapp", json=button(LUKA, "cold_all:case_0001"))
     client.post("/webhooks/whatsapp", json=button(LUKA, "consent_yes:case_0001"))
-    assert "approve" in last_payload(client)["text"]["body"]
+    assert "property manager is confirming the repair" in last_payload(client)["text"]["body"]
 
 
 def test_unknown_sender(client, svc, claude):

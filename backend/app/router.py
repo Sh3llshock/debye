@@ -97,6 +97,18 @@ async def handle_inbound(msg: InboundMessage) -> None:
     if not text and not images:
         return
 
+    # A free-text answer to the open question ("sure", "just the shower", "Saturday works") is handled
+    # exactly like the tap, so consent/slots are really recorded before anything is confirmed.
+    if text and not images and conv.pending_options:
+        from app.agent import choice
+
+        opt = await choice.match(text, conv.pending_options, conv.pending_question)
+        if opt is not None:
+            log.info("free text %r understood as %s", text[:40], opt.id)
+            async with _locks[cid]:
+                if await handle_button(contact, opt.id):
+                    return
+
     _buffers[cid].append((text, images, any(m.kind == "audio" for m in msg.media)))
     if cid in _draining:
         return  # the running drain picks this message up
@@ -140,6 +152,7 @@ async def handle_button(contact, button_id: str) -> bool:
     conv = st.conversation(be.attr(contact, "id"))
     from app.agent import outbound
 
+    conv.pending_options, conv.pending_question = [], None  # answered (a handler may ask the next one)
     sent_before = outbound.sent_count
     if case_id == "new" or not case_id:
         case_id = conv.case_id

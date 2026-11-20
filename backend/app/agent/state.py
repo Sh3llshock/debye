@@ -29,6 +29,8 @@ class Conversation:
     tenant_texts: list[str] = field(default_factory=list)
     voice_replied: bool = False  # Debye's one-time voice note (ElevenLabs) was sent
     error_code: str | None = None  # display code already told to the resident
+    pending_options: list = field(default_factory=list)  # Options of the last open question (buttons/list)
+    pending_question: str | None = None
     asked_at: dict = field(default_factory=dict)  # step -> time.monotonic() of the last question
     pending_inputs: list[str] = field(default_factory=list)  # zero-forms labels before the case exists
 
@@ -42,6 +44,7 @@ class CaseState:
     consent_fields: list[str] = field(default_factory=lambda: ["name", "phone", "address", "unit_floor", "photos"])
     consent_purpose: str = "Heizungsreparatur vor Ort"
     slots: list[dict] = field(default_factory=list)  # [{start, end, label}]
+    approval_notice_sent: bool = False
     technician_name: str | None = None  # set by notify slots_proposed / technician_confirmed
     chosen_slot: dict | None = None
     triage_answer: str | None = None

@@ -82,14 +82,14 @@ def test_numbered_buttons_roundtrip(client, svc, claude, tw):
     post_twilio(client, Body="Hallo, meine Heizung ist kalt")
     sent = tw.posts[-1]["data"]
     assert sent["From"] == "whatsapp:+4915888620339" and sent["To"] == LUKA
-    assert "1 = All cold" in sent["Body"] and "2 = Just one room" in sent["Body"]
+    assert sent["Body"].endswith("Are all your radiators cold, or just one?") and "1 =" not in sent["Body"]
     assert tw.posts[-1]["auth"] == ("ACtest", "test-token")
     assert sent["StatusCallback"] == "https://debye.example.test/webhooks/twilio/status"
 
     post_twilio(client, Body="1")  # → cold_all:case_0001 in code
     assert any(c[0] == "open_case" for c in svc.calls)
     consent = tw.posts[-1]["data"]["Body"]
-    assert "share your name" in consent and "1 = Yes, go ahead" in consent
+    assert "share your name" in consent and "1 =" not in consent
 
     post_twilio(client, Body="yes, go ahead")  # option text also works
     assert any(c[0] == "consent" for c in svc.calls)
