@@ -1,6 +1,6 @@
 # Debye design v2: navy and white
 
-The user's feedback on v1 was "no purple, it looks too AI". This folder has a new mascot and two alternative versions of the main screens, so the user can pick one. Both versions use the same data as v1 (case_0001, unit 4b, Heizung Schmidt, Lena's WhatsApp thread).
+The user's feedback on v1 was "no purple, it looks too AI". This folder has a new mascot and two alternative versions of the main screens, so the user can pick one. Both versions use the same data as v1 (case_0001, unit 4b, Heizung Schmidt, Luka's WhatsApp thread).
 
 Figma: [Debye (AI assistant)](https://www.figma.com/design/vW4cyvW7lLOjYGOg7Ul1iJ), pages **Mascot v2**, **Version A – unslop** and **Version B – impeccable**.
 

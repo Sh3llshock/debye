@@ -39,7 +39,7 @@ def test_voice_reply_once_per_conversation(client, svc, claude, tmp_path, monkey
     _voice(client, tmp_path, 2)
     audio = _audio_msgs(client)
     assert len(audio) == 1 and len(spoken) == 1
-    assert spoken[0].startswith("Hi Lena, hier ist Debye.")
+    assert spoken[0].startswith("Hi Luka, hier ist Debye.")
     assert audio[0]["to"] == "+490000000001"
 
 

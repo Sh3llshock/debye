@@ -1,6 +1,6 @@
 # WhatsApp Cloud API setup (checklist)
 
-About 30–45 minutes. You need a Facebook account and the 3 demo phones: the resident (Lena), the neighbour (Jonas) and one spare. The installer uses the partner web page, so they don't need WhatsApp. The values you collect go into `.env` (never commit it).
+About 30–45 minutes. You need a Facebook account and the 3 demo phones: the resident (Luka), the neighbour (Jonas) and one spare. The installer uses the partner web page, so they don't need WhatsApp. The values you collect go into `.env` (never commit it).
 
 | `.env` variable | Where it comes from (step) |
 |---|---|
@@ -45,7 +45,7 @@ Debye sends through Twilio when `WA_PROVIDER=twilio`, or when `WA_PROVIDER` is u
 1. Still on **API Setup**, field "To" → **Manage phone number list** → **Add phone number**.
 2. Enter each demo phone in international format (`+49 151 …`), then type in the code that arrives on WhatsApp.
 3. Repeat for all 3 phones. A test number can only message verified recipients.
-4. Put the real numbers into `data/seed.local.json` (git-ignored), not `data/seed.json`: Lena → `c_202`, Jonas → `c_203`.
+4. Put the real numbers into `data/seed.local.json` (git-ignored), not `data/seed.json`: Luka → `c_202`, Jonas → `c_203`.
 
 ## 4. Permanent token (the API Setup token dies after 24 h)
 1. Open https://business.facebook.com/settings → choose the business portfolio from step 1.
@@ -70,7 +70,7 @@ Debye sends through Twilio when `WA_PROVIDER=twilio`, or when `WA_PROVIDER` is u
 5. Only one webhook URL is active per app. Agree in the team whose tunnel or deployment it points to.
 
 ## 7. Smoke test
-1. From Lena's phone, send "hi" to the test number.
+1. From Luka's phone, send "hi" to the test number.
 2. The backend log should show the inbound message. Debye answers within a few seconds.
 3. If nothing arrives: check the webhook fields subscription (step 6.4), that the phone is verified (step 3), and the backend log for `bad signature` (wrong `WA_APP_SECRET`).
 

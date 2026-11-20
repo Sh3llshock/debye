@@ -4,11 +4,11 @@ import json
 
 from agent_stubs import oa_call
 
-LENA = "490000000001"
+LUKA = "490000000001"
 _n = 0
 
 
-def wa_text(body, from_=LENA):
+def wa_text(body, from_=LUKA):
     global _n
     _n += 1
     return {"entry": [{"changes": [{"value": {"messages": [
@@ -19,7 +19,7 @@ def button(id_, title="t"):
     global _n
     _n += 1
     return {"entry": [{"changes": [{"value": {"messages": [
-        {"from": LENA, "id": f"wamid.oa.{_n}", "type": "interactive",
+        {"from": LUKA, "id": f"wamid.oa.{_n}", "type": "interactive",
          "interactive": {"type": "button_reply", "button_reply": {"id": id_, "title": title}}}]}}]}]}
 
 
@@ -57,7 +57,7 @@ def test_openai_triage_turn(client, svc, gpt):
 
 
 def test_openai_history_carries_over(client, svc, gpt):
-    stub = gpt([[oa_call("reply", text="Hallo Lena!")], "", [oa_call("reply", text="Gern!")], ""])
+    stub = gpt([[oa_call("reply", text="Hallo Luka!")], "", [oa_call("reply", text="Gern!")], ""])
     client.post("/webhooks/whatsapp", json=wa_text("Hallo"))
     client.post("/webhooks/whatsapp", json=wa_text("Danke"))
     msgs = stub.requests[2]["messages"]

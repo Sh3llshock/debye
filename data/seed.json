@@ -36,7 +36,7 @@
   ],
   "contacts": [
     { "id": "c_101", "role": "owner", "name": "Maria Becker", "phone_e164": "+490000000010", "email": "owner@example.com", "language": "de" },
-    { "id": "c_202", "role": "tenant", "name": "Lena Hoffmann", "phone_e164": "+490000000001", "email": "lena@example.com", "language": "de", "unit_id": "unit_4b", "move_in": "2026-12-01", "whatsapp_opt_in": true },
+    { "id": "c_202", "role": "tenant", "name": "Luka", "phone_e164": "+490000000001", "email": "luka@example.com", "language": "de", "unit_id": "unit_4b", "move_in": "2026-12-01", "whatsapp_opt_in": true },
     { "id": "c_203", "role": "tenant", "name": "Jonas Weber", "phone_e164": "+490000000002", "email": "jonas@example.com", "language": "de", "unit_id": "unit_2a", "move_in": "2021-04-01", "whatsapp_opt_in": true },
     { "id": "c_301", "role": "partner_staff", "name": "Tom Schmidt", "phone_e164": "+490000000003", "partner_id": "heizung-schmidt", "language": "de" },
     { "id": "c_401", "role": "pm", "name": "reltix property manager", "email": "pm@example.com", "language": "de" }

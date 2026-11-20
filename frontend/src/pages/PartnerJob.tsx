@@ -241,7 +241,7 @@ function WeekGrid({ job, partnerId, jobs, onChange }: ActionProps) {
   return (
     <div>
       <h2 className="text-panel">Offer visit times</h2>
-      <p className="mt-1 text-body-sm text-secondary">Choose two or three. Debye sends them to {who} on WhatsApp and books the one {who === 'the resident' ? 'they pick' : 'she picks'}.</p>
+      <p className="mt-1 text-body-sm text-secondary">Choose two or three. Debye sends them to {who} on WhatsApp and books the one they pick.</p>
       {/* phone: one row per day, three times each */}
       <div className="mt-4 flex flex-col gap-3 sm:hidden">
         {days.map((d) => (

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from agent_stubs import text, tool_use
 
-LENA = "490000000001"
+LUKA = "490000000001"
 JONAS = "490000000002"
 _n = 0
 
@@ -62,7 +62,7 @@ def test_verify_endpoint(client):
 
 def test_signature_check(client, monkeypatch):
     monkeypatch.setenv("WA_APP_SECRET", "s3cret")
-    raw = json.dumps(wa_body(LENA, type="text", text={"body": "hi"})).encode()
+    raw = json.dumps(wa_body(LUKA, type="text", text={"body": "hi"})).encode()
     r = client.post("/webhooks/whatsapp", content=raw, headers={"X-Hub-Signature-256": "sha256=deadbeef"})
     assert r.status_code == 401
     sig = hmac.new(b"s3cret", raw, hashlib.sha256).hexdigest()
@@ -95,8 +95,8 @@ def test_golden_path(client, svc, claude, monkeypatch, tmp_path):
     audio, photo = _media_files(tmp_path)
 
     # 1. voice note + photo (two webhooks, batched by the router lock/drain)
-    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="audio", audio={"id": f"local:{audio}", "mime_type": "audio/ogg; codecs=opus"}))
-    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="image", image={"id": f"local:{photo}", "mime_type": "image/jpeg"}))
+    client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="audio", audio={"id": f"local:{audio}", "mime_type": "audio/ogg; codecs=opus"}))
+    client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="image", image={"id": f"local:{photo}", "mime_type": "image/jpeg"}))
     assert ("open_case", "case_0001", "Heizung kalt, Fehler F.28", "F.28") in svc.calls
     assert ids(last_payload(client)) == ["cold_all:case_0001", "cold_some:case_0001"]
     req = stub.requests[0]
@@ -108,13 +108,13 @@ def test_golden_path(client, svc, claude, monkeypatch, tmp_path):
 
     # 2. tap "Überall kalt" → consent buttons, no LLM
     n_req = len(stub.requests)
-    client.post("/webhooks/whatsapp", json=button(LENA, "cold_all:case_0001", "Überall kalt"))
+    client.post("/webhooks/whatsapp", json=button(LUKA, "cold_all:case_0001", "Überall kalt"))
     assert len(stub.requests) == n_req
     assert ids(last_payload(client)) == ["consent_yes:case_0001", "consent_no:case_0001"]
     assert "Heizung Schmidt" in last_payload(client)["interactive"]["body"]["text"]
 
     # 3. consent → consent row + dispatch
-    client.post("/webhooks/whatsapp", json=button(LENA, "consent_yes:case_0001", "Ja, gerne"))
+    client.post("/webhooks/whatsapp", json=button(LUKA, "consent_yes:case_0001", "Ja, gerne"))
     assert any(c[0] == "consent" and c[2] == "heizung-schmidt" for c in svc.calls)
     assert ("dispatch", "case_0001", "heizung-schmidt") in svc.calls
 
@@ -127,14 +127,14 @@ def test_golden_path(client, svc, claude, monkeypatch, tmp_path):
     assert ids(p) == ["slot_1:case_0001", "slot_2:case_0001", "slot_none:case_0001"]
 
     # 5. resident picks slot 1 → confirm_slot with 1-based index
-    client.post("/webhooks/whatsapp", json=list_reply(LENA, "slot_1:case_0001", "Morgen 8–10"))
+    client.post("/webhooks/whatsapp", json=list_reply(LUKA, "slot_1:case_0001", "Morgen 8–10"))
     assert ("confirm_slot", "case_0001", 1) in svc.calls
     assert "Morgen 8–10" in last_payload(client)["text"]["body"]
 
     # 6. partner done → "warm again?" → yes closes
     asyncio.run(notify.notify_tenant("case_0001", "job_completed", {}))
     assert ids(last_payload(client)) == ["fixed_yes:case_0001", "fixed_no:case_0001"]
-    client.post("/webhooks/whatsapp", json=button(LENA, "fixed_yes:case_0001", "Ja, alles warm"))
+    client.post("/webhooks/whatsapp", json=button(LUKA, "fixed_yes:case_0001", "Ja, alles warm"))
     assert ("fixed", "case_0001", True) in svc.calls
     assert svc.cases["case_0001"]["status"] == "closed"
     # every outbound + inbound message was logged for the dashboard
@@ -144,26 +144,26 @@ def test_golden_path(client, svc, claude, monkeypatch, tmp_path):
 
 def test_claude_down_uses_scripted_fallback(client, svc, claude):
     claude([RuntimeError("API down")])
-    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="text", text={"body": "Heizung kalt!"}))
+    client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "Heizung kalt!"}))
     assert any(c[0] == "open_case" for c in svc.calls)
     assert ids(last_payload(client)) == ["cold_all:case_0001", "cold_some:case_0001"]
 
 
 def test_refusal_hands_off(client, svc, claude):
     claude(["refusal"])
-    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="text", text={"body": "hallo"}))
+    client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "hallo"}))
     assert "Hausverwaltung" in last_payload(client)["text"]["body"]
 
 
 def test_agent_silent_turn_falls_back(client, svc, claude):
     claude([[text("I would ask about radiators")]])  # forgot to use a tool
-    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="text", text={"body": "Heizung kalt"}))
+    client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "Heizung kalt"}))
     assert ids(last_payload(client))[0].startswith("cold_all:")
 
 
 def test_neighbour_duplicate_is_linked(client, svc, claude):
     claude([RuntimeError("down"), RuntimeError("down")])
-    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="text", text={"body": "Heizung kalt"}))
+    client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "Heizung kalt"}))
     client.post("/webhooks/whatsapp", json=wa_body(JONAS, type="text", text={"body": "Bei mir auch kalt"}))
     assert ("link", "case_0001", "c_203", "affected") in svc.calls
     assert sum(c[0] == "open_case" for c in svc.calls) == 1
@@ -172,7 +172,7 @@ def test_neighbour_duplicate_is_linked(client, svc, claude):
 
 def test_dedupe_same_message_id(client, svc, claude):
     stub = claude([[tool_use("reply", text="Hallo!")], [text("ok")], [tool_use("reply", text="again")]])
-    body = wa_body(LENA, type="text", text={"body": "hi"}, id="wamid.dup")
+    body = wa_body(LUKA, type="text", text={"body": "hi"}, id="wamid.dup")
     client.post("/webhooks/whatsapp", json=body)
     client.post("/webhooks/whatsapp", json=body)
     assert len(stub.requests) == 2  # one turn (tool_use + end), not two
@@ -182,9 +182,9 @@ def test_dedupe_same_message_id(client, svc, claude):
 def test_approval_required(client, svc, claude):
     svc.approval_required = True
     claude([RuntimeError("down")])
-    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="text", text={"body": "kalt"}))
-    client.post("/webhooks/whatsapp", json=button(LENA, "cold_all:case_0001"))
-    client.post("/webhooks/whatsapp", json=button(LENA, "consent_yes:case_0001"))
+    client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "kalt"}))
+    client.post("/webhooks/whatsapp", json=button(LUKA, "cold_all:case_0001"))
+    client.post("/webhooks/whatsapp", json=button(LUKA, "consent_yes:case_0001"))
     assert "freigeben" in last_payload(client)["text"]["body"]
 
 
@@ -195,7 +195,7 @@ def test_unknown_sender(client, svc, claude):
 
 def test_tool_error_is_reported_to_claude(client, svc, claude):
     stub = claude([[tool_use("ask_buttons", text="?", options=[])], [tool_use("reply", text="Wie kann ich helfen?")], [text("ok")]])
-    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="text", text={"body": "hi"}))
+    client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "hi"}))
     second = stub.requests[1]["messages"][-1]["content"][0]
     assert second["is_error"] is True
     assert last_payload(client)["text"]["body"] == "Wie kann ich helfen?"
@@ -205,19 +205,19 @@ def test_slots_go_to_reporter_neighbour_gets_update(client, svc, claude):
     from app import notify
 
     claude([RuntimeError("down"), RuntimeError("down")])
-    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="text", text={"body": "Heizung kalt"}))
+    client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "Heizung kalt"}))
     client.post("/webhooks/whatsapp", json=wa_body(JONAS, type="text", text={"body": "auch kalt"}))
     asyncio.run(notify.notify_tenant("case_0001", "slots_proposed", {"slots": [{"start": "a", "end": "b", "label": "Morgen 8–10"}]}))
     lists = [m for m in outbox(client) if m["payload"].get("type") == "interactive" and m["payload"]["interactive"]["type"] == "list"]
     assert [m["to"] for m in lists] == ["+490000000001"]
-    client.post("/webhooks/whatsapp", json=list_reply(LENA, "slot_1:case_0001"))
+    client.post("/webhooks/whatsapp", json=list_reply(LUKA, "slot_1:case_0001"))
     assert outbox(client)[-1]["to"] == "+490000000002"
     assert "Morgen 8–10" in outbox(client)[-1]["payload"]["text"]["body"]
 
 
 def test_fallback_names_error_code_from_text(client, svc, claude):
     claude([RuntimeError("down")])
-    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="text", text={"body": "Heizung kalt, am Kessel steht F28"}))
+    client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "Heizung kalt, am Kessel steht F28"}))
     body = last_payload(client)["interactive"]["body"]["text"]
     assert "F.28" in body and "Zündung" in body
     assert ("open_case", "case_0001", "Heizung kalt – Zündung fehlgeschlagen (F.28)", "F.28") in svc.calls
@@ -232,11 +232,11 @@ def test_fallback_reads_demo_photo_after_voice_note(client, svc, claude, tmp_pat
     other = tmp_path / "other.jpg"
     other.write_bytes(b"\xff\xd8 not the demo photo")
     claude([RuntimeError("down"), RuntimeError("down"), RuntimeError("down")])
-    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="text", text={"body": "Heizung ist kalt"}))
+    client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "Heizung ist kalt"}))
     assert "F.28" not in last_payload(client)["interactive"]["body"]["text"]
-    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="image", image={"id": f"local:{other}", "mime_type": "image/jpeg"}))
+    client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="image", image={"id": f"local:{other}", "mime_type": "image/jpeg"}))
     n = len(outbox(client))  # unknown photo: no code claimed, no repeated question
-    client.post("/webhooks/whatsapp", json=wa_body(LENA, type="image", image={"id": f"local:{demo_photo}", "mime_type": "image/jpeg"}))
+    client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="image", image={"id": f"local:{demo_photo}", "mime_type": "image/jpeg"}))
     msgs = outbox(client)
     assert len(msgs) == n + 1
     assert msgs[-1]["payload"]["text"]["body"] == "Auf dem Foto sehe ich, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht. Danke für das Foto, das hilft dem Techniker sehr 👍"

@@ -137,7 +137,7 @@ All JSON. Errors: `{"detail": "..."}` with 4xx.
  "partner":{"partner_id":"heizung-schmidt","name":"Heizung Schmidt GmbH"},"updated_at":"..."}
 
 // CaseDetail = CaseSummary + 
-{"reporters":[{"contact_id":"c_202","name":"Lena Hoffmann","unit_id":"unit_4b","relation":"reporter"}],
+{"reporters":[{"contact_id":"c_202","name":"Luka","unit_id":"unit_4b","relation":"reporter"}],
  "asset":{"make":"Vaillant","model":"ecoTEC plus VC 206/5-5","error_code":"F.28","error_label":"Ignition failed: no flame at start-up"},
  "cost_bearer":"landlord","estimated_cost_eur":250,"approval":{"required":false,"rule":"auto-approved: < €500"},
  "slot":{"start":"...","end":"..."},
@@ -145,8 +145,8 @@ All JSON. Errors: `{"detail": "..."}` with 4xx.
  "ranking":[{"partner_id":"heizung-schmidt","name":"...","score":0.86,"reasons":["Vaillant-certified","free tomorrow 8–10"]}],
  "consents":[{"partner_id":"heizung-schmidt","data_shared":["name","phone","address","photos"],"given_at":"...","channel":"whatsapp","purpose":"heating repair visit"}],
  "documents":[{"document_id":"doc_0003","kind":"invoice","filename":"RE-2026-1187.pdf","url":"/files/doc_0003","extracted":{}}],
- "events":[{"ts":"...","actor":"debye","kind":"case.created","summary":"Case opened from Lena's voice note"}],
- "messages":[{"ts":"...","direction":"in","contact":"Lena Hoffmann","text":"Die Heizung ist kalt …","media":[]}],
+ "events":[{"ts":"...","actor":"debye","kind":"case.created","summary":"Case opened from Luka's voice note"}],
+ "messages":[{"ts":"...","direction":"in","contact":"Luka","text":"Die Heizung ist kalt …","media":[]}],
  "result":null}
 
 // CaseSummary also carries error_code + error_label (plain-English meaning, e.g. "Water pressure too low").

@@ -136,7 +136,7 @@ def _store_sim_media(media_ids: list[str], contact: Contact, kind_hint: str | No
 
 
 async def t_tenant_report(body: dict) -> dict:
-    """Lena: voice note + photo → case (F.28) → ranking. Body: contact_id, text, media_ids."""
+    """Luka: voice note + photo → case (F.28) → ranking. Body: contact_id, text, media_ids."""
     from . import media
     contact_id = body.get("contact_id", "c_202")
     with get_session() as s:

@@ -4,7 +4,7 @@ Commands are PowerShell, run from the repo root. One server on `:8000` serves th
 
 ## T-30 min: set up
 
-1. `.env` is filled in (copy of `.env.example`) and `data/seed.local.json` holds the real demo phones (Lena `c_202`, Jonas `c_203`). See [whatsapp-setup.md](whatsapp-setup.md).
+1. `.env` is filled in (copy of `.env.example`) and `data/seed.local.json` holds the real demo phones (Luka `c_202`, Jonas `c_203`). See [whatsapp-setup.md](whatsapp-setup.md).
 2. Build the pages with the demo panel switched on:
    ```powershell
    cd frontend; npm ci; $env:VITE_DEMO="1"; npm run build; cd ..
@@ -36,11 +36,11 @@ Commands are PowerShell, run from the repo root. One server on `:8000` serves th
 
 | Screen | Open |
 |---|---|
-| Projector, left | Lena's phone, mirrored (`scrcpy`) |
+| Projector, left | Luka's phone, mirrored (`scrcpy`) |
 | Projector, right | http://localhost:8000/staff (case list → click the case once it appears) |
 | Laptop 2 (the installer) | http://localhost:8000/partner/heizung-schmidt |
 | Unit record for the finale | http://localhost:8000/staff/units/unit_4b |
-| Call variant (laptop with mic) | http://localhost:8000/call (or Lena calls the Twilio number, see voice-setup.md) |
+| Call variant (laptop with mic) | http://localhost:8000/call (or Luka calls the Twilio number, see voice-setup.md) |
 
 The demo panel sits behind the tiny dot at the bottom right of any page, or press `d`. It has **Skip to tomorrow** and **Reset**.
 
@@ -48,20 +48,20 @@ The demo panel sits behind the tiny dot at the bottom right of any page, or pres
 
 | # | Who | Action | What appears |
 |---|---|---|---|
-| 1 | Lena (phone) | Voice note "Die Heizung ist kalt seit heute Morgen" + photo of the F.28 display | Case on the staff page, Debye asks "Sind alle Heizkörper kalt?" |
-| 2 | Lena | Tap **Überall kalt** | Ranking (Schmidt first), consent request |
+| 1 | Luka (phone) | Voice note "Die Heizung ist kalt seit heute Morgen" + photo of the F.28 display | Case on the staff page, Debye asks "Sind alle Heizkörper kalt?" |
+| 2 | Luka | Tap **Überall kalt** | Ranking (Schmidt first), consent request |
 | 3 | Jonas (phone) | "Bei uns im 1. Stock ist die Heizung auch kalt." | "Schon gemeldet", Jonas linked to the case |
-| 4 | Lena | Tap **Ja, gerne** (consent) | Consent record, job on the partner page |
-| 5 | Installer (laptop 2) | Open the job → **Accept job** → tap 2 slots → **Send 2 slots to tenant** | Lena gets the slot list |
-| 6 | Lena | Pick **Morgen 8–10** | Slot on the case |
+| 4 | Luka | Tap **Ja, gerne** (consent) | Consent record, job on the partner page |
+| 5 | Installer (laptop 2) | Open the job → **Accept job** → tap 2 slots → **Send 2 slots to tenant** | Luka gets the slot list |
+| 6 | Luka | Pick **Morgen 8–10** | Slot on the case |
 | 7 | Presenter | Demo panel → **Skip to tomorrow** | |
-| 8 | Installer | Photo after repair `data/demo/repair_done.jpg`, Invoice (PDF) `data/demo/invoice_RE-2026-1187.pdf` → **Mark as done** | Invoice + price check, Lena asked "Wieder warm?" |
-| 9 | Lena | Tap **Ja, alles warm** | Case closed, invoice + report on unit 4b |
+| 8 | Installer | Photo after repair `data/demo/repair_done.jpg`, Invoice (PDF) `data/demo/invoice_RE-2026-1187.pdf` → **Mark as done** | Invoice + price check, Luka asked "Wieder warm?" |
+| 9 | Luka | Tap **Ja, alles warm** | Case closed, invoice + report on unit 4b |
 
-### Variant: Lena calls instead of sending a voice note (step 1)
-Lena **calls** Debye (phone number, or the `/call` page as "Lena"): "Meine Heizung ist seit heute Morgen kalt … alle Heizkörper … auf dem Display steht F 28." Debye greets her by name and doesn't ask for address or boiler. It explains "die Zündung ist fehlgeschlagen (Fehlercode F.28)", opens the case and hangs up. Within about 10 s:
-- staff page: case opened, timeline line **"Call with Lena (0:47): heating cold, all radiators cold, ignition failed (F.28). Case opened, consent asked on WhatsApp."**
-- Lena's WhatsApp: "Danke für deinen Anruf, Lena! 📞 Kurz zusammengefasst: …" and right after it the consent buttons. Steps 2 and 4 merge into one tap on **Ja, gerne**, and the run continues at step 5.
+### Variant: Luka calls instead of sending a voice note (step 1)
+Luka **calls** Debye (phone number, or the `/call` page as "Luka"): "Meine Heizung ist seit heute Morgen kalt … alle Heizkörper … auf dem Display steht F 28." Debye greets Luka by name and doesn't ask for address or boiler. It explains "die Zündung ist fehlgeschlagen (Fehlercode F.28)", opens the case and hangs up. Within about 10 s:
+- staff page: case opened, timeline line **"Call with Luka (0:47): heating cold, all radiators cold, ignition failed (F.28). Case opened, consent asked on WhatsApp."**
+- Luka's WhatsApp: "Danke für deinen Anruf, Luka! 📞 Kurz zusammengefasst: …" and right after it the consent buttons. Steps 2 and 4 merge into one tap on **Ja, gerne**, and the run continues at step 5.
 
 Pitch line: one case, two channels. The call continues in the chat without asking anything twice.
 
@@ -70,11 +70,11 @@ Pitch line: one case, two channels. The call continues in the chat without askin
 | Problem | Do this |
 |---|---|
 | Debye doesn't answer on WhatsApp | Look at the server terminal. Webhooks arrive as `POST /webhooks/whatsapp`. No POST means the tunnel or webhook URL is wrong. Meanwhile, use the web chat below. |
-| WhatsApp / Meta / venue network down | Use the **web chat** (same backend, same case): http://localhost:8000/chat/c_202 for Lena, http://localhost:8000/chat/c_203 for Jonas. Mirror that tab instead of the phone. |
+| WhatsApp / Meta / venue network down | Use the **web chat** (same backend, same case): http://localhost:8000/chat/c_202 for Luka, http://localhost:8000/chat/c_203 for Jonas. Mirror that tab instead of the phone. |
 | Model slow, down or no API key | Nothing to do. Debye falls back to scripted replies for each step (after 20 s at most, immediately without a key). |
 | A tenant step won't go through | Push that one step from a terminal (shows on the staff page live):<br>`python scripts\simulate.py --direct --step report` (then `neighbour`, `consent`, `pick`, `fixed`) |
 | Partner page won't load | Same idea for the installer side: `python scripts\simulate.py --step accept` (then `slots`, `complete`) |
-| Call: Debye can't look Lena up / no WhatsApp after the call | Tunnel URL changed: run `python scripts\elevenlabs_agent.py --base https://<tunnel>` again. Check that `VOICE_TOOL_SECRET` and `ELEVENLABS_AGENT_ID` are in `.env`. Server log shows `POST /api/voice/tools/...` per call. |
+| Call: Debye can't look Luka up / no WhatsApp after the call | Tunnel URL changed: run `python scripts\elevenlabs_agent.py --base https://<tunnel>` again. Check that `VOICE_TOOL_SECRET` and `ELEVENLABS_AGENT_ID` are in `.env`. Server log shows `POST /api/voice/tools/...` per call. |
 | Call page says "Konnte nicht verbinden" | Allow the microphone. `ELEVENLABS_AGENT_ID` missing → 503. Fallback: the voice-note flow (step 1). |
 | Wrong state, start over | `.\scripts\demo_reset.ps1`, or the demo panel → **Reset** |
 | Server crashed | Restart it (step 3). Data is kept in `backend/debye.db`. Reset if the state looks wrong. |
