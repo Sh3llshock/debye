@@ -103,3 +103,18 @@ def test_no_anthropic_key_falls_back_immediately(client, svc, monkeypatch):
     client.post("/webhooks/whatsapp", json=body)
     assert _t.perf_counter() - t0 < 3
     assert loop.last_turn_fallback is True
+
+
+def test_env_file_wins_for_twilio_keys(tmp_path, monkeypatch):
+    import os
+
+    from app.channels import base
+
+    (tmp_path / ".env").write_text("TWILIO_ACCOUNT_SID=ACfromfile\nOTHER_X=file\n", encoding="utf-8")
+    monkeypatch.setattr(base, "_BACKEND_DIR", tmp_path / "backend")
+    monkeypatch.delenv("DEBYE_NO_DOTENV", raising=False)
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "ACfromshell")
+    monkeypatch.setenv("OTHER_X", "shell")
+    base.load_env_files()
+    assert os.environ["TWILIO_ACCOUNT_SID"] == "ACfromfile"
+    assert os.environ["OTHER_X"] == "shell"

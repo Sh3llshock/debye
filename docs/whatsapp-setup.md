@@ -10,6 +10,22 @@ About 30–45 minutes. You need a Facebook account and the 3 demo phones: the re
 | `WA_VERIFY_TOKEN` | you pick it (6) |
 | `WA_GRAPH_VERSION` | optional, default `v21.0`; use the version shown on the API Setup page |
 
+## Twilio WhatsApp sandbox (current route: Meta locked the business account)
+
+Debye sends through Twilio when `WA_PROVIDER=twilio`, or when `WA_PROVIDER` is unset and `TWILIO_ACCOUNT_SID` is set. The Meta steps below stay valid for `WA_PROVIDER=meta`.
+
+1. `.env`: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM=whatsapp:+<sandbox number>`, and `PUBLIC_BASE_URL=https://<your tunnel>`. The public URL is used to check Twilio's signature and to serve voice notes to Twilio. On this machine the shell also exports other `TWILIO_*` values; the `.env` values win (the server logs a warning).
+2. Every demo phone joins the sandbox once: send `join <your-code>` to the sandbox number. The code is shown in Twilio Console → Messaging → Try it out → Send a WhatsApp message. A joined phone stays in for 72 h. Free-form replies only work within 24 h of that phone's last message.
+3. Twilio Console → that sandbox page → **Sandbox settings**:
+   - "When a message comes in": `https://<your tunnel>/webhooks/twilio`, method **POST**.
+   - "Status callback URL": leave empty. Debye sets `/webhooks/twilio/status` on every message it sends.
+4. The real phone numbers go in `data/seed.local.json` (Lena `c_202`, Jonas `c_203`), in E.164 (`+49151…`). Twilio's `From: whatsapp:+49…` is normalised to that.
+5. Smoke test: send "hi" from Lena's phone. The server log shows `POST /webhooks/twilio` and `Twilio message SM… queued`. Failed deliveries show up as `Twilio delivery FAILED … error=<code>`. 63016 means outside the 24 h window, so the phone has to message first.
+
+**What's different from Meta.** The sandbox can't send WhatsApp buttons or lists without approved templates. Debye sends them as numbered text instead ("Antworte mit der Zahl: 1 = Überall kalt, 2 = Nur ein Raum"), and the resident's "1" or "Überall kalt" is mapped back to the same button, so the flow is identical. Voice notes from ElevenLabs go out as media from a short-lived public URL (`/webhooks/twilio/media/…`).
+
+**Escape hatch.** If the signature check fails behind an unusual proxy, set `TWILIO_VALIDATE_SIGNATURE=0`. Use it for the demo only.
+
 ## 1. Create the app
 1. Open https://developers.facebook.com/apps and log in.
 2. **Create app** → use case **Other** → app type **Business** → name `Debye Demo` → contact email → **Create app**. If asked for a Business portfolio, create one (`Debye Hackathon`).

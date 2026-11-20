@@ -25,6 +25,9 @@ MAX_LIST_BUTTON = 20
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 
+DOTENV_WINS_PREFIXES = ("TWILIO_",)
+
+
 def load_env_files() -> None:
     """Copies .env values (repo root, then backend/) into os.environ without overriding.
 
@@ -45,7 +48,14 @@ def load_env_files() -> None:
             key, _, value = line.partition("=")
             key = key.strip().removeprefix("export ").strip()
             value = value.strip().strip('"').strip("'")
-            if key and value and not os.environ.get(key):
+            if not key or not value:
+                continue
+            if key.startswith(DOTENV_WINS_PREFIXES) and os.environ.get(key) not in (None, "", value):
+                # This machine has other Twilio credentials exported in the shell; the project's
+                # .env is the source of truth for the demo account (stale shell values gave 401s).
+                log.warning("%s from .env overrides a different value in the shell environment", key)
+                os.environ[key] = value
+            elif not os.environ.get(key):
                 os.environ[key] = value
 
 
