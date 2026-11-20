@@ -119,7 +119,7 @@ export function unitLabel(unitId: string, address?: string | null) {
 
 /** "Lothringerstraße 41, 52062 Aachen" + "unit_41_3" → "Lothringerstr. 41 · 3". */
 export function placeLabel(address?: string | null, unitId?: string | null) {
-  const street = (address ?? '').split(',')[0].trim().replace(/straße/i, 'str.').replace(/strasse/i, 'str.')
+  const street = (address ?? '').split(',')[0].trim().replace(/stra(?:ß|ss)e(?=\s|$)/i, 'str.')
   const unit = unitId ? unitLabel(unitId, address) : ''
   return [street, unit].filter(Boolean).join(' · ')
 }
