@@ -155,7 +155,7 @@ async def _note_error_code(ctx: TurnContext, case_id: str, error_code: str) -> d
     from .error_codes import resident_sentence
 
     return {"ok": True, "case_id": case_id, "error_code": error_code,
-            "explain_error_code": resident_sentence(error_code, "photo") + " Ich habe das im Fall notiert."}
+            "explain_error_code": resident_sentence(error_code, "photo") + " Danke für das Foto, das hilft dem Techniker sehr 👍"}
 
 
 async def _record_triage(ctx: TurnContext, case_id: str, all_radiators_cold: bool) -> dict:
