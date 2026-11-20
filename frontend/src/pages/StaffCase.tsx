@@ -3,9 +3,10 @@ import { api } from '../api/client'
 import type { DocumentItem } from '../api/types'
 import { Activity, ApprovalCard, Conversation, Inspector, PartnerChoice, ServiceLine, ZeroFormsStrip } from '../components/case/CasePanels'
 import { useCrumbs } from '../components/Layout'
+import { DiagnosisPanel } from '../components/case/Diagnosis'
 import { ErrorBox, Loading, PriorityChip, StatusChip } from '../components/ui'
 import { fmtDateTime } from '../lib/format'
-import { lineState, STAFF_STATIONS } from '../lib/lifecycle'
+import { lineState, needsApproval, NO_TECH_STATIONS, STAFF_STATIONS } from '../lib/lifecycle'
 import { patchCase } from '../lib/liveCase'
 import { useStream } from '../lib/stream'
 import { useDebounced, useResource } from '../lib/useResource'
@@ -62,7 +63,8 @@ export default function StaffCase() {
 
   const partnerName = (id: string) => c.ranking.find((r) => r.partner_id === id)?.name ?? (c.partner?.partner_id === id ? c.partner.name : id)
   const who = c.reporters[0]?.name.split(' ')[0] ?? t('the resident')
-  const line = lineState(STAFF_STATIONS, c.status, c.events)
+  const noTech = ['self_help', 'caretaker'].includes(c.diagnosis?.outcome ?? '')
+  const line = lineState(noTech ? NO_TECH_STATIONS : STAFF_STATIONS, c.status, c.events)
 
   // Case documents first (newest first), then the unit's other records (lease, certificates).
   const seen = new Set<string>()
@@ -95,7 +97,13 @@ export default function StaffCase() {
         </div>
       </section>
 
-      <ApprovalCard c={c} onApprove={async () => setData(await api.approve(c.case_id))} onReject={async (reason) => setData(await api.reject(c.case_id, reason))} />
+      {/* Approval (if needed) with Debye's diagnosis beside it */}
+      {(needsApproval(c.status) || c.diagnosis) && (
+        <div className={`grid grid-cols-1 gap-work ${needsApproval(c.status) && c.diagnosis ? 'xl:grid-cols-2' : ''}`}>
+          <ApprovalCard c={c} onApprove={async () => setData(await api.approve(c.case_id))} onReject={async (reason) => setData(await api.reject(c.case_id, reason))} />
+          <DiagnosisPanel c={c} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-work xl:grid-cols-[minmax(0,1fr)_theme(spacing.conversation)_theme(spacing.inspector)]">
         <div className="flex min-w-0 flex-col gap-work xl:col-span-2">

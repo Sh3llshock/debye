@@ -340,4 +340,20 @@ export const DE: Record<string, string> = {
   '{n} need your approval': '{n} brauchen Ihre Freigabe',
   'Every job needs staff approval': 'Jeder Auftrag braucht eine Freigabe',
   'Approved by Anna Becker': 'Freigegeben von Anna Becker',
+
+  // Debye's diagnosis
+  "Debye's diagnosis": 'Debyes Diagnose',
+  'Likely cause': 'Wahrscheinliche Ursache',
+  '{n}% confident': '{n} % sicher',
+  'Questions Debye asked': 'Fragen von Debye',
+  'No technician needed': 'Kein Techniker nötig',
+  'No technician sent, saved ~{eur}': 'Kein Techniker geschickt, ca. {eur} gespart',
+  'No technician sent, the caretaker handles it. Saved ~{eur}': 'Kein Techniker geschickt, der Hausmeister kümmert sich. Ca. {eur} gespart',
+  'Typical cost for this cause: {eur}': 'Übliche Kosten bei dieser Ursache: {eur}',
+  Plumber: 'Sanitär',
+  Heating: 'Heizung',
+  Electrician: 'Elektriker',
+  Caretaker: 'Hausmeister',
+  'Gas utility': 'Gasversorger',
+  Diagnosed: 'Diagnostiziert',
 }

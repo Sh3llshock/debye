@@ -77,7 +77,7 @@ type State = {
   dayOffset: number
   minute: number
 }
-const STORE_KEY = 'debye-fixtures-v4'
+const STORE_KEY = 'debye-fixtures-v5'
 let state: State = loadState() ?? initialState()
 
 function loadState(): State | null {
@@ -129,7 +129,55 @@ function initialState(): State {
     ],
     result: null,
   }
-  return { cases: { case_0002: approvalCase }, docSeq: 1, unitDocs: [], pendingSlots: {}, dayOffset: 0, minute: 0 }
+  const selfHelp: CaseDetail = {
+    case_id: 'case_0003',
+    type: 'repair.plumbing',
+    title: 'Shower is cold',
+    status: 'closed',
+    priority: 'normal',
+    unit_id: 'unit_2a',
+    address: ADDRESS,
+    partner: null,
+    updated_at: at(20, 15, 10),
+    created_at: at(20, 14, 52),
+    reporters: [{ contact_id: 'c_203', name: 'Jonas Weber', unit_id: 'unit_2a', relation: 'reporter' }],
+    asset: null,
+    cost_bearer: null,
+    estimated_cost_eur: null,
+    approval: null,
+    slot: null,
+    zero_forms: { prefilled: ['address', 'unit', 'floor', 'tenant name', 'phone', 'heating type', 'boiler model'], tenant_inputs: ['message', 'tap: only shower', 'tap: knob was wrong'] },
+    ranking: [],
+    consents: [],
+    documents: [],
+    trade: null,
+    diagnosis: {
+      cause_id: 'shower_knob_or_limiter',
+      label: 'Shower knob or temperature limiter set too low',
+      confidence: 0.9,
+      reasoning: 'Sinks are hot, only the shower is cold, and the knob was turned to the cold side → shower setting, no fault',
+      questions_asked: [
+        { id: 'q_scope', question: 'Is it only the shower, or is the hot water cold at the sinks too?', answer: 'only the shower is cold, sinks are hot' },
+        { id: 'q_knob', question: 'Could the shower knob or temperature limiter have been turned?', answer: 'yes, it was on the cold side' },
+      ],
+      outcome: 'self_help',
+      trade: null,
+    },
+    events: [
+      { ts: at(20, 14, 52), actor: 'debye', kind: 'case.created', summary: "Case opened from Jonas's message: shower is cold" },
+      { ts: at(20, 14, 55), actor: 'debye', kind: 'diagnosis.recorded', summary: 'Diagnosis: shower knob set too low (90%). Self-help tip sent, no technician' },
+      { ts: at(20, 15, 10), actor: 'tenant', kind: 'case.closed', summary: 'Jonas confirmed the shower is hot again' },
+    ],
+    messages: [
+      { ts: at(20, 14, 51), direction: 'in', contact: 'Jonas Weber', text: 'Meine Dusche ist kalt.', media: [] },
+      { ts: at(20, 14, 54), direction: 'out', contact: 'Jonas Weber', text: 'Ist es nur die Dusche, oder ist das Wasser auch an den Waschbecken kalt? [Nur die Dusche] · [Überall]', media: [] },
+      { ts: at(20, 14, 54), direction: 'in', contact: 'Jonas Weber', text: 'Nur die Dusche', media: [] },
+      { ts: at(20, 14, 55), direction: 'out', contact: 'Jonas Weber', text: 'Dreh bitte den Duschgriff ganz auf warm und lass das Wasser eine Minute laufen. Ich frage gleich nach.', media: [] },
+      { ts: at(20, 15, 9), direction: 'in', contact: 'Jonas Weber', text: 'Jetzt ist es warm, danke!', media: [] },
+    ],
+    result: null,
+  }
+  return { cases: { case_0002: approvalCase, case_0003: selfHelp }, docSeq: 1, unitDocs: [], pendingSlots: {}, dayOffset: 0, minute: 0 }
 }
 
 // ---------- event bus ----------
@@ -257,6 +305,21 @@ export const mockSteps: MockStep[] = [
     ready: () => !!heating() && heating()!.ranking.length === 0,
     run: () => {
       const c = heating()!
+      c.trade = 'heating'
+      c.diagnosis = {
+        cause_id: 'boiler_fault',
+        label: 'Boiler fault (ignition failed, F.28)',
+        confidence: 0.85,
+        reasoning: 'Hot water and radiators are cold everywhere and the boiler display shows F.28 → central boiler fault',
+        questions_asked: [
+          { id: 'q_scope', question: 'Is it only the shower, or is the hot water cold at the sinks too?', answer: 'cold or lukewarm everywhere' },
+          { id: 'q_radiators', question: 'Are the radiators cold too?', answer: 'yes, all radiators are cold' },
+          { id: 'q_display', question: 'What does the boiler display show?', answer: 'an error code: F.28' },
+        ],
+        outcome: 'technician',
+        trade: 'heating',
+        estimated_cost_eur: 263,
+      }
       c.ranking = [
         { partner_id: 'heizung-schmidt', name: 'Heizung Schmidt GmbH', score: 0.86, reasons: ['Vaillant-certified', 'Free tomorrow 8–10', 'Framework agreement'] },
         { partner_id: 'waerme-wagner', name: 'Wärme Wagner', score: 0.71, reasons: ['Vaillant-certified', 'Fully booked until Tue'] },
