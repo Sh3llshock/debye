@@ -156,6 +156,7 @@ async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | No
             else:
                 messages.append({"role": "assistant", "content": [{"type": "text", "text": "(turn ended)"}]})
         conv.history = messages
+        await flow.link_if_building_case_open(contact, conv)
         if ctx.sent == 0:
             log.warning("agent turn sent nothing; using scripted fallback")
             last_turn_fallback = True
