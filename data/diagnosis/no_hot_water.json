@@ -15,13 +15,13 @@
     "season (Nov–Mar raises urgency)"
   ],
   "safety_first": {
-    "question": "Before anything else: do you smell gas anywhere near the boiler or kitchen?",
     "if_yes": {
       "cause": "gas_smell",
       "outcome": "emergency",
       "tenant_message": "Please leave the apartment now, don't use light switches or open flames, and call the gas emergency line 0800 2 26 77 89 from outside. I've alerted your property manager right away.",
       "notify_staff": "urgent"
-    }
+    },
+    "trigger": "ONLY if the tenant mentions a gas smell, hissing or similar. Never ask about gas proactively."
   },
   "questions": [
     {
@@ -450,18 +450,39 @@
     }
   ],
   "strategy": [
-    "Always run safety_first before anything else.",
-    "Use centrix context before asking: a neighbour's open report on the same central boiler means boiler_fault is very likely; a building notice today means planned_maintenance.",
-    "Ask the single question that best splits the remaining causes (usually q_scope, then q_radiators or q_recent_use).",
-    "Stop as soon as one cause is clearly most likely (≤ 3 questions typical); never ask more than 5.",
-    "Self-help outcomes: give the tip, schedule a follow-up check, and do NOT dispatch anyone.",
-    "Technician outcomes: pick partners whose trades include the cause's trade (and brand if required), then staff approval.",
-    "Always tell the tenant the likely cause in plain words, and record the diagnosis with the reasoning on the case.",
-    "Ask q_heater_type only if centrix doesn't already know the unit's hot water source."
+    "Safety: react to a gas smell only if the tenant mentions it (emergency path). Never ask about gas proactively.",
+    "Use centrix context first, without asking: a neighbour's open case on the same central boiler → boiler_fault; an active building notice → planned_maintenance; the unit's hot water source decides electric_instant_heater.",
+    "Take everything the first message already says (e.g. 'only the shower', 'roommate just showered').",
+    "Ask the ONE question that best splits the most likely remaining causes (follow likelihood_order): usually q_scope first, then q_recent_use or q_radiators.",
+    "Ask at most 3 questions in total, one per message, and combine where natural ('Is it only the shower, or the sinks too, and did anyone shower just before you?').",
+    "Stop as soon as one cause is clearly most likely; if still unclear after 3 questions, pick the most likely technician outcome and let staff approve.",
+    "Self-help outcomes: give the tip, schedule a follow-up check, do NOT dispatch anyone.",
+    "Technician outcomes: partners by the cause's trade (brand if required), then consent and staff approval.",
+    "Tone: short, friendly, matter-of-fact. No filler empathy ('a cold shower is the worst'), no exclamations, no emojis in diagnosis questions. Max 2 short sentences per message.",
+    "Always tell the tenant the likely cause in plain words and record the diagnosis with its reasoning on the case."
   ],
   "sources": [
     "Team troubleshooting sheet (33 situations, adapted from hotel to rental-flat context)",
     "Vaillant 'no hot water' guidance",
     "Moen / Triton / A. O. Smith troubleshooting guides"
+  ],
+  "likelihood_order": [
+    "hot_water_used_up",
+    "simultaneous_use",
+    "not_run_long_enough",
+    "shower_knob_or_limiter",
+    "shower_mixer_faulty",
+    "boiler_fault",
+    "low_system_pressure",
+    "boiler_schedule_or_settings",
+    "diverter_valve_stuck",
+    "tank_thermostat_or_scale",
+    "circulation_pump_faulty",
+    "no_power_to_boiler",
+    "electric_instant_heater",
+    "supply_valve_closed_after_work",
+    "planned_maintenance",
+    "gas_supply_interrupted",
+    "frozen_or_damaged_pipe"
   ]
 }

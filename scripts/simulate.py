@@ -274,7 +274,8 @@ class Sim:
     # Answers for the boiler-fault story (radiators cold too, F.28 on the display)
     DIAGNOSIS_TRUTH = {"q_safety": "no", "q_scope": "everywhere", "q_radiators": "yes", "q_display": "code",
                        "q_recent_use": "no", "q_waited": "yes", "q_timing": "stays_cold", "q_power": "yes",
-                       "q_gas_stove": "yes", "q_pressure": "ok", "q_other_tap": "no", "q_heater_type": "no"}
+                       "q_gas_stove": "yes", "q_pressure": "ok", "q_other_tap": "no", "q_heater_type": "no",
+                       "q_knob": "correct", "q_recent_work": "no", "q_handle_feel": "normal", "q_weather_pipe": "no"}
 
     def _last_option_ids(self, phone: str) -> list[str]:
         for item in reversed(self.outbox_all):

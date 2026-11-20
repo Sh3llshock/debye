@@ -99,7 +99,14 @@ async def handle_inbound(msg: InboundMessage) -> None:
 
     from app.agent import diagnosis
 
-    # "My shower is cold": start the diagnosis (safety question first, asked by code)
+    # Gas smell / hissing mentioned anywhere → emergency path at once (never asked proactively)
+    if text and diagnosis.safety_from_text(text) == "yes" and conv.step != st.CLOSED:
+        async with _locks[cid]:
+            if not conv.diagnosis or conv.diagnosis.get("concluded"):
+                diagnosis.start(conv, text)
+            await diagnosis.conclude(contact, conv, "gas_smell", 1.0, f"Tenant mentions a gas smell: \"{text[:120]}\"")
+        return
+    # "My shower is cold": start the diagnosis (no gas question; centrix first, then max 3 questions)
     if (text and not conv.case_id and not conv.diagnosis and conv.step == st.NEW and diagnosis.applies(text)):
         conv.tenant_texts.append(text)
         async with _locks[cid]:
@@ -114,30 +121,6 @@ async def handle_inbound(msg: InboundMessage) -> None:
 
     # A free-text answer to the open question ("sure", "just the shower", "Saturday works") is handled
     # exactly like the tap, so consent/slots are really recorded before anything is confirmed.
-    if text and diagnosis.active(conv) and not conv.diagnosis.get("safety_done"):
-        verdict = diagnosis.safety_from_text(text)
-        if verdict == "yes":
-            async with _locks[cid]:
-                await diagnosis.on_answer(contact, diagnosis.SAFETY_QID, "yes")
-            return
-        if verdict == "no":
-            conv.diagnosis["safety_done"] = True
-            rest = diagnosis.GAS_NO_RE.sub("", text).strip(" ,.!-")
-            if len(rest) < 4:  # just "no gas": go on like the tap
-                conv.pending_options = []
-                async with _locks[cid]:
-                    await diagnosis.on_answer(contact, diagnosis.SAFETY_QID, "no")
-                return
-        elif conv.pending_options and any(o.id.startswith("diag:q_safety:") for o in conv.pending_options):
-            from app.agent import choice
-
-            opt = choice.fast_match(text, conv.pending_options)  # plain "no" / "yes" to the gas question
-            if opt is not None:
-                conv.pending_options = []
-                async with _locks[cid]:
-                    await diagnosis.on_answer(contact, diagnosis.SAFETY_QID, opt.id.split(":")[2])
-                return
-            conv.pending_options = []  # something else: record it and move on (the next question re-asks once)
     in_diagnosis = diagnosis.active(conv)
     if text and not images and conv.pending_options and not in_diagnosis:
         # (during a diagnosis the model reads the whole message and records every answer in it;
