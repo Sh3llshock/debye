@@ -4,6 +4,7 @@ import { fmtEur } from '../../lib/format'
 import { t } from '../../lib/i18n'
 import { Icon } from '../icons'
 import { Chip } from '../ui'
+import { KB_CAUSES, KB_QUESTIONS } from '../../lib/kb'
 
 /** Trade the job needs, in words (English source; shown through t()). */
 const TRADE_LABEL: Record<string, string> = {
@@ -24,18 +25,42 @@ export function tradeLabel(trade?: string | null, outcome?: string | null) {
 const KB_MIN_TECHNICIAN_EUR = 180
 const NO_TECHNICIAN = new Set(['self_help', 'caretaker'])
 
+/** Question + answer from any of the shapes the agent may send: {question, answer}, {id, answer}, "q_scope=everywhere" or plain text. */
 function qa(x: DiagnosisQA | string): { q: string; a: string } {
-  if (typeof x === 'string') return { q: x, a: '' }
-  return { q: x.question ?? x.text ?? x.q ?? x.id ?? '', a: x.answer_text ?? x.answer ?? x.a ?? '' }
+  const fromKb = (id: string, ans: string) => {
+    const k = KB_QUESTIONS[id]
+    return k ? { q: k.text, a: k.answers[ans] ?? ans.replace(/_/g, ' ') } : null
+  }
+  if (typeof x === 'string') {
+    const m = x.match(/^(q_\w+)\s*[=:]\s*(.+)$/)
+    if (m) return fromKb(m[1], m[2].trim()) ?? { q: m[1].replace(/^q_/, '').replace(/_/g, ' '), a: m[2] }
+    return fromKb(x, '') ?? { q: x, a: '' }
+  }
+  const ans = x.answer_text ?? x.answer ?? x.a ?? ''
+  const q = x.question ?? x.text ?? x.q
+  if (!q && x.id) return fromKb(x.id, ans) ?? { q: x.id, a: ans }
+  return { q: q ?? '', a: x.id && KB_QUESTIONS[x.id]?.answers[ans] ? KB_QUESTIONS[x.id].answers[ans] : ans }
 }
+
+/** The diagnosis outcome: from the API, else caretaker if the caretaker was notified, else the KB entry for the cause. */
+export function diagnosisOutcome(c: CaseDetail): string | null {
+  const d = c.diagnosis
+  if (!d) return null
+  return d.outcome ?? (c.events.some((e) => e.kind === 'caretaker.notified') ? 'caretaker' : KB_CAUSES[d.cause_id]?.outcome ?? null)
+}
+export const isNoTechnician = (c: CaseDetail) => NO_TECHNICIAN.has(diagnosisOutcome(c) ?? '')
 
 /** "Debye's diagnosis": likely cause, confidence, one-line reasoning, the questions asked, the trade it needs. */
 export function DiagnosisPanel({ c }: { c: CaseDetail }) {
   const d = c.diagnosis
   if (!d) return null
   const pct = d.confidence == null ? null : Math.round(d.confidence <= 1 ? d.confidence * 100 : d.confidence)
-  const outcome = d.outcome ?? null
-  const trade = c.trade ?? d.trade ?? null
+  // outcome/cost come in a backend follow-up; until then fall back to the KB entry for the cause,
+  // and a caretaker.notified event means the caretaker outcome.
+  const kb = KB_CAUSES[d.cause_id]
+  const outcome = diagnosisOutcome(c)
+  const trade = outcome && NO_TECHNICIAN.has(outcome) ? (outcome === 'caretaker' ? 'caretaker' : null) : (c.trade ?? d.trade ?? kb?.trade ?? null)
+  const cost = d.estimated_cost_eur ?? kb?.cost ?? null
   const saved = outcome && NO_TECHNICIAN.has(outcome) ? (d.estimated_saving_eur ?? KB_MIN_TECHNICIAN_EUR) : null
   const qs = (d.questions_asked ?? []).map(qa).filter((x) => x.q)
   return (
@@ -85,9 +110,7 @@ export function DiagnosisPanel({ c }: { c: CaseDetail }) {
             {outcome === 'caretaker' ? t('No technician sent, the caretaker handles it. Saved ~{eur}', { eur: fmtEur(saved) }) : t('No technician sent, saved ~{eur}', { eur: fmtEur(saved) })}
           </div>
         )}
-        {outcome === 'technician' && d.estimated_cost_eur != null && (
-          <div className="mt-3 text-label text-muted">{t('Typical cost for this cause: {eur}', { eur: fmtEur(d.estimated_cost_eur) })}</div>
-        )}
+        {outcome === 'technician' && cost != null && <div className="mt-3 text-label text-muted">{t('Typical cost for this cause: {eur}', { eur: fmtEur(cost) })}</div>}
       </div>
     </section>
   )
