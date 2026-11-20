@@ -26,7 +26,8 @@ class Conversation:
     step: str = NEW
     history: list = field(default_factory=list)  # Claude messages (dicts)
     tenant_texts: list[str] = field(default_factory=list)
-    photos: list[str] = field(default_factory=list)  # local paths not yet attached to a case
+    asked_at: dict = field(default_factory=dict)  # step -> time.monotonic() of the last question
+    pending_inputs: list[str] = field(default_factory=list)  # zero-forms labels before the case exists
 
 
 @dataclass

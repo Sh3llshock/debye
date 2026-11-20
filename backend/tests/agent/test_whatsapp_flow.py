@@ -103,6 +103,8 @@ def test_golden_path(client, svc, claude, monkeypatch, tmp_path):
     assert req["model"] == "claude-opus-5-5" and req["output_config"] == {"effort": "low"}
     assert req["fallbacks"] == "default" and all(t["strict"] for t in req["tools"])
     assert any(c[0] == "attach" and c[2] == "photo" for c in svc.calls)
+    inputs = [c[2] for c in svc.calls if c[0] == "input"]
+    assert inputs[:2] == ["voice note", "photo"], inputs
 
     # 2. tap "Überall kalt" → consent buttons, no LLM
     n_req = len(stub.requests)

@@ -101,6 +101,12 @@ class FakeServices:
         return {}
 
     # asked-for extras
+    def add_tenant_input(self, case_id, label):
+        self.calls.append(("input", case_id, label))
+
+    def message_seen(self, wamid):
+        return False
+
     def get_case_contacts(self, case_id):
         out = []
         for cid, rel in self.case_contacts.get(case_id, []):
