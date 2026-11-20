@@ -138,7 +138,7 @@ All JSON. Errors: `{"detail": "..."}` with 4xx.
 | POST | `/api/partner/{partner_id}/jobs/{case_id}/complete` | multipart: `notes`, `photo`, `invoice` (PDF) | `JobDetail` |
 
 ### Files and demo
-`GET /files/{document_id}`; `POST /demo/reset`, `POST /demo/skip-to-tomorrow`, `POST /demo/trigger/{name}` (only when `DEMO_MODE=1`).
+`GET /files/{document_id}`; `POST /demo/scenarios` (reset + 9 realistic demo cases built through the real services; units 4b and 2a stay empty; also `POST /demo/reset?scenarios=1`); `POST /demo/reset`, `POST /demo/skip-to-tomorrow`, `POST /demo/trigger/{name}` (only when `DEMO_MODE=1`).
 
 ### Shapes
 ```jsonc

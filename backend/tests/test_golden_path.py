@@ -600,3 +600,50 @@ def test_caretaker_case_closes_without_partner(client):
     _dispatch(c2.id)
     with pytest.raises(rules.RuleViolation):
         services.close_without_partner(c2.id, "self_help")
+
+
+# ---------------------------------------------------------------- demo scenarios
+def test_demo_scenarios(client):
+    r = client.post("/demo/scenarios")
+    assert r.status_code == 200, r.text
+    by = {c["scenario"]: c for c in r.json()["cases"]}
+    expect = {"s1_approval_pending": "approval_pending", "s2_requested": "requested",
+              "s3_awaiting_technician": "awaiting_technician", "s4_scheduled_electrical": "scheduled",
+              "s5_closed_invoiced": "closed", "s6_self_help": "closed", "s7_caretaker": "new",
+              "s8_wagner_closed": "closed", "s9_gruen_requested": "requested"}
+    assert {k: v["status"] for k, v in by.items()} == expect
+
+    # live demo units stay empty, and nothing open on Musterstraße's central boiler
+    assert client.get("/api/staff/units/unit_4b").json()["cases"] == []
+    assert client.get("/api/staff/units/unit_2a").json()["cases"] == []
+    assert services.find_open_case_for_asset("asset_boiler_1") is None
+
+    # every partner portal has a job
+    for pid in ("heizung-schmidt", "elektro-klein", "waerme-wagner", "heiztechnik-gruen"):
+        assert client.get(f"/api/partner/{pid}/jobs").json(), pid
+
+    s1 = client.get(f"/api/staff/cases/{by['s1_approval_pending']['case_id']}").json()
+    assert s1["diagnosis"]["confidence"] == 0.85 and s1["asset"]["make"] == "Viessmann"
+    assert s1["asset"]["error_label"] == "No flame signal at start-up (ignition failed)"
+    assert s1["approval"]["partner"]["partner_id"] == "heizung-schmidt" and len(s1["messages"]) >= 4
+    s3 = client.get(f"/api/staff/cases/{by['s3_awaiting_technician']['case_id']}").json()
+    assert s3["technician"]["tech_id"] == "tech_ali" and s3["trade"] == "plumbing"
+    s4 = client.get(f"/api/staff/cases/{by['s4_scheduled_electrical']['case_id']}").json()
+    assert s4["technician"]["tech_id"] == "tech_marco" and s4["partner"]["partner_id"] == "elektro-klein"
+    s5 = client.get(f"/api/staff/cases/{by['s5_closed_invoiced']['case_id']}").json()
+    inv = next(d for d in s5["documents"] if d["kind"] == "invoice")
+    assert inv["extracted"]["gross_eur"] == 498.61 and inv["extracted"]["price_check"]["result"] == "ok"
+    assert client.get(inv["url"]).content.startswith(b"%PDF-1.4")
+    unit = client.get("/api/staff/units/unit_41_3").json()
+    assert {"invoice", "report"} <= {d["kind"] for d in unit["documents"]}
+    s6 = client.get(f"/api/staff/cases/{by['s6_self_help']['case_id']}").json()
+    assert s6["resolution"] == "self_help" and s6["saving_eur"] == 180 and s6["partner"] is None
+    s7 = client.get(f"/api/staff/cases/{by['s7_caretaker']['case_id']}").json()
+    assert s7["caretaker"]["name"] == "Peter Wolf"
+    # timelines look realistic: the closed case is days old
+    assert s5["created_at"] < s1["created_at"]
+
+    # reset with scenarios works too, and a plain reset empties everything
+    assert len(client.post("/demo/reset?scenarios=1").json()["cases"]) == 9
+    client.post("/demo/reset")
+    assert client.get("/api/staff/cases").json() == []

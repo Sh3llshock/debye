@@ -27,10 +27,11 @@ Commands are PowerShell, run from the repo root. One server on `:8000` serves th
    Invoke-RestMethod http://localhost:8000/healthz
    ```
 7. From **each demo phone**, send "hi" to the test number. That opens WhatsApp's 24-hour window for buttons and lists.
-8. Reset (this wipes the "hi" messages too):
+8. Reset and load the demo scenarios (this wipes the "hi" messages too). It creates 9 realistic cases on other units and partners so the staff and partner pages look busy; Luka's 4b and Jonas' 2a stay empty for the live run:
    ```powershell
-   .\scripts\demo_reset.ps1
+   .\scripts\demo_scenarios.ps1
    ```
+   For a completely empty dashboard instead: `.\scripts\demo_reset.ps1`.
 
 ## Screens
 

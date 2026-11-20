@@ -55,12 +55,28 @@ def _reset_agent_state() -> None:
 
 
 @router.post("/reset")
-async def reset() -> dict:
+async def reset(scenarios: bool = False) -> dict:
+    """?scenarios=1 also loads the demo scenarios (see /demo/scenarios)."""
     _require_demo()
+    if scenarios:
+        return await load_scenarios()
     seed(reset=True)
     _reset_agent_state()  # agent conversation state + fake-send outbox (agent-whatsapp)
     await publish("demo.reset", None, {"ts": now_iso()})
     return {"ok": True}
+
+
+@router.post("/scenarios")
+async def load_scenarios() -> dict:
+    """Reset, then create realistic cases through the real services (app/scenarios.py).
+    Luka's unit 4b and Jonas' unit 2a stay empty for the live WhatsApp demo."""
+    from . import scenarios as sc
+    _require_demo()
+    seed(reset=True)
+    _reset_agent_state()
+    created = await sc.load()
+    await publish("demo.reset", None, {"ts": now_iso(), "scenarios": len(created)})
+    return {"ok": True, "cases": created}
 
 
 @router.post("/skip-to-tomorrow")
