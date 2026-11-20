@@ -19,12 +19,12 @@ export function Lifecycle({ status }: { status: string }) {
           <li key={s} className="flex flex-1 items-center gap-2">
             <span
               className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors duration-700 ${
-                done ? 'border-plum bg-plum text-on-plum' : cur ? 'border-plum bg-plum-soft text-plum' : 'border-line bg-surface text-muted'
+                done ? 'border-plum bg-plum text-on-plum' : cur ? 'border-violet bg-violet-soft text-violet' : 'border-line bg-surface text-muted'
               }`}
             >
               {done ? '✓' : i + 1}
             </span>
-            <span className={`hidden text-sm font-semibold md:inline ${cur ? 'text-plum' : done ? 'text-ink' : 'text-muted'}`}>{labels[s]}</span>
+            <span className={`hidden text-sm font-semibold md:inline ${cur ? 'text-violet' : done ? 'text-plum' : 'text-muted'}`}>{labels[s]}</span>
             {i < LIFECYCLE.length - 1 && <span className={`h-0.5 flex-1 transition-colors duration-700 ${i < idx ? 'bg-plum' : 'bg-line'}`} />}
           </li>
         )
@@ -47,14 +47,14 @@ export function ZeroFormsCounter({ c }: { c: CaseDetail }) {
   const z = zeroFormsText(c)
   if (!z) return null
   return (
-    <div className="rounded border border-plum bg-plum-soft p-4" title={c.zero_forms?.prefilled.join(', ')}>
-      <div className="label text-plum">Zero forms</div>
+    <div className="rounded-lg bg-plum p-5 text-on-plum" title={c.zero_forms?.prefilled.join(', ')}>
+      <div className="label !text-on-plum-muted">Zero forms</div>
       <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
-        <span className="font-serif text-3xl font-semibold text-plum">{z.prefilled}</span>
-        <span className="text-lg text-plum">fields pre-filled from centrix</span>
+        <span className="text-stat font-medium">{z.prefilled}</span>
+        <span className="text-body-sm">fields pre-filled from centrix</span>
       </div>
-      <div className="mt-1 text-lg">
-        Resident gave: <span className="font-semibold">{z.inputs}</span>
+      <div className="mt-2 border-t border-line-on-plum pt-2 text-body-sm">
+        <span className="text-on-plum-muted">Resident gave:</span> <span className="font-semibold">{z.inputs}</span>
       </div>
     </div>
   )
@@ -104,14 +104,14 @@ export function ApprovalCard({ c, onApprove }: { c: CaseDetail; onApprove: () =>
   if (!needs) return null
   const amount = c.approval?.amount_eur ?? c.estimated_cost_eur
   return (
-    <Card tone="warning" className="animate-enter">
-      <div className="label text-warning">Approval needed</div>
-      <div className="mt-2 font-serif text-2xl font-semibold text-plum">
+    <Card tone="inverse" className="animate-enter">
+      <div className="label !text-on-plum-muted">Approval needed</div>
+      <div className="mt-2 font-serif text-2xl font-semibold">
         Approve {fmtEur(amount)} repair{c.partner ? ` by ${c.partner.name}` : ''}?
       </div>
-      {c.approval?.rule && <div className="mt-1 text-muted">{c.approval.rule}</div>}
+      {c.approval?.rule && <div className="mt-1 text-body-sm text-on-plum-muted">{c.approval.rule}</div>}
       <button
-        className="btn-primary mt-4 w-full text-lg"
+        className="btn-inverse mt-5 w-full"
         disabled={busy}
         onClick={async () => {
           setBusy(true)
@@ -125,9 +125,9 @@ export function ApprovalCard({ c, onApprove }: { c: CaseDetail; onApprove: () =>
           }
         }}
       >
-        {busy ? 'Approving…' : 'Approve'}
+        {busy ? 'Approving…' : 'Approve →'}
       </button>
-      {err && <div className="mt-2 text-danger">{err}</div>}
+      {err && <div className="mt-2 rounded bg-danger-soft p-2 text-danger">{err}</div>}
     </Card>
   )
 }
@@ -158,7 +158,7 @@ export function Timeline({ events }: { events: CaseEvent[] }) {
                   <span className="text-sm text-muted">{fmtTime(e.ts)}</span>
                   <span className="font-mono text-xs text-muted">{e.kind}</span>
                 </div>
-                <div className="text-lg leading-snug">{e.summary}</div>
+                <div className="text-body leading-snug">{e.summary}</div>
               </div>
             </li>
           ))}
@@ -189,10 +189,10 @@ export function WhatsAppThread({ messages }: { messages: ThreadMessage[] }) {
             key={messageKey(m)}
             className={`max-w-[85%] rounded px-3 py-2 shadow-card ${m.direction === 'in' ? 'self-start bg-wa-in' : 'self-end bg-wa-out'} ${isNew(messageKey(m)) ? 'animate-enter' : ''}`}
           >
-            <div className="text-xs font-semibold text-muted">{m.direction === 'in' ? m.contact : 'Debye'}</div>
+            <div className="text-xs font-semibold text-wa-meta">{m.direction === 'in' ? m.contact : 'Debye'}</div>
             {m.media?.length > 0 && <div className="text-sm text-muted">{m.media.map(mediaLabel).join(' · ')}</div>}
-            <div className="text-body leading-snug">{m.text}</div>
-            <div className="text-right text-xs text-muted">{fmtTime(m.ts)}</div>
+            <div className="text-body-sm leading-snug">{m.text}</div>
+            <div className="text-right text-xs text-wa-meta">{fmtTime(m.ts)}{m.direction === "out" && <span className="ml-1 text-wa-tick">✓✓</span>}</div>
           </div>
         ))}
       </div>
@@ -211,7 +211,7 @@ export function Ranking({ ranking, chosen }: { ranking: RankingEntry[]; chosen?:
           {ranking.map((r, i) => {
             const win = chosen ? r.partner_id === chosen : i === 0
             return (
-              <li key={r.partner_id} className={`rounded border p-3 ${win ? 'border-plum bg-plum-soft' : 'border-line'}`}>
+              <li key={r.partner_id} className={`rounded border p-3 ${win ? "border-plum bg-plum-faint" : "border-line"}`}>
                 <div className="flex items-baseline justify-between gap-2">
                   <span className={`font-semibold ${win ? 'text-plum' : ''}`}>
                     {i + 1}. {r.name}

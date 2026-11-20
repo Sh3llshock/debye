@@ -1,0 +1,40 @@
+{
+  "hash": "c94a59cc",
+  "configHash": "386bcaa7",
+  "lockfileHash": "27f26593",
+  "browserHash": "84b7fc4a",
+  "optimized": {
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "e9273878",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "6b931e1a",
+      "needsInterop": true
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/react-router-dom/dist/index.js",
+      "file": "react-router-dom.js",
+      "fileHash": "6a41cb16",
+      "needsInterop": false
+    },
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "f269188f",
+      "needsInterop": true
+    }
+  },
+  "chunks": {
+    "chunk-QPG7G3M7": {
+      "file": "chunk-QPG7G3M7.js"
+    },
+    "chunk-UTEJFLXC": {
+      "file": "chunk-UTEJFLXC.js"
+    }
+  }
+}
