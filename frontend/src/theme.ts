@@ -1,158 +1,91 @@
 /**
  * Single source of truth for every design value (colours, fonts, sizes, radii, spacing).
- * Mapped from docs/design/tokens.json (designer, reltix-derived, projector scale).
- * Wired into Tailwind in tailwind.config.ts. Components use Tailwind classes built from
- * these names (bg-surface, text-plum, rounded-card, text-body ...) or, for data-driven
- * colours (status, priority, actor), read the maps below. Never hard-code values.
+ * Mapped from docs/design/v2/version-b-impeccable/tokens.json ("impeccable", Operate mode):
+ * navy icon rail, tinted ground, white work areas, borders only (no shadows), Public Sans.
+ * Wired into Tailwind in tailwind.config.ts. Components use classes built from these names.
  */
-
-const brand = {
-  aubergine: '#330933',
-  aubergineDeep: '#2A072A',
-  aubergineInk: '#290629',
-  aubergine80: '#5C3A5C',
-  aubergine60: '#856B85',
-  aubergine20: '#D6CED6',
-  aubergine10: '#EBE6EB',
-  aubergine05: '#F5F2F5',
-  violet: '#8332AC',
-  violetSoft: '#F1E6F7',
-  lilac: '#C9A3E0',
-}
-
 export const theme = {
   colors: {
+    // shell (icon rail)
+    rail: '#0B1F3A',
+    'rail-active': '#1C3456',
+    'rail-text': '#C9D3E3',
+    'rail-text-active': '#FFFFFF',
     // surfaces
-    bg: '#FAF6F2', // surface.page
-    'bg-warm': '#FCF6EF', // surface.pageWarm
-    surface: '#FFFFFF', // surface.card
-    'surface-alt': '#F3EDE6', // surface.subtle
-    line: '#E7DFD7', // border.default
+    bg: '#F2F5F9', // ground
+    surface: '#FFFFFF', // work areas
+    sub: '#EEF2F7', // sub-surface (table head, incoming bubbles, busy cells)
+    line: '#DCE3EC', // the only elevation: 1px borders
     // text
-    ink: '#1A1A1A', // text.body
-    heading: '#330933',
-    muted: '#6B6B6B',
-    'on-plum': '#FFFFFF',
-    'on-plum-muted': 'rgba(255, 255, 255, 0.72)',
-    'line-on-plum': 'rgba(255, 255, 255, 0.20)',
-    link: brand.violet,
-    // brand
-    plum: brand.aubergine,
-    'plum-dark': brand.aubergineInk,
-    'plum-80': brand.aubergine80,
-    'plum-60': brand.aubergine60,
-    'plum-20': brand.aubergine20,
-    'plum-soft': brand.aubergine10,
-    'plum-faint': brand.aubergine05,
-    violet: brand.violet,
-    'violet-soft': brand.violetSoft,
-    lilac: brand.lilac,
-    'error-screen': '#2B2B2B', // boiler display photo placeholder
-    'error-glow': '#7CF29A',
-    // feedback
-    success: '#1E7A46',
-    'success-soft': '#E2F3E8',
-    warning: '#A15C07',
-    'warning-soft': '#FDF0DC',
-    danger: '#B42318',
-    'danger-soft': '#FDE7E5',
-    info: '#1F5FA8',
-    'info-soft': '#E3EEFA',
-    // WhatsApp thread preview
-    'wa-header': '#008069',
-    'wa-in': '#FFFFFF',
-    'wa-out': '#D9FDD3',
-    'wa-bg': '#EFEAE2',
-    'wa-meta': '#667781',
-    'wa-tick': '#53BDEB',
+    ink: '#0B1F3A',
+    secondary: '#44536A',
+    muted: '#66758C',
+    'on-action': '#FFFFFF',
+    // action (buttons, selection, current station, links)
+    action: '#2E5BBA',
+    'action-soft': '#E7EEFA',
+    'action-dark': '#244A99',
+    // state (chips and the decision row only)
+    positive: '#067647',
+    'positive-soft': '#E5F4EC',
+    negative: '#B42318',
+    'negative-soft': '#FCEBE9',
+    warning: '#B54708',
+    'warning-soft': '#FEF3E2',
+    // lifecycle (service line)
+    'life-done': '#0B1F3A',
+    'life-current': '#2E5BBA',
+    'life-upcoming': '#A9B6C8',
+    'life-track': '#C9D3E0',
+    // demo-only photo placeholder
+    'photo-bg': '#13233D',
+    'photo-display': '#A9C49A',
   },
   fonts: {
-    serif: ['Baskervville', '"Libre Baskerville"', 'Georgia', 'serif'],
-    sans: ['"IBM Plex Sans"', 'system-ui', '-apple-system', '"Segoe UI"', 'Roboto', 'sans-serif'],
-    mono: ['"IBM Plex Mono"', 'ui-monospace', 'Menlo', 'monospace'],
+    sans: ['"Public Sans"', 'system-ui', 'sans-serif'],
   },
-  // Projector scale from tokens.fontSize. Never below 15px.
+  // Role scale 30 / 18 / 16 / 15 / 14 / 13 / 12 (converted to rem in tailwind.config.ts so ?stage scales text).
   fontSize: {
-    xs: ['15px', { lineHeight: '20px', letterSpacing: '0.01em' }], // caption
-    eyebrow: ['14px', { lineHeight: '18px', letterSpacing: '0.08em' }],
-    sm: ['16px', { lineHeight: '22px', letterSpacing: '0.01em' }], // label
-    'body-sm': ['18px', { lineHeight: '26px' }],
-    body: ['20px', { lineHeight: '30px' }],
-    lg: ['24px', { lineHeight: '34px' }], // lead
-    xl: ['28px', { lineHeight: '34px', letterSpacing: '-0.02em' }], // h3 (card titles)
-    '2xl': ['36px', { lineHeight: '42px', letterSpacing: '-0.04em' }], // h2
-    '3xl': ['48px', { lineHeight: '54px', letterSpacing: '-0.05em' }], // h1
-    stat: ['56px', { lineHeight: '60px', letterSpacing: '-0.02em' }],
-    display: ['64px', { lineHeight: '68px', letterSpacing: '-0.05em' }],
+    page: ['30px', { lineHeight: '36px', letterSpacing: '-0.01em' }],
+    stat: ['30px', { lineHeight: '36px', letterSpacing: '-0.01em' }],
+    panel: ['18px', { lineHeight: '27px' }],
+    body: ['16px', { lineHeight: '24px' }],
+    'body-sm': ['15px', { lineHeight: '22px' }],
+    label: ['14px', { lineHeight: '21px' }],
+    meta: ['13px', { lineHeight: '19px' }],
+    tiny: ['12px', { lineHeight: '16px' }],
   } as Record<string, [string, { lineHeight: string; letterSpacing?: string }]>,
   radius: {
     none: '0px',
-    sm: '8px',
-    DEFAULT: '12px',
-    lg: '16px',
-    button: '16px',
-    card: '20px',
-    '2xl': '28px',
-    pill: '999px',
+    chip: '6px',
+    DEFAULT: '8px', // controls
+    panel: '12px',
     full: '9999px',
   },
   shadow: {
     none: 'none',
-    card: '0 1px 2px rgba(51, 9, 51, 0.06), 0 6px 18px rgba(51, 9, 51, 0.06)',
-    pop: '0 8px 24px rgba(51, 9, 51, 0.14)',
-    button: '0 2px 4px rgba(51, 9, 51, 0.30)',
-    focus: '0 0 0 3px rgba(131, 50, 172, 0.35)',
+    pop: '0 8px 24px rgba(11, 31, 58, 0.16)', // floating demo panel only, not part of the page design
   },
   spacing: {
-    gutter: '16px', // mobile page gutter
-    page: '48px', // layout.pageGutter (desktop)
-    gap: '32px', // layout.columnGap
-    card: '32px', // layout.cardPadding
-    'card-sm': '24px', // layout.cardPaddingCompact
-    section: '32px',
-    topbar: '80px',
+    rail: '72px',
+    header: '64px',
+    work: '24px',
+    inspector: '360px',
+    conversation: '360px',
+    row: '64px',
   },
   motion: {
-    easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
-    fast: '120ms',
-    base: '200ms',
-    slow: '320ms',
+    easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    hover: '140ms',
   },
 }
 
-/** Status pill colours (tokens color.status). Unknown statuses fall back to `closed`. */
-export const statusColors: Record<string, { fg: string; bg: string }> = {
-  new: { fg: '#8332AC', bg: '#F1E6F7' },
-  requested: { fg: '#8332AC', bg: '#F1E6F7' },
-  awaiting_approval: { fg: '#A15C07', bg: '#FDF0DC' },
-  accepted: { fg: '#1F5FA8', bg: '#E3EEFA' },
-  slots_proposed: { fg: '#A15C07', bg: '#FDF0DC' },
-  scheduled: { fg: '#1F5FA8', bg: '#E3EEFA' },
-  in_progress: { fg: '#A15C07', bg: '#FDF0DC' },
-  completed: { fg: '#1E7A46', bg: '#E2F3E8' },
-  invoiced: { fg: '#1E7A46', bg: '#E2F3E8' },
-  closed: { fg: '#4A4A4A', bg: '#EDEDED' },
-  declined: { fg: '#B42318', bg: '#FDE7E5' },
-  partner_declined: { fg: '#B42318', bg: '#FDE7E5' },
-  reopened: { fg: '#A15C07', bg: '#FDF0DC' },
+/** State chip colours (text in state colour on its soft tint). Unknown statuses use the neutral sub tint. */
+export const chipColors = {
+  positive: { fg: theme.colors.positive, bg: theme.colors['positive-soft'] },
+  negative: { fg: theme.colors.negative, bg: theme.colors['negative-soft'] },
+  warning: { fg: theme.colors.warning, bg: theme.colors['warning-soft'] },
+  action: { fg: theme.colors.action, bg: theme.colors['action-soft'] },
+  neutral: { fg: theme.colors.secondary, bg: theme.colors.sub },
 }
-
-/** Priority colours (tokens color.priority). Urgent is the only filled red element. */
-export const priorityColors: Record<string, { fg: string; bg: string }> = {
-  urgent: { fg: '#FFFFFF', bg: '#B42318' },
-  high: { fg: '#A15C07', bg: '#FDF0DC' },
-  normal: { fg: '#5C3A5C', bg: '#EBE6EB' },
-  low: { fg: '#5C3A5C', bg: '#EBE6EB' },
-}
-
-/** Timeline actor circles (tokens color.actor). */
-export const actorColors: Record<string, { fg: string; bg: string }> = {
-  debye: { fg: '#FFFFFF', bg: '#330933' },
-  tenant: { fg: '#FFFFFF', bg: '#1E7A46' },
-  partner: { fg: '#FFFFFF', bg: '#A15C07' },
-  staff: { fg: '#FFFFFF', bg: '#1F5FA8' },
-  pm: { fg: '#FFFFFF', bg: '#1F5FA8' },
-  system: { fg: '#4A4A4A', bg: '#E7DFD7' },
-}
-
-export type StatusTone = 'neutral' | 'info' | 'warning' | 'success' | 'danger' | 'plum'
+export type ChipTone = keyof typeof chipColors

@@ -4,33 +4,40 @@
 
 @layer base {
   html { -webkit-text-size-adjust: 100%; }
-  body { @apply bg-bg text-ink font-sans text-body antialiased; }
-  h1, h2, h3 { @apply font-serif text-heading; font-weight: 600; }
-  a:focus-visible, button:focus-visible, textarea:focus-visible, label:focus-within { @apply shadow-focus outline-none; }
+  body { @apply bg-bg font-sans text-body text-ink antialiased; font-variant-numeric: tabular-nums; }
+  h1, h2, h3 { @apply font-semibold text-ink; }
+  a:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible, label:focus-within {
+    outline: 2px solid theme('colors.action');
+    outline-offset: 2px;
+  }
 }
 
 @layer components {
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-button px-7 py-4 text-body-sm font-medium transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50; min-height: 56px; }
-  .btn-primary { @apply btn bg-plum text-on-plum shadow-button hover:bg-plum-dark; }
-  .btn-secondary { @apply btn border-[1.5px] border-plum bg-surface text-plum hover:bg-plum-faint; }
-  .btn-ghost { @apply btn px-5 text-plum hover:bg-plum-faint; }
-  .btn-danger { @apply btn border-[1.5px] border-danger bg-surface text-danger hover:bg-danger-soft; }
-  .btn-success { @apply btn bg-success text-on-plum shadow-button hover:opacity-90; }
-  .btn-inverse { @apply btn bg-surface text-plum shadow-button hover:bg-plum-faint; }
-  .label { @apply text-eyebrow font-semibold uppercase text-muted; }
-  .tag { @apply inline-flex items-center rounded-pill border border-plum px-3 py-0.5 text-eyebrow text-plum; }
+  .btn { @apply inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded px-[18px] text-body font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50; transition-duration: 140ms; }
+  .btn-primary { @apply btn bg-action text-on-action hover:bg-action-dark; }
+  .btn-secondary { @apply btn border border-line bg-surface text-ink hover:bg-sub; }
+  .btn-ghost { @apply btn text-secondary hover:bg-sub; }
+  .btn-success { @apply btn-primary; }
+  .btn-inverse { @apply btn-primary; }
+  .label { @apply text-meta font-medium text-muted; }
+  /* A work area: white, 1px border, no shadow. */
+  .panel { @apply rounded-panel border border-line bg-surface; }
+  .panel-head { @apply flex items-center justify-between gap-4 border-b border-line px-5 py-4; }
 }
 
-/* tokens.motion.timelineEnter: slide up 12px + fade in (320ms), then flash violet-soft for 1.2s */
+/* New activity item: slides in, tinted with action-soft for a moment. */
 @keyframes enter {
-  0% { opacity: 0; transform: translateY(12px); background-color: theme('colors.violet-soft'); }
-  20% { opacity: 1; transform: none; background-color: theme('colors.violet-soft'); }
-  70% { background-color: theme('colors.violet-soft'); }
+  0% { opacity: 0; transform: translateY(8px); background-color: theme('colors.action-soft'); }
+  20% { opacity: 1; transform: none; background-color: theme('colors.action-soft'); }
+  70% { background-color: theme('colors.action-soft'); }
 }
-.animate-enter { animation: enter 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
-/* same entrance without the colour flash, for dark (inverse) cards */
-@keyframes rise { 0% { opacity: 0; transform: translateY(12px); } 100% { opacity: 1; transform: none; } }
-.animate-rise { animation: rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.animate-enter { animation: enter 1.6s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+@keyframes rise { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: none; } }
+.animate-rise { animation: rise 0.32s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 
-@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+/* The one authored moment: the current station fills when a step completes. */
+@keyframes station { 0% { transform: scale(0.4); opacity: 0.2; } 100% { transform: scale(1); opacity: 1; } }
+.animate-station { animation: station 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .animate-pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }

@@ -52,6 +52,7 @@ export interface Asset {
   make: string
   model: string
   error_code?: string | null
+  error_label?: string | null
   error_meaning?: string | null
   installed?: string | null
   last_service?: string | null
@@ -198,6 +199,7 @@ export interface JobSummary {
   floor?: number | null
   asset?: Asset | null
   error_code?: string | null
+  error_label?: string | null
   updated_at: string
   created_at?: string
   slot?: Slot | null
