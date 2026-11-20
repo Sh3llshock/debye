@@ -21,7 +21,9 @@
       "tenant_message": "Please leave the apartment now, don't use light switches or open flames, and call the gas emergency line 0800 2 26 77 89 from outside. I've alerted your property manager right away.",
       "notify_staff": "urgent"
     },
-    "trigger": "ONLY if the tenant mentions a gas smell, hissing or similar. Never ask about gas proactively."
+    "trigger": "ONLY if the tenant mentions a gas smell, hissing or similar. Never ask about gas proactively.",
+    "question": "Do you smell gas anywhere near the boiler or kitchen?",
+    "note": "Kept for code compatibility; per strategy it is used only if the tenant mentions a smell."
   },
   "questions": [
     {
