@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     partners_dir: str = str(REPO_ROOT / "partners")
     frontend_dist: str = str(REPO_ROOT / "frontend" / "dist")
     demo_mode: bool = True
+    reseed_on_boot: bool = False  # RESEED_ON_BOOT=1: drop + re-seed the SQLite DB at startup
     public_base_url: str = "http://localhost:8000"
 
     anthropic_api_key: str | None = None

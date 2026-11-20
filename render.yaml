@@ -1,0 +1,37 @@
+# One-service deploy on Render (Blueprint). FastAPI serves API, webhook and the built frontend.
+# SQLite lives in the container and is re-seeded on every boot (the demo resets anyway).
+# Env vars mirror .env.example. Secrets (sync: false) are entered once in the Render dashboard,
+# never committed. Leave WA_TOKEN empty to run in fake-send mode (outbox at /webhooks/whatsapp/_outbox).
+services:
+  - type: web
+    name: debye
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: DEMO_MODE
+        value: "1"
+      - key: RESEED_ON_BOOT
+        value: "1"
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID
+        sync: false
+      - key: WA_TOKEN
+        sync: false
+      - key: WA_PHONE_NUMBER_ID
+        sync: false
+      - key: WA_VERIFY_TOKEN
+        sync: false
+      - key: WA_APP_SECRET
+        sync: false
+      - key: FIBRE_SECRET
+        generateValue: true
