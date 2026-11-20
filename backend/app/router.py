@@ -23,7 +23,7 @@ log = logging.getLogger("debye.router")
 DEBOUNCE_SECONDS = float(os.getenv("ROUTER_DEBOUNCE", "1.5"))
 
 _locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
-_buffers: dict[str, list[tuple[str | None, list[str]]]] = defaultdict(list)
+_buffers: dict[str, list[tuple[str | None, list[str], bool]]] = defaultdict(list)
 _draining: set[str] = set()
 
 
@@ -97,7 +97,7 @@ async def handle_inbound(msg: InboundMessage) -> None:
     if not text and not images:
         return
 
-    _buffers[cid].append((text, images))
+    _buffers[cid].append((text, images, any(m.kind == "audio" for m in msg.media)))
     if cid in _draining:
         return  # the running drain picks this message up
     _draining.add(cid)
@@ -113,10 +113,13 @@ async def _drain(contact) -> None:
         if DEBOUNCE_SECONDS > 0:
             await asyncio.sleep(DEBOUNCE_SECONDS)
         batch, _buffers[cid] = _buffers[cid], []
-        text = "\n".join(t for t, _ in batch if t) or None
-        images = [p for _, imgs in batch for p in imgs]
+        text = "\n".join(t for t, _, _ in batch if t) or None
+        images = [p for _, imgs, _ in batch for p in imgs]
+        had_voice = any(v for _, _, v in batch)
         async with _locks[cid]:
             await loop.run_tenant_turn(contact, text, images)
+            if had_voice:
+                await flow.maybe_voice_reply(contact)
 
 
 def _attach(case_id: str, kind: str, path: str, mime: str, filename: str | None = None) -> str | None:

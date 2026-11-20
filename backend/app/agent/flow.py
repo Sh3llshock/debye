@@ -308,6 +308,27 @@ async def on_fixed(contact, case_id: str, fixed: bool) -> None:
         await out.text(contact, case_id, f"Oh nein! Ich gebe das sofort an {partner_label(case_id)} weiter.")
 
 
+# ---------------------------------------------------------------- voice reply (optional)
+async def maybe_voice_reply(contact) -> None:
+    """Once per conversation, answer the resident's first voice note with a short voice note.
+    No-op without ELEVENLABS_API_KEY or if TTS fails."""
+    conv = st.conversation(be.attr(contact, "id"))
+    if conv.voice_replied:
+        return
+    from app import media
+
+    name = first_name(contact)
+    line = (f"Hi {name}, hier ist Debye. " if name else "Hi, hier ist Debye. ") + (
+        "Ich hab deine Sprachnachricht bekommen und kümmer mich drum. "
+        "Tipp einfach unten auf eine Antwort, dann geht's sofort weiter."
+    )
+    path = await media.speak(line)
+    if not path:
+        return
+    conv.voice_replied = True
+    await out.media(contact, conv.case_id, "audio", path)
+
+
 # ---------------------------------------------------------------- error codes without the LLM
 ERROR_CODES_DE = {
     "F.22": "der Wasserdruck ist zu niedrig",
