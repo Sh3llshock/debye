@@ -83,7 +83,14 @@ def build_user_content(contact, conv: st.Conversation, text: str | None, image_p
     return content
 
 
+class NoCredentials(Exception):
+    pass
+
+
 async def _run_loop(messages: list, ctx: TurnContext) -> list:
+    if _client is None and not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN")):
+        # Without an explicit key the SDK probes other credential sources, which stalled a turn ~40 s.
+        raise NoCredentials("ANTHROPIC_API_KEY not set")
     client = get_client()
     for _ in range(MAX_ITERATIONS):
         response = await client.beta.messages.create(
