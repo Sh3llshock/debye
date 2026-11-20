@@ -36,10 +36,29 @@ def sim_media_path(media_id: str) -> Path:
     return Path(settings.storage_dir) / SIM_DIR_NAME / media_id
 
 
+def _reset_agent_state() -> None:
+    """Clear agent-whatsapp's in-memory conversation state and fake-send outbox, if present.
+    Without this, conversations keep pointing at case ids from before the reset."""
+    import importlib
+    import logging
+    for mod_name, fn_name in (("app.agent.state", "reset_all"),
+                              ("app.channels.whatsapp", "clear_outbox")):
+        try:
+            fn = getattr(importlib.import_module(mod_name), fn_name, None)
+        except ImportError:
+            continue
+        if callable(fn):
+            try:
+                fn()
+            except Exception:
+                logging.getLogger("debye.demo").exception("%s.%s failed", mod_name, fn_name)
+
+
 @router.post("/reset")
 async def reset() -> dict:
     _require_demo()
     seed(reset=True)
+    _reset_agent_state()
     await publish("demo.reset", None, {"ts": now_iso()})
     return {"ok": True}
 
