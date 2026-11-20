@@ -22,7 +22,7 @@ TOOL_PREFIX = "debye_"  # tool names in the workspace: debye_identify_caller, de
 DEFAULT_VOICE = "EXAVITQu4vr4xnSDxMaL"  # "Sarah": ElevenLabs default voice (English, warm, calm), in every workspace
 LANGUAGE = "en"
 DEFAULT_LLM = "gemini-2.5-flash"  # low latency on a phone line
-TTS_MODEL = "eleven_flash_v2_5"  # multilingual + lowest latency
+TTS_MODEL = "eleven_flash_v2"  # English agents require turbo/flash v2 (ElevenLabs rule); lowest latency
 
 PROMPT = """\
 You are Debye, the AI assistant of the property manager reltix. Residents call you, usually because their \
