@@ -1,0 +1,5 @@
+# agent-whatsapp extras on top of requirements.txt
+# server-side refusal fallback (`fallbacks="default"`) and messages.parse need a recent SDK
+anthropic>=2.12
+openai>=1.40
+httpx>=0.27

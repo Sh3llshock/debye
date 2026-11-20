@@ -1,0 +1,152 @@
+"""Debye agent: manual Claude tool-use loop (technical-plan §7.2).
+
+The agent speaks only through tools. If Claude errors, refuses or takes longer
+than TURN_TIMEOUT, and nothing has been sent yet this turn, the scripted
+fallback for the current step runs instead (flow.scripted_fallback).
+"""
+from __future__ import annotations
+
+import asyncio
+import base64
+import json
+import logging
+import os
+from pathlib import Path
+
+from . import _backend as be
+from . import flow
+from . import state as st
+from .prompts import FALLBACK_HANDOFF, TENANT_SYSTEM
+from .tools import SCHEMAS, TurnContext, execute
+
+log = logging.getLogger("debye.agent")
+
+MODEL = "claude-opus-5-5"
+TURN_TIMEOUT = float(os.getenv("AGENT_TIMEOUT", "20"))
+MAX_ITERATIONS = 6
+_KEEP_BLOCKS = {"text", "thinking", "redacted_thinking", "tool_use"}
+
+_client = None
+last_turn_fallback = False  # for tests / debugging: did the last turn use a scripted reply?
+
+
+def get_client():
+    """Lazily created so tests can replace it (set_client) and imports never need a key."""
+    global _client
+    if _client is None:
+        import anthropic
+
+        _client = anthropic.AsyncAnthropic(timeout=TURN_TIMEOUT, max_retries=1)
+    return _client
+
+
+def set_client(client) -> None:
+    global _client
+    _client = client
+
+
+def _dump(block) -> dict:
+    return block.model_dump(exclude_none=True) if hasattr(block, "model_dump") else dict(block)
+
+
+def _image_block(path: str) -> dict | None:
+    suffix = Path(path).suffix.lower()
+    mime = {".png": "image/png", ".webp": "image/webp", ".gif": "image/gif"}.get(suffix, "image/jpeg")
+    try:
+        data = base64.standard_b64encode(Path(path).read_bytes()).decode()
+    except OSError:
+        return None
+    return {"type": "image", "source": {"type": "base64", "media_type": mime, "data": data}}
+
+
+def build_user_content(contact, conv: st.Conversation, text: str | None, image_paths: list[str]) -> list[dict]:
+    ctx = flow.unit_context_for(contact)
+    facts = {
+        "contact": {"id": be.attr(contact, "id"), "name": be.attr(contact, "name"),
+                    "language": be.attr(contact, "language", "de")},
+        "unit_context": ctx,
+    }
+    status = {"case_id": conv.case_id, "step": conv.step}
+    content: list[dict] = []
+    for p in image_paths:
+        blk = _image_block(p)
+        if blk:
+            content.append(blk)
+    content.append(
+        {
+            "type": "text",
+            "text": f"<centrix_context>{json.dumps(facts, ensure_ascii=False, default=str)}</centrix_context>\n"
+            f"<state>{json.dumps(status)}</state>\n"
+            f"<resident_message>{text or '(no text)'}</resident_message>",
+        }
+    )
+    return content
+
+
+async def _run_loop(messages: list, ctx: TurnContext) -> list:
+    client = get_client()
+    for _ in range(MAX_ITERATIONS):
+        response = await client.beta.messages.create(
+            model=MODEL,
+            max_tokens=4000,
+            system=TENANT_SYSTEM,
+            tools=SCHEMAS,
+            tool_choice={"type": "auto"},
+            messages=messages,
+            output_config={"effort": ctx.effort},
+            betas=["server-side-fallback-2026-07-01"],
+            fallbacks="default",
+        )
+        if response.stop_reason == "refusal":
+            log.warning("Claude refused: %s", getattr(response, "stop_details", None))
+            raise RefusalError()
+        content = [_dump(b) for b in response.content if getattr(b, "type", None) in _KEEP_BLOCKS]
+        messages.append({"role": "assistant", "content": content})
+        if response.stop_reason != "tool_use":
+            return messages
+        results = [await execute(b, ctx) for b in response.content if getattr(b, "type", None) == "tool_use"]
+        messages.append({"role": "user", "content": results})  # all results in ONE user message
+    log.warning("agent hit MAX_ITERATIONS")
+    return messages
+
+
+class RefusalError(Exception):
+    pass
+
+
+async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | None = None) -> None:
+    """One Debye turn for a tenant message (text/transcript and/or photos)."""
+    global last_turn_fallback
+    last_turn_fallback = False
+    conv = st.conversation(be.attr(contact, "id"))
+    if text:
+        conv.tenant_texts.append(text)
+    ctx = TurnContext(contact=contact, conv=conv, effort="low")
+    user_msg = {"role": "user", "content": build_user_content(contact, conv, text, image_paths or [])}
+    messages = list(conv.history) + [user_msg]
+    try:
+        messages = await asyncio.wait_for(_run_loop(messages, ctx), timeout=TURN_TIMEOUT)
+        if messages[-1]["role"] == "user":  # ended on tool results (iteration cap): close the turn cleanly
+            messages.append({"role": "assistant", "content": [{"type": "text", "text": "(turn ended)"}]})
+        conv.history = messages
+        if ctx.sent == 0:
+            log.warning("agent turn sent nothing; using scripted fallback")
+            last_turn_fallback = True
+            await flow.scripted_fallback(contact, conv)
+        return
+    except RefusalError:
+        last_turn_fallback = True
+        if ctx.sent == 0:
+            from . import outbound
+
+            await outbound.text(contact, conv.case_id, FALLBACK_HANDOFF)
+    except Exception as exc:  # timeout, API error, bug: the resident still gets an answer
+        log.warning("agent turn failed (%s: %s); scripted fallback", type(exc).__name__, exc)
+        last_turn_fallback = True
+        if ctx.sent == 0:
+            await flow.scripted_fallback(contact, conv)
+    # Keep history valid (alternating, no dangling tool_use) after a failed turn.
+    conv.history = list(conv.history) + [
+        {"role": "user", "content": [b for b in user_msg["content"] if b["type"] == "text"]},
+        {"role": "assistant", "content": [{"type": "text", "text": "(scripted reply sent)"}]},
+    ]
