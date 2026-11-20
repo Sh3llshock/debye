@@ -17,6 +17,7 @@ const brand = {
   aubergine05: '#F5F2F5',
   violet: '#8332AC',
   violetSoft: '#F1E6F7',
+  lilac: '#C9A3E0',
 }
 
 export const theme = {
@@ -45,6 +46,9 @@ export const theme = {
     'plum-faint': brand.aubergine05,
     violet: brand.violet,
     'violet-soft': brand.violetSoft,
+    lilac: brand.lilac,
+    'error-screen': '#2B2B2B', // boiler display photo placeholder
+    'error-glow': '#7CF29A',
     // feedback
     success: '#1E7A46',
     'success-soft': '#E2F3E8',
@@ -129,6 +133,8 @@ export const statusColors: Record<string, { fg: string; bg: string }> = {
   invoiced: { fg: '#1E7A46', bg: '#E2F3E8' },
   closed: { fg: '#4A4A4A', bg: '#EDEDED' },
   declined: { fg: '#B42318', bg: '#FDE7E5' },
+  partner_declined: { fg: '#B42318', bg: '#FDE7E5' },
+  reopened: { fg: '#A15C07', bg: '#FDF0DC' },
 }
 
 /** Priority colours (tokens color.priority). Urgent is the only filled red element. */

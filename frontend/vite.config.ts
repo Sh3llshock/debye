@@ -10,7 +10,7 @@ export default defineConfig({
     proxy: {
       '/api': { target: backend, changeOrigin: true },
       '/files': { target: backend, changeOrigin: true },
-      '/demo': { target: backend, changeOrigin: true },
+      '^/demo/': { target: backend, changeOrigin: true },
     },
   },
   build: { outDir: 'dist', emptyOutDir: true },

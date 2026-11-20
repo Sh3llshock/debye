@@ -26,9 +26,11 @@
   0% { opacity: 0; transform: translateY(12px); background-color: theme('colors.violet-soft'); }
   20% { opacity: 1; transform: none; background-color: theme('colors.violet-soft'); }
   70% { background-color: theme('colors.violet-soft'); }
-  100% { background-color: transparent; }
 }
-.animate-enter { animation: enter 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.animate-enter { animation: enter 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+/* same entrance without the colour flash, for dark (inverse) cards */
+@keyframes rise { 0% { opacity: 0; transform: translateY(12px); } 100% { opacity: 1; transform: none; } }
+.animate-rise { animation: rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
 
 @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .animate-pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }

@@ -5,9 +5,8 @@ import './index.css'
 import { StaffLayout } from './components/Layout'
 import StaffCases from './pages/StaffCases'
 import StaffCase from './pages/StaffCase'
-import StaffUnit from './pages/StaffUnit'
-import PartnerInbox from './pages/PartnerInbox'
-import PartnerJob from './pages/PartnerJob'
+import StaffUnit, { StaffUnits } from './pages/StaffUnit'
+import PartnerPage from './pages/PartnerInbox'
 
 function Staff() {
   return (
@@ -34,11 +33,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/staff" element={<Staff />}>
           <Route index element={<StaffCases />} />
           <Route path="cases/:caseId" element={<StaffCase />} />
+          <Route path="units" element={<StaffUnits />} />
           <Route path="units/:unitId" element={<StaffUnit />} />
         </Route>
         <Route path="/partner" element={<Navigate to="/partner/heizung-schmidt" replace />} />
-        <Route path="/partner/:partnerId" element={<PartnerInbox />} />
-        <Route path="/partner/:partnerId/jobs/:caseId" element={<PartnerJob />} />
+        <Route path="/partner/:partnerId" element={<PartnerPage />} />
+        <Route path="/partner/:partnerId/jobs/:caseId" element={<PartnerPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
