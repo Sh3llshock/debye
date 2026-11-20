@@ -587,7 +587,8 @@ def dispatch_job(case_id: str, partner_id: str) -> dict:
             raise
         case.partner_id = partner_id
         case.status = "requested"
-        _patch_data(case, approval={**approval, "granted": approval.get("granted", False)},
+        _patch_data(case, approval={**(case.data or {}).get("approval", {}), **approval,
+                                    "granted": approval.get("granted", False)},
                     pending_partner_id=None)
         _save_case(s, case)
         transport = partner.manifest.get("transport", {})
@@ -600,12 +601,21 @@ def dispatch_job(case_id: str, partner_id: str) -> dict:
             "status": "requested", "approval": approval}
 
 
-def approve_case(case_id: str, actor: str = "staff") -> dict:
-    """PM approves; if a partner was waiting, the job is dispatched right away."""
+def staff_member(s, name: str | None = None) -> str:
+    """The reltix staff member acting on the staff page (demo: the seeded property manager)."""
+    if name:
+        return name
+    pm = s.exec(select(Contact).where(Contact.role == "pm")).first()
+    return pm.name if pm else "reltix staff"
+
+
+def approve_case(case_id: str, actor: str = "staff", staff_name: str | None = None) -> dict:
+    """A reltix staff member approves; if a partner was waiting, the job is dispatched right away."""
     with get_session() as s:
         case = _get(s, Case, case_id)
+        who = staff_member(s, staff_name)
         approval = {**(case.data or {}).get("approval", {}), "granted": True,
-                    "granted_at": now_iso()}
+                    "granted_at": now_iso(), "granted_by": who}
         _patch_data(case, approval=approval)
         pending = (case.data or {}).get("pending_partner_id")
         if case.status in ("approval_pending", "awaiting_approval"):
@@ -615,18 +625,20 @@ def approve_case(case_id: str, actor: str = "staff") -> dict:
         p = s.get(Partner, pending) if pending else None
         partner_name = p.manifest.get("name") if p else None
     record_event(case_id, actor, "approval.granted",
-                 f"Staff approved the job" + (f" for {partner_name}" if partner_name else "") + f" (est. €{est:.0f})",
-                 {"estimated_cost_eur": est, "partner_id": pending, "partner_name": partner_name})
+                 f"{who} approved the job" + (f" for {partner_name}" if partner_name else "") + f" (est. €{est:.0f})",
+                 {"estimated_cost_eur": est, "partner_id": pending, "partner_name": partner_name,
+                  "approved_by": who})
     result = {"case_id": case_id, "approved": True, "dispatched": None, "partner_name": partner_name}
     if pending:
         result["dispatched"] = dispatch_job(case_id, pending)
     return result
 
 
-def reject_case(case_id: str, reason: str = "", actor: str = "staff") -> dict:
+def reject_case(case_id: str, reason: str = "", actor: str = "staff", staff_name: str | None = None) -> dict:
     """Staff reject a job waiting for approval: the partner is never contacted → status rejected."""
     with get_session() as s:
         case = _get(s, Case, case_id)
+        who = staff_member(s, staff_name)
         if case.status not in ("approval_pending", "awaiting_approval"):
             raise rules.RuleViolation("not_pending_approval",
                                       f"case is {case.status}, only jobs waiting for approval can be rejected")
@@ -634,14 +646,15 @@ def reject_case(case_id: str, reason: str = "", actor: str = "staff") -> dict:
         p = s.get(Partner, pending) if pending else None
         partner_name = p.manifest.get("name") if p else None
         _patch_data(case, approval={**(case.data or {}).get("approval", {}), "granted": False,
-                                    "rejected": True, "reason": reason, "rejected_at": now_iso()},
+                                    "rejected": True, "reason": reason, "rejected_at": now_iso(),
+                                    "rejected_by": who},
                     pending_partner_id=None)
         case.status = "rejected"
         _save_case(s, case)
     record_event(case_id, actor, "approval.rejected",
-                 "Staff rejected the job" + (f" for {partner_name}" if partner_name else "") +
+                 f"{who} rejected the job" + (f" for {partner_name}" if partner_name else "") +
                  (f": {reason}" if reason else ""),
-                 {"partner_id": pending, "partner_name": partner_name, "reason": reason})
+                 {"partner_id": pending, "partner_name": partner_name, "reason": reason, "rejected_by": who})
     return {"case_id": case_id, "status": "rejected", "partner_name": partner_name, "reason": reason}
 
 

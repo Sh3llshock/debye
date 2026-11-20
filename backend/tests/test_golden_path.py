@@ -253,7 +253,11 @@ def test_approval_always_approve(client, monkeypatch):
     kinds = [e["kind"] for e in d["events"]]
     assert kinds.index("approval.granted") < kinds.index("job.sent")
     granted = next(e for e in d["events"] if e["kind"] == "approval.granted")
-    assert granted["summary"].startswith("Staff approved the job for Heizung Schmidt GmbH")
+    assert granted["summary"].startswith("Anna Becker approved the job for Heizung Schmidt GmbH")
+    assert granted["data"]["approved_by"] == "Anna Becker" and granted["actor"] == "staff"
+    job = client.get(f"/api/partner/heizung-schmidt/jobs/{case.id}").json()
+    assert job["approval"]["text"] == "Approved by reltix staff (Anna Becker)"
+    assert job["approval"]["granted_by"] == "Anna Becker"
     assert ("approval_granted", {"partner_name": "Heizung Schmidt GmbH",
                                  "dispatched": sent[-1][1]["dispatched"]}) == sent[-1]
     assert [j["case_id"] for j in client.get("/api/partner/heizung-schmidt/jobs").json()] == [case.id]
@@ -272,7 +276,7 @@ def test_approval_always_reject(client, monkeypatch):
     assert d["approval"]["rejected"] is True and d["approval"]["reason"] == "Caretaker fixes it tomorrow"
     assert d["approval"]["suggested_technician"] is None
     ev = next(e for e in d["events"] if e["kind"] == "approval.rejected")
-    assert ev["summary"] == "Staff rejected the job for Heizung Schmidt GmbH: Caretaker fixes it tomorrow"
+    assert ev["summary"] == "Anna Becker rejected the job for Heizung Schmidt GmbH: Caretaker fixes it tomorrow"
     assert sent[-1] == ("approval_rejected", {"partner_name": "Heizung Schmidt GmbH",
                                               "reason": "Caretaker fixes it tomorrow"})
     assert client.get("/api/partner/heizung-schmidt/jobs").json() == []  # partner never contacted
@@ -638,8 +642,18 @@ def test_demo_scenarios(client):
     assert {"invoice", "report"} <= {d["kind"] for d in unit["documents"]}
     s6 = client.get(f"/api/staff/cases/{by['s6_self_help']['case_id']}").json()
     assert s6["resolution"] == "self_help" and s6["saving_eur"] == 180 and s6["partner"] is None
+    # every scenario job past approval was approved by a named staff member, shown to the partner
+    for name, pid in [("s2_requested", "heizung-schmidt"), ("s4_scheduled_electrical", "elektro-klein"),
+                      ("s9_gruen_requested", "heiztechnik-gruen"), ("s8_wagner_closed", "waerme-wagner")]:
+        cid = by[name]["case_id"]
+        evs = client.get(f"/api/staff/cases/{cid}").json()["events"]
+        assert any(e["kind"] == "approval.granted" and e["summary"].startswith("Anna Becker approved")
+                   for e in evs), name
+        assert client.get(f"/api/partner/{pid}/jobs/{cid}").json()["approval"]["text"] ==             "Approved by reltix staff (Anna Becker)"
     s7 = client.get(f"/api/staff/cases/{by['s7_caretaker']['case_id']}").json()
     assert s7["caretaker"]["name"] == "Peter Wolf"
+    assert s7["diagnosis"]["label"] == "Heating water pressure too low (0A)"
+    assert "F.22" not in str(s7["diagnosis"]) + " ".join(e["summary"] for e in s7["events"])
     # timelines look realistic: the closed case is days old
     assert s5["created_at"] < s1["created_at"]
 
@@ -667,3 +681,34 @@ def test_partners_list_and_notices(client):
     r = client.post("/demo/trigger/maintenance_notice", json={"notice_id": "notice_12_maint", "active": True})
     assert r.json()["active"] is True
     assert services.get_unit_context("unit_4b")["notices"][0]["active"] is True
+
+
+def test_demo_scenarios_never_half_loaded(client, monkeypatch):
+    from app import scenarios as sc
+    from app.config import now as clock_now
+    from datetime import datetime as _dt
+    calls = {"n": 0}
+    original = sc.s6_self_help
+
+    def flaky():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise MemoryError("simulated low RAM")
+        return original()
+
+    # fails once in the middle (after earlier scenarios already committed) → retried from a clean reset
+    monkeypatch.setattr(sc, "SCENARIOS", [flaky if f is original else f for f in sc.SCENARIOS])
+    r = client.post("/demo/scenarios")
+    assert r.status_code == 200, r.text
+    assert r.json()["attempts"] == 2 and len(r.json()["cases"]) == 9
+    assert len(client.get("/api/staff/cases").json()) == 9  # no leftovers from the failed attempt
+    assert abs((clock_now() - _dt.now(clock_now().tzinfo)).total_seconds()) < 5  # clock not left shifted
+
+    # fails every time → 503 and a clean, empty seed (not 3 stray cases)
+    def broken():
+        raise MemoryError("still low RAM")
+    monkeypatch.setattr(sc, "SCENARIOS", [broken if f is flaky else f for f in sc.SCENARIOS])
+    r = client.post("/demo/scenarios")
+    assert r.status_code == 503 and "reset to the empty seed" in r.json()["detail"]
+    assert client.get("/api/staff/cases").json() == []
+    assert client.get("/api/staff/units").json()  # seed itself is intact

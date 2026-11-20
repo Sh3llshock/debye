@@ -6,7 +6,7 @@ import { approvalProposal, MiniLine } from '../components/case/CasePanels'
 import { LiveDot, useCrumbs } from '../components/Layout'
 import { ErrorBox, Loading, Mascot, PriorityChip } from '../components/ui'
 import { errorText } from '../lib/errors'
-import { fmtEur, fmtRelative } from '../lib/format'
+import { fmtEur, fmtRelative, placeLabel } from '../lib/format'
 import { lineState, needsApproval, NO_TECH_STATIONS, STAFF_STATIONS } from '../lib/lifecycle'
 import { isNoTechnicianSummary } from '../components/case/Diagnosis'
 import { useStream } from '../lib/stream'
@@ -39,7 +39,7 @@ function DecisionRow({ c, onDone }: { c: CaseSummary; onDone: () => void }) {
               {prop?.meta ? ` · ${prop.meta}` : ''}
             </div>
             <div className="text-body-sm text-secondary">
-              {c.title} · {(c.address ?? '').split(',')[0]}, {c.unit_id.replace('unit_', '')} · {c.case_id}
+              {c.title} · {placeLabel(c.address, c.unit_id)} · {c.case_id}
             </div>
             {err && <div className="mt-1 text-negative">{err}</div>}
           </div>
@@ -164,7 +164,7 @@ export default function StaffCases() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-body-sm">
-                      {(c.address ?? '').split(',')[0]}, {c.unit_id.replace('unit_', '')}
+                      {placeLabel(c.address, c.unit_id)}
                     </td>
                     <td className="px-4 py-3">
                       <MiniLine total={line.stations.length} reached={line.reached} status={c.status} />
