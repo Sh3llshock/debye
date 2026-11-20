@@ -117,7 +117,7 @@ function JobView(props: ActionProps) {
           </div>
           <figcaption className="mt-2 text-meta text-muted">
             {tenantPhoto ? `Photo from ${who}` : 'No photo shared'}
-            {code ? ` · display shows ${errorText(code, label, asset?.error_meaning)}` : ''}
+            {code ? ` · display shows ${errorText(code, label, asset?.error_meaning, true)}` : ''}
           </figcaption>
         </figure>
       </div>

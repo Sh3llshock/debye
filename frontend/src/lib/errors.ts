@@ -6,23 +6,26 @@ const LOCAL: Record<string, string> = {
   'F.29': 'Flame lost',
 }
 
-export function errorLabel(code?: string | null, label?: string | null, meaning?: string | null): string | null {
+/** The API's error_label ("Ignition failed: no flame at start-up"), else the local map, else error_meaning.
+ *  `short` keeps only the part before the colon, for titles and captions. */
+export function errorLabel(code?: string | null, label?: string | null, meaning?: string | null, short = false): string | null {
   if (!code) return null
   const l = label?.trim() || LOCAL[code] || meaning?.split(/[(,]/)[0].trim()
-  return l || null
+  if (!l) return null
+  return short ? l.split(':')[0].trim() : l
 }
 
 /** "Ignition failed (F.28)"; just "Error F.28" if nothing is known about the code. */
-export function errorText(code?: string | null, label?: string | null, meaning?: string | null): string | null {
+export function errorText(code?: string | null, label?: string | null, meaning?: string | null, short = false): string | null {
   if (!code) return null
-  const l = errorLabel(code, label, meaning)
+  const l = errorLabel(code, label, meaning, short)
   return l ? `${l} (${code})` : `Error ${code}`
 }
 
 /** Short job title: "No heating · ignition failed (F.28)". */
 export function jobTitle(title: string, code?: string | null, label?: string | null, meaning?: string | null) {
   const base = title.split(' – ')[0].split(',')[0]
-  const e = errorText(code, label, meaning)
+  const e = errorText(code, label, meaning, true)
   return e ? `${base} · ${e.charAt(0).toLowerCase()}${e.slice(1)}` : title
 }
 

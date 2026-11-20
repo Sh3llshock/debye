@@ -36,6 +36,8 @@ export interface CaseSummary {
   partner: PartnerRef | null
   updated_at: string
   created_at?: string
+  error_code?: string | null
+  error_label?: string | null
 }
 
 export interface Reporter {
