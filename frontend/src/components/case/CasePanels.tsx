@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { CaseDetail, CaseEvent, DocumentItem, RankingEntry, ThreadMessage, UnitDetail } from '../../api/types'
 import { errorText, explainCodes } from '../../lib/errors'
-import { fmtDateTime, fmtEur, fmtSlot, fmtTime, humanize } from '../../lib/format'
+import { fmtDateTime, fmtEur, fmtSlot, fmtSlotShort, fmtTime, humanize } from '../../lib/format'
 import { eventKey, messageKey } from '../../lib/keys'
-import { statusText, type LineState } from '../../lib/lifecycle'
+import { needsApproval, statusText, type LineState } from '../../lib/lifecycle'
 import { locale, t } from '../../lib/i18n'
 import { useNewKeys } from '../../lib/useNewKeys'
 import { Icon } from '../icons'
@@ -419,7 +419,7 @@ export function Inspector({ c, unit, docs, partnerName }: { c: CaseDetail; unit:
           {gross != null ? `${t('{eur} invoiced', { eur: fmtEur(gross, true) })}, ` : ''}
           {c.estimated_cost_eur != null ? t('{eur} estimated', { eur: fmtEur(c.estimated_cost_eur) }) : '—'}
         </Prop>
-        <Prop label={t('Approval')}>{c.approval?.required ? t('Needs your decision') : c.approval?.rule && c.approval.rule !== 'not evaluated yet' ? humanize(c.approval.rule) : '—'}</Prop>
+        <Prop label={t('Approval')}>{needsApproval(c.status) ? t('Needs your approval') : c.status === 'rejected' ? t('Rejected: {reason}', { reason: c.approval?.rejected_reason ?? '—' }) : c.approval?.rule && c.approval.rule !== 'not evaluated yet' ? humanize(c.approval.rule) : '—'}</Prop>
         {z && (
           <Prop label={t("{name}'s input", { name })}>
             {t('{inputs}. Debye filled the other {n} fields from centrix', { inputs: z.inputs, n: z.prefilled })}
@@ -484,41 +484,92 @@ export function Inspector({ c, unit, docs, partnerName }: { c: CaseDetail; unit:
 }
 
 // ---------- partner choice (table, with the approval as a "needs decision" group) ----------
-export function PartnerChoice({ c, ranking, chosen, onApprove }: { c: CaseDetail; ranking: RankingEntry[]; chosen?: string | null; onApprove: () => Promise<void> }) {
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
-  const needs = c.approval?.required || c.status === 'awaiting_approval'
+/** Who/what the approval would send: the assigned partner, else Debye's top-ranked one. */
+export function approvalProposal(c: CaseDetail) {
+  const partner = c.partner?.name ?? c.ranking[0]?.name ?? t('the partner')
   const amount = c.approval?.amount_eur ?? c.estimated_cost_eur
+  const tech = c.approval?.suggested_technician
+  const slot = c.approval?.suggested_slot
+  const bits = [amount != null ? t('est. {eur}', { eur: fmtEur(amount) }) : null, tech && slot ? t('{tech} available {when}', { tech: tech.name.split(' ')[0], when: fmtSlotShort(slot) }) : tech ? tech.name : null].filter(Boolean) as string[]
+  return { partner, amount, meta: bits.join(' · ') }
+}
+
+const REJECT_REASONS = ['Tenant must pay this', 'Too expensive, get a second quote', 'Not urgent, wait for the annual service', 'Duplicate of another case']
+
+/** Staff approve every job before the partner sees it. Prominent card above the activity. */
+export function ApprovalCard({ c, onApprove, onReject }: { c: CaseDetail; onApprove: () => Promise<void>; onReject: (reason: string) => Promise<void> }) {
+  const [busy, setBusy] = useState<'approve' | 'reject' | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [rejecting, setRejecting] = useState(false)
+  const [reason, setReason] = useState('')
+  if (!needsApproval(c.status)) return null
+  const { partner, meta } = approvalProposal(c)
+  const run = async (kind: 'approve' | 'reject', fn: () => Promise<void>) => {
+    setBusy(kind)
+    setErr(null)
+    try {
+      await fn()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
   return (
-    <Panel title={t('Partner choice')} meta={t('Ranked by Debye from the framework list')}>
-      {needs && (
-        <div className="flex flex-wrap items-center gap-4 border-b border-line bg-warning-soft px-5 py-4">
-          <div className="min-w-0 flex-1">
-            <div className="font-semibold">{t('Needs your decision')}</div>
-            <div className="text-body-sm text-secondary">
-              {t('{partner} estimates {eur}. That is over your auto-approval limit, so the job waits for you.', { partner: c.partner?.name ?? t('The partner'), eur: fmtEur(amount) })}
-            </div>
-            {err && <div className="mt-1 text-negative">{err}</div>}
+    <section className="animate-rise rounded-panel border-2 border-warning bg-warning-soft px-5 py-4" aria-live="polite">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="text-label font-semibold text-warning">{t('Needs your approval')}</div>
+          <h2 className="mt-0.5 text-panel">{t('Approve & send to {partner}', { partner })}</h2>
+          {meta && <div className="text-body text-ink">{meta}</div>}
+          <div className="mt-1 text-body-sm text-secondary">{t('The partner sees nothing until you approve. Debye then sends the job and keeps the resident informed.')}</div>
+        </div>
+        {!rejecting && (
+          <div className="flex flex-wrap gap-3">
+            <button className="btn-primary" disabled={!!busy} onClick={() => run('approve', onApprove)}>
+              {busy === 'approve' ? t('Approving…') : t('Approve')}
+            </button>
+            <button className="btn-secondary" disabled={!!busy} onClick={() => setRejecting(true)}>
+              {t('Reject…')}
+            </button>
           </div>
-          <button
-            className="btn-primary"
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true)
-              setErr(null)
-              try {
-                await onApprove()
-              } catch (e) {
-                setErr(e instanceof Error ? e.message : String(e))
-              } finally {
-                setBusy(false)
-              }
-            }}
-          >
-            {busy ? t('Approving…') : t('Approve {eur}', { eur: fmtEur(amount) })}
-          </button>
+        )}
+      </div>
+      {rejecting && (
+        <div className="mt-4 border-t border-line pt-4">
+          <div className="text-label font-medium">{t('Why are you rejecting? Debye tells the resident.')}</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {REJECT_REASONS.map((r) => (
+              <button key={r} type="button" onClick={() => setReason(t(r))} className={`rounded-chip border px-3 py-1 text-label ${reason === t(r) ? 'border-action bg-action-soft text-action' : 'border-line bg-surface hover:border-action'}`}>
+                {t(r)}
+              </button>
+            ))}
+          </div>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={2}
+            placeholder={t('Reason')}
+            className="mt-2 w-full rounded border border-line bg-surface p-3 text-body focus:border-action focus:outline-none"
+          />
+          <div className="mt-2 flex flex-wrap gap-3">
+            <button className="btn border border-negative bg-surface text-negative hover:bg-negative-soft" disabled={!!busy || !reason.trim()} onClick={() => run('reject', () => onReject(reason.trim()))}>
+              {busy === 'reject' ? t('Rejecting…') : t('Reject job')}
+            </button>
+            <button className="btn-ghost" onClick={() => setRejecting(false)}>
+              {t('Cancel')}
+            </button>
+          </div>
         </div>
       )}
+      {err && <div className="mt-2 rounded border border-negative bg-surface p-2 text-negative">{err}</div>}
+    </section>
+  )
+}
+
+export function PartnerChoice({ ranking, chosen }: { c?: CaseDetail; ranking: RankingEntry[]; chosen?: string | null; onApprove?: () => Promise<void> }) {
+  return (
+    <Panel title={t('Partner choice')} meta={t('Ranked by Debye from the framework list')}>
       {ranking.length === 0 ? (
         <Empty>{t('Debye ranks partners once the case is triaged.')}</Empty>
       ) : (

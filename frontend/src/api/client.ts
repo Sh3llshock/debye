@@ -39,6 +39,7 @@ const http = {
   staffCases: () => req<CaseSummary[]>('GET', '/api/staff/cases'),
   staffCase: (id: string) => req<CaseDetail>('GET', `/api/staff/cases/${enc(id)}`),
   approve: (id: string) => req<CaseDetail>('POST', `/api/staff/cases/${enc(id)}/approve`),
+  reject: (id: string, reason: string) => req<CaseDetail>('POST', `/api/staff/cases/${enc(id)}/reject`, { reason }),
   partner: (pid: string) => req<PartnerProfile>('GET', `/api/partner/${enc(pid)}`),
   jobs: (pid: string) => req<JobSummary[]>('GET', `/api/partner/${enc(pid)}/jobs`),
   job: (pid: string, cid: string) => req<JobDetail>('GET', `/api/partner/${enc(pid)}/jobs/${enc(cid)}`),

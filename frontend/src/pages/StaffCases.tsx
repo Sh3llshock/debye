@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { CaseSummary } from '../api/types'
-import { MiniLine } from '../components/case/CasePanels'
+import { approvalProposal, MiniLine } from '../components/case/CasePanels'
 import { LiveDot, useCrumbs } from '../components/Layout'
 import { ErrorBox, Loading, Mascot, PriorityChip } from '../components/ui'
 import { errorText } from '../lib/errors'
-import { fmtEur, fmtRelative } from '../lib/format'
-import { lineState, STAFF_STATIONS } from '../lib/lifecycle'
+import { fmtRelative } from '../lib/format'
+import { lineState, needsApproval, STAFF_STATIONS } from '../lib/lifecycle'
 import { useStream } from '../lib/stream'
 import { useNewKeys } from '../lib/useNewKeys'
 import { useDebounced, useResource } from '../lib/useResource'
@@ -16,36 +16,41 @@ import { t } from '../lib/i18n'
 type Filter = 'all' | 'open' | 'decision' | 'closed'
 const FILTERS: { key: Filter; label: string; test: (c: CaseSummary) => boolean }[] = [
   { key: 'all', label: 'All', test: () => true },
-  { key: 'open', label: 'Open', test: (c) => c.status !== 'closed' },
-  { key: 'decision', label: 'Needs decision', test: (c) => c.status === 'awaiting_approval' },
+  { key: 'open', label: 'Open', test: (c) => c.status !== 'closed' && c.status !== 'rejected' },
+  { key: 'decision', label: 'Needs approval', test: (c) => needsApproval(c.status) },
   { key: 'closed', label: 'Closed', test: (c) => c.status === 'closed' },
 ]
 
-/** The approval sits inside the table as an amber "needs decision" row. */
+/** Every job needs staff approval: an amber "Needs your approval" row at the top of the table. */
 function DecisionRow({ c, onDone }: { c: CaseSummary; onDone: () => void }) {
   const { data: d } = useResource(() => api.staffCase(c.case_id), [c.case_id])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-  const amount = d?.approval?.amount_eur ?? d?.estimated_cost_eur
+  const prop = d ? approvalProposal(d) : null
   return (
     <tr className="border-b border-line bg-warning-soft">
       <td colSpan={6} className="px-5 py-4">
         <div className="flex flex-wrap items-center gap-4">
           <div className="min-w-0 flex-1">
+            <div className="text-label font-semibold text-warning">{t('Needs your approval')}</div>
             <div className="font-semibold">
-              {c.title} · {(c.address ?? '').split(',')[0]}, {c.unit_id.replace('unit_', '')} · {c.case_id}
+              {prop ? t('Approve & send to {partner}', { partner: prop.partner }) : c.title}
+              {prop?.meta ? ` · ${prop.meta}` : ''}
             </div>
             <div className="text-body-sm text-secondary">
-              {t('{partner} estimates {eur}. That is over your auto-approval limit, so the job waits for you.', { partner: c.partner?.name ?? t('The partner'), eur: fmtEur(amount) })}
+              {c.title} · {(c.address ?? '').split(',')[0]}, {c.unit_id.replace('unit_', '')} · {c.case_id}
             </div>
             {err && <div className="mt-1 text-negative">{err}</div>}
           </div>
           <Link to={`/staff/cases/${c.case_id}`} className="btn-secondary">
             {t('Open case')}
           </Link>
+          <Link to={`/staff/cases/${c.case_id}`} className="btn-ghost">
+            {t('Reject…')}
+          </Link>
           <button
             className="btn-primary"
-            disabled={busy || amount == null}
+            disabled={busy || !d}
             onClick={async () => {
               setBusy(true)
               setErr(null)
@@ -59,7 +64,7 @@ function DecisionRow({ c, onDone }: { c: CaseSummary; onDone: () => void }) {
               }
             }}
           >
-            {busy ? t('Approving…') : t('Approve {eur}', { eur: fmtEur(amount) })}
+            {busy ? t('Approving…') : t('Approve')}
           </button>
         </div>
       </td>
@@ -77,10 +82,10 @@ export default function StaffCases() {
   const isNew = useNewKeys(data ? data.map((c) => c.case_id + c.status) : null)
 
   const shown = data?.filter(FILTERS.find((f) => f.key === filter)!.test) ?? []
-  const decisions = shown.filter((c) => c.status === 'awaiting_approval')
-  const rows = shown.filter((c) => c.status !== 'awaiting_approval')
-  const open = data?.filter((c) => c.status !== 'closed').length ?? 0
-  const need = data?.filter((c) => c.status === 'awaiting_approval').length ?? 0
+  const decisions = shown.filter((c) => needsApproval(c.status))
+  const rows = shown.filter((c) => !needsApproval(c.status))
+  const open = data?.filter((c) => c.status !== 'closed' && c.status !== 'rejected').length ?? 0
+  const need = data?.filter((c) => needsApproval(c.status)).length ?? 0
 
   return (
     <div className="flex flex-col gap-work">
@@ -89,7 +94,7 @@ export default function StaffCases() {
           <h1 className="text-page">{t('Cases')}</h1>
           {data && (
             <p className="mt-1 text-body text-secondary">
-              {t(data.length === 1 ? '{n} case' : '{n} cases', { n: data.length })} · {t('{n} open', { n: open })} · {t(need === 1 ? '{n} needs your decision' : '{n} need your decision', { n: need })}
+              {t(data.length === 1 ? '{n} case' : '{n} cases', { n: data.length })} · {t('{n} open', { n: open })} · {t(need === 1 ? '{n} needs your approval' : '{n} need your approval', { n: need })}
             </p>
           )}
         </div>

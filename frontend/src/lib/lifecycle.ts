@@ -12,6 +12,8 @@ export interface Station {
 export const STAFF_STATIONS: Station[] = [
   { key: 'reported', label: 'Reported', events: ['case.created'] },
   { key: 'consent', label: 'Consent', events: ['consent.recorded'] },
+  // Staff approve every job before the partner sees it.
+  { key: 'approved', label: 'Approved', events: ['approval.granted'] },
   { key: 'dispatched', label: 'Dispatched', events: ['job.sent'] },
   // Booked = the technician confirmed the time the resident picked.
   { key: 'booked', label: 'Booked', events: ['technician.confirmed'], tsFallback: ['slot.confirmed'] },
@@ -31,11 +33,14 @@ export const PARTNER_STATIONS: Station[] = [
 
 /** How many staff stations a status has reached (fallback when there are no events, e.g. list rows). */
 const STAFF_REACHED: Record<string, number> = {
-  new: 1, reopened: 1, partner_declined: 2, awaiting_approval: 2,
-  requested: 3, accepted: 3, slots_proposed: 3, awaiting_technician: 3,
-  scheduled: 4, in_progress: 4,
-  completed: 5, invoiced: 6, closed: 7,
+  new: 1, reopened: 1, approval_pending: 2, awaiting_approval: 2, rejected: 2, partner_declined: 3,
+  requested: 4, accepted: 4, slots_proposed: 4, awaiting_technician: 4,
+  scheduled: 5, in_progress: 5,
+  completed: 6, invoiced: 7, closed: 8,
 }
+
+/** Staff must approve: the new `approval_pending` and the older over-the-limit `awaiting_approval`. */
+export const needsApproval = (status: string) => status === 'approval_pending' || status === 'awaiting_approval'
 const PARTNER_REACHED: Record<string, number> = {
   requested: 1, accepted: 2, reopened: 2, slots_proposed: 3, awaiting_technician: 4, scheduled: 5, in_progress: 5,
   completed: 6, invoiced: 6, closed: 6, declined: 1, partner_declined: 1,
@@ -44,7 +49,9 @@ const PARTNER_REACHED: Record<string, number> = {
 /** What is happening right now, in words (English source; shown through t()). */
 export const STATUS_TEXT: Record<string, string> = {
   new: 'Reported, Debye is triaging',
-  awaiting_approval: 'Needs your decision',
+  awaiting_approval: 'Needs your approval',
+  approval_pending: 'Needs your approval',
+  rejected: 'Rejected by you',
   requested: 'Sent to partner',
   accepted: 'Accepted by partner',
   slots_proposed: 'Times offered to resident',

@@ -77,7 +77,7 @@ type State = {
   dayOffset: number
   minute: number
 }
-const STORE_KEY = 'debye-fixtures-v3'
+const STORE_KEY = 'debye-fixtures-v4'
 let state: State = loadState() ?? initialState()
 
 function loadState(): State | null {
@@ -101,7 +101,7 @@ function initialState(): State {
     case_id: 'case_0002',
     type: 'repair.plumbing',
     title: 'Leaking riser pipe in basement',
-    status: 'awaiting_approval',
+    status: 'approval_pending',
     priority: 'high',
     unit_id: 'unit_2a',
     address: ADDRESS,
@@ -112,7 +112,7 @@ function initialState(): State {
     asset: null,
     cost_bearer: 'landlord',
     estimated_cost_eur: 620,
-    approval: { required: true, rule: 'needs approval: €620 > €500 framework limit', amount_eur: 620 },
+    approval: { required: true, rule: 'Every job needs staff approval', amount_eur: 620 },
     slot: null,
     zero_forms: { prefilled: ['address', 'unit', 'floor', 'tenant name', 'phone', 'lease', 'owner'], tenant_inputs: ['photo', 'tap: consent'] },
     ranking: [{ partner_id: 'waerme-wagner', name: 'Wärme Wagner', score: 0.81, reasons: ['Framework agreement', 'Free Monday 9–12'] }],
@@ -275,11 +275,18 @@ export const mockSteps: MockStep[] = [
       c.zero_forms!.tenant_inputs.push('tap: consent')
       c.consents.push({ contact_id: 'c_202', partner_id: 'heizung-schmidt', data_shared: ['name', 'phone', 'address', 'unit_floor', 'photos'], given_at: now(), channel: 'whatsapp', purpose: 'heating repair visit' })
       addEvent(c, 'tenant', 'consent.recorded', 'Luka shared name, phone, address, floor, photos with Heizung Schmidt')
-      addEvent(c, 'system', 'approval.granted', 'Auto-approved: estimate €250 is within the €500 framework limit')
+      // Staff approve every job before the partner sees it: Debye prepares the proposal.
       c.partner = SCHMIDT
-      c.status = 'requested'
-      addEvent(c, 'debye', 'job.sent', 'Job sent to Heizung Schmidt GmbH')
+      c.status = 'approval_pending'
+      const slot = freeSlots('tech_tom')[0]
+      c.approval = { required: true, rule: 'Every job needs staff approval', amount_eur: c.estimated_cost_eur, suggested_technician: { tech_id: 'tech_tom', name: 'Tom Schmidt' }, suggested_slot: slot ?? null }
+      addEvent(c, 'debye', 'approval.requested', `Waiting for staff approval: Heizung Schmidt GmbH, est. €${c.estimated_cost_eur}, Tom Schmidt available`)
     },
+  },
+  {
+    label: '(staff page) Approve the job',
+    ready: () => false,
+    run: () => {},
   },
   {
     label: '(partner page) Accept + propose slots',
@@ -404,7 +411,7 @@ const jobSummary = (j: JobDetail): JobSummary => ({
 
 function partnerCase(partnerId: string, caseId: string): CaseDetail {
   const c = state.cases[caseId]
-  if (!c || c.partner?.partner_id !== partnerId || c.status === 'awaiting_approval') throw new Error('Job not found')
+  if (!c || c.partner?.partner_id !== partnerId || ['awaiting_approval', 'approval_pending', 'rejected'].includes(c.status)) throw new Error('Job not found')
   return c
 }
 
@@ -451,10 +458,19 @@ export const mockApi = {
   async approve(caseId: string): Promise<CaseDetail> {
     await delay()
     const c = state.cases[caseId]
-    c.approval = { ...(c.approval ?? { rule: '' }), required: false, granted: true, granted_at: now(), granted_by: 'staff', rule: `approved by property manager (€${c.estimated_cost_eur})` }
+    c.approval = { ...(c.approval ?? { rule: '' }), required: false, granted: true, granted_at: now(), granted_by: 'staff', rule: 'Approved by Anna Becker' }
     c.status = 'requested'
-    addEvent(c, 'staff', 'approval.granted', `Property manager approved the €${c.estimated_cost_eur} repair`)
+    addEvent(c, 'staff', 'approval.granted', `Anna Becker approved: send to ${c.partner?.name}, est. €${c.estimated_cost_eur}`)
     addEvent(c, 'debye', 'job.sent', `Job sent to ${c.partner?.name}`)
+    return clone(c)
+  },
+  async reject(caseId: string, reason: string): Promise<CaseDetail> {
+    await delay()
+    const c = state.cases[caseId]
+    c.approval = { ...(c.approval ?? { rule: '' }), required: false, granted: false, rejected_reason: reason }
+    c.status = 'rejected'
+    addEvent(c, 'staff', 'approval.rejected', `Anna Becker rejected: ${reason}`, { reason })
+    addMessage(c, 'out', c.reporters[0].name, 'Die Hausverwaltung hat den Auftrag noch nicht freigegeben. Ich melde mich, sobald es weitergeht.')
     return clone(c)
   },
   async partner(partnerId: string): Promise<PartnerProfile> {
@@ -466,7 +482,7 @@ export const mockApi = {
   async jobs(partnerId: string): Promise<JobSummary[]> {
     await delay()
     return Object.values(state.cases)
-      .filter((c) => c.partner?.partner_id === partnerId && c.status !== 'awaiting_approval' && c.status !== 'new')
+      .filter((c) => c.partner?.partner_id === partnerId && !['awaiting_approval', 'approval_pending', 'rejected', 'new'].includes(c.status))
       .map((c) => jobSummary(jobFor(partnerId, c)))
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
   },

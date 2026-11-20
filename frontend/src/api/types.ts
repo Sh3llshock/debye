@@ -4,6 +4,8 @@
 export type CaseStatus =
   | 'new'
   | 'awaiting_approval'
+  | 'approval_pending'
+  | 'rejected'
   | 'requested'
   | 'accepted'
   | 'scheduled'
@@ -133,6 +135,10 @@ export interface Approval {
   granted_at?: string | null
   granted_by?: string | null
   amount_eur?: number | null
+  /** approval_pending: Debye's proposal shown on the approval card */
+  suggested_technician?: TechnicianRef | null
+  suggested_slot?: Slot | null
+  rejected_reason?: string | null
 }
 
 export interface CaseDetail extends CaseSummary {

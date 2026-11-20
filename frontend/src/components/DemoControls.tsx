@@ -71,7 +71,7 @@ export function DemoControls() {
       <div className="flex flex-col gap-2">
         {USE_FIXTURES && (
           <button className="btn-primary" disabled={busy || !next} onClick={() => run(next ?? '', () => import('../api/mock').then((m) => m.mockAdvance()))}>
-            ▶ {next ?? 'Waiting for partner page'}
+            ▶ {next ?? 'Waiting for a click on a page'}
           </button>
         )}
         <button className="btn-secondary" disabled={busy} onClick={() => run('Skipped to tomorrow', api.demoSkip)}>Skip to tomorrow</button>
