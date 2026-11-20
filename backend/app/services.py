@@ -5,7 +5,10 @@ Case status lifecycle:
       → completed → invoiced → closed
   side states: partner_declined (back to ranking), reopened (tenant says not fixed)
 
-Extras beyond the contract (safe to use): log_message, add_tenant_input, propose_slots,
+Services record only the events of their own state changes; conversational events
+(triage.answer, ...) are recorded by the agent/router.
+
+Extras beyond the contract (safe to use): message_seen, add_tenant_input, propose_slots,
 partner_accept, partner_decline, record_completion, approve_case, case_label_slot.
 """
 from __future__ import annotations
@@ -406,13 +409,13 @@ def propose_slots(case_id: str, partner_id: str, slots: list[dict]) -> list[dict
 
 
 def confirm_slot(case_id: str, slot_index: int) -> dict:
-    """slot_index is 1-based, matching the WhatsApp list ids slot_1, slot_2, ..."""
+    """slot_index is 0-based into the slots the partner proposed (interfaces §3.3)."""
     with get_session() as s:
         case = _get(s, Case, case_id)
         slots = (case.data or {}).get("proposed_slots") or []
-        if not 1 <= slot_index <= len(slots):
+        if not 0 <= slot_index < len(slots):
             raise rules.RuleViolation("invalid_slot", f"slot {slot_index} does not exist")
-        slot = slots[slot_index - 1]
+        slot = slots[slot_index]
         case.slot_start, case.slot_end = slot["start"], slot["end"]
         case.status = "scheduled"
         _save_case(s, case)
@@ -540,6 +543,14 @@ def close_case(case_id: str, resolution: str) -> dict:
     return result
 
 
+def get_case_contacts(case_id: str) -> list[Contact]:
+    """Reporter first, then affected tenants."""
+    with get_session() as s:
+        links = s.exec(select(CaseContact).where(CaseContact.case_id == case_id)).all()
+        links = sorted(links, key=lambda l: l.relation != "reporter")
+        return [c for c in (s.get(Contact, l.contact_id) for l in links) if c]
+
+
 # --------------------------------------------------------------------------- extras
 
 def add_tenant_input(case_id: str, label: str) -> None:
@@ -554,9 +565,9 @@ def add_tenant_input(case_id: str, label: str) -> None:
         _save_case(s, case)
 
 
-def log_message(contact_id: str | None, case_id: str | None, direction: str, text: str | None,
-                channel: str = "whatsapp", media_ids: list[str] | None = None,
-                wa_message_id: str | None = None) -> Message:
+def log_message(contact_id: str | None, case_id: str | None, channel: str, direction: str,
+                text: str | None, wa_message_id: str | None = None,
+                media_ids: list[str] | None = None) -> Message:
     """Store a WhatsApp message and publish message.in / message.out for the staff page."""
     with get_session() as s:
         msg = Message(id=next_id(s, Message, "msg"), case_id=case_id, contact_id=contact_id,

@@ -5,12 +5,11 @@ Run from backend/:  uvicorn app.main:app --reload
 from __future__ import annotations
 
 import asyncio
-import importlib
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -23,8 +22,6 @@ from .seed import seed
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("debye")
 
-# Modules owned by agent-whatsapp. Each may expose `router = APIRouter()`; included if present.
-OPTIONAL_ROUTER_MODULES = ["app.channels.whatsapp", "app.channels.webchat", "app.router"]
 
 
 @asynccontextmanager
@@ -42,22 +39,17 @@ app.include_router(staff_api.router)
 app.include_router(partner_api.router)
 app.include_router(demo.router)
 
-for mod_name in OPTIONAL_ROUTER_MODULES:
-    try:
-        mod = importlib.import_module(mod_name)
-    except ModuleNotFoundError as e:
-        if e.name and mod_name.startswith(e.name):
-            continue  # module not written yet
-        log.exception("failed to import %s", mod_name)
-        continue
-    except Exception:
-        log.exception("failed to import %s", mod_name)
-        continue
-    r = getattr(mod, "router", None)
-    if isinstance(r, APIRouter):
-        app.include_router(r)
-        log.info("included router from %s", mod_name)
-
+# Agent-whatsapp routers (interfaces §3.3b). Guarded until the agent PR lands.
+try:
+    from app.channels.whatsapp import router as whatsapp_router  # /webhooks/whatsapp (+ /_outbox)
+    app.include_router(whatsapp_router)
+except ImportError as e:
+    log.warning("whatsapp router not mounted: %s", e)
+try:
+    from app.channels.webchat import router as webchat_router  # /ws/chat/{id}, /chat/{id}
+    app.include_router(webchat_router)
+except ImportError as e:
+    log.warning("webchat router not mounted: %s", e)
 
 @app.get("/api/health")
 def health() -> dict:
@@ -80,7 +72,7 @@ _dist = Path(settings.frontend_dist)
 
 @app.get("/{full_path:path}", include_in_schema=False)
 def spa(full_path: str):
-    if full_path.startswith(("api/", "files/", "demo/", "webhooks/", "ws/")):
+    if full_path.startswith(("api/", "files/", "demo/", "webhooks/", "ws/", "chat/")):
         raise HTTPException(404, "not found")
     if not _dist.exists():
         return {"service": "Debye backend", "hint": "frontend/dist not built; see /docs"}

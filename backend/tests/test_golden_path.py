@@ -1,13 +1,15 @@
 """Golden path over services + REST APIs (no phones, stubbed media/notify)."""
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
 from app import rules, services
 from app.config import now
 
-PDF = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n"
-JPG = b"\xff\xd8\xff\xe0fakejpeg\xff\xd9"
+DEMO = Path(__file__).resolve().parents[2] / "data" / "demo"
+PDF = (DEMO / "invoice_RE-2026-1187.pdf").read_bytes()
+JPG = (DEMO / "repair_done.jpg").read_bytes()
 
 
 def _open_lena_case():
@@ -32,6 +34,10 @@ def test_golden_path(client):
     dup = services.find_open_case_for_asset(boiler["id"])
     assert dup.id == cid
     services.link_contact_to_case(cid, jonas.id, "affected")
+    assert [c.id for c in services.get_case_contacts(cid)] == ["c_202", "c_203"]
+    assert services.get_case(cid).partner_id is None
+    m = services.log_message(lena.id, cid, "whatsapp", "in", "Heizung kalt", "wamid.T1", [])
+    assert m.direction == "in" and services.message_seen("wamid.T1")
 
     ranking = services.rank_partners(cid)
     assert [r["partner_id"] for r in ranking][0] == "heizung-schmidt"
@@ -66,8 +72,11 @@ def test_golden_path(client):
     assert job["tenant"] == {"name": "Lena Hoffmann", "phone": "+490000000001"}
 
     # tenant picks slot 1 on WhatsApp
-    res = services.confirm_slot(cid, 1)
+    with pytest.raises(rules.RuleViolation):
+        services.confirm_slot(cid, 2)
+    res = services.confirm_slot(cid, 0)  # 0-based
     assert res["status"] == "scheduled"
+    assert res["slot"]["label"] == "Morgen 8–10"
 
     # partner completes with photo + invoice
     r = client.post(f"/api/partner/heizung-schmidt/jobs/{cid}/complete",
@@ -79,6 +88,7 @@ def test_golden_path(client):
     assert job["status"] == "invoiced"
     assert job["price_check"]["result"] == "ok"
     inv = [d for d in job["documents"] if d["kind"] == "invoice"][0]
+    assert inv["extracted"]["gross_eur"] == 237.41
     assert client.get(inv["url"]).content == PDF
 
     # tenant confirms → case closes with result payload
@@ -94,7 +104,11 @@ def test_golden_path(client):
     assert detail["partner"]["partner_id"] == "heizung-schmidt"
     assert [r["contact_id"] for r in detail["reporters"]] == ["c_202", "c_203"]
     assert detail["result"]["service_job"]["case_id"] == cid
+    assert detail["result"]["service_job"]["invoice"]["gross_eur"] == 237.41
+    assert detail["messages"][0]["text"] == "Heizung kalt"
     kinds = [e["kind"] for e in detail["events"]]
+    # services record each state-change event once
+    assert kinds.count("job.sent") == 1 and kinds.count("case.closed") == 1
     for k in ["case.created", "case.linked_reporter", "partner.ranked", "consent.recorded",
               "job.sent", "job.accepted", "slot.proposed", "slot.confirmed", "job.completed",
               "invoice.checked", "case.closed"]:
@@ -145,7 +159,8 @@ def test_decline_reranks(client):
 
 
 def test_demo_triggers_and_reset(client):
-    r = client.post("/demo/trigger/tenant_report", json={})
+    r = client.post("/demo/trigger/tenant_report",
+                    json={"media_ids": [f"local:{DEMO / 'boiler_display_F28.jpg'}"]})
     cid = r.json()["case_id"]
     assert r.json()["ranking"][0]["partner_id"] == "heizung-schmidt"
     r = client.post("/demo/trigger/neighbour_report", json={})
@@ -154,6 +169,7 @@ def test_demo_triggers_and_reset(client):
     assert r.json()["dispatched"]["status"] == "requested"
     detail = client.get(f"/api/staff/cases/{cid}").json()
     assert detail["messages"] and detail["zero_forms"]["tenant_inputs"]
+    assert any(d["kind"] == "photo" for d in detail["documents"])
     assert client.post("/demo/skip-to-tomorrow").json()["ok"]
     assert client.post("/demo/trigger/nope").status_code == 404
     client.post("/demo/reset")

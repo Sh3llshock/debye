@@ -15,16 +15,17 @@ async def transcribe(path: str, language: str = "de") -> str:
 
 async def extract_invoice(path: str) -> dict:
     log.info("[media stub] extract_invoice %s", path)
+    # numbers of data/demo/invoice_RE-2026-1187.pdf
     return {
         "invoice_number": "RE-2026-1187",
         "date": "2026-11-21",
-        "net_eur": 210.00,
-        "vat_eur": 39.90,
-        "gross_eur": 249.90,
+        "net_eur": 199.50,
+        "vat_eur": 37.91,
+        "gross_eur": 237.41,
         "line_items": [
-            {"desc": "Anfahrtspauschale", "qty": 1, "unit_price": 89.00},
-            {"desc": "Arbeitszeit Techniker", "qty": 1.5, "unit_price": 72.00},
-            {"desc": "Zündelektrode Vaillant", "qty": 1, "unit_price": 13.00},
+            {"desc": "Anfahrtspauschale (Rahmenvertrag)", "qty": 1, "unit_price": 89.00},
+            {"desc": "Arbeitszeit Heizungstechniker, Std.", "qty": 1, "unit_price": 72.00},
+            {"desc": "Zündelektrode Vaillant ecoTEC plus (0020107800)", "qty": 1, "unit_price": 38.50},
         ],
-        "labour_hours": 1.5,
+        "labour_hours": 1.0,
     }
