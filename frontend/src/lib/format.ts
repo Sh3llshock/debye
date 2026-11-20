@@ -109,6 +109,21 @@ export function fmtRelative(iso?: string | null) {
   return d.toLocaleDateString(locale(), { weekday: 'short', hour: '2-digit', minute: '2-digit', timeZone: TZ })
 }
 
+/** Short unit label: "unit_4b" → "4b"; "unit_41_3" at "Lothringerstraße 41, …" → "3" (house number not repeated). */
+export function unitLabel(unitId: string, address?: string | null) {
+  let u = unitId.replace(/^unit_/, '')
+  const num = address?.match(/\s(\d+[a-z]?)\s*,/i)?.[1]
+  if (num && u.toLowerCase().startsWith(`${num.toLowerCase()}_`)) u = u.slice(num.length + 1)
+  return u.replace(/_/g, ' ')
+}
+
+/** "Lothringerstraße 41, 52062 Aachen" + "unit_41_3" → "Lothringerstr. 41 · 3". */
+export function placeLabel(address?: string | null, unitId?: string | null) {
+  const street = (address ?? '').split(',')[0].trim().replace(/straße/i, 'str.').replace(/strasse/i, 'str.')
+  const unit = unitId ? unitLabel(unitId, address) : ''
+  return [street, unit].filter(Boolean).join(' · ')
+}
+
 export function initials(name?: string | null) {
   if (!name) return '?'
   return name
