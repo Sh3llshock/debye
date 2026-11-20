@@ -26,6 +26,7 @@ class Conversation:
     step: str = NEW
     history: list = field(default_factory=list)  # Claude messages (dicts)
     tenant_texts: list[str] = field(default_factory=list)
+    error_code: str | None = None  # display code already told to the resident
     asked_at: dict = field(default_factory=dict)  # step -> time.monotonic() of the last question
     pending_inputs: list[str] = field(default_factory=list)  # zero-forms labels before the case exists
 
