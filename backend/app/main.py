@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from . import demo, events, partner_api, staff_api
+from . import demo, events, partner_api, staff_api, tech_api
 from .config import settings
 from .db import get_session
 from .models import Document
@@ -37,6 +37,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 app.include_router(events.router)
 app.include_router(staff_api.router)
 app.include_router(partner_api.router)
+app.include_router(tech_api.router)
 app.include_router(demo.router)
 
 # Agent-whatsapp routers (interfaces §3.3b). Guarded until the agent PR lands.
@@ -78,7 +79,7 @@ _dist = Path(settings.frontend_dist)
 
 @app.get("/{full_path:path}", include_in_schema=False)
 def spa(full_path: str):
-    if full_path.startswith(("api/", "files/", "demo/", "webhooks/", "ws/", "chat/")):
+    if full_path.startswith(("api/", "files/", "demo/", "webhooks/", "ws/", "chat/")):  # noqa: E501
         raise HTTPException(404, "not found")
     if not _dist.exists():
         return {"service": "Debye backend", "hint": "frontend/dist not built; see /docs"}

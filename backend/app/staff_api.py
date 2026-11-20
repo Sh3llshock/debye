@@ -27,6 +27,8 @@ def case_summary(s, c: Case) -> dict:
         "case_id": c.id, "type": c.type, "title": c.title, "status": c.status,
         "priority": c.priority, "unit_id": c.unit_id,
         "error_code": c.error_code, "error_label": services.error_label(c.error_code),
+        "technician": ({"tech_id": c.data["technician"]["tech_id"], "name": c.data["technician"]["name"]}
+                       if (c.data or {}).get("technician") else None),
         "address": prop.address if prop else None,
         "partner": {"partner_id": partner.id, "name": partner.manifest.get("name")} if partner else None,
         "created_at": c.created_at, "updated_at": c.updated_at,
@@ -73,6 +75,8 @@ def case_detail(s, c: Case) -> dict:
         "approval": {"required": approval.get("required", False), "rule": approval.get("rule"),
                      "granted": approval.get("granted", False)},
         "slot": {"start": c.slot_start, "end": c.slot_end} if c.slot_start else None,
+        "technician": ({"tech_id": data["technician"]["tech_id"], "name": data["technician"]["name"]}
+                       if data.get("technician") else None),
         "proposed_slots": data.get("proposed_slots") or [],
         "zero_forms": {"prefilled": data.get("prefilled_fields", []),
                        "tenant_inputs": data.get("tenant_inputs", [])},

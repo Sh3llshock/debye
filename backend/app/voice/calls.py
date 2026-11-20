@@ -207,11 +207,11 @@ async def report_issue(
         watch(call.conversation_id)
     reply = {"ok": True, "case_id": case_id, "duplicate": bool(res.get("duplicate"))}
     if res.get("duplicate"):
-        reply["say"] = ("Die Heizung im Haus ist schon gemeldet und ein Techniker ist informiert. "
-                        "Ich halte dich auf WhatsApp auf dem Laufenden.")
+        reply["say"] = ("The heating for the building has already been reported and a technician is on it. "
+                        "I'll keep you posted on WhatsApp.")
         return reply
-    say = ("Ich habe einen Fall angelegt. Nach dem Anruf schicke ich dir auf WhatsApp eine kurze "
-           "Zusammenfassung und frage dort, ob ich deine Daten an den Heizungsbetrieb weitergeben darf.")
+    say = ("I've opened a case. After the call I'll send you a short summary on WhatsApp and ask there "
+           "whether I may share your details with the heating company.")
     if code:  # meaning first, code in brackets (persona rule); the agent reads "say" out verbatim
         reply["explain_error_code"] = error_codes.resident_sentence(code, "text")
         say = f"{reply['explain_error_code']} {say}"
@@ -265,10 +265,10 @@ async def finish_call(conversation: dict) -> dict:
                          "transcript": transcript, "channel": "voice"})
         if call.all_cold is not None and not call.duplicate:
             be.record_event(case_id, "tenant", "triage.answer",
-                            ("Alle Heizkörper kalt" if call.all_cold else "Nur ein Raum kalt") + " (am Telefon)",
+                            ("All radiators cold" if call.all_cold else "Only one room cold") + " (on the phone)",
                             {"all_radiators_cold": call.all_cold, "channel": "voice"})
     await be.log_message(contact_id, case_id, "voice", "in",
-                         f"📞 Anruf ({duration}): {call.summary_de or _first_sentence(summary_en)}",
+                         f"📞 Call ({duration}): {call.summary_de or _first_sentence(summary_en)}",
                          contact_name=be.attr(contact, "name"))
     await continue_on_whatsapp(contact, case_id, call, duration)
     return {"ok": True, "case_id": case_id, "line": line}
@@ -299,18 +299,18 @@ def timeline_text(call: Call, summary_en: str) -> str:
 async def continue_on_whatsapp(contact, case_id: str | None, call: Call, duration: str) -> None:
     """Short recap + the next button, so the case simply continues in the chat."""
     name = flow.first_name(contact)
-    hello = f"Danke für deinen Anruf{', ' + name if name else ''}! 📞"
+    hello = f"Thanks for your call{', ' + name if name else ''}! 📞"
     if not case_id:
-        await out.text(contact, None, f"{hello} Wenn noch etwas ist, schreib mir einfach hier.")
+        await out.text(contact, None, f"{hello} If there's anything else, just message me here.")
         return
     if call.duplicate:
-        await out.text(contact, case_id, f"{hello} Kurz zusammengefasst: Die Heizung im Haus ist schon gemeldet, "
-                                         "ein Techniker ist informiert. Ich halte dich hier auf dem Laufenden.")
+        await out.text(contact, case_id, f"{hello} Quick recap: the heating for the building has already been reported "
+                                         "and a technician is on it. I'll keep you posted here.")
         return
-    recap = (call.summary_de or "Deine Heizung ist ausgefallen").rstrip(". ") + "."
+    recap = (call.summary_de or "Your heating has stopped working").rstrip(". ") + "."
     if call.error_code:
         recap += " " + error_codes.resident_sentence(call.error_code, "text")
-    await out.text(contact, case_id, f"{hello} Kurz zusammengefasst: {recap} Den Fall habe ich angelegt.")
+    await out.text(contact, case_id, f"{hello} Quick recap: {recap} I've opened a case.")
     conv = st.conversation(be.attr(contact, "id"))
     if conv.step not in (st.NEW, st.TRIAGE):
         return  # the chat is already further along (consent given etc.): nothing to ask

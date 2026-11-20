@@ -99,17 +99,23 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
 
     # partner page: accept, propose slots → resident gets a list
     assert real.post(f"/api/partner/{partner}/jobs/{case_id}/accept").status_code == 200
-    r = real.post(f"/api/partner/{partner}/jobs/{case_id}/slots", json={"slots": [
-        {"start": "2026-11-21T08:00:00+01:00", "end": "2026-11-21T10:00:00+01:00"},
-        {"start": "2026-11-26T14:00:00+01:00", "end": "2026-11-26T16:00:00+01:00"}]})
+    # technician flow: the dispatcher picks a technician and proposes from that technician's free time
+    techs = real.get(f"/api/partner/{partner}/technicians").json()
+    tech = techs[0]
+    r = real.post(f"/api/partner/{partner}/jobs/{case_id}/slots",
+                  json={"tech_id": tech["tech_id"], "slots": tech["free_slots"][:2]})
     assert r.status_code == 200, r.text
     p = last(real, LUKA)
     assert p["interactive"]["type"] == "list"
     assert ids(p)[:2] == [f"slot_1:{case_id}", f"slot_2:{case_id}"]
 
     real.post("/webhooks/whatsapp", json=tap(LUKA, f"slot_1:{case_id}", "Morgen", kind="list_reply"))
+    assert real.get(f"/api/staff/cases/{case_id}").json()["status"] == "awaiting_technician"
+    r = real.post(f"/api/tech/{tech['tech_id']}/jobs/{case_id}/confirm")
+    assert r.status_code == 200, r.text
     assert real.get(f"/api/staff/cases/{case_id}").json()["status"] == "scheduled"
-    assert "update" in last(real, JONAS)["text"]["body"]
+    assert tech["name"] in last(real, LUKA)["text"]["body"]  # tenant told who is coming
+    assert "update" in last(real, JONAS)["text"]["body"]  # neighbour told once the technician confirmed
 
     # partner completes with photo + invoice → "warm again?" → yes → closed
     r = real.post(f"/api/partner/{partner}/jobs/{case_id}/complete", data={"notes": "Zündelektrode getauscht"},

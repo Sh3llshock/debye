@@ -15,7 +15,7 @@ Partner side: drives the partner page API (accept, slots, complete with photo + 
   python scripts/simulate.py                       # full golden path via webhooks
   python scripts/simulate.py --direct              # tenant steps via /demo/trigger (no router needed)
   python scripts/simulate.py --step report         # one step only (report|neighbour|consent|
-                                                   #   accept|slots|pick|complete|fixed)
+                                                   #   accept|slots|pick|tech_confirm|complete|fixed)
   python scripts/simulate.py --base http://localhost:8000 --reset
 
 Only stdlib + httpx. Exit code 1 if a step fails.
@@ -38,6 +38,7 @@ import httpx
 LUKA = "490000000001"   # WhatsApp sends E.164 without "+"
 JONAS = "490000000002"
 PARTNER = "heizung-schmidt"
+TECH = "tech_tom"  # Tom Schmidt, Vaillant-certified
 PHONE_NUMBER_ID = os.environ.get("WA_PHONE_NUMBER_ID", "123456789012345")
 APP_SECRET = os.environ.get("WA_APP_SECRET", "")
 
@@ -260,20 +261,20 @@ class Sim:
             return
         self.webhook(LUKA, "Luka", audio_msg(audio))
         # Debye may answer the voice note and stay quiet on the follow-up photo
-        self.webhook(LUKA, "Luka", image_msg(photo, "Das zeigt der Kessel"), expect_reply=False)
+        self.webhook(LUKA, "Luka", image_msg(photo, "This is what the boiler shows"), expect_reply=False)
         cases = self._check(self.c.get("/api/staff/cases"))
         cid = cases[0]["case_id"] if cases else ""
         oid = self.option_id(LUKA, "cold_all", f"cold_all:{cid}")
-        self.log("Luka", "taps 'Überall kalt'")
-        self.webhook(LUKA, "Luka", button_reply(oid, "Überall kalt"))
+        self.log("Luka", "taps 'All cold'")
+        self.webhook(LUKA, "Luka", button_reply(oid, "All cold"))
 
     def neighbour(self) -> None:
-        self.log("Jonas", "Bei uns im 1. Stock ist die Heizung auch kalt.")
+        self.log("Jonas", "Our heating on the first floor is cold too.")
         if self.direct:
             r = self.trigger("neighbour_report")
             self.log("debye", f"linked to {r.get('duplicate_of') or r.get('case_id')}")
             return
-        self.webhook(JONAS, "Jonas Weber", text_msg("Bei uns im 1. Stock ist die Heizung auch kalt."))
+        self.webhook(JONAS, "Jonas Weber", text_msg("Our heating on the first floor is cold too."))
 
     def consent(self) -> None:
         cid = self.latest_case()["case_id"]
@@ -283,7 +284,7 @@ class Sim:
             self.log("debye", f"dispatch: {r.get('dispatched') or r.get('blocked')}")
             return
         oid = self.option_id(LUKA, "consent_yes", f"consent_yes:{cid}")
-        self.webhook(LUKA, "Luka", button_reply(oid, "Ja, teilen"))
+        self.webhook(LUKA, "Luka", button_reply(oid, "Yes, go ahead"))
 
     def accept(self) -> None:
         cid = self.latest_case()["case_id"]
@@ -294,14 +295,15 @@ class Sim:
                 self.log("debye", f"→ {_to(item)}: {_describe(item)}")
 
     def slots(self) -> None:
+        """Dispatcher picks a technician (Tom by default) and proposes 2 of their free slots."""
         cid = self.latest_case()["case_id"]
-        tz = timezone(timedelta(hours=1))
-        t = (datetime.now(tz) + timedelta(days=1)).replace(hour=8, minute=0, second=0, microsecond=0)
-        slots = [{"start": t.isoformat(), "end": (t + timedelta(hours=2)).isoformat()},
-                 {"start": (t + timedelta(days=1, hours=6)).isoformat(),
-                  "end": (t + timedelta(days=1, hours=8)).isoformat()}]
-        job = self._check(self.c.post(f"/api/partner/{PARTNER}/jobs/{cid}/slots", json={"slots": slots}))
-        self.log("partner", "proposes " + " / ".join(s["label"] for s in job["proposed_slots"]))
+        techs = self._check(self.c.get(f"/api/partner/{PARTNER}/technicians"))
+        tech = next((t for t in techs if t["tech_id"] == TECH), techs[0])
+        slots = tech["free_slots"][:2]
+        job = self._check(self.c.post(f"/api/partner/{PARTNER}/jobs/{cid}/slots",
+                                      json={"tech_id": tech["tech_id"], "slots": slots}))
+        self.log("partner", f"assigns {tech['name']}, proposes "
+                 + " / ".join(s["label"] for s in job["proposed_slots"]))
         if not self.direct:
             time.sleep(1)
             for item in self.read_outbox():
@@ -324,12 +326,23 @@ class Sim:
         oid = rows[index - 1] if 0 < index <= len(rows) else f"slot_{index}:{cid}"
         self.webhook(LUKA, "Luka", list_reply(oid, f"Slot {index}"))
 
+    def tech_confirm(self) -> None:
+        """The technician confirms the slot the tenant picked on their phone page."""
+        cid = self.latest_case()["case_id"]
+        tech = (self.case(cid).get("technician") or {}).get("tech_id") or TECH
+        job = self._check(self.c.post(f"/api/tech/{tech}/jobs/{cid}/confirm"))
+        self.log("tech", f"{tech} confirms → {job['status']}")
+        if not self.direct:
+            time.sleep(1)
+            for item in self.read_outbox():
+                self.log("debye", f"→ {_to(item)}: {_describe(item)}")
+
     def complete(self) -> None:
         cid = self.latest_case()["case_id"]
         self.log("partner", "marks done with photo + invoice PDF")
         job = self._check(self.c.post(
             f"/api/partner/{PARTNER}/jobs/{cid}/complete",
-            data={"notes": "Zündelektrode getauscht, Kessel läuft wieder"},
+            data={"notes": "Replaced the ignition electrode, boiler running again"},
             files={"photo": (DONE_PHOTO.name, DONE_PHOTO.read_bytes(), "image/jpeg"),
                    "invoice": (INVOICE_PDF.name, INVOICE_PDF.read_bytes(), "application/pdf")}))
         pc = job.get("price_check") or {}
@@ -341,12 +354,12 @@ class Sim:
 
     def fixed(self) -> None:
         cid = self.latest_case()["case_id"]
-        self.log("Luka", "taps 'Ja, warm!'")
+        self.log("Luka", "taps 'Yes, all warm'")
         if self.direct:
             self.trigger("fixed", {"case_id": cid, "fixed": True})
             return
         oid = self.option_id(LUKA, "fixed_yes", f"fixed_yes:{cid}")
-        self.webhook(LUKA, "Luka", button_reply(oid, "Ja, warm!"))
+        self.webhook(LUKA, "Luka", button_reply(oid, "Yes, all warm"))
 
     def summary(self) -> bool:
         c = self.case(self.latest_case()["case_id"])
@@ -358,7 +371,7 @@ class Sim:
         return c["status"] == "closed"
 
 
-STEPS = ["report", "neighbour", "consent", "accept", "slots", "pick", "complete", "fixed"]
+STEPS = ["report", "neighbour", "consent", "accept", "slots", "pick", "tech_confirm", "complete", "fixed"]
 
 
 def main() -> int:

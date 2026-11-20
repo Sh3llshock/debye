@@ -11,11 +11,16 @@ from .models import Asset, Case, CaseEvent, Contact, Document, Partner, Property
 
 router = APIRouter(prefix="/api/partner", tags=["partner"])
 
-VISIBLE_STATUSES = {"requested", "accepted", "slots_proposed", "scheduled", "completed",
-                    "invoiced", "closed", "reopened"}
+VISIBLE_STATUSES = {"requested", "accepted", "slots_proposed", "awaiting_technician", "scheduled",
+                    "completed", "invoiced", "closed", "reopened"}
 PARTNER_EVENT_KINDS = {"job.sent", "job.accepted", "job.declined", "slot.proposed",
-                       "slot.confirmed", "job.completed", "invoice.checked", "case.closed",
-                       "case.reopened", "tenant.confirmed_fixed"}
+                       "slot.confirmed", "technician.confirmed", "job.completed", "invoice.checked",
+                       "case.closed", "case.reopened", "tenant.confirmed_fixed"}
+
+
+def technician_view(c: Case) -> dict | None:
+    t = (c.data or {}).get("technician")
+    return {"tech_id": t["tech_id"], "name": t["name"]} if t else None
 
 
 def _partner(s, partner_id: str) -> Partner:
@@ -54,6 +59,7 @@ def job_summary(s, c: Case, partner_id: str) -> dict:
         "error_code": c.error_code,
         "error_label": services.error_label(c.error_code, asset.known_error_codes if asset else None),
         "slot": {"start": c.slot_start, "end": c.slot_end} if c.slot_start else None,
+        "technician": technician_view(c),
         "created_at": c.created_at, "updated_at": c.updated_at,
     }
 
@@ -177,7 +183,15 @@ class Slot(BaseModel):
 
 
 class SlotsBody(BaseModel):
+    tech_id: str | None = None  # optional: without it the dispatcher auto-assigns the best free technician
     slots: list[Slot]
+
+
+@router.get("/{partner_id}/technicians")
+def technicians(partner_id: str) -> list[dict]:
+    with get_session() as s:
+        _partner(s, partner_id)
+    return services.get_technicians(partner_id)
 
 
 @router.post("/{partner_id}/jobs/{case_id}/slots")
@@ -187,14 +201,19 @@ async def slots(partner_id: str, case_id: str, body: SlotsBody) -> dict:
     if not body.slots:
         raise HTTPException(422, "at least one slot required")
     try:
-        labelled = services.propose_slots(case_id, partner_id, [sl.model_dump() for sl in body.slots])
+        labelled = services.propose_slots(case_id, partner_id,
+                                          [sl.model_dump() for sl in body.slots], body.tech_id)
     except rules.RuleViolation as rv:
         raise HTTPException(409, rv.message)
     except ValueError as e:
         raise HTTPException(422, f"bad slot time: {e}")
     with get_session() as s:
         name = s.get(Partner, partner_id).manifest.get("name")
-    await notify.notify_tenant(case_id, "slots_proposed", {"slots": labelled, "partner_name": name})
+    tech_id = ((services.get_case(case_id).data or {}).get("technician") or {}).get("tech_id")
+    tech = services.get_technician(tech_id) if tech_id else None
+    await notify.notify_tenant(case_id, "slots_proposed",
+                               {"slots": labelled, "partner_name": name,
+                                "technician_name": tech.name if tech else None})
     return _detail(case_id, partner_id)
 
 
