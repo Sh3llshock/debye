@@ -42,6 +42,8 @@ class Call:
     summary_de: str | None = None
     finished: bool = False
     tools_used: list[str] = field(default_factory=list)
+    diagnosis: bool = False  # "no hot water": diagnosis questions asked on the phone
+    phone_questions: list[str] = field(default_factory=list)
 
 
 _calls: dict[str, Call] = {}
@@ -124,6 +126,48 @@ def _yes_no(v) -> bool | None:
     return None
 
 
+# ---------------------------------------------------------------- caller context up front
+def caller_variables(contact) -> dict:
+    """Dynamic variables for the start of a call (web page via the signed-URL response, phone via the
+    conversation-initiation webhook), so the agent knows the caller without a tool call at the start."""
+    ctx = flow.unit_context_for(contact)
+    prop, unit = ctx.get("property") or {}, ctx.get("unit") or {}
+    heating = next((a for a in ctx.get("assets") or [] if a.get("type") in ("gas_boiler", "heat_pump")), None)
+    conv = st.conversation(be.attr(contact, "id"))
+    open_cases = ctx.get("open_cases") or []
+    mine = [c for c in open_cases if c.get("case_id") == conv.case_id]
+    building = [c for c in open_cases if (c.get("type") or "").startswith("repair.heating")]
+    if mine:
+        c = mine[0]
+        open_summary = f"The caller's own open case: {c.get('title')} (status {c.get('status')})."
+    elif building:
+        c = building[0]
+        open_summary = (f"A heating case for the building is already open: {c.get('title')} "
+                        f"(status {c.get('status')}). It is being handled.")
+    else:
+        open_summary = "none"
+    boiler = " ".join(str(heating.get(k)) for k in ("make", "model") if heating and heating.get(k)) or "unknown"
+    return {
+        "contact_id": be.attr(contact, "id"),
+        "tenant_name": flow.first_name(contact) or "there",
+        "unit_label": str(unit.get("label") or unit.get("id") or "unknown"),
+        "address": _address(prop),
+        "boiler": boiler,
+        "open_case_summary": open_summary,
+    }
+
+
+def _address(prop: dict) -> str:
+    addr, city = prop.get("address") or prop.get("street") or "", prop.get("city") or ""
+    if city and city not in addr:
+        addr = f"{addr}, {city}" if addr else city
+    return addr or "unknown"
+
+
+UNKNOWN_CALLER_VARIABLES = {"contact_id": "unknown", "tenant_name": "there", "unit_label": "unknown",
+                            "address": "unknown", "boiler": "unknown", "open_case_summary": "unknown"}
+
+
 # ---------------------------------------------------------------- server tools
 async def identify_caller(conversation_id: str | None, contact_id: str | None, caller_id: str | None) -> dict:
     contact = resolve_contact(contact_id, caller_id)
@@ -175,6 +219,8 @@ async def report_issue(
     error_code: str | None = None,
     all_radiators_cold=None,
     priority: str | None = None,
+    issue_type: str | None = None,
+    answers=None,
 ) -> dict:
     contact = resolve_contact(contact_id, caller_id)
     call = _call_for(conversation_id)
@@ -182,6 +228,10 @@ async def report_issue(
         contact = be.get_contact(call.contact_id)
     if contact is None:
         return {"ok": False, "message": "Caller unknown; say the property manager will call back."}
+    if _is_hot_water(issue_type, summary, symptoms):
+        if (priority or "").lower() == "emergency" and not parse_answers(answers):
+            answers = "q_safety=yes"  # an emergency during a hot-water call is the gas question
+        return await _start_diagnosis(contact, call, summary, symptoms, error_code, answers)
     code = _norm_code(error_code)
     summary = (summary or "").strip() or error_codes.case_title(code)
     res = await flow.ensure_case(
@@ -221,6 +271,178 @@ async def report_issue(
     return reply
 
 
+# ---------------------------------------------------------------- "no hot water": diagnosis on the phone
+VOICE_MAX_QUESTIONS = int(os.getenv("VOICE_MAX_QUESTIONS", "3"))  # KB questions on the phone (safety not counted)
+_HEATING_WORDS = ("heating", "radiator", "heizung", "heizkörper")
+
+
+def _is_hot_water(issue_type: str | None, summary: str | None, symptoms: str | None) -> bool:
+    from app.agent import diagnosis
+
+    t = (_clean(issue_type) or "").lower().replace("-", "_").replace(" ", "_")
+    if t in ("hot_water", "no_hot_water", "shower"):
+        return True
+    if t in ("heating", "other", "emergency"):
+        return False
+    text = f"{summary or ''} {symptoms or ''}"
+    if any(w in text.lower() for w in _HEATING_WORDS):
+        return False
+    return diagnosis.applies(text)
+
+
+def _question_payload(qid: str) -> dict:
+    from app.agent import diagnosis
+
+    if qid == diagnosis.SAFETY_QID:
+        return {"question_id": qid, "text": diagnosis.kb()["safety_first"]["question"],
+                "answers": {"yes": "the caller smells gas", "no": "no gas smell"}}
+    q = diagnosis.questions()[qid]
+    return {"question_id": qid, "text": q["text"], "answers": q["answers"]}
+
+
+def _next_phone_step(contact, call: Call | None, conv: st.Conversation) -> dict:
+    """The next question to ask on the phone, or 'wrap up, WhatsApp continues'."""
+    from app.agent import diagnosis
+
+    d = conv.diagnosis
+    wrap = {"ok": True, "diagnosis": True, "done_on_phone": True,
+            "say": "Thanks, that already helps a lot. Right after the call I'll send you the next step on "
+                   "WhatsApp, so you don't have to repeat anything.",
+            "then": "Say goodbye using their name and call end_call."}
+    if not d.get("safety_done"):
+        return {"ok": True, "diagnosis": True, "ask": _question_payload(diagnosis.SAFETY_QID)}
+    if call is not None and len(call.phone_questions) >= VOICE_MAX_QUESTIONS:
+        return wrap
+    action, ident, _ = diagnosis.next_step(conv)
+    if action != "ask" or ident == "q_display":  # a display photo is easier on WhatsApp
+        return wrap
+    if call is not None:
+        call.phone_questions.append(ident)
+    if ident not in d["asked"]:
+        d["asked"].append(ident)
+    return {"ok": True, "diagnosis": True, "ask": _question_payload(ident)}
+
+
+PHONE_QUESTIONS = ("q_scope", "q_recent_use", "q_waited")  # asked on the phone (agent prompt lists them)
+
+
+def parse_answers(answers) -> list[tuple[str, str]]:
+    """'q_safety=no; q_scope=only_shower' (or a dict) -> [(qid, key), ...]."""
+    if isinstance(answers, dict):
+        items = list(answers.items())
+    else:
+        items = [part.split("=", 1) for part in str(answers or "").replace(",", ";").split(";") if "=" in part]
+    return [(q.strip(), str(k).strip().lower().replace(" ", "_")) for q, k in items if q.strip() and str(k).strip()]
+
+
+async def _start_diagnosis(contact, call: Call | None, summary: str, symptoms: str | None,
+                           error_code: str | None, answers=None) -> dict:
+    from app.agent import diagnosis
+
+    conv = st.conversation(be.attr(contact, "id"))
+    if call:
+        call.tools_used.append("report_issue")
+        call.contact_id = be.attr(contact, "id")
+        call.diagnosis = True
+        call.summary_de = (summary or "").strip() or "No hot water"
+        watch(call.conversation_id)
+    complaint = " ".join(x for x in [(summary or "").strip(), (symptoms or "").strip()] if x) or "No hot water"
+    if not conv.diagnosis or conv.diagnosis.get("concluded"):
+        diagnosis.start(conv, complaint + " (on the phone)")
+        diagnosis.facts_from_centrix(contact, conv)
+    code = _norm_code(error_code)
+    if code:
+        conv.error_code = code
+        conv.diagnosis["answers"]["q_display"] = "code"
+    conv.step = st.DIAGNOSIS
+    pairs = parse_answers(answers)
+    if pairs:  # one tool call with everything the caller answered (webhook tools mid-call are fragile)
+        cid = call.conversation_id if call else None
+        cont_id = be.attr(contact, "id")
+        reply = None
+        for qid, key in sorted(pairs, key=lambda x: x[0] != diagnosis.SAFETY_QID):
+            reply = await answer_question(cid, cont_id, None, qid, key, advance=False)
+            if reply.get("emergency"):
+                return reply
+            if qid != diagnosis.SAFETY_QID and call is not None and qid not in call.phone_questions:
+                call.phone_questions.append(qid)
+        if call is not None:
+            call.phone_questions = [q for q in call.phone_questions if q in conv.diagnosis["answers"]]
+        return {"ok": True, "diagnosis": True, "done_on_phone": True,
+                "say": "Thanks, that already helps a lot. Right after the call I'll send you the next step on "
+                       "WhatsApp, so you don't have to repeat anything.",
+                "then": "Say goodbye using their name and call end_call."}
+    reply = _next_phone_step(contact, call, conv)
+    reply["how"] = ("Ask 'ask.text' in your own short words, then call answer_question with question_id and the "
+                    "answer key that fits. If the caller already told you the answer, don't ask, just record it.")
+    return reply
+
+
+async def answer_question(conversation_id: str | None, contact_id: str | None, caller_id: str | None,
+                          question_id: str, answer: str, advance: bool = True) -> dict:
+    from app.agent import diagnosis
+
+    contact = resolve_contact(contact_id, caller_id)
+    call = _call_for(conversation_id)
+    if contact is None and call and call.contact_id:
+        contact = be.get_contact(call.contact_id)
+    if contact is None:
+        return {"ok": False, "message": "Caller unknown; say the property manager will call back."}
+    conv = st.conversation(be.attr(contact, "id"))
+    if not conv.diagnosis:
+        return {"ok": False, "message": "No diagnosis running: call report_issue first."}
+    qid, key = (question_id or "").strip(), (answer or "").strip().lower().replace(" ", "_")
+    if qid == diagnosis.SAFETY_QID:
+        if key in ("yes", "true", "ja"):
+            if call:
+                call.diagnosis = True
+            res = await diagnosis.conclude(contact, conv, "gas_smell", 1.0, "Caller reports a gas smell (phone).")
+            if call:
+                call.case_id = res.get("case_id")
+            sf = diagnosis.kb()["safety_first"]["if_yes"]
+            return {"ok": True, "emergency": True, "say": sf["tenant_message"],
+                    "then": "Say it calmly, then end_call so they can leave the apartment."}
+        conv.diagnosis["safety_done"] = True
+    else:
+        try:
+            diagnosis.record(conv, qid, key)
+        except ValueError:
+            allowed = list((diagnosis.questions().get(qid) or {}).get("answers", {}).keys())
+            return {"ok": False, "message": f"Use one of these answer keys for {qid}: {allowed}"}
+        if qid not in conv.diagnosis["asked"]:
+            conv.diagnosis["asked"].append(qid)
+    if not advance:
+        return {"ok": True}
+    return _next_phone_step(contact, call, conv)
+
+
+async def _continue_diagnosis_on_whatsapp(contact, call: Call, hello: str) -> None:
+    """After a hot-water call: recap the phone answers, then the next question or the conclusion."""
+    from app.agent import diagnosis
+
+    conv = st.conversation(be.attr(contact, "id"))
+    d = conv.diagnosis
+    if not d or d.get("concluded"):
+        if d and d.get("concluded") == "gas_smell":
+            return  # emergency instructions already sent during the call
+        await out.text(contact, conv.case_id, f"{hello} If there's anything else, just message me here.")
+        return
+    said = [diagnosis.questions()[q]["answers"][k] for q, k in d["answers"].items()
+            if q in diagnosis.questions() and k in diagnosis.questions()[q]["answers"] and q != "q_heater_type"]
+    recap = "no hot water" + (f": {', '.join(said)}" if said else "")
+    await out.text(contact, conv.case_id, f"{hello} Quick recap: {recap}.")
+    if not d.get("safety_done"):
+        await diagnosis.ask(contact, conv, diagnosis.SAFETY_QID)
+        return
+    if await diagnosis.apply_centrix_shortcuts(contact, conv):
+        return
+    action, ident, conf = diagnosis.next_step(conv)
+    if action == "ask":
+        await diagnosis.ask(contact, conv, ident)
+    else:
+        await diagnosis.conclude(contact, conv, ident, conf, "From the answers given on the phone call.")
+
+
 # ---------------------------------------------------------------- end of call
 def _first(contact) -> str:
     return flow.first_name(contact) or "resident"
@@ -258,7 +480,19 @@ async def finish_call(conversation: dict) -> dict:
         {"role": t.get("role"), "message": t.get("message"), "t": t.get("time_in_call_secs")}
         for t in conversation.get("transcript") or [] if t.get("message")
     ]
-    line = f"Call with {_first(contact)} ({duration}): {timeline_text(call, summary_en)}"
+    line = f"Call with {_first(contact)} ({duration}): {timeline_text(call, summary_en, conv)}"
+    if call.diagnosis:  # the case (if any) is opened by the diagnosis conclusion on WhatsApp
+        await be.log_message(contact_id, conv.case_id, "voice", "in",
+                             f"📞 Call ({duration}): {call.summary_de or _first_sentence(summary_en)}",
+                             contact_name=be.attr(contact, "name"))
+        name = flow.first_name(contact)
+        await _continue_diagnosis_on_whatsapp(contact, call, f"Thanks for your call{', ' + name if name else ''}! 📞")
+        case_id = call.case_id or st.conversation(contact_id).case_id
+        if case_id:
+            be.record_event(case_id, "tenant", "call.completed", line,
+                            {"conversation_id": conv_id, "duration": duration, "summary": summary_en,
+                             "transcript": transcript, "channel": "voice"})
+        return {"ok": True, "case_id": case_id, "line": line}
     if case_id:
         be.record_event(case_id, "tenant", "call.completed", line,
                         {"conversation_id": conv_id, "duration": duration, "summary": summary_en,
@@ -281,8 +515,14 @@ def _first_sentence(text: str, limit: int = 160) -> str:
     return t if len(t) <= limit else t[: limit - 1].rstrip() + "…"
 
 
-def timeline_text(call: Call, summary_en: str) -> str:
+def timeline_text(call: Call, summary_en: str, conv: st.Conversation | None = None) -> str:
     """Short English line for the staff timeline, built from what the tools recorded."""
+    if call.diagnosis:
+        if conv is not None and (conv.diagnosis or {}).get("concluded") == "gas_smell":
+            return "GAS SMELL reported. Emergency advice given on the phone, staff alerted."
+        n = len(call.phone_questions)
+        return (f"no hot water, safety check + {n} diagnosis question{'s' if n != 1 else ''} answered on the "
+                "phone. Diagnosis continues on WhatsApp.")
     if not call.case_id:
         return _first_sentence(summary_en)
     if call.duplicate:

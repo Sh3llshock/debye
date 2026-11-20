@@ -3,7 +3,10 @@
   POST /api/voice/tools/identify_caller   (header X-Debye-Voice-Secret)
   POST /api/voice/tools/report_issue      (header X-Debye-Voice-Secret)
   POST /api/voice/post_call               (ElevenLabs-Signature HMAC, or X-Debye-Voice-Secret)
-  GET  /api/voice/signed_url?contact=c_202   signed URL for the browser session
+  POST /api/voice/tools/answer_question   (header X-Debye-Voice-Secret) one diagnosis answer at a time
+                                          (not used by the agent: report_issue takes all answers at once)
+  POST /api/voice/init                    (header X-Debye-Voice-Secret) conversation-initiation webhook (phone)
+  GET  /api/voice/signed_url?contact=c_202   signed URL + the caller's dynamic variables for the browser
   POST /api/voice/calls/{conversation_id}/end   the /call page reports the end of a session
   GET  /call?contact=c_202                 "Call Debye" test page (no phone number needed)
 """
@@ -56,6 +59,13 @@ class ReportIssue(ToolCaller):
     error_code: str | None = None
     all_radiators_cold: str | bool | None = None
     priority: str | None = None
+    issue_type: str | None = None
+    answers: str | dict | None = None  # hot water: "q_safety=no; q_scope=only_shower; ..."
+
+
+class AnswerQuestion(ToolCaller):
+    question_id: str = ""
+    answer: str = ""
 
 
 @router.post("/api/voice/tools/identify_caller")
@@ -69,8 +79,30 @@ async def tool_report_issue(body: ReportIssue, x_debye_voice_secret: str | None 
     _check_secret(x_debye_voice_secret)
     return await calls.report_issue(
         body.conversation_id, body.contact_id, body.caller_id, body.summary, body.symptoms,
-        body.error_code, body.all_radiators_cold, body.priority,
+        body.error_code, body.all_radiators_cold, body.priority, body.issue_type,
+        body.answers,
     )
+
+
+@router.post("/api/voice/tools/answer_question")
+async def tool_answer_question(body: AnswerQuestion, x_debye_voice_secret: str | None = Header(None)):
+    _check_secret(x_debye_voice_secret)
+    return await calls.answer_question(body.conversation_id, body.contact_id, body.caller_id,
+                                       body.question_id, body.answer)
+
+
+@router.post("/api/voice/init")
+async def conversation_init(request: Request, x_debye_voice_secret: str | None = Header(None)):
+    """ElevenLabs conversation-initiation webhook for phone calls (Twilio/SIP): caller number in, the
+    caller's dynamic variables out, so phone calls start as informed as web calls."""
+    _check_secret(x_debye_voice_secret)
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+    c = calls.resolve_contact(caller_id=body.get("caller_id"))
+    dyn = calls.caller_variables(c) if c else dict(calls.UNKNOWN_CALLER_VARIABLES)
+    return {"type": "conversation_initiation_client_data", "dynamic_variables": dyn}
 
 
 def verify_elevenlabs_signature(raw: bytes, header: str | None, secret: str, tolerance: int = 1800) -> bool:
@@ -113,7 +145,8 @@ async def get_signed_url(contact: str = "c_202"):
     except Exception as e:
         log.exception("signed url failed")
         raise HTTPException(502, f"ElevenLabs: {type(e).__name__}")
-    return {"signed_url": url, "contact_id": contact,
+    dyn = calls.caller_variables(c) if c else dict(calls.UNKNOWN_CALLER_VARIABLES)
+    return {"signed_url": url, "contact_id": contact, "dynamic_variables": dyn,
             "contact_name": calls.flow.first_name(c) if c else None}
 
 

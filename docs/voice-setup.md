@@ -9,11 +9,17 @@ is never asked the same thing twice.
 
 ```
 caller ──(browser /call  or  phone number)──► ElevenLabs agent "Debye" (English, voice "Sarah", gemini-2.5-flash)
-                                                 │ server tools (webhooks, header X-Debye-Voice-Secret)
-                                                 ├─► POST /api/voice/tools/identify_caller  → contact, unit, heating, open cases
-                                                 └─► POST /api/voice/tools/report_issue     → flow.ensure_case (same case logic as WhatsApp)
-call ends ──► finish_call: timeline event "call.completed" + WhatsApp recap + consent / triage buttons
+   dynamic variables at the start: tenant_name, unit_label, address, boiler, open_case_summary, contact_id
+   (web: from GET /api/voice/signed_url; phone: from the init webhook POST /api/voice/init)
+                                                 │ ONE server tool call per call (header X-Debye-Voice-Secret)
+                                                 ├─► POST /api/voice/tools/report_issue  heating → flow.ensure_case
+                                                 │                                       hot water → diagnosis answers
+                                                 └─► POST /api/voice/tools/identify_caller  (phone fallback only)
+call ends ──► finish_call: timeline event "call.completed" + WhatsApp recap + the next step
+              (heating: consent / triage buttons; hot water: next diagnosis question or the conclusion)
 ```
+
+**Why one tool call.** On the user's first test, the agent called `identify_caller` at the start, the caller spoke, and ElevenLabs abandoned the call ("Tool execution was abandoned due to user input") and retried it in a loop. Live tests also showed that after a webhook tool returns, the session can ignore the caller's next turn. So the caller is known before the call starts (dynamic variables), and Debye asks all its questions first. Hot water: the gas safety question, then `q_scope`, `q_recent_use` and `q_waited` from `data/diagnosis/no_hot_water.json`, listed in the prompt. It then calls `report_issue` once with `answers="q_safety=no; q_scope=only_shower; …"`. Tools are set to `force_pre_tool_speech` (a filler line first), `disable_interruptions` and a 5 s timeout. `POST /api/voice/tools/answer_question` (one answer at a time) still exists, but the agent doesn't use it.
 
 The backend notices the end of a call in one of three ways and dedupes them by conversation id:
 1. a background watcher, started on the first tool call, polls `GET /v1/convai/conversations/{id}` until the call is processed. **This needs no extra setup and also covers phone calls.**
@@ -52,6 +58,8 @@ This is the demo fallback. It's the same agent, tools and case logic as a phone 
 ## Option B: a real phone number
 
 Phone calls are identified by the caller's number (`system__caller_id`), which `services.get_contact_by_phone` matches against the contacts. So the calling phone must be in `data/seed.local.json` (Luka's demo phone already is).
+
+To make a phone call start as informed as a web call, set the **conversation initiation webhook** in ElevenLabs (Settings → Agents platform → "Fetch conversation initiation data for inbound Twilio/SIP calls"): URL `https://<public-url>/api/voice/init`, header `X-Debye-Voice-Secret: <VOICE_TOOL_SECRET>`, and enable it in the agent's security settings. Without it, the call starts with the defaults (address "unknown") and Debye calls `identify_caller` once.
 
 ### B1: Twilio number imported into ElevenLabs (recommended, about 15 minutes)
 **The user must do this in their own accounts. Nobody on the team buys numbers or creates paid accounts for them.**

@@ -83,11 +83,11 @@ async function start() {
     await navigator.mediaDevices.getUserMedia({ audio: true });
     const r = await fetch(`/api/voice/signed_url?contact=${encodeURIComponent(sel.value)}`);
     if (!r.ok) throw new Error((await r.json()).detail || r.status);
-    const { signed_url } = await r.json();
+    const { signed_url, dynamic_variables } = await r.json();
     logEl.innerHTML = "";
     conversation = await Conversation.startSession({
       signedUrl: signed_url,
-      dynamicVariables: { contact_id: sel.value },
+      dynamicVariables: { ...(dynamic_variables || {}), contact_id: sel.value },
       onConnect: () => { status("Connected – just start talking", true); btn.textContent = "Hang up"; btn.className = "end"; btn.disabled = false; },
       onMessage: (m) => { if (m && m.message) add(m.source === "user" ? "user" : "ai", m.message); },
       onModeChange: (m) => { if (conversation) status(m.mode === "speaking" ? "Debye is speaking …" : "Debye is listening …", true); },
