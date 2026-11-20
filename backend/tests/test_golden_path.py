@@ -212,3 +212,31 @@ def test_demo_triggers_and_reset(client):
         from sqlmodel import select
         assert s.exec(select(Conversation)).all() == []
     assert client.get("/healthz").json()["ok"] is True
+
+
+def test_error_labels_everywhere(client):
+    assert services.error_label("F.28") == "Ignition failed: no flame at start-up"
+    assert services.error_label("f22") == "Water pressure too low"
+    assert services.error_label("F.29") == "Flame lost during operation"
+    assert services.error_label("F.99") == "Error code F.99"
+    assert services.error_label(None) is None
+    assert services.error_phrase("F.28") == "Boiler error: ignition failed (F.28)"
+
+    lena, boiler, case = _open_lena_case()
+    label = "Ignition failed: no flame at start-up"
+    summary = client.get("/api/staff/cases").json()[0]
+    assert summary["error_code"] == "F.28" and summary["error_label"] == label
+    detail = client.get(f"/api/staff/cases/{case.id}").json()
+    assert detail["asset"]["error_label"] == label
+    created = next(e for e in detail["events"] if e["kind"] == "case.created")
+    assert created["summary"] == "Case opened from Lena's report. Boiler error: ignition failed (F.28)"
+    assert services.get_unit_context("unit_4b")["open_cases"][0]["error_label"] == label
+
+    services.record_consent(lena.id, "heizung-schmidt", case.id, ["address"], "repair", "whatsapp")
+    services.dispatch_job(case.id, "heizung-schmidt")
+    jobs = client.get("/api/partner/heizung-schmidt/jobs").json()
+    assert jobs[0]["error_label"] == label
+    job = client.get(f"/api/partner/heizung-schmidt/jobs/{case.id}").json()
+    assert job["error_label"] == label and job["asset"]["error_label"] == label
+    sent = next(e for e in client.get(f"/api/staff/cases/{case.id}").json()["events"] if e["kind"] == "job.sent")
+    assert sent["summary"].endswith("Boiler error: ignition failed (F.28)")
