@@ -79,3 +79,18 @@ Aubergine circle, white serif lowercase **d**, small lilac (`#C9A3E0`) spark at 
 ## Layout
 
 1440 px frames, 48 px page gutter, 32 px column gap, 80 px top bar (aubergine, white text). Staff page: unit + case on the left, live timeline + WhatsApp thread on the right.
+
+## Mascot
+
+A friendly lowercase serif **d** with the lilac spark and a tiny wrench: the helper living in residents' WhatsApp. Files are in [`mascot/`](mascot/), and the Figma file has them on the "Mascot" page. Overview: [mascot-overview.png](mascot/mascot-overview.png).
+
+| File | Use |
+|---|---|
+| `debye-mascot-whatsapp-1024.png` | WhatsApp Business profile picture: 1024 square, cream background, safe inside the circle crop |
+| `debye-mascot.png` | Main character, 1024 square, transparent |
+| `debye-mascot-fullbody.png` | Full body, 1024×1536 portrait, transparent: pitch slide, staff empty state |
+| `debye-mascot-waving.png` | Waving hello: onboarding, first message, empty inbox |
+| `debye-mascot-thumbs-up.png` | Thumbs-up "repair done": case closed / completed states |
+| `debye-mascot-thinking.png` | Thinking: loading and "Debye is working on it" states |
+
+Generated with the OpenAI Images API (`gpt-image-1.5`, because `gpt-image-1` is not offered in the EU region). The poses were made as edits of the chosen master so the character stays consistent. The simple "d" disc (`debye-avatar.svg`) stays the small UI icon; the mascot is for bigger moments.
