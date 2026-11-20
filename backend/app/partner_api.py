@@ -65,6 +65,19 @@ def job_summary(s, c: Case, partner_id: str) -> dict:
     }
 
 
+def _approval_view(a: dict) -> dict:
+    """Partner-facing approval line, e.g. "Approved by reltix staff (Anna Becker)"."""
+    if a.get("granted"):
+        who = a.get("granted_by")
+        text = "Approved by reltix staff" + (f" ({who})" if who else "")
+    elif a and not a.get("required", True):
+        text = "Approved automatically (" + (a.get("rule") or "framework limit") + ")"
+    else:
+        text = None
+    return {"granted": bool(a.get("granted")) or (bool(a) and not a.get("required", True)),
+            "granted_by": a.get("granted_by"), "granted_at": a.get("granted_at"), "text": text}
+
+
 def job_detail(s, c: Case, partner_id: str) -> dict:
     out = job_summary(s, c, partner_id)
     fields = rules.consented_fields(s, c.id, partner_id)
@@ -100,6 +113,7 @@ def job_detail(s, c: Case, partner_id: str) -> dict:
         "documents": [{"document_id": d.id, "kind": d.kind, "filename": d.filename,
                        "url": f"/files/{d.id}", "extracted": d.extracted or {}} for d in partner_docs],
         "completion": data.get("completion"),
+        "approval": _approval_view(data.get("approval") or {}),
         "price_check": data.get("price_check"),
         "events": [{"ts": e.ts, "actor": e.actor, "kind": e.kind, "summary": e.summary}
                    for e in events if e.kind in PARTNER_EVENT_KINDS],
