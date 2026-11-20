@@ -76,6 +76,12 @@ def build_user_content(contact, conv: st.Conversation, text: str | None, image_p
         "unit_context": ctx,
     }
     status = {"case_id": conv.case_id, "step": conv.step}
+    if conv.step == st.TRIAGE and st.TRIAGE in conv.asked_at:
+        status["waiting_for"] = "resident's tap on 'Überall kalt' / 'Nur ein Raum' (already asked, do not repeat)"
+    elif conv.step == st.CONSENT:
+        status["waiting_for"] = "resident's consent tap (already asked, do not repeat)"
+    if conv.error_code:
+        status["error_code_already_explained"] = conv.error_code
     content: list[dict] = []
     for p in image_paths:
         blk = _image_block(p)

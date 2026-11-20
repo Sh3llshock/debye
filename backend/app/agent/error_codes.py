@@ -5,11 +5,11 @@ Vaillant ecoTEC ones from the seed (asset.known_error_codes).
 """
 from __future__ import annotations
 
-# code -> (German: what happened, German: what the resident notices)
+# code -> (German "dass ..." clause, German consequence for the resident)
 DE = {
-    "F.22": ("der Wasserdruck ist zu niedrig", "die Heizung schaltet sich zum Schutz ab"),
-    "F.28": ("die Zündung ist fehlgeschlagen", "die Heizung startet nicht"),
-    "F.29": ("die Flamme ist im Betrieb ausgegangen", "die Heizung geht immer wieder aus"),
+    "F.22": ("der Wasserdruck zu niedrig ist", "die Heizung schaltet sich deshalb zum Schutz ab"),
+    "F.28": ("die Zündung fehlgeschlagen ist", "die Heizung startet deshalb nicht"),
+    "F.29": ("die Flamme im Betrieb ausgegangen ist", "die Heizung geht deshalb immer wieder aus"),
 }
 
 EN = {
@@ -33,13 +33,15 @@ def case_title(code: str | None) -> str:
     return f"Heizung kalt – {TITLE_DE.get(code, 'Kesselfehler')} ({code})"
 
 
-def resident_sentence(code: str) -> str:
-    """'Am Display sehe ich den Fehler F.28 – das heißt, die Zündung ist fehlgeschlagen (die Heizung startet nicht).'"""
+def resident_sentence(code: str, source: str = "photo") -> str:
+    """Meaning first, code in brackets:
+    'Auf dem Foto sehe ich, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht.'"""
+    lead = "Auf dem Foto sehe ich" if source == "photo" else "Der Kessel meldet"
     meaning = DE.get(code)
     if not meaning:
-        return f"Am Display sehe ich den Fehler {code}. Was er genau bedeutet, klärt der Techniker vor Ort."
+        return f"{lead} eine Störung (Fehlercode {code}). Was genau dahintersteckt, klärt der Techniker vor Ort."
     what, effect = meaning
-    return f"Am Display sehe ich den Fehler {code} – das heißt, {what} ({effect})."
+    return f"{lead}, dass {what} (Fehlercode {code}) – {effect}."
 
 
 def timeline_summary(code: str) -> str:
