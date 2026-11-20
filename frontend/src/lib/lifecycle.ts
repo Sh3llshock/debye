@@ -22,6 +22,13 @@ export const STAFF_STATIONS: Station[] = [
   { key: 'closed', label: 'Closed', events: ['case.closed'] },
 ]
 
+/** Cases Debye solved without a technician (self-help tip or caretaker). */
+export const NO_TECH_STATIONS: Station[] = [
+  { key: 'reported', label: 'Reported', events: ['case.created'] },
+  { key: 'diagnosed', label: 'Diagnosed', events: ['diagnosis.recorded', 'diagnosis.made', 'diagnosis.completed'] },
+  { key: 'closed', label: 'Closed', events: ['case.closed'] },
+]
+
 export const PARTNER_STATIONS: Station[] = [
   { key: 'new', label: 'New', events: ['job.sent'] },
   { key: 'accepted', label: 'Accepted', events: ['job.accepted'] },
@@ -81,6 +88,8 @@ export function lineState(stations: Station[], status: string, events: CaseEvent
   ts.forEach((x, i) => {
     if (x && i + 1 > reached) reached = i + 1
   })
+  reached = Math.min(reached, stations.length)
+  if (stations === NO_TECH_STATIONS && status !== 'closed') reached = Math.min(reached, stations.length - 1)
   return {
     stations: stations.map((s, i) => ({ label: t(s.label), reached: i < reached, ts: ts[i] ?? (i < reached ? find(s.tsFallback) : undefined) })),
     reached,
