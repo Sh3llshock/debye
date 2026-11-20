@@ -24,6 +24,29 @@ def _open_lena_case():
     return lena, boiler, case
 
 
+DEMO_INVOICE = {  # numbers of data/demo/invoice_RE-2026-1187.pdf
+    "invoice_number": "RE-2026-1187", "date": "2026-11-21",
+    "net_eur": 199.50, "vat_eur": 37.91, "gross_eur": 237.41,
+    "line_items": [
+        {"desc": "Anfahrtspauschale (Rahmenvertrag)", "qty": 1, "unit_price": 89.00},
+        {"desc": "Arbeitszeit Heizungstechniker, Std.", "qty": 1, "unit_price": 72.00},
+        {"desc": "Zündelektrode Vaillant ecoTEC plus (0020107800)", "qty": 1, "unit_price": 38.50},
+    ],
+    "labour_hours": 1.0,
+}
+
+
+@pytest.fixture(autouse=True)
+def _demo_invoice(monkeypatch):
+    """Deterministic extraction, independent of API keys and of media.py's own fallback."""
+    from app import media
+
+    async def fake_extract(path: str) -> dict:
+        return dict(DEMO_INVOICE)
+
+    monkeypatch.setattr(media, "extract_invoice", fake_extract)
+
+
 def test_golden_path(client):
     lena, boiler, case = _open_lena_case()
     cid = case.id

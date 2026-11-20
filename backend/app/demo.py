@@ -58,7 +58,7 @@ def _reset_agent_state() -> None:
 async def reset() -> dict:
     _require_demo()
     seed(reset=True)
-    _reset_agent_state()
+    _reset_agent_state()  # agent conversation state + fake-send outbox (agent-whatsapp)
     await publish("demo.reset", None, {"ts": now_iso()})
     return {"ok": True}
 
