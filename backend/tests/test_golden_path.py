@@ -47,6 +47,15 @@ def _demo_invoice(monkeypatch):
     monkeypatch.setattr(media, "extract_invoice", fake_extract)
 
 
+def _dispatch(case_id: str, partner_id: str = "heizung-schmidt") -> dict:
+    """APPROVAL_POLICY=always: dispatch stops at approval_pending until staff approve."""
+    with pytest.raises(rules.RuleViolation) as e:
+        services.dispatch_job(case_id, partner_id)
+    assert e.value.code == "approval_required"
+    assert services.get_case(case_id).status == "approval_pending"
+    return services.approve_case(case_id)["dispatched"]
+
+
 def test_golden_path(client):
     luka, boiler, case = _open_luka_case()
     cid = case.id
@@ -74,9 +83,16 @@ def test_golden_path(client):
 
     services.record_consent(luka.id, "heizung-schmidt", cid,
                             ["name", "phone", "address", "photos"], "heating repair visit", "whatsapp")
-    out = services.dispatch_job(cid, "heizung-schmidt")
-    assert out["status"] == "requested"
-    assert out["approval"]["required"] is False
+    with pytest.raises(rules.RuleViolation) as e:
+        services.dispatch_job(cid, "heizung-schmidt")
+    assert e.value.code == "approval_required"
+    pending = client.get(f"/api/staff/cases/{cid}").json()
+    assert pending["status"] == "approval_pending"
+    assert client.get("/api/partner/heizung-schmidt/jobs").json() == []  # partner not contacted yet
+    ev = next(e for e in pending["events"] if e["kind"] == "approval.required")
+    assert ev["summary"].startswith("Waiting for staff approval: Heizung Schmidt GmbH, est. €")
+    approved = client.post(f"/api/staff/cases/{cid}/approve").json()
+    assert approved["status"] == "requested" and approved["approval"]["granted"] is True
 
     # partner page
     jobs = client.get("/api/partner/heizung-schmidt/jobs").json()
@@ -192,7 +208,7 @@ def test_golden_path(client):
 def test_partner_sees_only_consented_fields(client):
     luka, boiler, case = _open_luka_case()
     services.record_consent(luka.id, "heizung-schmidt", case.id, ["address"], "repair", "whatsapp")
-    services.dispatch_job(case.id, "heizung-schmidt")
+    _dispatch(case.id)
     job = client.get(f"/api/partner/heizung-schmidt/jobs/{case.id}").json()
     assert job["address"].startswith("Musterstraße")
     assert job["tenant"] is None
@@ -200,25 +216,86 @@ def test_partner_sees_only_consented_fields(client):
     assert client.get(f"/api/partner/waerme-wagner/jobs/{case.id}").status_code == 404
 
 
-def test_approval_flow(client):
+def _notify_spy(monkeypatch):
+    from app import notify
+    sent = []
+
+    async def spy(case_id, event, data):
+        sent.append((event, data))
+    monkeypatch.setattr(notify, "notify_tenant", spy)
+    return sent
+
+
+def test_approval_always_approve(client, monkeypatch):
+    """APPROVAL_POLICY=always (default): even a cheap job waits for staff, then goes out on approve."""
+    sent = _notify_spy(monkeypatch)
     luka, boiler, case = _open_luka_case()
-    client.post("/demo/trigger/expensive_repair", json={"case_id": case.id})
+    assert case.estimated_cost_eur < 500  # would have been auto-approved under the old rule
     services.record_consent(luka.id, "heizung-schmidt", case.id, ["name", "address"], "repair", "whatsapp")
     with pytest.raises(rules.RuleViolation) as e:
         services.dispatch_job(case.id, "heizung-schmidt")
     assert e.value.code == "approval_required"
+    with pytest.raises(rules.RuleViolation):  # retry (e.g. second consent tap) → no second event
+        services.dispatch_job(case.id, "heizung-schmidt")
     d = client.get(f"/api/staff/cases/{case.id}").json()
-    assert d["status"] == "awaiting_approval" and d["approval"]["required"] is True
+    assert d["status"] == "approval_pending" and d["approval"]["required"] is True
+    assert d["partner"] is None
+    assert [e["kind"] for e in d["events"]].count("approval.required") == 1
+    assert "job.sent" not in [e["kind"] for e in d["events"]]
     d = client.post(f"/api/staff/cases/{case.id}/approve").json()
-    assert d["status"] == "requested"
-    assert d["partner"]["partner_id"] == "heizung-schmidt"
+    assert d["status"] == "requested" and d["partner"]["partner_id"] == "heizung-schmidt"
+    kinds = [e["kind"] for e in d["events"]]
+    assert kinds.index("approval.granted") < kinds.index("job.sent")
+    granted = next(e for e in d["events"] if e["kind"] == "approval.granted")
+    assert granted["summary"].startswith("Staff approved the job for Heizung Schmidt GmbH")
+    assert ("approval_granted", {"partner_name": "Heizung Schmidt GmbH",
+                                 "dispatched": sent[-1][1]["dispatched"]}) == sent[-1]
+    assert [j["case_id"] for j in client.get("/api/partner/heizung-schmidt/jobs").json()] == [case.id]
+
+
+def test_approval_always_reject(client, monkeypatch):
+    sent = _notify_spy(monkeypatch)
+    luka, boiler, case = _open_luka_case()
+    services.record_consent(luka.id, "heizung-schmidt", case.id, ["name", "address"], "repair", "whatsapp")
+    with pytest.raises(rules.RuleViolation):
+        services.dispatch_job(case.id, "heizung-schmidt")
+    r = client.post(f"/api/staff/cases/{case.id}/reject", json={"reason": "Caretaker fixes it tomorrow"})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["status"] == "rejected"
+    ev = next(e for e in d["events"] if e["kind"] == "approval.rejected")
+    assert ev["summary"] == "Staff rejected the job for Heizung Schmidt GmbH: Caretaker fixes it tomorrow"
+    assert sent[-1] == ("approval_rejected", {"partner_name": "Heizung Schmidt GmbH",
+                                              "reason": "Caretaker fixes it tomorrow"})
+    assert client.get("/api/partner/heizung-schmidt/jobs").json() == []  # partner never contacted
+    assert client.post(f"/api/staff/cases/{case.id}/reject", json={}).status_code == 409  # only once
+    assert services.find_open_case_for_asset(boiler["id"]) is None  # a new report opens a new case
+
+
+def test_approval_policy_limit(client, monkeypatch):
+    """APPROVAL_POLICY=limit keeps the old rule: auto-approve below the framework limit."""
+    from app.config import settings
+    monkeypatch.setattr(settings, "approval_policy", "limit")
+    luka, boiler, case = _open_luka_case()
+    services.record_consent(luka.id, "heizung-schmidt", case.id, ["name", "address"], "repair", "whatsapp")
+    out = services.dispatch_job(case.id, "heizung-schmidt")
+    assert out["status"] == "requested" and out["approval"]["required"] is False
+    # expensive case still needs approval under "limit"
+    luka2 = services.get_contact_by_phone("+490000000002")
+    c2 = services.open_case(luka2.id, "repair.heating", "urgent", "kalt", "kalt", "F.28", None)
+    client.post("/demo/trigger/expensive_repair", json={"case_id": c2.id})
+    services.record_consent(luka2.id, "heizung-schmidt", c2.id, ["address"], "repair", "whatsapp")
+    with pytest.raises(rules.RuleViolation):
+        services.dispatch_job(c2.id, "heizung-schmidt")
+    d = client.get(f"/api/staff/cases/{c2.id}").json()
+    assert d["status"] == "approval_pending" and "auto-approve limit" in d["approval"]["rule"]
 
 
 def test_decline_reranks(client):
     luka, boiler, case = _open_luka_case()
     services.rank_partners(case.id)
     services.record_consent(luka.id, "heizung-schmidt", case.id, ["address"], "repair", "whatsapp")
-    services.dispatch_job(case.id, "heizung-schmidt")
+    _dispatch(case.id)
     r = client.post(f"/api/partner/heizung-schmidt/jobs/{case.id}/decline", json={"reason": "krank"})
     assert r.json()["status"] == "declined"
     ranking = services.rank_partners(case.id)
@@ -233,7 +310,8 @@ def test_demo_triggers_and_reset(client):
     r = client.post("/demo/trigger/neighbour_report", json={})
     assert r.json()["duplicate_of"] == cid
     r = client.post("/demo/trigger/consent", json={"case_id": cid})
-    assert r.json()["dispatched"]["status"] == "requested"
+    assert r.json()["blocked"] == "approval_required"
+    assert client.post(f"/api/staff/cases/{cid}/approve").json()["status"] == "requested"
     detail = client.get(f"/api/staff/cases/{cid}").json()
     assert detail["messages"] and detail["zero_forms"]["tenant_inputs"]
     assert any(d["kind"] == "photo" for d in detail["documents"])
@@ -277,7 +355,7 @@ def test_error_labels_everywhere(client):
     assert services.get_unit_context("unit_4b")["open_cases"][0]["error_label"] == label
 
     services.record_consent(luka.id, "heizung-schmidt", case.id, ["address"], "repair", "whatsapp")
-    services.dispatch_job(case.id, "heizung-schmidt")
+    _dispatch(case.id)
     jobs = client.get("/api/partner/heizung-schmidt/jobs").json()
     assert jobs[0]["error_label"] == label
     job = client.get(f"/api/partner/heizung-schmidt/jobs/{case.id}").json()
@@ -313,7 +391,7 @@ def test_set_case_error_code(client):
 def _dispatched_case(client):
     luka, boiler, case = _open_luka_case()
     services.record_consent(luka.id, "heizung-schmidt", case.id, ["name", "address"], "repair", "whatsapp")
-    services.dispatch_job(case.id, "heizung-schmidt")
+    _dispatch(case.id)
     client.post(f"/api/partner/heizung-schmidt/jobs/{case.id}/accept")
     return case.id
 

@@ -15,6 +15,8 @@ services:
         value: "1"
       - key: RESEED_ON_BOOT
         value: "1"
+      - key: APPROVAL_POLICY   # always = staff approve every job; limit = auto-approve below €500
+        value: always
       - key: PUBLIC_BASE_URL
         sync: false
       - key: ANTHROPIC_API_KEY

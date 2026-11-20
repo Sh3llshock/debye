@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from sqlmodel import select
 
 from . import notify, rules, services
@@ -179,6 +180,27 @@ async def approve(case_id: str) -> dict:
         result = services.approve_case(case_id)
     except rules.RuleViolation as rv:
         raise HTTPException(409, rv.message)
-    await notify.notify_tenant(case_id, "approval_granted", {"dispatched": result.get("dispatched")})
+    await notify.notify_tenant(case_id, "approval_granted",
+                               {"partner_name": result.get("partner_name"),
+                                "dispatched": result.get("dispatched")})
+    with get_session() as s:
+        return case_detail(s, s.get(Case, case_id))
+
+
+class RejectBody(BaseModel):
+    reason: str = ""
+
+
+@router.post("/cases/{case_id}/reject")
+async def reject(case_id: str, body: RejectBody | None = None) -> dict:
+    if services.get_case(case_id) is None:
+        raise HTTPException(404, f"case {case_id} not found")
+    reason = body.reason if body else ""
+    try:
+        result = services.reject_case(case_id, reason)
+    except rules.RuleViolation as rv:
+        raise HTTPException(409, rv.message)
+    await notify.notify_tenant(case_id, "approval_rejected",
+                               {"partner_name": result.get("partner_name"), "reason": reason})
     with get_session() as s:
         return case_detail(s, s.get(Case, case_id))

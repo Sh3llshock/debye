@@ -15,7 +15,7 @@ Partner side: drives the partner page API (accept, slots, complete with photo + 
   python scripts/simulate.py                       # full golden path via webhooks
   python scripts/simulate.py --direct              # tenant steps via /demo/trigger (no router needed)
   python scripts/simulate.py --step report         # one step only (report|neighbour|consent|
-                                                   #   accept|slots|pick|tech_confirm|complete|fixed)
+                                                   #   approve|accept|slots|pick|tech_confirm|complete|fixed)
   python scripts/simulate.py --base http://localhost:8000 --reset
 
 Only stdlib + httpx. Exit code 1 if a step fails.
@@ -286,6 +286,20 @@ class Sim:
         oid = self.option_id(LUKA, "consent_yes", f"consent_yes:{cid}")
         self.webhook(LUKA, "Luka", button_reply(oid, "Yes, go ahead"))
 
+    def approve(self) -> None:
+        """reltix staff approve the job (APPROVAL_POLICY=always); only then the partner is contacted."""
+        cid = self.latest_case()["case_id"]
+        status = self.case(cid)["status"]
+        if status != "approval_pending":
+            self.log("staff", f"nothing to approve ({status})")
+            return
+        d = self._check(self.c.post(f"/api/staff/cases/{cid}/approve"))
+        self.log("staff", f"approves {cid} → {d['status']}")
+        if not self.direct:
+            time.sleep(1)
+            for item in self.read_outbox():
+                self.log("debye", f"→ {_to(item)}: {_describe(item)}")
+
     def accept(self) -> None:
         cid = self.latest_case()["case_id"]
         self.log("partner", f"accepts {cid}")
@@ -371,7 +385,7 @@ class Sim:
         return c["status"] == "closed"
 
 
-STEPS = ["report", "neighbour", "consent", "accept", "slots", "pick", "tech_confirm", "complete", "fixed"]
+STEPS = ["report", "neighbour", "consent", "approve", "accept", "slots", "pick", "tech_confirm", "complete", "fixed"]
 
 
 def main() -> int:

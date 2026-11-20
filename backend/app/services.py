@@ -1,10 +1,12 @@
 """What the agent (and the APIs) call. Signatures per interfaces §3.3; everything is sync.
 
 Case status lifecycle:
-  new → [awaiting_approval] → requested → accepted → slots_proposed → awaiting_technician
+  new → approval_pending (staff approve every job, APPROVAL_POLICY=always) → requested → accepted
+      → slots_proposed → awaiting_technician
       → scheduled
       → completed → invoiced → closed
-  side states: partner_declined (back to ranking), reopened (tenant says not fixed)
+  side states: rejected (staff rejected, partner never contacted), partner_declined (back to ranking),
+      reopened (tenant says not fixed)
 
 Services record only the events of their own state changes; conversational events
 (triage.answer, ...) are recorded by the agent/router.
@@ -29,7 +31,7 @@ from .models import (Asset, Case, CaseContact, Consent, Contact, Contract, Docum
 from .partners.manifest import Manifest
 from .partners.ranking import rank
 
-OPEN_STATUSES_EXCLUDED = {"closed", "cancelled"}
+OPEN_STATUSES_EXCLUDED = {"closed", "cancelled", "rejected"}
 
 
 class NotFound(Exception):
@@ -394,7 +396,9 @@ def rank_partners(case_id: str) -> list[dict]:
 
 
 def dispatch_job(case_id: str, partner_id: str) -> dict:
-    """Code-gated: needs consent + (estimate ≤ limit or PM approval).
+    """Code-gated: needs consent + staff approval (APPROVAL_POLICY=always, default) or
+    estimate ≤ limit (APPROVAL_POLICY=limit). Without approval the job is NOT sent: the case goes to
+    approval_pending and rules.RuleViolation("approval_required") is raised (the caller tells the tenant).
     Raises rules.RuleViolation("consent_missing" | "approval_required")."""
     with get_session() as s:
         case = _get(s, Case, case_id)
@@ -403,16 +407,17 @@ def dispatch_job(case_id: str, partner_id: str) -> dict:
         try:
             approval = rules.check_dispatch(s, case, partner_id)
         except rules.RuleViolation as rv:
-            if rv.code == "approval_required" and case.status != "awaiting_approval":
+            if rv.code == "approval_required" and case.status != "approval_pending":
                 approval = rules.approval_status(s, case, partner_id)
                 _patch_data(case, pending_partner_id=partner_id,
                             approval={**approval, "granted": False})
-                case.status = "awaiting_approval"
+                case.status = "approval_pending"
                 _save_case(s, case)
                 est = case.estimated_cost_eur or 0
                 record_event(case_id, "system", "approval.required",
-                             f"Approve €{est:.0f} repair by {name}? ({approval['rule']})",
-                             {"partner_id": partner_id, "estimated_cost_eur": est, **approval})
+                             f"Waiting for staff approval: {name}, est. €{est:.0f}",
+                             {"partner_id": partner_id, "partner_name": name,
+                              "estimated_cost_eur": est, **approval})
             raise
         case.partner_id = partner_id
         case.status = "requested"
@@ -437,16 +442,41 @@ def approve_case(case_id: str, actor: str = "staff") -> dict:
                     "granted_at": now_iso()}
         _patch_data(case, approval=approval)
         pending = (case.data or {}).get("pending_partner_id")
-        if case.status == "awaiting_approval":
+        if case.status in ("approval_pending", "awaiting_approval"):
             case.status = "new"
         _save_case(s, case)
         est = case.estimated_cost_eur or 0
-    record_event(case_id, actor, "approval.granted", f"Property manager approved €{est:.0f}",
-                 {"estimated_cost_eur": est})
-    result = {"case_id": case_id, "approved": True, "dispatched": None}
+        p = s.get(Partner, pending) if pending else None
+        partner_name = p.manifest.get("name") if p else None
+    record_event(case_id, actor, "approval.granted",
+                 f"Staff approved the job" + (f" for {partner_name}" if partner_name else "") + f" (est. €{est:.0f})",
+                 {"estimated_cost_eur": est, "partner_id": pending, "partner_name": partner_name})
+    result = {"case_id": case_id, "approved": True, "dispatched": None, "partner_name": partner_name}
     if pending:
         result["dispatched"] = dispatch_job(case_id, pending)
     return result
+
+
+def reject_case(case_id: str, reason: str = "", actor: str = "staff") -> dict:
+    """Staff reject a job waiting for approval: the partner is never contacted → status rejected."""
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        if case.status not in ("approval_pending", "awaiting_approval"):
+            raise rules.RuleViolation("not_pending_approval",
+                                      f"case is {case.status}, only jobs waiting for approval can be rejected")
+        pending = (case.data or {}).get("pending_partner_id")
+        p = s.get(Partner, pending) if pending else None
+        partner_name = p.manifest.get("name") if p else None
+        _patch_data(case, approval={**(case.data or {}).get("approval", {}), "granted": False,
+                                    "rejected": True, "reason": reason, "rejected_at": now_iso()},
+                    pending_partner_id=None)
+        case.status = "rejected"
+        _save_case(s, case)
+    record_event(case_id, actor, "approval.rejected",
+                 "Staff rejected the job" + (f" for {partner_name}" if partner_name else "") +
+                 (f": {reason}" if reason else ""),
+                 {"partner_id": pending, "partner_name": partner_name, "reason": reason})
+    return {"case_id": case_id, "status": "rejected", "partner_name": partner_name, "reason": reason}
 
 
 def partner_accept(case_id: str, partner_id: str) -> Case:
