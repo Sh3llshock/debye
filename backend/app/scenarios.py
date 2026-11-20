@@ -290,6 +290,7 @@ def s7_caretaker() -> str:
             "c_209", "repair.pressure", "normal", "Radiators lukewarm, boiler pressure too low",
             "Display shows 0A, gauge at about 0.6 bar", "0A", "asset_boiler_41", trade="caretaker",
             diagnosis={"cause_id": "low_system_pressure", "confidence": 0.9,
+                       "label": "Heating water pressure too low (0A)",  # Viessmann code, not the KB's Vaillant F.22
                        "reasoning": "Display shows 0A and the gauge is at about 0.6 bar: the system pressure is too low. "
                                     "The caretaker can top it up, no technician needed.",
                        "questions_asked": [{"question": "What does the pressure gauge show?", "answer": "About 0.6 bar"}]})
