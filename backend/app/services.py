@@ -409,13 +409,13 @@ def propose_slots(case_id: str, partner_id: str, slots: list[dict]) -> list[dict
 
 
 def confirm_slot(case_id: str, slot_index: int) -> dict:
-    """slot_index is 0-based into the slots the partner proposed (interfaces §3.3)."""
+    """slot_index is 1-based, matching the WhatsApp list ids slot_1, slot_2, ... (interfaces §3.3)."""
     with get_session() as s:
         case = _get(s, Case, case_id)
         slots = (case.data or {}).get("proposed_slots") or []
-        if not 0 <= slot_index < len(slots):
+        if not 1 <= slot_index <= len(slots):
             raise rules.RuleViolation("invalid_slot", f"slot {slot_index} does not exist")
-        slot = slots[slot_index]
+        slot = slots[slot_index - 1]
         case.slot_start, case.slot_end = slot["start"], slot["end"]
         case.status = "scheduled"
         _save_case(s, case)

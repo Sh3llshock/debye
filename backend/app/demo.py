@@ -196,10 +196,10 @@ async def t_consent(body: dict) -> dict:
 async def t_pick_slot(body: dict) -> dict:
     case_id = _case_id(body)
     case = services.get_case(case_id)
-    idx = int(body.get("index", 0))  # 0-based
+    idx = int(body.get("index", 1))  # 1-based
     slots = (case.data or {}).get("proposed_slots") or []
-    if 0 <= idx < len(slots):
-        services.log_message(case.reporter_contact_id, case_id, "whatsapp", "in", slots[idx]["label"])
+    if 1 <= idx <= len(slots):
+        services.log_message(case.reporter_contact_id, case_id, "whatsapp", "in", slots[idx - 1]["label"])
     try:
         return services.confirm_slot(case_id, idx)
     except rules.RuleViolation as rv:

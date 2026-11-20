@@ -73,8 +73,8 @@ def test_golden_path(client):
 
     # tenant picks slot 1 on WhatsApp
     with pytest.raises(rules.RuleViolation):
-        services.confirm_slot(cid, 2)
-    res = services.confirm_slot(cid, 0)  # 0-based
+        services.confirm_slot(cid, 0)
+    res = services.confirm_slot(cid, 1)  # 1-based
     assert res["status"] == "scheduled"
     assert res["slot"]["label"] == "Morgen 8–10"
 

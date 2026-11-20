@@ -2,9 +2,10 @@
 """Runs the Debye golden path without phones.
 
 Tenant side: posts realistic WhatsApp Cloud API webhook payloads to /webhooks/whatsapp
-(text, button reply, list reply, audio/image). Media ids are "local:<path>" (interfaces §3.3b:
-in fake-send mode the adapter reads them from disk), using the files in data/demo/. With
---upload (remote server) files are sent to /demo/sim-media first and those ids are used.
+(text, button reply, list reply, audio/image), using the files in data/demo/. Media are
+uploaded to /demo/sim-media, which returns ids like "sim-ab12cd.jpg" that the adapter reads
+from storage (interfaces §3.3b). With --local-media the ids are "local:<path>" instead
+(same machine only, no upload).
 After each webhook the simulator reads GET /webhooks/whatsapp/_outbox, prints Debye's
 replies and fails if there is none. Button/list ids for the next tap are taken from Debye's
 latest interactive message when possible.
@@ -154,7 +155,7 @@ def _option_ids(item: dict) -> list[str]:
 # --------------------------------------------------------------------------- runner
 
 class Sim:
-    def __init__(self, base: str, direct: bool, wait: float, upload: bool):
+    def __init__(self, base: str, direct: bool, wait: float, upload: bool = True):
         self.c = httpx.Client(base_url=base, timeout=60)
         self.direct = direct
         self.wait = wait
@@ -300,8 +301,8 @@ class Sim:
             for item in self.read_outbox():
                 self.log("debye", f"→ {_to(item)}: {_describe(item)}")
 
-    def pick(self, index: int = 0) -> None:
-        """index is 0-based (interfaces §3.3 confirm_slot)."""
+    def pick(self, index: int = 1) -> None:
+        """index is 1-based, like the list ids slot_1, slot_2 (interfaces §3.3)."""
         cid = self.latest_case()["case_id"]
         self.log("Lena", f"picks slot #{index}")
         if self.direct:
@@ -314,7 +315,7 @@ class Sim:
                 rows = [o for o in _option_ids(item) if o.startswith("slot_") and not o.startswith("slot_none")]
                 if rows:
                     break
-        oid = rows[index] if index < len(rows) else f"slot_{index}:{cid}"
+        oid = rows[index - 1] if 0 < index <= len(rows) else f"slot_{index}:{cid}"
         self.webhook(LENA, "Lena Hoffmann", list_reply(oid, f"Slot {index}"))
 
     def complete(self) -> None:
@@ -359,8 +360,8 @@ def main() -> int:
     ap.add_argument("--base", default=os.environ.get("DEBYE_BASE", "http://localhost:8000"))
     ap.add_argument("--direct", action="store_true",
                     help="tenant steps via /demo/trigger instead of webhooks (before the router lands)")
-    ap.add_argument("--upload", action="store_true",
-                    help="upload media to /demo/sim-media instead of local:<path> ids (remote server)")
+    ap.add_argument("--local-media", action="store_true",
+                    help="send local:<path> media ids instead of uploading to /demo/sim-media")
     ap.add_argument("--reset", action="store_true", help="POST /demo/reset first")
     ap.add_argument("--step", choices=STEPS, help="run one step only")
     ap.add_argument("--wait", type=float, default=20.0, help="max seconds to wait for Debye's reply")
@@ -371,7 +372,7 @@ def main() -> int:
     except AttributeError:
         pass
 
-    sim = Sim(args.base, args.direct, args.wait, args.upload)
+    sim = Sim(args.base, args.direct, args.wait, upload=not args.local_media)
     if args.reset:
         sim._check(sim.c.post("/demo/reset"))
         print("reset done")
