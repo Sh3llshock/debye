@@ -31,8 +31,8 @@ const partners: Record<string, PartnerProfile> = {
 
 // ---------- technicians (dispatcher + technician pages) ----------
 const TECHS: Record<string, { tech_id: string; name: string; partner_id: string; skills: string[]; busy: string[] }> = {
-  t_tom: { tech_id: 't_tom', name: 'Tom Schmidt', partner_id: 'heizung-schmidt', skills: ['Vaillant', 'gas boilers', 'heat pumps'], busy: ['1-14:00', '2-08:00', '3-10:00'] },
-  t_ayse: { tech_id: 't_ayse', name: 'Ayşe Demir', partner_id: 'heizung-schmidt', skills: ['Buderus', 'gas boilers'], busy: ['1-08:00', '1-10:00', '2-14:00'] },
+  tech_tom: { tech_id: 'tech_tom', name: 'Tom Schmidt', partner_id: 'heizung-schmidt', skills: ['Vaillant', 'gas boilers', 'heat pumps'], busy: ['1-14:00', '2-08:00', '3-10:00'] },
+  tech_ali: { tech_id: 'tech_ali', name: 'Ali Yilmaz', partner_id: 'heizung-schmidt', skills: ['Buderus', 'gas boilers'], busy: ['1-08:00', '1-10:00', '2-14:00'] },
 }
 const WINDOWS: [string, string][] = [['08:00', '10:00'], ['10:00', '12:00'], ['14:00', '16:00']]
 function berlinDay(i: number) {

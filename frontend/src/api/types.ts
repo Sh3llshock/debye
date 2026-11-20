@@ -213,12 +213,16 @@ export interface JobSummary {
   created_at?: string
   slot?: Slot | null
   technician?: TechnicianRef | null
+  /** technician API: the slot the tenant picked, and true while awaiting_technician */
+  chosen_slot?: Slot | null
+  needs_confirmation?: boolean
 }
 
 /** GET /api/partner/{pid}/technicians */
 export interface Technician extends TechnicianRef {
   skills: string[]
   free_slots: Slot[]
+  phone_e164?: string | null
 }
 
 /** GET /api/tech/{tech_id} */
