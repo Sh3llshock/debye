@@ -97,6 +97,16 @@ def tenant_confirms_fixed(case_id: str, fixed: bool) -> dict:
     return _call("tenant_confirms_fixed", case_id, fixed)
 
 
+def add_tenant_input(case_id: str | None, label: str) -> None:
+    """Zero-forms counter on the staff page."""
+    if not case_id:
+        return
+    try:
+        _call("add_tenant_input", case_id, label)
+    except Exception:
+        log.exception("add_tenant_input failed")
+
+
 def rule_violation_code(exc: Exception) -> str | None:
     """Returns 'consent_missing' / 'approval_required' if exc is a rules.RuleViolation."""
     try:
@@ -186,13 +196,13 @@ def get_case_contacts(case_id: str) -> list:
         return list(fn(case_id) or [])
     # fallback: query the tables directly (names per technical-plan §3)
     try:
-        from sqlmodel import Session, select
+        from sqlmodel import select
 
         from app import db, models
 
         Contact = getattr(models, "Contact")
         CaseContact = getattr(models, "CaseContact")
-        with Session(db.engine) as s:
+        with db.get_session() as s:
             rows = s.exec(select(CaseContact).where(CaseContact.case_id == case_id)).all()
             ids = [r.contact_id for r in rows]
             if not ids:
@@ -211,11 +221,9 @@ def get_contact(contact_id: str):
     if fn is not None:
         return fn(contact_id)
     try:
-        from sqlmodel import Session
-
         from app import db, models
 
-        with Session(db.engine) as s:
+        with db.get_session() as s:
             return s.get(models.Contact, contact_id)
     except Exception:
         log.exception("get_contact fallback failed")

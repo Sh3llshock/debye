@@ -26,6 +26,7 @@ _locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 _buffers: dict[str, list[tuple[str | None, list[str]]]] = defaultdict(list)
 _draining: set[str] = set()
 
+
 BUTTON_RE = re.compile(r"^(?P<kind>[a-z_]+?)(?:_(?P<n>\d+))?:(?P<case>[\w-]+)$")
 
 
@@ -45,16 +46,19 @@ async def handle_inbound(msg: InboundMessage) -> None:
     # ---- media: download, transcribe voice, keep photos
     text = msg.text
     images: list[str] = []
-    media_paths: list[str] = []
-    transcript_failed = False
+    doc_ids: list[str] = []
     for m in msg.media:
         try:
             path = await ch.download_media(m)
         except Exception:
             log.exception("media download failed")
             continue
-        media_paths.append(path)
+        kind = {"audio": "voice_note", "image": "photo", "pdf": "document"}.get(m.kind, "document")
+        doc_id = _attach(conv.case_id or "", kind, path, m.mime, m.filename)
+        if doc_id:
+            doc_ids.append(doc_id)
         if m.kind == "audio":
+            flow.tenant_input(contact, "voice note")
             from app import media as media_mod
 
             spoken = await media_mod.transcribe(path)
@@ -62,19 +66,19 @@ async def handle_inbound(msg: InboundMessage) -> None:
                 text = f"{text}\n{spoken}" if text else spoken
                 text = text.strip()
             else:
-                transcript_failed = True
+                # let the agent (or the scripted fallback) carry on; it asks back if unclear
+                text = (text or "") + "\n[Sprachnachricht, konnte nicht transkribiert werden]"
+                text = text.strip()
         elif m.kind == "image":
             images.append(path)
-            if conv.case_id:
-                _attach(conv.case_id, "photo", path, m.mime)
-            else:
-                conv.photos.append(path)
-        elif conv.case_id:
-            _attach(conv.case_id, "document", path, m.mime)
+            flow.tenant_input(contact, "photo")
 
     shown = text if not msg.button_id else (msg.button_title or msg.button_id)
+    if shown and any(m.kind == "audio" for m in msg.media):
+        shown = "🎤 " + shown
+    # media_ids are document ids: open_case / link_contact_to_case claim them for the case later
     await be.log_message(
-        cid, conv.case_id, msg.channel, "in", shown, msg.wa_message_id, media_paths, be.attr(contact, "name")
+        cid, conv.case_id, msg.channel, "in", shown, msg.wa_message_id, doc_ids, be.attr(contact, "name")
     )
 
     role = be.attr(contact, "role")
@@ -91,12 +95,6 @@ async def handle_inbound(msg: InboundMessage) -> None:
         text = msg.button_title or msg.button_id  # unknown id: let the agent read the title
 
     if not text and not images:
-        if transcript_failed:
-            from app.agent import outbound
-
-            await outbound.text(
-                contact, conv.case_id, "Sorry, ich konnte die Sprachnachricht nicht abspielen. Schreibst du mir kurz?"
-            )
         return
 
     _buffers[cid].append((text, images))
@@ -121,11 +119,13 @@ async def _drain(contact) -> None:
             await loop.run_tenant_turn(contact, text, images)
 
 
-def _attach(case_id: str, kind: str, path: str, mime: str) -> None:
+def _attach(case_id: str, kind: str, path: str, mime: str, filename: str | None = None) -> str | None:
     try:
-        be.attach_document(case_id, kind, Path(path).name, mime, path, None)
+        doc = be.attach_document(case_id, kind, filename or Path(path).name, mime.split(";")[0], path, None)
+        return be.attr(doc, "id")
     except Exception:
         log.exception("attach_document failed")
+        return None
 
 
 async def handle_button(contact, button_id: str) -> bool:
@@ -135,6 +135,9 @@ async def handle_button(contact, button_id: str) -> bool:
         return False
     kind, n, case_id = m.group("kind"), m.group("n"), m.group("case")
     conv = st.conversation(be.attr(contact, "id"))
+    from app.agent import outbound
+
+    sent_before = outbound.sent_count
     if case_id == "new" or not case_id:
         case_id = conv.case_id
     if case_id and not conv.case_id:
@@ -161,7 +164,6 @@ async def handle_button(contact, button_id: str) -> bool:
             return False
     except Exception:
         log.exception("button %s failed", button_id)
-        from app.agent import outbound
-
-        await outbound.text(contact, case_id, "Danke! Ich kümmere mich darum und melde mich gleich.")
+        if outbound.sent_count == sent_before:  # only if the resident got no reply yet
+            await outbound.text(contact, case_id, "Danke! Ich kümmere mich darum und melde mich gleich.")
     return True

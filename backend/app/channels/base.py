@@ -22,8 +22,46 @@ MAX_ROW_TITLE = 24
 MAX_LIST_BUTTON = 20
 
 
+_BACKEND_DIR = Path(__file__).resolve().parents[2]
+
+
+def load_env_files() -> None:
+    """Copies .env values (repo root, then backend/) into os.environ without overriding.
+
+    backend-core's config reads .env via pydantic-settings, which does not export to
+    os.environ; the WhatsApp adapter and the Anthropic/OpenAI SDKs read os.environ.
+    """
+    if os.getenv("DEBYE_NO_DOTENV") == "1":  # tests
+        return
+    for f in (_BACKEND_DIR.parent / ".env", _BACKEND_DIR / ".env"):
+        try:
+            lines = f.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip().removeprefix("export ").strip()
+            value = value.strip().strip('"').strip("'")
+            if key and value and not os.environ.get(key):
+                os.environ[key] = value
+
+
+load_env_files()
+
+
 def storage_dir() -> Path:
-    p = Path(os.getenv("STORAGE_DIR", "storage"))
+    raw = os.getenv("STORAGE_DIR")
+    if not raw:
+        try:
+            from app.config import settings
+
+            raw = settings.storage_dir
+        except Exception:
+            raw = str(_BACKEND_DIR / "storage")
+    p = Path(raw)
     p.mkdir(parents=True, exist_ok=True)
     return p
 

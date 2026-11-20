@@ -83,6 +83,13 @@ def already_seen(message_id: str | None) -> bool:
         return False
     if message_id in _seen:
         return True
+    try:  # survives restarts: backend-core stores wa_message_id on every logged message
+        from app.agent import _backend as be
+
+        if be._services().message_seen(message_id):
+            return True
+    except Exception:
+        pass
     _seen[message_id] = time.time()
     while len(_seen) > 5000:
         _seen.popitem(last=False)
@@ -110,7 +117,11 @@ class WhatsAppChannel(Channel):
         if fake_send_enabled():
             entry = {"seq": next(_seq), "to": normalize_phone(to), "ts": time.time(), "payload": body}
             _outbox.append(entry)
-            print(f"[fake-send → {entry['to']}] {json.dumps(payload, ensure_ascii=False)}", flush=True)
+            line = f"[fake-send -> {entry['to']}] {json.dumps(payload, ensure_ascii=False)}"
+            try:
+                print(line, flush=True)
+            except UnicodeEncodeError:  # Windows console / redirected stdout in cp1252
+                print(line.encode("ascii", "backslashreplace").decode(), flush=True)
             return f"fake.{uuid.uuid4().hex[:12]}"
         url = f"{_graph()}/{_env('WA_PHONE_NUMBER_ID')}/messages"
         r = await self.client.post(url, headers=self._headers(), json=body)
@@ -189,17 +200,17 @@ class WhatsAppChannel(Channel):
             ext = ".ogg"
         dest = storage_dir() / "inbound" / f"{uuid.uuid4().hex[:10]}{ext}"
         dest.parent.mkdir(parents=True, exist_ok=True)
-        if media.media_id.startswith("local:"):
+        if media.media_id.startswith("sim-"):
+            from app.demo import sim_media_path  # backend-core simulator uploads
+
+            shutil.copyfile(sim_media_path(media.media_id), dest)
+        elif media.media_id.startswith("local:"):
             src = Path(media.media_id[len("local:") :])
             if not src.is_absolute() and not src.exists():
                 # repo-relative paths from the simulator (cwd is usually backend/)
                 alt = Path(__file__).resolve().parents[3] / src
                 src = alt if alt.exists() else src
             shutil.copyfile(src, dest)
-        elif media.media_id.startswith("sim-"):
-            # simulator uploads via POST /demo/sim-media (backend-core convention)
-            from app.demo import sim_media_path
-            shutil.copyfile(sim_media_path(media.media_id), dest)
         else:
             r = await self.client.get(f"{_graph()}/{media.media_id}", headers=self._headers())
             r.raise_for_status()

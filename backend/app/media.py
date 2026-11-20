@@ -14,11 +14,18 @@ MODEL = "claude-opus-5-5"
 
 
 # ---------------------------------------------------------------- transcription (OpenAI, event sponsor)
+DEMO_TRANSCRIPT = "Hi, die Heizung ist kalt seit heute Morgen."
+
+
+def _demo_mode() -> bool:
+    return os.getenv("DEMO_MODE", "1") == "1"
+
+
 async def transcribe(path: str, language: str = "de") -> str:
-    """Voice note → text. Returns "" if no key or both models fail (the agent then asks to type)."""
+    """Voice note → text. Without a key or on failure: a canned line in DEMO_MODE, else ""."""
     if not os.getenv("OPENAI_API_KEY"):
-        log.warning("OPENAI_API_KEY not set; skipping transcription of %s", path)
-        return ""
+        log.warning("OPENAI_API_KEY not set; %s", "using demo transcript" if _demo_mode() else "no transcript")
+        return DEMO_TRANSCRIPT if _demo_mode() else ""
     from openai import AsyncOpenAI
 
     client = AsyncOpenAI(timeout=20)
@@ -36,7 +43,7 @@ async def transcribe(path: str, language: str = "de") -> str:
                 return text
         except Exception:
             log.exception("transcription with %s failed", model)
-    return ""
+    return DEMO_TRANSCRIPT if _demo_mode() else ""
 
 
 # ---------------------------------------------------------------- invoice extraction (Claude structured output)
@@ -56,18 +63,18 @@ class Invoice(BaseModel):
     labour_hours: float = Field(description="Total labour hours billed; 0 if none")
 
 
-FALLBACK_INVOICE = {
+FALLBACK_INVOICE = {  # matches data/demo/invoice_RE-2026-1187.pdf
     "invoice_number": "RE-2026-1187",
     "date": "2026-11-21",
-    "net_eur": 210.0,
-    "vat_eur": 39.9,
-    "gross_eur": 249.9,
+    "net_eur": 199.5,
+    "vat_eur": 37.91,
+    "gross_eur": 237.41,
     "line_items": [
-        {"desc": "Zündelektrode Vaillant ecoTEC plus", "qty": 1, "unit_price": 48.5},
-        {"desc": "Arbeitszeit Monteur", "qty": 1.5, "unit_price": 74.0},
-        {"desc": "Anfahrtspauschale", "qty": 1, "unit_price": 50.5},
+        {"desc": "Anfahrtspauschale (Rahmenvertrag)", "qty": 1, "unit_price": 89.0},
+        {"desc": "Arbeitszeit Heizungstechniker, Std.", "qty": 1, "unit_price": 72.0},
+        {"desc": "Zündelektrode Vaillant ecoTEC plus (0020107800)", "qty": 1, "unit_price": 38.5},
     ],
-    "labour_hours": 1.5,
+    "labour_hours": 1.0,
     "_source": "fallback",
 }
 

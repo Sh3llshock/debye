@@ -8,7 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
+os.environ["DEBYE_NO_DOTENV"] = "1"  # never pick up real keys from .env in tests
 os.environ["WA_TOKEN"] = ""  # fake-send
+os.environ["WA_FAKE_SEND"] = "1"
 os.environ["WA_APP_SECRET"] = ""
 os.environ["WA_VERIFY_TOKEN"] = "verify-me"
 os.environ["DEMO_MODE"] = "1"
@@ -101,6 +103,12 @@ class FakeServices:
         return {}
 
     # asked-for extras
+    def add_tenant_input(self, case_id, label):
+        self.calls.append(("input", case_id, label))
+
+    def message_seen(self, wamid):
+        return False
+
     def get_case_contacts(self, case_id):
         out = []
         for cid, rel in self.case_contacts.get(case_id, []):
