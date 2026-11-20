@@ -215,7 +215,7 @@ class Sim:
                              "Use --direct.")
         self._check(r)
         # the router processes in a background task; wait for Debye's reply
-        deadline = time.time() + self.wait
+        deadline = time.time() + (self.wait if expect_reply else min(self.wait, 6))
         replies: list[dict] = []
         first_reply_at = None
         while time.time() < deadline:
@@ -254,7 +254,8 @@ class Sim:
                      + ", ".join(f"{p['name']} {p['score']}" for p in r.get("ranking", [])))
             return
         self.webhook(LENA, "Lena Hoffmann", audio_msg(audio))
-        self.webhook(LENA, "Lena Hoffmann", image_msg(photo, "Das zeigt der Kessel"))
+        # Debye may answer the voice note and stay quiet on the follow-up photo
+        self.webhook(LENA, "Lena Hoffmann", image_msg(photo, "Das zeigt der Kessel"), expect_reply=False)
         cases = self._check(self.c.get("/api/staff/cases"))
         cid = cases[0]["case_id"] if cases else ""
         oid = self.option_id(LENA, "cold_all", f"cold_all:{cid}")
