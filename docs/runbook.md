@@ -18,12 +18,16 @@ Commands are PowerShell, run from the repo root. One server on `:8000` serves th
    cloudflared tunnel --url http://localhost:8000
    ```
    The deployed Render URL works the same way. There, `/healthz` must return `{"ok":true}`.
-5. Check the server:
+5. Voice calls (optional, [voice-setup.md](voice-setup.md)): with the tunnel or Render URL from step 4, point the ElevenLabs agent at it. Run this again whenever the tunnel URL changes. Put the printed id into `.env` as `ELEVENLABS_AGENT_ID` and restart the server.
+   ```powershell
+   python scripts\elevenlabs_agent.py --base https://<tunnel>
+   ```
+6. Check the server:
    ```powershell
    Invoke-RestMethod http://localhost:8000/healthz
    ```
-6. From **each demo phone**, send "hi" to the test number. That opens WhatsApp's 24-hour window for buttons and lists.
-7. Reset (this wipes the "hi" messages too):
+7. From **each demo phone**, send "hi" to the test number. That opens WhatsApp's 24-hour window for buttons and lists.
+8. Reset (this wipes the "hi" messages too):
    ```powershell
    .\scripts\demo_reset.ps1
    ```
@@ -36,6 +40,7 @@ Commands are PowerShell, run from the repo root. One server on `:8000` serves th
 | Projector, right | http://localhost:8000/staff (case list → click the case once it appears) |
 | Laptop 2 (the installer) | http://localhost:8000/partner/heizung-schmidt |
 | Unit record for the finale | http://localhost:8000/staff/units/unit_4b |
+| Call variant (laptop with mic) | http://localhost:8000/call (or Lena calls the Twilio number, see voice-setup.md) |
 
 The demo panel sits behind the tiny dot at the bottom right of any page, or press `d`. It has **Skip to tomorrow** and **Reset**.
 
@@ -53,6 +58,13 @@ The demo panel sits behind the tiny dot at the bottom right of any page, or pres
 | 8 | Installer | Photo after repair `data/demo/repair_done.jpg`, Invoice (PDF) `data/demo/invoice_RE-2026-1187.pdf` → **Mark as done** | Invoice + price check, Lena asked "Wieder warm?" |
 | 9 | Lena | Tap **Ja, alles warm** | Case closed, invoice + report on unit 4b |
 
+### Variant: Lena calls instead of sending a voice note (step 1)
+Lena **calls** Debye (phone number, or the `/call` page as "Lena"): "Meine Heizung ist seit heute Morgen kalt … alle Heizkörper … auf dem Display steht F 28." Debye greets her by name and doesn't ask for address or boiler. It explains "die Zündung ist fehlgeschlagen (Fehlercode F.28)", opens the case and hangs up. Within about 10 s:
+- staff page: case opened, timeline line **"Call with Lena (0:47): heating cold, all radiators cold, ignition failed (F.28). Case opened, consent asked on WhatsApp."**
+- Lena's WhatsApp: "Danke für deinen Anruf, Lena! 📞 Kurz zusammengefasst: …" and right after it the consent buttons. Steps 2 and 4 merge into one tap on **Ja, gerne**, and the run continues at step 5.
+
+Pitch line: one case, two channels. The call continues in the chat without asking anything twice.
+
 ## If something breaks
 
 | Problem | Do this |
@@ -62,6 +74,8 @@ The demo panel sits behind the tiny dot at the bottom right of any page, or pres
 | Model slow, down or no API key | Nothing to do. Debye falls back to scripted replies for each step (after 20 s at most, immediately without a key). |
 | A tenant step won't go through | Push that one step from a terminal (shows on the staff page live):<br>`python scripts\simulate.py --direct --step report` (then `neighbour`, `consent`, `pick`, `fixed`) |
 | Partner page won't load | Same idea for the installer side: `python scripts\simulate.py --step accept` (then `slots`, `complete`) |
+| Call: Debye can't look Lena up / no WhatsApp after the call | Tunnel URL changed: run `python scripts\elevenlabs_agent.py --base https://<tunnel>` again. Check that `VOICE_TOOL_SECRET` and `ELEVENLABS_AGENT_ID` are in `.env`. Server log shows `POST /api/voice/tools/...` per call. |
+| Call page says "Konnte nicht verbinden" | Allow the microphone. `ELEVENLABS_AGENT_ID` missing → 503. Fallback: the voice-note flow (step 1). |
 | Wrong state, start over | `.\scripts\demo_reset.ps1`, or the demo panel → **Reset** |
 | Server crashed | Restart it (step 3). Data is kept in `backend/debye.db`. Reset if the state looks wrong. |
 | Nothing works | Play the whole flow hands-off on the staff page: `python scripts\simulate.py --direct --reset --pause 4`. Last resort: the backup video. |
