@@ -167,7 +167,7 @@ def test_neighbour_duplicate_is_linked(client, svc, claude):
     client.post("/webhooks/whatsapp", json=wa_body(JONAS, type="text", text={"body": "Bei mir auch kalt"}))
     assert ("link", "case_0001", "c_203", "affected") in svc.calls
     assert sum(c[0] == "open_case" for c in svc.calls) == 1
-    assert "already been reported" in last_payload(client)["text"]["body"]
+    assert "already reported" in last_payload(client)["text"]["body"]
 
 
 def test_dedupe_same_message_id(client, svc, claude):
@@ -190,7 +190,7 @@ def test_approval_required(client, svc, claude):
 
 def test_unknown_sender(client, svc, claude):
     client.post("/webhooks/whatsapp", json=wa_body("4917600000000", type="text", text={"body": "hi"}))
-    assert "nicht registriert" in last_payload(client)["text"]["body"]
+    assert "isn't registered" in last_payload(client)["text"]["body"]
 
 
 def test_tool_error_is_reported_to_claude(client, svc, claude):
@@ -239,7 +239,7 @@ def test_fallback_reads_demo_photo_after_voice_note(client, svc, claude, tmp_pat
     client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="image", image={"id": f"local:{demo_photo}", "mime_type": "image/jpeg"}))
     msgs = outbox(client)
     assert len(msgs) == n + 1
-    assert msgs[-1]["payload"]["text"]["body"] == "On the photo I can see the boiler's ignition failed (error code F.28), so the heating won't start. Thanks for the photo, that really helps the technician 👍"
+    assert msgs[-1]["payload"]["text"]["body"] == "On the photo I can see the boiler's ignition failed (error code F.28), so the heating won't start. Thanks for the photo, that helps the technician."
     assert ("error_code", "case_0001", "F.28") in svc.calls  # services.set_case_error_code records the event
 
 
@@ -259,15 +259,15 @@ def test_technician_flow_english(client, svc, claude):
     n = len(outbox(client))
     client.post("/webhooks/whatsapp", json=list_reply(LUKA, "slot_1:case_0001", "Sat 8–10"))
     assert ("confirm_slot", "case_0001", 1) in svc.calls
-    assert last_payload(client)["text"]["body"] == "Great, I've asked Tom to confirm, I'll let you know in a moment."
+    assert last_payload(client)["text"]["body"] == "Thanks. I've asked Tom to confirm and will let you know shortly."
     assert len(outbox(client)) == n + 1  # neighbour not told yet: the technician hasn't confirmed
     asyncio.run(notify.notify_tenant("case_0001", "technician_confirmed",
                                      {"technician_name": "Tom", "slot": {"label": "Sat 21 Nov, 8–10"}}))
     msgs = outbox(client)
     luka = [m for m in msgs if m["to"] == "+490000000001"][-1]["payload"]["text"]["body"]
     jonas = [m for m in msgs if m["to"] == "+490000000002"][-1]["payload"]["text"]["body"]
-    assert luka == ("Perfect, Luka! Tom from Heizung Schmidt will come to your apartment on Sat 21 Nov between 8 and 10. "
-                    "I'll remind you the evening before 👍")
+    assert luka == ("Luka, Tom from Heizung Schmidt will come to your apartment on Sat 21 Nov between 8 and 10. "
+                    "I'll remind you the evening before.")
     assert "Tom from Heizung Schmidt is coming on Sat 21 Nov between 8 and 10" in jonas
 
 
