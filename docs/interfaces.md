@@ -59,6 +59,10 @@ def log_message(contact_id: str, case_id: str | None, channel: str, direction: s
                 text: str | None, wa_message_id: str | None, media_ids: list[str]) -> Message
     # direction "in" | "out"; writes a message row and publishes message.in / message.out
 def get_case_contacts(case_id: str) -> list[Contact]       # reporter + affected tenants (notify_tenant messages all of them)
+def set_case_error_code(case_id: str, code: str) -> Case
+    # sets case.error_code (e.g. read from a photo after the case was opened), records one event
+    # "case.error_code" with summary "Boiler error: <label> (<code>)", re-estimates cost before dispatch;
+    # same code again is a no-op. The agent calls this instead of writing Case.error_code directly.
 def tenant_confirms_fixed(case_id: str, fixed: bool) -> dict   # fixed=True closes the case, returns result payload
 def close_case(case_id: str, resolution: str) -> dict          # result payload (technical-plan §12)
 ```

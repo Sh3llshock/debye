@@ -240,3 +240,26 @@ def test_error_labels_everywhere(client):
     assert job["error_label"] == label and job["asset"]["error_label"] == label
     sent = next(e for e in client.get(f"/api/staff/cases/{case.id}").json()["events"] if e["kind"] == "job.sent")
     assert sent["summary"].endswith("Boiler error: ignition failed (F.28)")
+
+
+def test_set_case_error_code(client):
+    lena = services.get_contact_by_phone("+490000000001")
+    boiler = services.get_unit_context(lena.unit_id)["assets"][0]
+    case = services.open_case(lena.id, "repair.heating", "urgent", "kalt", "kalt", None, boiler["id"])
+    assert case.error_code is None
+    est_before = case.estimated_cost_eur
+
+    updated = services.set_case_error_code(case.id, "f22")
+    assert updated.error_code == "F.22"
+    assert updated.estimated_cost_eur != est_before  # re-estimated for the new code
+    services.set_case_error_code(case.id, "F.22")  # same code → no second event
+
+    detail = client.get(f"/api/staff/cases/{case.id}").json()
+    evs = [e for e in detail["events"] if e["kind"] == "case.error_code"]
+    assert len(evs) == 1
+    assert evs[0]["summary"] == "Boiler error: water pressure too low (F.22)"
+    assert evs[0]["data"]["error_label"] == "Water pressure too low"
+    assert detail["asset"]["error_label"] == "Water pressure too low"
+
+    with pytest.raises(rules.RuleViolation):
+        services.set_case_error_code(case.id, " ")

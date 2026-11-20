@@ -241,6 +241,33 @@ def open_case(reporter_contact_id: str, type: str, priority: str, summary: str,
     return get_case(case.id)
 
 
+def set_case_error_code(case_id: str, code: str) -> Case:
+    """Set the boiler error code read later (e.g. from a photo). Records one event
+    'Boiler error: <label> (<code>)' that the staff page picks up live. Same code again → no-op.
+    While the job isn't dispatched yet, the cost estimate is recomputed for the new code."""
+    code = (code or "").strip()
+    if not code:
+        raise rules.RuleViolation("invalid_error_code", "error code is empty")
+    code = _norm_code(code) if _norm_code(code) in ERROR_LABELS_EN else code
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        if case.error_code == code:
+            return case
+        previous = case.error_code
+        case.error_code = code
+        if case.status in ("new", "awaiting_approval") and not case.partner_id:
+            fw = s.exec(select(Contract).where(Contract.type == "framework")).first()
+            case.estimated_cost_eur = rules.estimate_cost(s, code, fw.partner_id if fw else None)
+        asset = s.get(Asset, case.asset_id) if case.asset_id else None
+        known = asset.known_error_codes if asset else None
+        _save_case(s, case)
+        estimate = case.estimated_cost_eur
+    record_event(case_id, "debye", "case.error_code", error_phrase(code, known),
+                 {"error_code": code, "error_label": error_label(code, known),
+                  "previous_error_code": previous, "estimated_cost_eur": estimate})
+    return get_case(case_id)
+
+
 def _claim_orphan_media(case_id: str, contact_id: str) -> None:
     """Messages/documents the reporter sent before the case existed get linked to it."""
     with get_session() as s:
