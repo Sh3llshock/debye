@@ -221,3 +221,79 @@ def test_new_backend_api_used_when_present(client, svc, claude, monkeypatch):
     client.post("/webhooks/whatsapp", json=tap("diagfu_yes:hot_water_used_up"))
     assert any(c[0] == "close_self_help" and c[1] == case_id for c in calls)
     assert not any(c[0] == "dispatch" for c in svc.calls)
+
+
+def test_gas_question_never_blocks(client, svc, gpt):
+    """Tenant answers something else: no nagging, answers recorded, one combined re-ask, then no more."""
+    stub = gpt([
+        [oa_call("record_answer", question_id="q_scope", answer_key="only_shower"),
+         oa_call("ask_question", question_id="q_knob", lead_in="Thanks!")],
+        "",
+        [oa_call("record_answer", question_id="q_knob", answer_key="correct"),
+         oa_call("ask_question", question_id="q_waited", lead_in=None)],
+        "",
+    ])
+    client.post("/webhooks/whatsapp", json=wa("my shower is cold"))
+    client.post("/webhooks/whatsapp", json=wa("only the shower, the kitchen tap is hot"))
+    t = texts(client)
+    assert t[-1].endswith("any gas smell at all?")  # re-asked once, inside the next question
+    assert sum("gas" in x.lower() for x in t) == 2  # first message + one re-ask
+    client.post("/webhooks/whatsapp", json=wa("the knob is on hot"))
+    assert "gas" not in texts(client)[-1].lower()  # never again
+
+
+def test_gas_yes_in_free_text_is_emergency(client, svc, claude):
+    start(client, claude)
+    client.post("/webhooks/whatsapp", json=wa("actually yes, it smells of gas in the kitchen"))
+    assert svc.cases["case_0001"]["priority"] == "emergency"
+    assert "leave the apartment" in texts(client)[-1]
+
+
+def test_no_gas_with_other_info_continues(client, svc, claude):
+    start(client, claude)
+    client.post("/webhooks/whatsapp", json=wa("no gas smell, but only the shower is cold"))
+    from app.agent import state
+
+    assert state.conversation("c_202").diagnosis["safety_done"] is True
+    assert not svc.cases
+
+
+def test_natural_when():
+    from app.agent.flow import natural_when
+
+    assert natural_when("Tomorrow 8–10") == "tomorrow between 8 and 10"
+    assert natural_when("Today 14–16") == "today between 14 and 16"
+    assert natural_when("Sat 21 Nov, 8–10") == "on Sat 21 Nov between 8 and 10"
+    assert natural_when({"label": "Thu 26 Nov, 8:30–10"}) == "on Thu 26 Nov between 8:30 and 10"
+
+
+def test_conclude_refuses_contradicting_cause():
+    import asyncio
+
+    import pytest as _pt
+
+    from app.agent import diagnosis, state
+
+    conv = state.Conversation(contact_id="x")
+    diagnosis.start(conv, "cold")
+    conv.diagnosis["safety_done"] = True
+    conv.diagnosis["answers"].update({"q_gas_stove": "yes"})
+    with _pt.raises(ValueError, match="contradicts"):
+        asyncio.run(diagnosis.conclude(None, conv, "gas_supply_interrupted", 0.8, "x"))
+
+
+def test_late_no_gas_keeps_open_question(client, svc, gpt):
+    gpt([
+        [oa_call("record_answer", question_id="q_scope", answer_key="everywhere"),
+         oa_call("ask_question", question_id="q_radiators", lead_in=None)],
+        "",
+    ])
+    client.post("/webhooks/whatsapp", json=wa("no hot water in the shower"))
+    client.post("/webhooks/whatsapp", json=wa("it's cold everywhere"))
+    assert "any gas smell at all?" in texts(client)[-1]
+    client.post("/webhooks/whatsapp", json=wa("No gas smell."))
+    assert texts(client)[-1] == "Thanks, good to know 👍"
+    from app.agent import state
+
+    d = state.conversation("c_202").diagnosis
+    assert d["safety_done"] and d["asked"][-1] == "q_radiators" and "q_radiators" not in d["answers"]

@@ -108,4 +108,5 @@ def test_natural_list_text():
 
     t = twilio.natural_text("Heizung Schmidt can send Tom at one of these times. Which one works for you?", SLOTS,
                             is_list=True)
-    assert t.endswith("Sat 8–10 or Sun 14–16? Or just tell me if none of these work.") and "1 =" not in t
+    assert t.endswith("on Sat between 8 and 10 or on Sun between 14 and 16? Or just tell me if none of these work.")
+    assert "1 =" not in t

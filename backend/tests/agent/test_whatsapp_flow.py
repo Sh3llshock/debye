@@ -129,7 +129,7 @@ def test_golden_path(client, svc, claude, monkeypatch, tmp_path):
     # 5. resident picks slot 1 → confirm_slot with 1-based index
     client.post("/webhooks/whatsapp", json=list_reply(LUKA, "slot_1:case_0001", "Morgen 8–10"))
     assert ("confirm_slot", "case_0001", 1) in svc.calls
-    assert "Morgen 8–10" in last_payload(client)["text"]["body"]
+    assert "tomorrow between 8 and 10" in last_payload(client)["text"]["body"]
 
     # 6. partner done → "warm again?" → yes closes
     asyncio.run(notify.notify_tenant("case_0001", "job_completed", {}))
@@ -212,7 +212,7 @@ def test_slots_go_to_reporter_neighbour_gets_update(client, svc, claude):
     assert [m["to"] for m in lists] == ["+490000000001"]
     client.post("/webhooks/whatsapp", json=list_reply(LUKA, "slot_1:case_0001"))
     assert outbox(client)[-1]["to"] == "+490000000002"
-    assert "Morgen 8–10" in outbox(client)[-1]["payload"]["text"]["body"]
+    assert "tomorrow between 8 and 10" in outbox(client)[-1]["payload"]["text"]["body"]
 
 
 def test_fallback_names_error_code_from_text(client, svc, claude):
@@ -266,9 +266,9 @@ def test_technician_flow_english(client, svc, claude):
     msgs = outbox(client)
     luka = [m for m in msgs if m["to"] == "+490000000001"][-1]["payload"]["text"]["body"]
     jonas = [m for m in msgs if m["to"] == "+490000000002"][-1]["payload"]["text"]["body"]
-    assert luka == ("Perfect, Luka! Tom from Heizung Schmidt will come to your apartment on Sat 21 Nov, 8–10. "
+    assert luka == ("Perfect, Luka! Tom from Heizung Schmidt will come to your apartment on Sat 21 Nov between 8 and 10. "
                     "I'll remind you the evening before 👍")
-    assert "Tom from Heizung Schmidt is coming on Sat 21 Nov, 8–10" in jonas
+    assert "Tom from Heizung Schmidt is coming on Sat 21 Nov between 8 and 10" in jonas
 
 
 def test_twilio_numbered_list_english(monkeypatch):

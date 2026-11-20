@@ -202,8 +202,6 @@ async def _ask_question(ctx: TurnContext, question_id: str, lead_in: str | None)
     if not diagnosis.active(ctx.conv):
         raise ValueError("no diagnosis running")
     d = ctx.conv.diagnosis
-    if not d.get("safety_done"):
-        raise ValueError("Wait: the safety question (gas smell) must be answered first; send nothing now.")
     if question_id not in diagnosis.questions():
         raise ValueError(f"unknown question {question_id}")
     if question_id in d["answers"]:

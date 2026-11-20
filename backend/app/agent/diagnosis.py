@@ -33,6 +33,13 @@ KB_PATH = Path(__file__).resolve().parents[3] / "data" / "diagnosis" / "no_hot_w
 MAX_QUESTIONS = 5
 SAFETY_QID = "q_safety"
 CARETAKER_CONTACT = "c_501"
+GAS_YES_RE = re.compile(
+    r"(?<!no )(?<!not )(?<!don't )(?<!dont )(?<!kein )\b(smell(s|ing)? (of )?gas|gas smell|smells like gas|"
+    r"riecht nach gas|gasgeruch)\b", re.IGNORECASE)
+GAS_NO_RE = re.compile(
+    r"\b(no,? no gas( smell)?|no gas( smell)?( at all)?|no smell( of gas)?|don'?t smell (any )?(gas|anything)|"
+    r"(do )?not smell(ing)? (any )?gas|kein gasgeruch|kein gas|riecht nicht( nach gas)?)\b", re.IGNORECASE)
+SAFETY_REASK = "And just to be safe: any gas smell at all?"
 HOT_WATER_RE = re.compile(
     r"(hot water|warm water|shower|lukewarm|no hot|cold water|tap|boiler|warmwasser|warmes wasser|dusche|"
     r"lauwarm|kein warm)", re.IGNORECASE)
@@ -127,6 +134,15 @@ def _next_question(d: dict, cause_id: str) -> str | None:
     return None
 
 
+def contradictions(d: dict, cause_id: str, error_code: str | None = None) -> list[str]:
+    out = []
+    for s in causes()[cause_id].get("signals", []):
+        if "=" in s and _signal_ok(s, d["answers"], d.get("facts", []), error_code) is False:
+            qid = s.split("=")[0]
+            out.append(f"{qid}={d['answers'].get(qid)} (needs {s.split('=', 1)[1]})")
+    return out
+
+
 def next_step(conv: st.Conversation) -> tuple[str, str, float]:
     """Deterministic policy (fallback + guard): ("ask", qid, 0) or ("conclude", cause_id, confidence)."""
     d = conv.diagnosis
@@ -196,6 +212,9 @@ async def ask(contact, conv: st.Conversation, qid: str, lead: str | None = None)
             raise ValueError("max questions reached; conclude now")
         text, opts = questions()[qid]["text"], _options(qid)
         d["asked"].append(qid)
+        if not d.get("safety_done") and not d.get("safety_reasked"):
+            d["safety_reasked"] = True  # once, combined with the next question; never blocks
+            text = f"{text} {SAFETY_REASK}"
     conv.step = st.DIAGNOSIS
     conv.asked_at[st.DIAGNOSIS] = time.monotonic()
     await out.buttons(contact, conv.case_id, f"{lead} {text}" if lead else text, opts)
@@ -207,6 +226,17 @@ async def begin(contact, conv: st.Conversation, complaint: str | None) -> None:
     name = (be.attr(contact, "name") or "").split(" ")[0]
     lead = f"Oh no{', ' + name if name else ''}, a cold shower is the worst 😕 Let me figure out what's going on."
     await ask(contact, conv, SAFETY_QID, lead=lead)
+
+
+def safety_from_text(text: str | None) -> str | None:
+    """'yes' if the resident clearly reports a gas smell, 'no' if they clearly rule it out, else None."""
+    if not text:
+        return None
+    if GAS_NO_RE.search(text):
+        return "no"
+    if GAS_YES_RE.search(text):
+        return "yes"
+    return None
 
 
 # ------------------------------------------------------------------ answers (taps or mapped free text)
@@ -221,6 +251,10 @@ async def on_answer(contact, qid: str, key: str) -> None:
         d["safety_done"] = True
         if key == "yes":
             await conclude(contact, conv, "gas_smell", 1.0, "Resident reports a gas smell (safety question).")
+            return
+        last = d["asked"][-1] if d["asked"] else None
+        if last and last not in d["answers"]:  # a late "no gas" while another question is open: keep it open
+            await out.text(contact, conv.case_id, "Thanks, good to know 👍")
             return
         if await apply_centrix_shortcuts(contact, conv):
             return
@@ -289,6 +323,11 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         return {"ok": True, "note": "already concluded"}
     if cause_id != "gas_smell" and cause_id not in causes():
         raise ValueError(f"unknown cause {cause_id}")
+    if cause_id != "gas_smell" and d.get("answers"):
+        contra = contradictions(d, cause_id, conv.error_code)
+        if contra and cause_id not in {r["id"] for r in score(d, conv.error_code)}:
+            raise ValueError(f"{cause_id} contradicts the answers ({', '.join(contra)}); pick another cause "
+                             "or ask a question")
     d["concluded"] = cause_id
     rec = diagnosis_record(conv, cause_id, confidence, reasoning)
     complaint = d.get("complaint") or "No hot water"
