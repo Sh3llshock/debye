@@ -100,12 +100,12 @@ export function CaseCard({ c }: { c: CaseDetail }) {
           <span key={s} className={`h-1.5 flex-1 rounded-full transition-colors duration-700 ${i < done ? 'bg-plum' : 'bg-line'}`} />
         ))}
       </div>
-      <div className="mt-2 text-xs text-muted">{LIFECYCLE.join(' → ')}</div>
-      <div className="mt-5 flex flex-col gap-4">
+      <div className="mt-2 hidden text-xs text-muted 2xl:block">{LIFECYCLE.join(' → ')}</div>
+      <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
         <Field label="Priority">
           <span className="flex items-center gap-3">
             <PriorityBadge priority={c.priority} />
-            <span className="text-muted">{humanize(c.type.split('.').pop())}</span>
+            <span className="hidden text-muted 2xl:inline">{humanize(c.type.split('.').pop())}</span>
           </span>
         </Field>
         <Field label="Cost bearer">{humanize(c.cost_bearer)}</Field>
@@ -113,6 +113,7 @@ export function CaseCard({ c }: { c: CaseDetail }) {
         <Field label="Visit">
           {c.slot ? fmtSlot(c.slot) : c.proposed_slots?.length ? <span className="text-muted">{c.proposed_slots.length} slots proposed</span> : <span className="text-muted">not scheduled</span>}
         </Field>
+        <div className="col-span-2">
         <Field label="Approval">
           {c.approval?.required ? (
             <span className="font-semibold text-warning">Waiting for you · {fmtEur(c.estimated_cost_eur)} est.</span>
@@ -128,6 +129,7 @@ export function CaseCard({ c }: { c: CaseDetail }) {
             <span className="text-muted">not evaluated yet</span>
           )}
         </Field>
+        </div>
       </div>
     </Card>
   )
@@ -158,16 +160,16 @@ export function ZeroFormsCard({ c }: { c: CaseDetail }) {
   return (
     <section className="rounded-card bg-plum p-card-sm text-on-plum shadow-card" title={c.zero_forms?.prefilled.join(', ')}>
       <div className="text-eyebrow font-semibold uppercase text-on-plum-muted">Zero forms</div>
-      <div className="mt-3 flex items-end gap-4">
-        <span className="font-sans text-display font-medium">{z.prefilled}</span>
-        <span className="pb-2 text-lg leading-tight">
+      <div className="mt-2 flex items-end gap-4">
+        <span className="font-sans text-stat font-medium">{z.prefilled}</span>
+        <span className="pb-1 text-body-sm leading-tight">
           fields pre-filled
           <br />
           from centrix
         </span>
       </div>
-      <div className="mt-5 border-t border-line-on-plum pt-5 text-xl font-medium">{z.inputs}</div>
-      <p className="mt-3 text-body-sm text-on-plum-muted">That is all {name} did. No address, name, phone or boiler model was asked.</p>
+      <div className="mt-3 border-t border-line-on-plum pt-3 text-lg font-medium">{z.inputs}</div>
+      <p className="mt-1 text-sm text-on-plum-muted">That is all {name} did. No address, name, phone or boiler model was asked.</p>
     </section>
   )
 }
@@ -244,9 +246,9 @@ export function Timeline({ c }: { c: CaseDetail }) {
   return (
     <Card title="Live timeline" action={<LivePill />}>
       {shown.length === 0 ? (
-        <Empty>Waiting for the first WhatsApp message…</Empty>
+        <div className="flex h-[calc(100vh-350px)] min-h-[380px] items-center justify-center rounded-lg border border-dashed border-line text-center text-muted">Waiting for the first WhatsApp message…</div>
       ) : (
-        <ol ref={list} className="-mx-3 flex max-h-[calc(100vh-260px)] min-h-[300px] flex-col gap-1 overflow-y-auto px-1">
+        <ol ref={list} className="-mx-3 flex h-[calc(100vh-350px)] min-h-[380px] flex-col gap-1 overflow-y-auto px-1">
           {shown.map((e) => {
             const fresh = isNew(eventKey(e))
             const color = (actorColors[e.actor] ?? actorColors.system).bg
@@ -315,6 +317,14 @@ function MessageMedia({ m, docs }: { m: ThreadMessage; docs: DocumentItem[] }) {
   )
 }
 
+/** The agent logs interactive messages as "Text [Option A] · [Option B]" or "Text [A | B | C]". Split those into buttons. */
+export function splitButtons(text: string): { body: string; buttons: string[] } {
+  const m = text.match(/^(.*?)\s*((?:\[[^\]]+\]\s*(?:·\s*)?)+)$/s)
+  if (!m) return { body: text, buttons: [] }
+  const buttons = [...m[2].matchAll(/\[([^\]]+)\]/g)].flatMap((x) => x[1].split('|').map((b) => b.trim())).filter(Boolean)
+  return { body: m[1].trim(), buttons }
+}
+
 export function WhatsAppThread({ c }: { c: CaseDetail }) {
   const messages = c.messages
   const isNew = useNewKeys(messages.map(messageKey))
@@ -325,7 +335,7 @@ export function WhatsAppThread({ c }: { c: CaseDetail }) {
   const who = c.reporters[0]?.name.split(' ')[0] ?? 'Resident'
   return (
     <Card title="WhatsApp" action={<span className="rounded-pill bg-success-soft px-3 py-0.5 text-sm font-semibold text-wa-header">{who} ↔ Debye</span>}>
-      <div ref={box} className="flex max-h-[calc(100vh-260px)] min-h-[300px] flex-col gap-2 overflow-y-auto rounded-lg bg-wa-bg p-3">
+      <div ref={box} className="flex h-[calc(100vh-350px)] min-h-[380px] flex-col gap-2 overflow-y-auto rounded-lg bg-wa-bg p-3">
         {messages.length === 0 && <div className="m-auto p-4 text-center text-muted">No messages yet</div>}
         {messages.map((m) => {
           const out = m.direction === 'out'
@@ -337,7 +347,24 @@ export function WhatsAppThread({ c }: { c: CaseDetail }) {
             >
               {!out && c.reporters.length > 1 && m.contact && <div className="text-xs font-semibold text-wa-header">{m.contact}</div>}
               {m.media?.length > 0 && <MessageMedia m={m} docs={c.documents} />}
-              {m.text && <div className={`text-body-sm leading-snug ${voice ? 'italic' : ''}`}>{m.text}</div>}
+              {m.text &&
+                (() => {
+                  const { body, buttons } = out ? splitButtons(m.text) : { body: m.text, buttons: [] as string[] }
+                  return (
+                    <>
+                      {body && <div className={`text-body-sm leading-snug ${voice ? 'italic' : ''}`}>{body}</div>}
+                      {buttons.length > 0 && (
+                        <div className="mt-2 flex flex-col gap-1.5">
+                          {buttons.map((b) => (
+                            <span key={b} className="rounded border border-line bg-wa-in px-3 py-1.5 text-center text-sm font-medium text-wa-header">
+                              {b}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
               <div className="text-right text-xs text-wa-meta">
                 {fmtTime(m.ts)}
                 {out && <span className="ml-1 text-wa-tick">✓✓</span>}
@@ -440,15 +467,54 @@ export function priceCheckOk(pc: unknown): boolean {
   return false
 }
 
-function docSubtitle(d: DocumentItem, priceOk: boolean) {
+/** Normalises backend price_check ({result: ok|flagged|no_framework, flags: [...]}) and older string forms. */
+export function priceCheckInfo(pc: unknown): { status: 'ok' | 'flagged' | 'none' | 'unknown'; flags: string[] } {
+  if (!pc) return { status: 'unknown', flags: [] }
+  if (typeof pc === 'string') return { status: pc.toLowerCase().startsWith('ok') ? 'ok' : 'flagged', flags: [] }
+  if (typeof pc === 'object') {
+    const o = pc as Record<string, unknown>
+    const flags = Array.isArray(o.flags) ? (o.flags as unknown[]).map(String) : []
+    const r = String(o.result ?? o.status ?? (o.ok === true ? 'ok' : ''))
+    if (r === 'ok') return { status: 'ok', flags }
+    if (r === 'flagged') return { status: 'flagged', flags }
+    if (r === 'no_framework') return { status: 'none', flags }
+  }
+  return { status: 'unknown', flags: [] }
+}
+
+export function PriceCheck({ pc, compact }: { pc: unknown; compact?: boolean }) {
+  const { status, flags } = priceCheckInfo(pc)
+  if (status === 'unknown') return null
+  const label = status === 'ok' ? 'Price check ok' : status === 'flagged' ? `Price check flagged · ${flags.length} line${flags.length === 1 ? '' : 's'}` : 'No framework prices'
+  const cls = status === 'ok' ? 'bg-success-soft text-success' : status === 'flagged' ? 'bg-warning-soft text-warning' : 'bg-surface-alt text-muted'
+  return (
+    <div className="mt-3">
+      <span className={`inline-flex items-center gap-2 rounded-pill px-3 py-0.5 text-sm font-semibold ${cls}`}>
+        {status === 'ok' && <Icon name="check" className="h-4 w-4" />}
+        {label}
+      </span>
+      {!compact && status !== 'ok' && flags.length > 0 && (
+        <ul className="mt-2 list-disc pl-5 text-sm text-warning">
+          {flags.map((f) => (
+            <li key={f}>{f}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function docSubtitle(d: DocumentItem, pc: unknown) {
   const x = (d.extracted ?? {}) as Record<string, unknown>
   if (d.kind === 'invoice') {
     const gross = typeof x.gross_eur === 'number' ? fmtEur(x.gross_eur as number, true) : null
-    return ['Invoice', gross, priceOk ? 'price check ok' : null].filter(Boolean).join(' · ')
+    const st = priceCheckInfo(x.price_check ?? pc).status
+    return ['Invoice', gross, st === 'ok' ? 'price check ok' : st === 'flagged' ? 'price check flagged' : null].filter(Boolean).join(' · ')
   }
   const date = d.created_at ? new Date(d.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''
   if (d.kind === 'photo') return ['Photo', date].filter(Boolean).join(' · ')
   if (d.kind === 'report') return 'Service report'
+  if (d.kind === 'voice_note') return ['Voice note', date].filter(Boolean).join(' · ')
   return [humanize(d.kind), date].filter(Boolean).join(' · ')
 }
 
@@ -477,6 +543,7 @@ export function InvoiceFields({ x }: { x: Record<string, unknown> }) {
           </tbody>
         </table>
       )}
+      <PriceCheck pc={x.price_check} />
     </div>
   )
 }
@@ -487,7 +554,6 @@ export function Documents({ docs, title, priceCheck }: { docs: DocumentItem[]; t
     8000,
   )
   const [open, setOpen] = useState<string | null>(null)
-  const ok = priceCheckOk(priceCheck)
   return (
     <Card title={title}>
       {docs.length === 0 ? (
@@ -497,15 +563,16 @@ export function Documents({ docs, title, priceCheck }: { docs: DocumentItem[]; t
           {docs.map((d) => {
             const fresh = isNew(d.document_id)
             const hasFields = d.kind === 'invoice' && !!d.extracted && Object.keys(d.extracted).length > 0
+            const st = d.kind === 'invoice' ? priceCheckInfo((d.extracted as Record<string, unknown> | null)?.price_check ?? priceCheck).status : 'unknown'
             return (
               <li key={d.document_id} className={`rounded-lg p-3 ${fresh ? 'animate-enter bg-violet-soft' : ''}`}>
                 <div className="flex items-center gap-4">
                   <span className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${d.kind === 'invoice' ? 'bg-plum text-on-plum' : 'bg-surface-alt text-plum-80'}`}>
-                    <Icon name={d.kind === 'photo' ? 'camera' : 'file'} className="h-6 w-6" />
+                    <Icon name={d.kind === 'photo' ? 'camera' : d.kind === 'voice_note' || d.mime?.startsWith('audio') ? 'mic' : 'file'} className="h-6 w-6" />
                   </span>
                   <a href={d.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1">
                     <div className="truncate text-body-sm font-semibold">{d.filename}</div>
-                    <div className={`truncate text-sm ${d.kind === 'invoice' && ok ? 'text-success' : 'text-muted'}`}>{docSubtitle(d, ok)}</div>
+                    <div className={`truncate text-sm ${st === 'ok' ? 'text-success' : st === 'flagged' ? 'text-warning' : 'text-muted'}`}>{docSubtitle(d, priceCheck)}</div>
                   </a>
                   {fresh && (
                     <span className="inline-flex items-center gap-1 text-sm font-semibold text-violet">
