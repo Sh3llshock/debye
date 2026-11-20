@@ -16,7 +16,7 @@ os.environ["WA_VERIFY_TOKEN"] = "verify-me"
 os.environ["DEMO_MODE"] = "1"
 os.environ["ROUTER_DEBOUNCE"] = "0"
 LIVE_ANTHROPIC_KEY = os.environ.pop("ANTHROPIC_API_KEY", None)  # used only by test_live_claude
-os.environ.pop("OPENAI_API_KEY", None)
+LIVE_OPENAI_KEY = os.environ.pop("OPENAI_API_KEY", None)  # used only by test_live_openai
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # backend/
 
@@ -103,6 +103,10 @@ class FakeServices:
         return {}
 
     # asked-for extras
+    def set_case_error_code(self, case_id, code):
+        self.cases[case_id]["error_code"] = code
+        self.calls.append(("error_code", case_id, code))
+
     def add_tenant_input(self, case_id, label):
         self.calls.append(("input", case_id, label))
 
@@ -120,7 +124,7 @@ class FakeServices:
         self.messages.append(kw)
 
 
-from agent_stubs import StubClaude  # noqa: E402
+from agent_stubs import StubClaude, StubOpenAI  # noqa: E402
 
 
 @pytest.fixture
@@ -150,7 +154,10 @@ def svc(monkeypatch):
 
 @pytest.fixture
 def claude(monkeypatch):
+    """Stub Claude; also selects the anthropic provider for this test."""
     from app.agent import loop
+
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
 
     def _set(script):
         stub = StubClaude(script)
@@ -159,6 +166,22 @@ def claude(monkeypatch):
 
     yield _set
     loop.set_client(None)
+
+
+@pytest.fixture
+def gpt(monkeypatch):
+    """Stub OpenAI chat model on the default provider."""
+    from app.agent import openai_loop
+
+    monkeypatch.setenv("LLM_PROVIDER", "openai")
+
+    def _set(script):
+        stub = StubOpenAI(script)
+        openai_loop.set_client(stub)
+        return stub
+
+    yield _set
+    openai_loop.set_client(None)
 
 
 @pytest.fixture

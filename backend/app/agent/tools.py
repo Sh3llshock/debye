@@ -75,6 +75,13 @@ SCHEMAS: list[dict] = [
         ),
     },
     {
+        "name": "note_error_code",
+        "description": "Store a boiler display error code on the already open case (e.g. read from a photo "
+        "sent after the case was opened). Call this before telling the resident you noted it.",
+        "input_schema": _obj({"case_id": {"type": "string"}, "error_code": {"type": "string",
+                                                                              "description": "e.g. F.28"}}),
+    },
+    {
         "name": "record_triage_answer",
         "description": "Use when the resident answers 'are all radiators cold?' by typing instead of tapping. "
         "Finds the installer and asks the resident for consent automatically.",
@@ -121,6 +128,17 @@ async def _open_case(ctx: TurnContext, summary: str, symptoms: str, error_code: 
             "next": f"Ask with ask_buttons: ids cold_all:{res['case_id']} / cold_some:{res['case_id']}."}
 
 
+async def _note_error_code(ctx: TurnContext, case_id: str, error_code: str) -> dict:
+    from . import _backend as be
+
+    case_id = ctx.conv.case_id or case_id
+    if not case_id:
+        raise ValueError("no open case; call open_case with error_code instead")
+    be.set_case_error_code(case_id, error_code)
+    ctx.conv.error_code = error_code
+    return {"ok": True, "case_id": case_id, "error_code": error_code}
+
+
 async def _record_triage(ctx: TurnContext, case_id: str, all_radiators_cold: bool) -> dict:
     case_id = ctx.conv.case_id or case_id
     await flow.on_cold(ctx.contact, case_id, all_radiators_cold)
@@ -133,6 +151,7 @@ IMPLS: dict[str, Callable[..., Awaitable[dict]]] = {
     "ask_buttons": _ask_buttons,
     "ask_list": _ask_list,
     "open_case": _open_case,
+    "note_error_code": _note_error_code,
     "record_triage_answer": _record_triage,
 }
 

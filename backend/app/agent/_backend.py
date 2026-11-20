@@ -97,6 +97,27 @@ def tenant_confirms_fixed(case_id: str, fixed: bool) -> dict:
     return _call("tenant_confirms_fixed", case_id, fixed)
 
 
+def set_case_error_code(case_id: str, error_code: str) -> None:
+    """Writes the display code onto an open case and records it on the timeline."""
+    svc = _services()
+    fn = getattr(svc, "set_case_error_code", None)
+    if fn is not None:
+        fn(case_id, error_code)
+        return
+    try:  # until backend-core ships set_case_error_code
+        from app import db, models
+
+        with db.get_session() as s:
+            case = s.get(models.Case, case_id)
+            if case is not None and getattr(case, "error_code", None) != error_code:
+                case.error_code = error_code
+                s.add(case)
+                s.commit()
+    except Exception:
+        log.exception("set_case_error_code fallback failed")
+    record_event(case_id, "debye", "triage.error_code", f"Display zeigt {error_code}", {"error_code": error_code})
+
+
 def add_tenant_input(case_id: str | None, label: str) -> None:
     """Zero-forms counter on the staff page."""
     if not case_id:

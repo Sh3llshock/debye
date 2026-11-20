@@ -35,3 +35,40 @@ class StubClaude:
         return SimpleNamespace(stop_reason=stop, content=item)
 
 
+
+
+# ---------------------------------------------------------------- stub OpenAI (Chat Completions)
+import json as _json  # noqa: E402
+
+_call_n = 0
+
+
+def oa_call(name, **args):
+    """A tool call the stub model makes."""
+    global _call_n
+    _call_n += 1
+    return SimpleNamespace(id=f"call_{_call_n}", type="function",
+                           function=SimpleNamespace(name=name, arguments=_json.dumps(args, ensure_ascii=False)))
+
+
+class StubOpenAI:
+    """Script items: list of oa_call(...) (tool calls), a str (plain text reply), "refusal", or an Exception."""
+
+    def __init__(self, script):
+        self.script = list(script)
+        self.requests: list[dict] = []
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+    async def _create(self, **kw):
+        self.requests.append(dict(kw, messages=list(kw["messages"])))
+        item = self.script.pop(0) if self.script else "ok"
+        if isinstance(item, Exception):
+            raise item
+        if item == "refusal":
+            msg = SimpleNamespace(content=None, tool_calls=None, refusal="I can't help with that.")
+        elif isinstance(item, str):
+            msg = SimpleNamespace(content=item, tool_calls=None, refusal=None)
+        else:
+            msg = SimpleNamespace(content=None, tool_calls=item, refusal=None)
+        finish = "tool_calls" if msg.tool_calls else "stop"
+        return SimpleNamespace(choices=[SimpleNamespace(message=msg, finish_reason=finish)])
