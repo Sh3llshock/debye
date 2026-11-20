@@ -21,9 +21,9 @@ function Staff() {
 
 function NotFound() {
   return (
-    <div className="p-section text-center">
-      <h1 className="text-2xl">Page not found</h1>
-      <a className="mt-4 inline-block text-plum underline" href="/staff">Go to cases</a>
+    <div className="p-8 text-center">
+      <h1 className="text-page">Page not found</h1>
+      <a className="mt-4 inline-block text-action underline" href="/staff">Go to cases</a>
     </div>
   )
 }
