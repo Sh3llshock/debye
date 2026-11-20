@@ -63,6 +63,60 @@ async def transcribe(path: str, language: str = "de") -> str:
     return DEMO_TRANSCRIPT if _demo_mode() else ""
 
 
+# ---------------------------------------------------------------- voice reply (ElevenLabs, event sponsor, optional)
+ELEVENLABS_DEFAULT_VOICE = "21m00Tcm4TlvDq8ikWAM"  # premade voice; set ELEVENLABS_VOICE_ID for a German one
+ELEVENLABS_MODEL = "eleven_multilingual_v2"
+
+
+async def speak(text: str) -> str | None:
+    """Text → WhatsApp voice note (ogg/opus) via ElevenLabs. None if no key or anything fails (no-op)."""
+    key = os.getenv("ELEVENLABS_API_KEY")
+    if not key:
+        return None
+    import shutil
+    import subprocess
+    import uuid
+
+    import httpx
+
+    voice = os.getenv("ELEVENLABS_VOICE_ID") or ELEVENLABS_DEFAULT_VOICE
+    from app.channels.base import storage_dir
+
+    out_dir = storage_dir() / "tts"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    dest = out_dir / f"debye_{uuid.uuid4().hex[:10]}.ogg"
+    t0 = time.perf_counter()
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(
+                f"https://api.elevenlabs.io/v1/text-to-speech/{voice}",
+                params={"output_format": "opus_48000_64"},
+                headers={"xi-api-key": key, "accept": "audio/ogg"},
+                json={"text": text, "model_id": ELEVENLABS_MODEL, "language_code": "de"},
+            )
+        if r.status_code >= 400:
+            log.warning("ElevenLabs TTS failed: %s %s", r.status_code, r.text[:200])
+            return None
+        audio = r.content
+        if audio[:4] == b"OggS":
+            dest.write_bytes(audio)
+        else:  # not an ogg container (e.g. mp3): convert for WhatsApp voice notes if ffmpeg is there
+            ffmpeg = shutil.which("ffmpeg")
+            if not ffmpeg:
+                log.warning("ElevenLabs returned non-ogg audio and ffmpeg is missing; skipping voice reply")
+                return None
+            raw = dest.with_suffix(".bin")
+            raw.write_bytes(audio)
+            subprocess.run([ffmpeg, "-y", "-loglevel", "error", "-i", str(raw), "-c:a", "libopus", "-b:a", "48k",
+                            str(dest)], check=True, timeout=20)
+            raw.unlink(missing_ok=True)
+        log.info("ElevenLabs voice reply in %.2fs (%d bytes)", time.perf_counter() - t0, dest.stat().st_size)
+        return str(dest)
+    except Exception:
+        log.exception("ElevenLabs TTS failed")
+        return None
+
+
 # ---------------------------------------------------------------- invoice extraction (Claude structured output)
 class LineItem(BaseModel):
     desc: str
