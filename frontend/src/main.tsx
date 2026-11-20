@@ -2,6 +2,9 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import './index.css'
+import { initStageScale } from './lib/stage'
+
+initStageScale()
 import { StaffLayout } from './components/Layout'
 import StaffCases from './pages/StaffCases'
 import StaffCase from './pages/StaffCase'
