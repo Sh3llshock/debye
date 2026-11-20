@@ -54,7 +54,7 @@ def record_consent(contact_id: str, partner_id: str, case_id: str, fields: list[
 def rank_partners(case_id: str) -> list[dict]          # [{partner_id, name, score, reasons: [str]}], top 3
 def dispatch_job(case_id: str, partner_id: str) -> dict
     # raises rules.RuleViolation("consent_missing" | "approval_required")
-def confirm_slot(case_id: str, slot_index: int) -> dict   # 0-based index into the slots the partner proposed
+def confirm_slot(case_id: str, slot_index: int) -> dict   # 1-based, matching list ids slot_1, slot_2, ... (decided: 1-based)
 def log_message(contact_id: str, case_id: str | None, channel: str, direction: str,
                 text: str | None, wa_message_id: str | None, media_ids: list[str]) -> Message
     # direction "in" | "out"; writes a message row and publishes message.in / message.out
@@ -73,7 +73,9 @@ from app.channels.whatsapp import router as whatsapp_router   # GET/POST /webhoo
 from app.channels.webchat import router as webchat_router     # WS /ws/chat/{contact_id}, GET /chat/{contact_id}
 app.include_router(whatsapp_router); app.include_router(webchat_router)
 ```
-Fake send is on when `WA_TOKEN` is empty or `WA_FAKE_SEND=1`; outbound messages then go to the `_outbox` log. In fake mode a media id `local:<path>` is read from disk (simulator convention).
+Fake send is on when `WA_TOKEN` is empty or `WA_FAKE_SEND=1`; outbound messages then go to the `_outbox` log. Simulator media: `scripts/simulate.py` uploads files to `POST /demo/sim-media`, which returns ids like `sim-ab12cd.ogg`; in fake mode the WhatsApp adapter reads them from `demo.sim_media_path(media_id)` instead of the Graph API (`local:<path>` ids may be supported too).
+
+Extra services (additive): `message_seen(wa_message_id) -> bool` (dedupe), `add_tenant_input(case_id, label)` (zero-forms counter). Status values and notify data shapes: backend-core's hand-over notes (backend-core.md in the shared notes folder).
 
 ### 3.4 `notify.py` (agent-whatsapp): what the backend calls when staff/partner act
 backend-core ships a stub that only logs; agent-whatsapp replaces it.
