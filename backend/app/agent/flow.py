@@ -259,6 +259,25 @@ def slot_label(slot: dict) -> str:
     return slot.get("label") or f"{slot.get('start', '')[:16]}"
 
 
+_REL_RE = re.compile(r"^(today|tomorrow|heute|morgen)\s+(\d{1,2}(?::\d\d)?)\s*[–-]\s*(\d{1,2}(?::\d\d)?)$", re.I)
+_ABS_RE = re.compile(r"^(.+?),?\s+(\d{1,2}(?::\d\d)?)\s*[–-]\s*(\d{1,2}(?::\d\d)?)$")
+_REL_EN = {"today": "today", "tomorrow": "tomorrow", "heute": "today", "morgen": "tomorrow"}
+
+
+def natural_when(slot_or_label) -> str:
+    """'Tomorrow 8–10' → 'tomorrow between 8 and 10'; 'Sat 21 Nov, 8–10' → 'on Sat 21 Nov between 8 and 10'.
+    Use as: f'… will come {natural_when(slot)}'."""
+    label = slot_or_label if isinstance(slot_or_label, str) else slot_label(slot_or_label or {})
+    label = (label or "").strip()
+    m = _REL_RE.match(label)
+    if m:
+        return f"{_REL_EN[m.group(1).lower()]} between {m.group(2)} and {m.group(3)}"
+    m = _ABS_RE.match(label)
+    if m:
+        return f"on {m.group(1).strip()} between {m.group(2)} and {m.group(3)}"
+    return f"on {label}" if label else "at the agreed time"
+
+
 async def send_slots(case_id: str, slots: list[dict], technician_name: str | None = None) -> None:
     cs = st.case_state(case_id)
     cs.slots = list(slots)
@@ -293,9 +312,11 @@ async def on_slot(contact, case_id: str, n: int) -> None:
         )
         return
     await out.text(
-        contact, case_id, f"Perfect, {partner_label(case_id)} will come {label} 👍 I'll remind you the evening before."
+        contact, case_id,
+        f"Perfect, {partner_label(case_id)} will come {natural_when(label)} 👍 I'll remind you the evening before."
     )
-    await _tell_neighbours(contact, case_id, f"Quick update: a technician is coming {label} for the building's heating 🔧")
+    await _tell_neighbours(contact, case_id,
+                           f"Quick update: a technician is coming {natural_when(label)} for the building's heating 🔧")
 
 
 async def _tell_neighbours(contact, case_id: str, text: str) -> None:
@@ -310,7 +331,7 @@ async def on_technician_confirmed(case_id: str, technician_name: str | None, slo
     cs = st.case_state(case_id)
     tech = technician_name or cs.technician_name or "The technician"
     cs.technician_name = tech
-    label = slot_label(slot or cs.chosen_slot or {}) or "the agreed time"
+    when = natural_when(slot or cs.chosen_slot or {})
     reporters = tenant_contacts(case_id, reporter_only=True)
     for c in reporters:
         name = first_name(c)
@@ -319,10 +340,10 @@ async def on_technician_confirmed(case_id: str, technician_name: str | None, slo
             c,
             case_id,
             f"Perfect{', ' + name if name else ''}! {tech} from {partner_label(case_id)} will come to your apartment "
-            f"on {label}. I'll remind you the evening before 👍",
+            f"{when}. I'll remind you the evening before 👍",
         )
     await _tell_neighbours(reporters[0] if reporters else None, case_id,
-                           f"Quick update: {tech} from {partner_label(case_id)} is coming on {label} for the "
+                           f"Quick update: {tech} from {partner_label(case_id)} is coming {when} for the "
                            "building's heating 🔧")
 
 

@@ -30,9 +30,15 @@ from . import state as st
 log = logging.getLogger("debye.diagnosis")
 
 KB_PATH = Path(__file__).resolve().parents[3] / "data" / "diagnosis" / "no_hot_water.json"
-MAX_QUESTIONS = 5
+MAX_QUESTIONS = 3  # KB strategy (PR 90): at most 3 questions, then the likeliest technician outcome
 SAFETY_QID = "q_safety"
 CARETAKER_CONTACT = "c_501"
+GAS_YES_RE = re.compile(
+    r"(?<!no )(?<!not )(?<!don't )(?<!dont )(?<!kein )\b(smell(s|ing)? (of )?gas|gas smell|smells like gas|"
+    r"hiss(es|ing)?|riecht nach gas|gasgeruch|zischt|zischen)\b", re.IGNORECASE)
+GAS_NO_RE = re.compile(
+    r"\b(no,? no gas( smell)?|no gas( smell)?( at all)?|no smell( of gas)?|don'?t smell (any )?(gas|anything)|"
+    r"(do )?not smell(ing)? (any )?gas|kein gasgeruch|kein gas|riecht nicht( nach gas)?)\b", re.IGNORECASE)
 HOT_WATER_RE = re.compile(
     r"(hot water|warm water|shower|lukewarm|no hot|cold water|tap|boiler|warmwasser|warmes wasser|dusche|"
     r"lauwarm|kein warm)", re.IGNORECASE)
@@ -115,7 +121,8 @@ def score(d: dict, error_code: str | None = None) -> list[dict]:
             n = len(sigs)
             out.append({"id": cid, "score": (ok - 2 * bad) / n, "potential": (ok + unknown - 2 * bad) / n,
                         "ok": ok, "bad": bad, "unknown": unknown})
-    return sorted(out, key=lambda x: (-x["score"], -x["ok"], x["unknown"]))
+    order = {cid: i for i, cid in enumerate(kb().get("likelihood_order") or [])}
+    return sorted(out, key=lambda x: (-x["score"], -x["ok"], x["unknown"], order.get(x["id"], 99)))
 
 
 def _next_question(d: dict, cause_id: str) -> str | None:
@@ -125,6 +132,15 @@ def _next_question(d: dict, cause_id: str) -> str | None:
         if qid in questions() and qid not in d["answers"] and qid not in d["asked"]:
             return qid
     return None
+
+
+def contradictions(d: dict, cause_id: str, error_code: str | None = None) -> list[str]:
+    out = []
+    for s in causes()[cause_id].get("signals", []):
+        if "=" in s and _signal_ok(s, d["answers"], d.get("facts", []), error_code) is False:
+            qid = s.split("=")[0]
+            out.append(f"{qid}={d['answers'].get(qid)} (needs {s.split('=', 1)[1]})")
+    return out
 
 
 def next_step(conv: st.Conversation) -> tuple[str, str, float]:
@@ -138,6 +154,10 @@ def next_step(conv: st.Conversation) -> tuple[str, str, float]:
         best = ranked[0]
         confidence = round(min(0.95, max(0.4, best["score"])), 2)
         if out_of_questions:
+            if best["unknown"] and causes()[best["id"]]["outcome"] != "technician":
+                tech = next((r for r in ranked if causes()[r["id"]]["outcome"] == "technician"), None)
+                if tech:  # KB: still unclear after 3 questions → likeliest technician outcome, staff approve
+                    return "conclude", tech["id"], round(min(0.7, max(0.4, tech["score"])), 2)
             return "conclude", best["id"], confidence
         if best["unknown"] == 0 and best["score"] > 0:
             # another cause that could still match MORE signals? ask its open question first
@@ -147,6 +167,12 @@ def next_step(conv: st.Conversation) -> tuple[str, str, float]:
                     if qid:
                         return "ask", qid, 0.0
             return "conclude", best["id"], confidence
+        # KB: ask along likelihood_order among the causes that are still possible
+        order = {cid: i for i, cid in enumerate(kb().get("likelihood_order") or [])}
+        for cand in sorted((r for r in ranked if r["bad"] == 0), key=lambda r: order.get(r["id"], 99)):
+            qid = _next_question(d, cand["id"])
+            if qid:
+                return "ask", qid, 0.0
         for cand in ranked:
             qid = _next_question(d, cand["id"])
             if qid:
@@ -164,6 +190,7 @@ def context_block(conv: st.Conversation) -> dict:
         "symptom": kb()["symptom"],
         "first_message": d.get("complaint"),
         "strategy": kb()["strategy"],
+        "likelihood_order": kb().get("likelihood_order", []),
         "questions": [{"id": q["id"], "text": q["text"], "answers": q["answers"]} for q in kb()["questions"]],
         "causes": [{"id": c["id"], "label": c["label"], "signals": c["signals"], "outcome": c["outcome"],
                     "trade": c.get("trade"), **({"applies_if": c["applies_if"]} if c.get("applies_if") else {})}
@@ -189,14 +216,10 @@ def _options(qid: str) -> list[Option]:
 
 async def ask(contact, conv: st.Conversation, qid: str, lead: str | None = None) -> None:
     d = conv.diagnosis
-    if qid == SAFETY_QID:
-        text = kb()["safety_first"]["question"]
-        opts = [Option(f"diag:{SAFETY_QID}:yes", "Yes, I smell gas"), Option(f"diag:{SAFETY_QID}:no", "No gas smell")]
-    else:
-        if len(d["asked"]) >= MAX_QUESTIONS:
-            raise ValueError("max questions reached; conclude now")
-        text, opts = questions()[qid]["text"], _options(qid)
-        d["asked"].append(qid)
+    if len(d["asked"]) >= MAX_QUESTIONS:
+        raise ValueError("max questions reached; conclude now")
+    text, opts = questions()[qid]["text"], _options(qid)
+    d["asked"].append(qid)
     conv.step = st.DIAGNOSIS
     conv.asked_at[st.DIAGNOSIS] = time.monotonic()
     await out.buttons(contact, conv.case_id, f"{lead} {text}" if lead else text, opts)
@@ -224,12 +247,36 @@ def facts_from_centrix(contact, conv: st.Conversation) -> None:
 
 
 async def begin(contact, conv: st.Conversation, complaint: str | None) -> None:
-    """Start: empathy line + safety question (code, always first)."""
+    """Start (KB PR 90): no proactive gas question. centrix context first, then the model takes
+    everything the first message says and asks the one best question (max 3)."""
+    from . import loop
+
     start(conv, complaint)
+    conv.diagnosis["safety_done"] = True  # gas only matters if the tenant mentions it (router checks every text)
     facts_from_centrix(contact, conv)
-    name = (be.attr(contact, "name") or "").split(" ")[0]
-    lead = f"Oh no{', ' + name if name else ''}, a cold shower is the worst 😕 Let me figure out what's going on."
-    await ask(contact, conv, SAFETY_QID, lead=lead)
+    from . import flow
+
+    code, _src = flow.detect_error_code([complaint or ""], [])
+    if code:  # "the display shows F.28" in the first message answers q_display
+        conv.error_code = conv.error_code or code
+        conv.diagnosis["answers"]["q_display"] = "code"
+    if await apply_centrix_shortcuts(contact, conv):
+        return
+    await loop.run_tenant_turn(
+        contact,
+        f"[New hot-water report: \"{complaint}\". Record every answer this message already gives, then ask the one "
+        "question that best splits the likeliest causes, or conclude if it's already clear.]")
+
+
+def safety_from_text(text: str | None) -> str | None:
+    """'yes' if the resident clearly reports a gas smell, 'no' if they clearly rule it out, else None."""
+    if not text:
+        return None
+    if GAS_NO_RE.search(text):
+        return "no"
+    if GAS_YES_RE.search(text):
+        return "yes"
+    return None
 
 
 # ------------------------------------------------------------------ answers (taps or mapped free text)
@@ -244,6 +291,10 @@ async def on_answer(contact, qid: str, key: str) -> None:
         d["safety_done"] = True
         if key == "yes":
             await conclude(contact, conv, "gas_smell", 1.0, "Resident reports a gas smell (safety question).")
+            return
+        last = d["asked"][-1] if d["asked"] else None
+        if last and last not in d["answers"]:  # a late "no gas" while another question is open: keep it open
+            await out.text(contact, conv.case_id, "Thanks, good to know 👍")
             return
         if await apply_centrix_shortcuts(contact, conv):
             return
@@ -312,6 +363,11 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         return {"ok": True, "note": "already concluded"}
     if cause_id != "gas_smell" and cause_id not in causes():
         raise ValueError(f"unknown cause {cause_id}")
+    if cause_id != "gas_smell" and d.get("answers"):
+        contra = contradictions(d, cause_id, conv.error_code)
+        if contra and cause_id not in {r["id"] for r in score(d, conv.error_code)}:
+            raise ValueError(f"{cause_id} contradicts the answers ({', '.join(contra)}); pick another cause "
+                             "or ask a question")
     d["concluded"] = cause_id
     rec = diagnosis_record(conv, cause_id, confidence, reasoning)
     complaint = d.get("complaint") or "No hot water"

@@ -84,7 +84,10 @@ def natural_text(body: str, options: list[Option], is_list: bool = False) -> str
     lists (time slots) get their options in one soft line. Numbers still work as input."""
     if not is_list:
         return body
-    real = [o.title for o in options if not o.id.startswith("slot_none:")]
+    from app.agent.flow import natural_when
+
+    real = [natural_when(o.title) if o.id.startswith("slot_") else o.title
+            for o in options if not o.id.startswith("slot_none:")]
     none = next((o for o in options if o.id.startswith("slot_none:")), None)
     if not real:
         return body

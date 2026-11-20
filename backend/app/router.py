@@ -99,7 +99,14 @@ async def handle_inbound(msg: InboundMessage) -> None:
 
     from app.agent import diagnosis
 
-    # "My shower is cold": start the diagnosis (safety question first, asked by code)
+    # Gas smell / hissing mentioned anywhere → emergency path at once (never asked proactively)
+    if text and diagnosis.safety_from_text(text) == "yes" and conv.step != st.CLOSED:
+        async with _locks[cid]:
+            if not conv.diagnosis or conv.diagnosis.get("concluded"):
+                diagnosis.start(conv, text)
+            await diagnosis.conclude(contact, conv, "gas_smell", 1.0, f"Tenant mentions a gas smell: \"{text[:120]}\"")
+        return
+    # "My shower is cold": start the diagnosis (no gas question; centrix first, then max 3 questions)
     if (text and not conv.case_id and not conv.diagnosis and conv.step == st.NEW and diagnosis.applies(text)):
         conv.tenant_texts.append(text)
         async with _locks[cid]:
@@ -114,7 +121,7 @@ async def handle_inbound(msg: InboundMessage) -> None:
 
     # A free-text answer to the open question ("sure", "just the shower", "Saturday works") is handled
     # exactly like the tap, so consent/slots are really recorded before anything is confirmed.
-    in_diagnosis = diagnosis.active(conv) and conv.diagnosis.get("safety_done")
+    in_diagnosis = diagnosis.active(conv)
     if text and not images and conv.pending_options and not in_diagnosis:
         # (during a diagnosis the model reads the whole message and records every answer in it;
         #  only the safety question is mapped here, by code)

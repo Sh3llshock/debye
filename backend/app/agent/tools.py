@@ -122,6 +122,12 @@ for s in SCHEMAS:
 
 
 async def _reply(ctx: TurnContext, text: str) -> dict:
+    from . import diagnosis
+
+    d = ctx.conv.diagnosis
+    if diagnosis.active(ctx.conv) and d.get("asked") and d["asked"][-1] not in d["answers"] and "?" in text:
+        raise ValueError(f"Question {d['asked'][-1]} is still open: don't ask anything in plain text. Record what the "
+                         "resident said, or send a short acknowledgement without a question, or nothing.")
     await out.text(ctx.contact, ctx.conv.case_id, text)
     ctx.sent += 1
     return {"ok": True, "delivered": True}
@@ -213,8 +219,6 @@ async def _ask_question(ctx: TurnContext, question_id: str, lead_in: str | None)
     if not diagnosis.active(ctx.conv):
         raise ValueError("no diagnosis running")
     d = ctx.conv.diagnosis
-    if not d.get("safety_done"):
-        raise ValueError("Wait: the safety question (gas smell) must be answered first; send nothing now.")
     if question_id not in diagnosis.questions():
         raise ValueError(f"unknown question {question_id}")
     if question_id in d["answers"]:

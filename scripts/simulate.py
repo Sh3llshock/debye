@@ -262,11 +262,60 @@ class Sim:
         self.webhook(LUKA, "Luka", audio_msg(audio))
         # Debye may answer the voice note and stay quiet on the follow-up photo
         self.webhook(LUKA, "Luka", image_msg(photo, "This is what the boiler shows"), expect_reply=False)
+        if self.diagnosis_running():  # hot-water voice note → Debye diagnoses first (gas question, ≤5 questions)
+            self.answer_diagnosis()
+            return
         cases = self._check(self.c.get("/api/staff/cases"))
         cid = cases[0]["case_id"] if cases else ""
         oid = self.option_id(LUKA, "cold_all", f"cold_all:{cid}")
         self.log("Luka", "taps 'All cold'")
         self.webhook(LUKA, "Luka", button_reply(oid, "All cold"))
+
+    # Answers for the boiler-fault story (radiators cold too, F.28 on the display)
+    DIAGNOSIS_TRUTH = {"q_safety": "no", "q_scope": "everywhere", "q_radiators": "yes", "q_display": "code",
+                       "q_recent_use": "no", "q_waited": "yes", "q_timing": "stays_cold", "q_power": "yes",
+                       "q_gas_stove": "yes", "q_pressure": "ok", "q_other_tap": "no", "q_heater_type": "no",
+                       "q_knob": "correct", "q_recent_work": "no", "q_handle_feel": "normal", "q_weather_pipe": "no"}
+
+    def _last_option_ids(self, phone: str) -> list[str]:
+        for item in reversed(self.outbox_all):
+            if _to(item) == phone and _option_ids(item):
+                return list(_option_ids(item))
+        return []
+
+    def _last_text(self, phone: str) -> str:
+        for item in reversed(self.outbox_all):
+            if _to(item) == phone:
+                return _describe(item)
+        return ""
+
+    def diagnosis_running(self) -> bool:
+        ids = self._last_option_ids(LUKA)
+        return any(i.startswith("diag:") for i in ids) and not any(i.startswith("consent_") for i in ids)
+
+    def answer_diagnosis(self) -> None:
+        """Answer Debye's diagnosis questions (gas: no) until it asks for consent."""
+        gas_answered = False
+        for _ in range(8):
+            ids = self._last_option_ids(LUKA)
+            if any(i.startswith("consent_") for i in ids):
+                return
+            diag = [i for i in ids if i.startswith("diag:")]
+            if not gas_answered and "gas" in self._last_text(LUKA).lower()                     and not any(i.startswith("diag:q_safety:") for i in diag):
+                gas_answered = True  # gas question re-asked inside another question: answer it in words
+                self.log("Luka", "No gas smell.")
+                self.webhook(LUKA, "Luka", text_msg("No gas smell."))
+                continue
+            if any(i.startswith("diag:q_safety:") for i in diag):
+                gas_answered = True
+            if not diag:
+                return
+            qid = diag[0].split(":")[1]
+            key = self.DIAGNOSIS_TRUTH.get(qid) or diag[0].split(":")[2]
+            oid = next((i for i in diag if i == f"diag:{qid}:{key}"), diag[0])
+            label = "No gas smell" if qid == "q_safety" else f"{qid} = {oid.split(':')[2]}"
+            self.log("Luka", f"answers {label}")
+            self.webhook(LUKA, "Luka", button_reply(oid, label))
 
     def neighbour(self) -> None:
         self.log("Jonas", "Our heating on the first floor is cold too.")

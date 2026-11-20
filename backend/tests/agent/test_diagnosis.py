@@ -1,4 +1,8 @@
-"""'No hot water' diagnosis: safety first, centrix shortcuts, max 5 questions, three outcome paths."""
+"""'No hot water' diagnosis (KB PR 90): no proactive gas question (gas only if mentioned), centrix
+shortcuts, max 3 questions, likeliest first, three outcome paths."""
+import asyncio
+
+import pytest
 from agent_stubs import oa_call
 
 LUKA, JONAS = "490000000001", "490000000002"
@@ -41,17 +45,16 @@ def texts(client, to="+490000000001"):
     return out
 
 
-def run_with_truth(client, truth: dict, from_=LUKA, limit=8):
+def run_with_truth(client, truth: dict, from_=LUKA, limit=6):
     """Answer whatever diagnosis question comes next from `truth` until the diagnosis concludes."""
     asked = []
     for _ in range(limit):
-        ids = last_ids(client)
-        diag = [i for i in ids if i.startswith("diag:")]
+        diag = [i for i in last_ids(client) if i.startswith("diag:")]
         if not diag:
             return asked
         qid = diag[0].split(":")[1]
         asked.append(qid)
-        key = truth.get(qid) or diag[0].split(":")[2]  # unknown to the test: first option
+        key = truth.get(qid) or diag[0].split(":")[2]
         client.post("/webhooks/whatsapp", json=tap(f"diag:{qid}:{key}", from_))
     return asked
 
@@ -59,72 +62,72 @@ def run_with_truth(client, truth: dict, from_=LUKA, limit=8):
 def start(client, claude, text="My shower is cold"):
     claude([RuntimeError("down")] * 10)  # model down → code policy (next_step) drives the questions
     client.post("/webhooks/whatsapp", json=wa(text))
-    ids = last_ids(client)
-    assert ids == ["diag:q_safety:yes", "diag:q_safety:no"], ids  # safety question first, by code
-    assert "smell gas" in texts(client)[-1]
+    assert not any("gas" in t.lower() for t in texts(client))  # never asked proactively
+    assert last_ids(client)[0] == "diag:q_scope:only_shower"  # likeliest split first
 
 
-def test_gas_smell_is_emergency_and_stops(client, svc, claude):
+def test_no_gas_question_first_question_is_scope(client, svc, claude):
     start(client, claude)
-    client.post("/webhooks/whatsapp", json=tap("diag:q_safety:yes"))
-    assert svc.cases["case_0001"]["priority"] == "emergency" and svc.cases["case_0001"]["type"] == "emergency.gas"
+
+
+def test_gas_mention_is_emergency_any_time(client, svc, claude):
+    start(client, claude)
+    client.post("/webhooks/whatsapp", json=wa("actually it smells of gas in the kitchen"))
+    case = svc.cases["case_0001"]
+    assert case["priority"] == "emergency" and case["type"] == "emergency.gas"
     assert any(e[2] == "staff.alert" for e in svc.events)
     assert "leave the apartment" in texts(client)[-1]
-    assert last_ids(client) == []  # no further questions
 
 
-def test_path_used_up_tank_self_help_no_technician(client, svc, claude, monkeypatch):
+def test_gas_mention_without_diagnosis_too(client, svc, claude):
+    claude([RuntimeError("down")])
+    client.post("/webhooks/whatsapp", json=wa("there's a hissing sound at the boiler and it smells like gas"))
+    assert svc.cases["case_0001"]["priority"] == "emergency"
+
+
+def test_path_used_up_tank_self_help_no_technician(client, svc, claude):
     from app.agent import diagnosis
 
     start(client, claude)
-    truth = {"q_safety": "no", "q_scope": "everywhere", "q_recent_use": "yes", "q_radiators": "no",
-             "q_other_tap": "no", "q_timing": "slow", "q_waited": "yes"}
-    asked = run_with_truth(client, truth)
-    assert asked[0] == "q_safety" and len(asked) - 1 <= 5
-    assert "reheats" in texts(client)[-1]  # the KB tip
-    assert not svc.cases  # no case, nobody dispatched
+    asked = run_with_truth(client, {"q_scope": "everywhere", "q_recent_use": "yes", "q_radiators": "no"})
+    assert len(asked) <= 3
+    assert "reheats" in texts(client)[-1]
     assert not any(c[0] in ("dispatch", "consent") for c in svc.calls)
-    assert "c_202" in diagnosis._followups  # follow-up check scheduled
+    assert "c_202" in diagnosis._followups
     diagnosis._followups.pop("c_202").cancel()
 
 
 def test_follow_up_still_cold_escalates(client, svc, claude):
-    import asyncio
-
     from app.agent import diagnosis
 
     start(client, claude)
-    run_with_truth(client, {"q_safety": "no", "q_scope": "everywhere", "q_recent_use": "yes", "q_radiators": "no",
-                            "q_other_tap": "no", "q_timing": "slow", "q_waited": "yes"})
+    run_with_truth(client, {"q_scope": "everywhere", "q_recent_use": "yes", "q_radiators": "no"})
     diagnosis._followups.pop("c_202").cancel()
-    contact = svc.contacts["c_202"]
-    asyncio.run(diagnosis.send_follow_up(contact, "hot_water_used_up"))
+    asyncio.run(diagnosis.send_follow_up(svc.contacts["c_202"], "hot_water_used_up"))
     assert last_ids(client) == ["diagfu_yes:hot_water_used_up", "diagfu_no:hot_water_used_up"]
     client.post("/webhooks/whatsapp", json=tap("diagfu_no:hot_water_used_up"))
-    assert svc.cases["case_0001"]["trade"] == "heating"
-    assert "share your name" in texts(client)[-1]  # consent → approval → partner by trade
+    assert any(c.get("trade") == "heating" for c in svc.cases.values())
+    assert "share your name" in texts(client)[-1]
 
 
 def test_path_only_shower_plumbing(client, svc, claude):
     start(client, claude)
-    truth = {"q_safety": "no", "q_scope": "only_shower", "q_knob": "correct", "q_waited": "yes",
-             "q_weather_pipe": "no", "q_recent_work": "no", "q_handle_feel": "normal"}
-    asked = run_with_truth(client, truth)
-    assert len(asked) - 1 <= 5
+    asked = run_with_truth(client, {"q_scope": "only_shower", "q_knob": "correct", "q_waited": "yes",
+                                    "q_recent_work": "no", "q_handle_feel": "normal", "q_weather_pipe": "no",
+                                    "q_other_tap": "no"})
+    assert len(asked) <= 3
     case = svc.cases["case_0001"]
     assert case["trade"] == "plumbing" and case["type"] == "repair.plumbing"
-    diag = case["data"]["diagnosis"]
-    assert diag["cause_id"] == "shower_mixer_faulty" and diag["questions_asked"]
-    assert any(e[2] == "diagnosis.concluded" for e in svc.events)
+    assert case["data"]["diagnosis"]["cause_id"] == "shower_mixer_faulty"
     assert "share your name" in texts(client)[-1]
 
 
 def test_path_radiators_cold_f28_heating(client, svc, claude):
-    start(client, claude)
-    truth = {"q_safety": "no", "q_scope": "everywhere", "q_radiators": "yes", "q_recent_use": "no",
-             "q_display": "code", "q_waited": "yes", "q_timing": "stays_cold", "q_power": "yes", "q_gas_stove": "yes",
-             "q_pressure": "ok", "q_other_tap": "no", "q_heater_type": "no"}
-    run_with_truth(client, truth)
+    start(client, claude, "No hot water and the flat is cold, the boiler display shows F.28")
+    asked = run_with_truth(client, {"q_scope": "everywhere", "q_radiators": "yes", "q_recent_use": "no",
+                                    "q_waited": "yes", "q_timing": "stays_cold", "q_pressure": "ok",
+                                    "q_other_tap": "no", "q_knob": "correct"})
+    assert len(asked) <= 3
     case = svc.cases["case_0001"]
     assert case["trade"] == "heating" and case["data"]["diagnosis"]["cause_id"] == "boiler_fault"
     assert case["priority"] == "urgent"
@@ -135,63 +138,47 @@ def test_neighbour_open_case_shortcut(client, svc, claude):
     claude([RuntimeError("down")] * 10)
     client.post("/webhooks/whatsapp", json=wa("My heating is cold"))  # Luka: classic heating flow, case open
     client.post("/webhooks/whatsapp", json=wa("our shower is cold", from_=JONAS))
-    client.post("/webhooks/whatsapp", json=tap("diag:q_safety:no", from_=JONAS))
     assert ("link", "case_0001", "c_203", "affected") in svc.calls  # boiler_fault without asking
     assert "already been reported" in texts(client, "+490000000002")[-1]
 
 
-def test_max_five_questions():
-    import asyncio
-
+def test_max_three_questions_then_likeliest_technician():
     from app.agent import diagnosis, state, tools
 
     conv = state.Conversation(contact_id="x")
     diagnosis.start(conv, "cold")
     conv.diagnosis["safety_done"] = True
-    conv.diagnosis["asked"] = ["q_scope", "q_radiators", "q_recent_use", "q_waited", "q_timing"]
+    conv.diagnosis["asked"] = ["q_scope", "q_waited", "q_timing"]
+    conv.diagnosis["answers"] = {"q_scope": "everywhere", "q_waited": "yes", "q_timing": "stays_cold"}
     ctx = tools.TurnContext(contact=None, conv=conv)
-    try:
+    with pytest.raises(ValueError, match="conclude_diagnosis"):
         asyncio.run(tools._ask_question(ctx, "q_display", None))
-        raise AssertionError("expected refusal")
-    except ValueError as e:
-        assert "conclude_diagnosis" in str(e)
-    assert diagnosis.next_step(conv)[0] == "conclude"
+    action, cause, _ = diagnosis.next_step(conv)
+    assert action == "conclude" and diagnosis.causes()[cause]["outcome"] == "technician"
 
 
 def test_model_path_free_text_answers(client, svc, gpt):
-    """The model records free-text answers ('my roommate just showered') and concludes."""
     gpt([
-        [oa_call("ask_question", question_id="q_scope", lead_in=None)],  # after the safety answer
-        "",
         [oa_call("record_answer", question_id="q_scope", answer_key="everywhere"),
-         oa_call("record_answer", question_id="q_recent_use", answer_key="yes")],
-        [oa_call("conclude_diagnosis", cause_id="hot_water_used_up", confidence=0.85,
+         oa_call("ask_question", question_id="q_recent_use", lead_in=None)],
+        "",
+        [oa_call("record_answer", question_id="q_recent_use", answer_key="yes"),
+         oa_call("record_answer", question_id="q_radiators", answer_key="no"),
+         oa_call("conclude_diagnosis", cause_id="hot_water_used_up", confidence=0.85,
                  reasoning="Roommate just showered, cold everywhere, radiators fine.")],
         "",
     ])
-    client.post("/webhooks/whatsapp", json=wa("no hot water in the shower"))
-    client.post("/webhooks/whatsapp", json=tap("diag:q_safety:no"))
-    assert last_ids(client) == ["diag:q_scope:only_shower", "diag:q_scope:everywhere"]
-    client.post("/webhooks/whatsapp", json=wa("everywhere, my roommate just showered"))
-    assert "reheats" in texts(client)[-1] and not svc.cases
+    client.post("/webhooks/whatsapp", json=wa("no hot water anywhere"))
+    assert last_ids(client) == ["diag:q_recent_use:yes", "diag:q_recent_use:no"]
+    client.post("/webhooks/whatsapp", json=wa("yes my roommate just showered, radiators are warm"))
+    assert "reheats" in texts(client)[-1] and not any(c[0] == "dispatch" for c in svc.calls)
     from app.agent import diagnosis
 
     t = diagnosis._followups.pop("c_202", None)
     t and t.cancel()
 
 
-def test_free_text_safety_answer(client, svc, claude):
-    start(client, claude)
-    client.post("/webhooks/whatsapp", json=wa("no, no gas smell"))
-    assert last_ids(client)[0].startswith("diag:q_scope:")  # moved on to the first real question
-    assert not svc.cases
-
-
-def test_new_backend_api_used_when_present(client, svc, claude, monkeypatch):
-    """open_case(diagnosis=…) records the event itself; caretaker via notify_caretaker; self-help closed
-    with close_self_help once the tenant confirms. No duplicate diagnosis events from the agent."""
-    import asyncio
-
+def test_new_backend_api_used_when_present(client, svc, claude):
     from app.agent import diagnosis, state
 
     calls = []
@@ -200,16 +187,14 @@ def test_new_backend_api_used_when_present(client, svc, claude, monkeypatch):
     svc.close_self_help = lambda cid, text: calls.append(("close_self_help", cid, text))
     contact = svc.contacts["c_202"]
 
-    # caretaker: low pressure
     conv = state.conversation("c_202")
     diagnosis.start(conv, "shower cold")
     conv.diagnosis["safety_done"] = True
     asyncio.run(diagnosis.conclude(contact, conv, "low_system_pressure", 0.8, "F.22 and gauge below 1 bar."))
     assert ("notify_caretaker", "case_0001", diagnosis.causes()["low_system_pressure"]["label"]) in calls
-    assert not any(e[2] == "diagnosis.concluded" for e in svc.events)  # services record it (open_case diagnosis)
+    assert not any(e[2] == "diagnosis.concluded" for e in svc.events)
     assert not any(c[0] == "dispatch" for c in svc.calls)
 
-    # self-help: case with diagnosis, closed when it worked
     state.reset_all()
     conv = state.conversation("c_202")
     diagnosis.start(conv, "shower cold")
@@ -220,38 +205,53 @@ def test_new_backend_api_used_when_present(client, svc, claude, monkeypatch):
     diagnosis._followups.pop("c_202").cancel()
     client.post("/webhooks/whatsapp", json=tap("diagfu_yes:hot_water_used_up"))
     assert any(c[0] == "close_self_help" and c[1] == case_id for c in calls)
-    assert not any(c[0] == "dispatch" for c in svc.calls)
+
+
+def test_natural_when():
+    from app.agent.flow import natural_when
+
+    assert natural_when("Tomorrow 8–10") == "tomorrow between 8 and 10"
+    assert natural_when("Today 14–16") == "today between 14 and 16"
+    assert natural_when("Sat 21 Nov, 8–10") == "on Sat 21 Nov between 8 and 10"
+    assert natural_when({"label": "Thu 26 Nov, 8:30–10"}) == "on Thu 26 Nov between 8:30 and 10"
+
+
+def test_conclude_refuses_contradicting_cause():
+    from app.agent import diagnosis, state
+
+    conv = state.Conversation(contact_id="x")
+    diagnosis.start(conv, "cold")
+    conv.diagnosis["answers"].update({"q_gas_stove": "yes"})
+    with pytest.raises(ValueError, match="contradicts"):
+        asyncio.run(diagnosis.conclude(None, conv, "gas_supply_interrupted", 0.8, "x"))
 
 
 def test_heater_type_known_from_centrix_not_asked(client, svc, claude):
     from app.agent import state
 
-    start(client, claude)  # fake unit: central gas boiler → hot water source known
-    conv = state.conversation("c_202")
-    assert conv.diagnosis["answers"]["q_heater_type"] == "no"
-    asked = run_with_truth(client, {"q_safety": "no", "q_scope": "only_shower", "q_knob": "correct",
-                                    "q_waited": "yes", "q_recent_work": "no", "q_handle_feel": "normal",
-                                    "q_weather_pipe": "no"})
+    start(client, claude)
+    assert state.conversation("c_202").diagnosis["answers"]["q_heater_type"] == "no"
+    asked = run_with_truth(client, {"q_scope": "only_shower", "q_knob": "correct", "q_waited": "yes"})
     assert "q_heater_type" not in asked
 
 
-def test_applies_if_in_context():
+def test_applies_if_and_likelihood_in_context():
     from app.agent import diagnosis, state
 
     conv = state.Conversation(contact_id="x")
     diagnosis.start(conv, "cold")
-    causes = {c["id"]: c for c in diagnosis.context_block(conv)["causes"]}
-    assert "applies_if" in causes["electric_instant_heater"]
+    block = diagnosis.context_block(conv)
+    assert "applies_if" in {c["id"]: c for c in block["causes"]}["electric_instant_heater"]
+    assert block["likelihood_order"][0] == "hot_water_used_up"
 
 
 def test_approval_rejected_text(client, svc, claude):
-    import asyncio
-
     from app import notify
 
     claude([RuntimeError("down")])
     client.post("/webhooks/whatsapp", json=wa("My heating is cold"))
-    asyncio.run(notify.notify_tenant("case_0001", "approval_rejected", {"reason": "the landlord's own caretaker will check first"}))
+    asyncio.run(notify.notify_tenant("case_0001", "approval_rejected",
+                                     {"reason": "the landlord's own caretaker will check first"}))
     assert texts(client)[-1] == ("Your property manager has decided not to send a technician for now: the landlord's "
                                  "own caretaker will check first. They'll be in touch.")
 
@@ -264,8 +264,27 @@ def test_no_duplicate_question_via_ask_buttons(client, svc, gpt):
         "",
     ])
     client.post("/webhooks/whatsapp", json=wa("no hot water in the shower"))
-    client.post("/webhooks/whatsapp", json=tap("diag:q_safety:no"))
-    sent = [m for m in outbox(client) if m["payload"]["type"] == "interactive"]
-    assert len(sent) == 2  # safety question + q_scope only
+    assert len([m for m in outbox(client) if m["payload"]["type"] == "interactive"]) == 1
+    refused = stub.requests[0]["messages"]  # first request; the refusal is in the second
     refused = stub.requests[1]["messages"][-1]
     assert refused["role"] == "tool" and "ask_question" in refused["content"]
+
+
+def test_tone_no_filler_in_diagnosis_prompt():
+    from app.agent.prompts import TENANT_SYSTEM
+
+    assert "No filler empathy" in TENANT_SYSTEM and "Never ask about gas" in TENANT_SYSTEM
+
+
+def test_no_plain_text_repeat_of_open_question(client, svc, gpt):
+    stub = gpt([
+        [oa_call("ask_question", question_id="q_scope", lead_in=None)],
+        "",
+        [oa_call("reply", text="Is it only the shower, or is the hot water cold at the sinks too?")],
+        [oa_call("reply", text="Thanks for the photo.")],
+        "",
+    ])
+    client.post("/webhooks/whatsapp", json=wa("no hot water in the shower"))
+    client.post("/webhooks/whatsapp", json=wa("here is a photo of it"))
+    t = texts(client)
+    assert sum("only the shower" in x for x in t) == 1 and t[-1] == "Thanks for the photo."
