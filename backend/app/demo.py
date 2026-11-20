@@ -8,6 +8,8 @@ POST /demo/sim-media             upload a file → {"media_id": "sim-..."} (for 
 """
 from __future__ import annotations
 
+import asyncio
+
 import uuid
 from datetime import timedelta
 from pathlib import Path
@@ -21,6 +23,10 @@ from .events import publish, record_event
 from .models import Case, Contact, Document
 from .partners.manifest import Manifest
 from .seed import seed
+
+import logging
+
+log = logging.getLogger("debye.demo")
 
 router = APIRouter(prefix="/demo", tags=["demo"])
 
@@ -66,17 +72,42 @@ async def reset(scenarios: bool = False) -> dict:
     return {"ok": True}
 
 
+_scenarios_lock = asyncio.Lock()
+SCENARIO_ATTEMPTS = 2
+
+
 @router.post("/scenarios")
 async def load_scenarios() -> dict:
     """Reset, then create realistic cases through the real services (app/scenarios.py).
-    Luka's unit 4b and Jonas' unit 2a stay empty for the live WhatsApp demo."""
+    Luka's unit 4b and Jonas' unit 2a stay empty for the live WhatsApp demo.
+
+    All-or-nothing: the services commit step by step, so instead of one DB transaction every attempt
+    starts from a fresh reset, and any failure (e.g. MemoryError on a busy laptop) resets again.
+    It retries once; if that fails too, the DB is left as the clean, empty seed and the call returns 503.
+    Never a half-loaded state. Concurrent calls are serialised."""
     from . import scenarios as sc
     _require_demo()
-    seed(reset=True)
-    _reset_agent_state()
-    created = await sc.load()
-    await publish("demo.reset", None, {"ts": now_iso(), "scenarios": len(created)})
-    return {"ok": True, "cases": created}
+    async with _scenarios_lock:
+        error = None
+        for attempt in range(1, SCENARIO_ATTEMPTS + 1):
+            seed(reset=True)
+            _reset_agent_state()
+            try:
+                created = await sc.load()
+                expected = len(sc.SCENARIOS)
+                if len(created) != expected:
+                    raise RuntimeError(f"only {len(created)} of {expected} scenarios loaded")
+            except Exception as e:  # MemoryError is an Exception too
+                error = e
+                log.exception("demo scenarios failed (attempt %d/%d)", attempt, SCENARIO_ATTEMPTS)
+                seed(reset=True)  # roll back to the clean seed (also resets the demo clock)
+                _reset_agent_state()
+                continue
+            await publish("demo.reset", None, {"ts": now_iso(), "scenarios": len(created)})
+            return {"ok": True, "cases": created, "attempts": attempt}
+        await publish("demo.reset", None, {"ts": now_iso(), "scenarios": 0})
+        raise HTTPException(503, f"demo scenarios failed twice ({type(error).__name__}: {error}); "
+                                 "the database was reset to the empty seed, nothing half-loaded. Retry.")
 
 
 @router.post("/skip-to-tomorrow")

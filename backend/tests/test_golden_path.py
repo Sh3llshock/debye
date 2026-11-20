@@ -667,3 +667,34 @@ def test_partners_list_and_notices(client):
     r = client.post("/demo/trigger/maintenance_notice", json={"notice_id": "notice_12_maint", "active": True})
     assert r.json()["active"] is True
     assert services.get_unit_context("unit_4b")["notices"][0]["active"] is True
+
+
+def test_demo_scenarios_never_half_loaded(client, monkeypatch):
+    from app import scenarios as sc
+    from app.config import now as clock_now
+    from datetime import datetime as _dt
+    calls = {"n": 0}
+    original = sc.s6_self_help
+
+    def flaky():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise MemoryError("simulated low RAM")
+        return original()
+
+    # fails once in the middle (after earlier scenarios already committed) → retried from a clean reset
+    monkeypatch.setattr(sc, "SCENARIOS", [flaky if f is original else f for f in sc.SCENARIOS])
+    r = client.post("/demo/scenarios")
+    assert r.status_code == 200, r.text
+    assert r.json()["attempts"] == 2 and len(r.json()["cases"]) == 9
+    assert len(client.get("/api/staff/cases").json()) == 9  # no leftovers from the failed attempt
+    assert abs((clock_now() - _dt.now(clock_now().tzinfo)).total_seconds()) < 5  # clock not left shifted
+
+    # fails every time → 503 and a clean, empty seed (not 3 stray cases)
+    def broken():
+        raise MemoryError("still low RAM")
+    monkeypatch.setattr(sc, "SCENARIOS", [broken if f is flaky else f for f in sc.SCENARIOS])
+    r = client.post("/demo/scenarios")
+    assert r.status_code == 503 and "reset to the empty seed" in r.json()["detail"]
+    assert client.get("/api/staff/cases").json() == []
+    assert client.get("/api/staff/units").json()  # seed itself is intact
