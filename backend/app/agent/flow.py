@@ -106,6 +106,12 @@ async def ensure_case(
         conv.case_id, conv.step = cid, st.DISPATCHED
         _flush_inputs(conv)
         return {"case_id": cid, "duplicate": True}
+    from .priority import enforce_priority
+
+    model_priority = priority
+    priority, raised = enforce_priority(priority, type_, summary, symptoms, " ".join(conv.tenant_texts[-3:]))
+    if raised:
+        log.info("priority %s -> %s (%s)", model_priority, priority, raised)
     case = be.open_case(
         reporter_contact_id=be.attr(contact, "id"),
         type=type_,
