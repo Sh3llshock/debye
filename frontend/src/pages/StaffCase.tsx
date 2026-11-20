@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { DocumentItem } from '../api/types'
-import { Activity, Conversation, Inspector, PartnerChoice, ServiceLine, ZeroFormsStrip } from '../components/case/CasePanels'
+import { Activity, ApprovalCard, Conversation, Inspector, PartnerChoice, ServiceLine, ZeroFormsStrip } from '../components/case/CasePanels'
 import { useCrumbs } from '../components/Layout'
 import { ErrorBox, Loading, PriorityChip, StatusChip } from '../components/ui'
 import { fmtDateTime } from '../lib/format'
@@ -17,7 +17,8 @@ function waitingText(status: string, who: string, tech?: string) {
     case 'new':
       return t("waiting for {who}'s consent", { who })
     case 'awaiting_approval':
-      return t('waiting for your decision')
+    case 'approval_pending':
+      return t('waiting for your approval')
     case 'requested':
     case 'accepted':
       return t('waiting for partner times')
@@ -93,6 +94,8 @@ export default function StaffCase() {
           <ZeroFormsStrip c={c} />
         </div>
       </section>
+
+      <ApprovalCard c={c} onApprove={async () => setData(await api.approve(c.case_id))} onReject={async (reason) => setData(await api.reject(c.case_id, reason))} />
 
       <div className="grid grid-cols-1 gap-work xl:grid-cols-[minmax(0,1fr)_theme(spacing.conversation)_theme(spacing.inspector)]">
         <div className="flex min-w-0 flex-col gap-work xl:col-span-2">

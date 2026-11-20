@@ -31,6 +31,19 @@ export function fmtSlot(s?: Slot | null) {
   const tm = (d: Date) => d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit', timeZone: TZ })
   return `${day}, ${tm(a)}–${tm(b)}`
 }
+/** Short, relative slot for one-line summaries: "tomorrow 8–10", "Sat 21 Nov 14–16". */
+export function fmtSlotShort(s?: { start: string; end: string } | null) {
+  if (!s) return ''
+  const a = new Date(s.start)
+  const b = new Date(s.end)
+  const day = (x: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(x)
+  const h = (x: Date) => String(Number(new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', hour12: false }).format(x)))
+  const time = `${h(a)}–${h(b)}`
+  if (day(a) === day(new Date())) return t('today {time}', { time })
+  if (day(a) === day(new Date(Date.now() + 86400_000))) return t('tomorrow {time}', { time })
+  return `${a.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short', timeZone: TZ })} ${time}`
+}
+
 export function fmtEur(n?: number | null, cents = false) {
   if (n === null || n === undefined || isNaN(Number(n))) return '—'
   const v = Number(n)
@@ -56,6 +69,8 @@ export const STATUS: Record<string, { label: string; tone: ChipTone }> = {
   partner_declined: { label: 'Partner declined', tone: 'negative' },
   reopened: { label: 'Reopened', tone: 'warning' },
   awaiting_technician: { label: 'Technician to confirm', tone: 'warning' },
+  approval_pending: { label: 'Needs approval', tone: 'warning' },
+  rejected: { label: 'Rejected', tone: 'negative' },
 }
 export function statusInfo(s: string) {
   const x = STATUS[s]
