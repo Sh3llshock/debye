@@ -240,6 +240,12 @@ def test_approval_always_approve(client, monkeypatch):
     d = client.get(f"/api/staff/cases/{case.id}").json()
     assert d["status"] == "approval_pending" and d["approval"]["required"] is True
     assert d["partner"] is None
+    card = d["approval"]
+    assert card["partner"] == {"partner_id": "heizung-schmidt", "name": "Heizung Schmidt GmbH"}
+    assert card["amount_eur"] == d["estimated_cost_eur"]
+    assert card["suggested_technician"] == {"tech_id": "tech_tom", "name": "Tom Schmidt"}  # Vaillant, free first
+    assert card["suggested_slot"]["label"] == "Tomorrow 8–10"
+    assert client.get("/api/staff/cases").json()[0]["status"] == "approval_pending"
     assert [e["kind"] for e in d["events"]].count("approval.required") == 1
     assert "job.sent" not in [e["kind"] for e in d["events"]]
     d = client.post(f"/api/staff/cases/{case.id}/approve").json()
@@ -263,6 +269,8 @@ def test_approval_always_reject(client, monkeypatch):
     assert r.status_code == 200, r.text
     d = r.json()
     assert d["status"] == "rejected"
+    assert d["approval"]["rejected"] is True and d["approval"]["reason"] == "Caretaker fixes it tomorrow"
+    assert d["approval"]["suggested_technician"] is None
     ev = next(e for e in d["events"] if e["kind"] == "approval.rejected")
     assert ev["summary"] == "Staff rejected the job for Heizung Schmidt GmbH: Caretaker fixes it tomorrow"
     assert sent[-1] == ("approval_rejected", {"partner_name": "Heizung Schmidt GmbH",

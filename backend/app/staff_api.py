@@ -36,6 +36,26 @@ def case_summary(s, c: Case) -> dict:
     }
 
 
+def _approval_card(s, c: Case, approval: dict) -> dict:
+    """approval block for the staff card: partner + estimate, and while pending a suggested
+    technician/slot (what auto-assign would pick for the earliest free slot)."""
+    data = c.data or {}
+    out = {"required": approval.get("required", False), "rule": approval.get("rule"),
+           "granted": approval.get("granted", False), "rejected": bool(approval.get("rejected")),
+           "reason": approval.get("reason"), "amount_eur": c.estimated_cost_eur,
+           "partner": None, "suggested_technician": None, "suggested_slot": None}
+    pid = c.partner_id or data.get("pending_partner_id") or \
+        ((data.get("ranking") or [{}])[0].get("partner_id"))
+    p = s.get(Partner, pid) if pid else None
+    if p:
+        out["partner"] = {"partner_id": p.id, "name": p.manifest.get("name")}
+    if c.status in ("approval_pending", "awaiting_approval") and p:
+        sug = services.suggest_technician(c.id, p.id)
+        if sug:
+            out["suggested_technician"], out["suggested_slot"] = sug["technician"], sug["slot"]
+    return out
+
+
 def case_detail(s, c: Case) -> dict:
     out = case_summary(s, c)
     data = c.data or {}
@@ -73,8 +93,7 @@ def case_detail(s, c: Case) -> dict:
         else {"error_code": c.error_code, "error_label": services.error_label(c.error_code)},
         "cost_bearer": c.cost_bearer,
         "estimated_cost_eur": c.estimated_cost_eur,
-        "approval": {"required": approval.get("required", False), "rule": approval.get("rule"),
-                     "granted": approval.get("granted", False)},
+        "approval": _approval_card(s, c, approval),
         "slot": {"start": c.slot_start, "end": c.slot_end} if c.slot_start else None,
         "technician": ({"tech_id": data["technician"]["tech_id"], "name": data["technician"]["name"]}
                        if data.get("technician") else None),

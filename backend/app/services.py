@@ -560,6 +560,25 @@ def _pick_technician(s, case: Case, partner_id: str, slots: list[dict]):
     return best, reason
 
 
+def suggest_technician(case_id: str, partner_id: str) -> dict | None:
+    """For the staff approval card: the technician auto-assign would pick for the earliest free slot.
+    {"technician": {tech_id, name}, "slot": {start, end, label}} or None (partner has no technicians)."""
+    from .partners.technicians import free_slots
+    with get_session() as s:
+        case = s.get(Case, case_id)
+        if not case:
+            return None
+        techs = s.exec(select(Technician).where(Technician.partner_id == partner_id)).all()
+        slots = sorted({(sl["start"], sl["end"]) for t in techs for sl in free_slots(t.busy)})
+        for start, end in slots:
+            slot = {"start": start, "end": end}
+            tech, _ = _pick_technician(s, case, partner_id, [slot])
+            if tech:
+                return {"technician": {"tech_id": tech.id, "name": tech.name},
+                        "slot": {**slot, "label": case_label_slot(start, end, _tenant_language(s, case))}}
+    return None
+
+
 def propose_slots(case_id: str, partner_id: str, slots: list[dict],
                   tech_id: str | None = None) -> list[dict]:
     """slots: [{start, end}] ISO → stored with labels; returns [{start, end, label}].
