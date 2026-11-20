@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-LENA = "whatsapp:+490000000001"
+LUKA = "whatsapp:+490000000001"
 
 
 class FakeTwilioHTTP:
@@ -37,8 +37,8 @@ def tw(monkeypatch, svc):
 
 
 def post_twilio(client, **params):
-    base = {"From": LENA, "To": "whatsapp:+4915888620339", "MessageSid": f"SMin{abs(hash(str(params))) % 10**8}",
-            "NumMedia": "0", "ProfileName": "Lena"}
+    base = {"From": LUKA, "To": "whatsapp:+4915888620339", "MessageSid": f"SMin{abs(hash(str(params))) % 10**8}",
+            "NumMedia": "0", "ProfileName": "Luka"}
     base.update(params)
     r = client.post("/webhooks/twilio", data=base)
     assert r.status_code == 200 and "<Response>" in r.text
@@ -65,7 +65,7 @@ def test_signature_validation(client, svc, monkeypatch):
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://tunnel.example.test")
     monkeypatch.delenv("TWILIO_VALIDATE_SIGNATURE", raising=False)
     monkeypatch.setattr(twilio, "parse_twilio", lambda p: SimpleNamespace(from_phone="", wa_message_id=None))
-    params = {"From": LENA, "Body": "hi", "MessageSid": "SMsig1", "NumMedia": "0"}
+    params = {"From": LUKA, "Body": "hi", "MessageSid": "SMsig1", "NumMedia": "0"}
     assert client.post("/webhooks/twilio", data=params, headers={"X-Twilio-Signature": "nope"}).status_code == 403
     good = twilio.expected_signature("https://tunnel.example.test/webhooks/twilio", params, "test-token")
     assert client.post("/webhooks/twilio", data=params, headers={"X-Twilio-Signature": good}).status_code == 200
@@ -81,7 +81,7 @@ def test_numbered_buttons_roundtrip(client, svc, claude, tw):
     claude([RuntimeError("down")])  # scripted flow, deterministic
     post_twilio(client, Body="Hallo, meine Heizung ist kalt")
     sent = tw.posts[-1]["data"]
-    assert sent["From"] == "whatsapp:+4915888620339" and sent["To"] == LENA
+    assert sent["From"] == "whatsapp:+4915888620339" and sent["To"] == LUKA
     assert "1 = Überall kalt" in sent["Body"] and "2 = Nur ein Raum" in sent["Body"]
     assert tw.posts[-1]["auth"] == ("ACtest", "test-token")
     assert sent["StatusCallback"] == "https://debye.example.test/webhooks/twilio/status"
@@ -143,7 +143,7 @@ def test_fake_send_still_uses_meta_outbox(client, svc, claude, monkeypatch):
     monkeypatch.setenv("WA_PROVIDER", "twilio")  # no Twilio creds → fake send → Meta-shaped outbox
     monkeypatch.delenv("TWILIO_ACCOUNT_SID", raising=False)
     claude([RuntimeError("down")])
-    client.post("/webhooks/twilio", data={"From": LENA, "Body": "Heizung kalt", "MessageSid": "SMfake1",
+    client.post("/webhooks/twilio", data={"From": LUKA, "Body": "Heizung kalt", "MessageSid": "SMfake1",
                                           "NumMedia": "0"})
     last = client.get("/webhooks/whatsapp/_outbox").json()["messages"][-1]["payload"]
     assert last["type"] == "interactive"  # simulator-compatible
