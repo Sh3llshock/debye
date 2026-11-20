@@ -138,6 +138,7 @@ def test_golden_path(client):
     assert staff["technician"] == {"tech_id": "tech_tom", "name": "Tom Schmidt"}
     ev = next(e for e in staff["events"] if e["kind"] == "technician.confirmed")
     assert ev["summary"].startswith("Technician Tom Schmidt confirmed ") and ev["summary"].endswith(" 08:00–10:00")
+    assert ev["data"]["slot"]["label"] == "Tomorrow 8–10"  # same slot dict goes to notify_tenant
 
     # partner completes with photo + invoice
     r = client.post(f"/api/partner/heizung-schmidt/jobs/{cid}/complete",

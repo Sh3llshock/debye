@@ -111,10 +111,11 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
 
     real.post("/webhooks/whatsapp", json=tap(LUKA, f"slot_1:{case_id}", "Morgen", kind="list_reply"))
     assert real.get(f"/api/staff/cases/{case_id}").json()["status"] == "awaiting_technician"
-    assert "update" in last(real, JONAS)["text"]["body"]
     r = real.post(f"/api/tech/{tech['tech_id']}/jobs/{case_id}/confirm")
     assert r.status_code == 200, r.text
     assert real.get(f"/api/staff/cases/{case_id}").json()["status"] == "scheduled"
+    assert tech["name"] in last(real, LUKA)["text"]["body"]  # tenant told who is coming
+    assert "update" in last(real, JONAS)["text"]["body"]  # neighbour told once the technician confirmed
 
     # partner completes with photo + invoice → "warm again?" → yes → closed
     r = real.post(f"/api/partner/{partner}/jobs/{case_id}/complete", data={"notes": "Zündelektrode getauscht"},

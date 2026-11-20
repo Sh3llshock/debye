@@ -586,6 +586,11 @@ def technician_confirm(case_id: str, tech_id: str) -> dict:
                                       f"job is {case.status}; the tenant has to pick a slot first")
         slot = {"start": case.slot_start, "end": case.slot_end}
         tech.busy = [*tech.busy, {**slot, "reason": f"job {case_id}"}]
+        # the label the tenant saw (tenant's language), so WhatsApp texts can reuse it
+        picked = next((sl for sl in (case.data or {}).get("proposed_slots") or []
+                       if sl.get("start") == slot["start"]), None)
+        slot["label"] = (picked or {}).get("label") or case_label_slot(
+            slot["start"], slot["end"], _tenant_language(s, case))
         s.add(tech)
         case.status = "scheduled"
         _patch_data(case, technician={"tech_id": tech.id, "name": tech.name,
