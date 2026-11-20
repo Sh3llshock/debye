@@ -1,10 +1,38 @@
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client'
-import { Documents } from '../components/case/CasePanels'
+import { Documents, UnitCard } from '../components/case/CasePanels'
+import { Icon } from '../components/icons'
 import { Card, Empty, ErrorBox, Field, Loading, StatusPill } from '../components/ui'
-import { fmtDate, fmtDateTime, fmtEur, humanize } from '../lib/format'
+import { fmtDate, fmtEur, fmtRelative } from '../lib/format'
 import { useStream } from '../lib/stream'
 import { useDebounced, useResource } from '../lib/useResource'
+
+export function StaffUnits() {
+  const { data, error, reload } = useResource(() => api.staffUnits(), [])
+  const refetch = useDebounced(reload, 300)
+  useStream(() => refetch())
+  return (
+    <div className="flex flex-col gap-gap">
+      <h1 className="text-3xl">Units</h1>
+      {error && !data && <ErrorBox error={error} onRetry={reload} />}
+      {!data && !error && <Loading what="Loading units" />}
+      <div className="grid grid-cols-1 gap-gap md:grid-cols-2 xl:grid-cols-3">
+        {data?.map((u) => (
+          <Link key={u.unit_id} to={`/staff/units/${u.unit_id}`} className="rounded-card border border-line bg-surface p-card-sm shadow-card transition-colors hover:border-plum">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-xl">Unit {u.unit_id.replace('unit_', '')}</h2>
+              {!!u.open_cases && <span className="rounded-pill bg-violet-soft px-3 py-0.5 text-sm font-semibold text-violet">{u.open_cases} open</span>}
+            </div>
+            <div className="mt-2 text-body-sm">{u.address}</div>
+            <div className="mt-1 text-sm text-muted">
+              {[u.floor != null ? `Floor ${u.floor}` : null, u.size_sqm ? `${u.size_sqm} m²` : null, u.tenant?.name].filter(Boolean).join(' · ')}
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function StaffUnit() {
   const { unitId = '' } = useParams()
@@ -14,70 +42,58 @@ export default function StaffUnit() {
 
   if (error && !u) return <ErrorBox error={error} onRetry={reload} />
   if (!u) return <Loading what="Loading unit" />
-  const p = u.property
-  const energy = p.energy_certificate?.class ?? p.energy_class
-  const label = (u.unit.id ?? u.unit.unit_id ?? unitId).replace('unit_', '')
+  const lease = { ...(u.lease ?? {}), ...((u.lease?.data as object) ?? {}) } as { rent_cold_eur?: number; start?: string }
+  const label = unitId.replace('unit_', '')
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-gap">
       <div>
-        <div className="label">Unit record</div>
-        <h1 className="text-3xl">Unit {label}</h1>
-        <div className="mt-1 text-lg text-muted">{p.address}</div>
+        <div className="text-body-sm text-muted">
+          <Link to="/staff/units" className="hover:text-plum">
+            Units
+          </Link>{' '}
+          / {(u.property?.address ?? '').split(',')[0]}
+        </div>
+        <h1 className="mt-2 text-3xl">Unit {label}</h1>
       </div>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card title="Unit">
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Floor">{u.unit.floor}</Field>
-            <Field label="Size">{u.unit.size_sqm ? `${u.unit.size_sqm} m²` : '—'}</Field>
-            <Field label="Rooms">{u.unit.rooms ?? '—'}</Field>
-            <Field label="Building year">{p.building_year ?? '—'}</Field>
-            <Field label="Heating">{humanize(p.heating_type)}{p.heating_central ? ' (central)' : ''}</Field>
-            <Field label="Energy class">{energy ?? '—'}</Field>
-          </div>
-          {u.assets.length > 0 && (
-            <div className="mt-4 border-t border-line pt-4">
-              <div className="label">Assets</div>
-              {u.assets.map((a, i) => (
-                <div key={a.asset_id ?? a.id ?? i} className="mt-1">
-                  <span className="font-semibold">{a.make} {a.model}</span>
-                  <div className="text-sm text-muted">installed {fmtDate(a.installed)} · last service {fmtDate(a.last_service)}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-        <Card title="Tenant & lease">
-          {u.tenant ? (
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Tenant">{u.tenant.name}</Field>
-              <Field label="Move-in">{fmtDate(u.tenant.move_in)}</Field>
-              <Field label="Cold rent">{fmtEur(u.lease?.rent_cold_eur as number | undefined)}</Field>
-              <Field label="Lease start">{fmtDate(u.lease?.start as string | undefined)}</Field>
-            </div>
-          ) : (
-            <Empty>No tenant</Empty>
-          )}
-        </Card>
-        <Documents docs={u.documents} />
+      <div className="grid grid-cols-1 gap-gap lg:grid-cols-3">
+        <UnitCard u={u} unitId={unitId} />
+        <div className="flex flex-col gap-gap">
+          <Card title="Tenant & lease">
+            {u.tenant ? (
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Tenant">{u.tenant.name}</Field>
+                <Field label="Move-in">{fmtDate(u.tenant.move_in)}</Field>
+                <Field label="Cold rent">{fmtEur(lease.rent_cold_eur)}</Field>
+                <Field label="Lease start">{fmtDate(lease.start)}</Field>
+              </div>
+            ) : (
+              <Empty>No tenant</Empty>
+            )}
+          </Card>
+          <Card title="Cases">
+            {u.cases.length === 0 ? (
+              <Empty>No cases</Empty>
+            ) : (
+              <ul className="divide-y divide-line">
+                {u.cases.map((c) => (
+                  <li key={c.case_id}>
+                    <Link to={`/staff/cases/${c.case_id}`} className="flex items-center gap-3 py-3 hover:text-plum">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold">{c.title}</span>
+                        <span className="text-sm text-muted">{fmtRelative(c.updated_at)}</span>
+                      </span>
+                      <StatusPill status={c.status} />
+                      <Icon name="chevron" className="h-5 w-5 text-muted" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+        <Documents docs={u.documents} title={`Documents · unit ${label}`} />
       </div>
-      <Card title="Cases on this unit">
-        {u.cases.length === 0 ? (
-          <Empty>No cases</Empty>
-        ) : (
-          <ul className="divide-y divide-line">
-            {u.cases.map((c) => (
-              <li key={c.case_id}>
-                <Link to={`/staff/cases/${c.case_id}`} className="flex flex-wrap items-center gap-4 py-3 hover:bg-plum-soft">
-                  <span className="text-lg font-semibold text-plum">{c.title}</span>
-                  <StatusPill status={c.status} />
-                  <span className="ml-auto text-muted">{fmtDateTime(c.updated_at)}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
     </div>
   )
 }
