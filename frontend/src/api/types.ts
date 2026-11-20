@@ -147,6 +147,8 @@ export interface Approval {
   partner?: PartnerRef | null
   rejected?: boolean
   reason?: string | null
+  /** backend: staff member who rejected the job */
+  rejected_by?: string | null
 }
 
 /** Debye's diagnosis before dispatching (KB: data/diagnosis/*.json). */
@@ -288,6 +290,15 @@ export interface JobDetail extends JobSummary {
   completion?: Record<string, unknown> | null
   price_check?: unknown
   events?: CaseEvent[]
+  /** backend: who released the job, e.g. text "Approved by reltix staff (Anna Becker)" */
+  approval?: JobApproval | null
+}
+
+export interface JobApproval {
+  granted?: boolean
+  granted_by?: string | null
+  granted_at?: string | null
+  text?: string | null
 }
 
 // ---- SSE ----

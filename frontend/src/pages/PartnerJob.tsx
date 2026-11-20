@@ -1,16 +1,26 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { api, DEMO } from '../api/client'
-import type { JobDetail, JobSummary, Slot, Technician } from '../api/types'
+import type { JobApproval, JobDetail, JobSummary, Slot, Technician } from '../api/types'
 import { InvoiceFields, priceCheckInfo, ServiceLine } from '../components/case/CasePanels'
 import { Icon } from '../components/icons'
 import { Chip, ErrorBox, Loading, Mascot } from '../components/ui'
 import { errorLabel, errorText, explainCodes, jobTitle } from '../lib/errors'
 import { floorLabel, fmtDateTime, fmtEur, fmtSlot, fmtTime, maskPhone } from '../lib/format'
-import { locale, t } from '../lib/i18n'
+import { getLang, locale, t } from '../lib/i18n'
 import { lineState, PARTNER_STATIONS } from '../lib/lifecycle'
 import { useStream } from '../lib/stream'
 import { useDebounced, useResource } from '../lib/useResource'
+
+/** Who released the job: the backend's approval.text ("Approved by reltix staff (Anna Becker)"), translated for German. */
+function approvalText(a?: JobApproval | null): string {
+  if (!a?.granted) return ''
+  const text = a.text?.trim().replace(/\.$/, '') ?? ''
+  const staff = text.match(/^Approved by reltix staff \((.+)\)$/)?.[1] ?? (!text && a.granted_by ? a.granted_by : null)
+  if (staff) return t('Approved by reltix staff ({name}).', { name: staff })
+  if (text) return getLang() === 'de' && /^Approved automatically/.test(text) ? t('Approved automatically.') : `${text}.`
+  return ''
+}
 
 const FIELD_LABEL: Record<string, string> = { name: 'name', phone: 'phone', address: 'address', unit_floor: 'floor', photos: 'photo' }
 
@@ -221,7 +231,8 @@ function AcceptDecline({ job, partnerId, onChange }: ActionProps) {
     <div>
       <h2 className="text-panel">{t('New job from Debye')}</h2>
       <p className="mt-1 text-body-sm text-secondary">
-        {job.estimated_cost_eur != null ? t('Framework job, estimate {eur}, approved automatically.', { eur: fmtEur(job.estimated_cost_eur) }) : t('Framework job.')} {t('Accept, then pick a technician and offer visit times.')}
+        {job.estimated_cost_eur != null ? t('Framework job, estimate {eur}.', { eur: fmtEur(job.estimated_cost_eur) }) : t('Framework job.')}{' '}
+        {approvalText(job.approval)} {t('Accept, then pick a technician and offer visit times.')}
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
         <button className="btn-primary" disabled={busy} onClick={() => run(() => api.accept(partnerId, job.case_id))}>
