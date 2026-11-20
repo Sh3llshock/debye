@@ -4,7 +4,7 @@ import { api } from '../api/client'
 import type { CaseSummary } from '../api/types'
 import { PriorityBadge } from '../components/case/CasePanels'
 import { Icon } from '../components/icons'
-import { DebyeMark, Empty, ErrorBox, Loading, StatusPill } from '../components/ui'
+import { Empty, ErrorBox, Loading, Mascot, StatusPill } from '../components/ui'
 import { LiveDot } from '../components/Layout'
 import { fmtEur, fmtRelative } from '../lib/format'
 import { useStream } from '../lib/stream'
@@ -120,8 +120,8 @@ export default function StaffCases() {
       )}
 
       {data && data.length === 0 && (
-        <section className="flex flex-col items-center gap-4 rounded-card border border-dashed border-line bg-surface px-card py-16 text-center">
-          <DebyeMark size={72} />
+        <section className="flex flex-col items-center gap-4 rounded-card border border-dashed border-line bg-surface px-card py-10 text-center">
+          <Mascot pose="waving" alt="Debye waving" className="h-44 w-44" />
           <h2 className="text-2xl">No open cases. Debye is listening on WhatsApp.</h2>
           <p className="max-w-xl text-body-sm text-muted">When a resident sends a message, a voice note or a photo, the case opens here live, with the unit already filled in.</p>
           <LiveDot />
