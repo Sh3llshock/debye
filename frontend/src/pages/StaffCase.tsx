@@ -50,7 +50,7 @@ export default function StaffCase() {
   const docs: DocumentItem[] = [...c.documents].reverse().concat(unit.data?.documents ?? []).filter((d) => !seen.has(d.document_id) && !!seen.add(d.document_id))
 
   return (
-    <div className="flex flex-col gap-gap">
+    <div className="-mt-2 flex flex-col gap-6">
       <div>
         <div className="text-body-sm text-muted">
           <Link to="/staff" className="hover:text-plum">
@@ -61,7 +61,7 @@ export default function StaffCase() {
             {street} · Unit {unitLabel}
           </Link>
         </div>
-        <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
+        <div className="mt-1 flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-wrap items-center gap-4">
             <h1 className="text-3xl">{c.title}</h1>
             <StatusPill status={c.status} big />
@@ -76,10 +76,9 @@ export default function StaffCase() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-gap lg:grid-cols-2 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,0.85fr)]">
-        <div className="flex flex-col gap-gap">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
+        <div className="flex flex-col gap-6">
           <ApprovalCard c={c} onApprove={async () => setData(await api.approve(c.case_id))} />
-          <UnitCard u={unit.data} unitId={c.unit_id} />
           <CaseCard c={c} />
           <ZeroFormsCard c={c} />
         </div>
@@ -91,7 +90,8 @@ export default function StaffCase() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-gap lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-gap lg:grid-cols-2 xl:grid-cols-4">
+        <UnitCard u={unit.data} unitId={c.unit_id} />
         <Ranking ranking={c.ranking} chosen={c.partner?.partner_id} />
         <ConsentRecord c={c} partnerName={partnerName} />
         <Documents docs={docs} title={`Documents · unit ${unitLabel}`} priceCheck={c.price_check} />

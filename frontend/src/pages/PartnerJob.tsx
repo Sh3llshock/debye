@@ -213,7 +213,8 @@ function SlotPicker({ job, partnerId, onChange }: ActionProps) {
       if (wd === 'Sun') continue
       const date = berlinDate(d)
       const off = berlinOffset(d)
-      const label = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Berlin' })
+      const date_ = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Berlin' })
+      const label = i === 1 ? `Tomorrow · ${date_}` : i === 2 ? `Day after · ${date_}` : date_
       out.push({ label, slots: WINDOWS.map(([a, b]) => ({ start: `${date}T${a}:00${off}`, end: `${date}T${b}:00${off}`, label: `${label} · ${a}–${b}` })) })
     }
     return out
@@ -230,7 +231,7 @@ function SlotPicker({ job, partnerId, onChange }: ActionProps) {
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-1 sm:gap-3">
               {d.slots.map((s) => {
                 const on = picked.some((x) => x.start === s.start)
-                const time = s.label!.split(' · ')[1]
+                const time = s.label!.split(' · ').pop()!
                 return (
                   <button
                     key={s.start}

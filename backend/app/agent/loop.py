@@ -139,7 +139,7 @@ async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | No
         if ctx.sent == 0:
             log.warning("agent turn sent nothing; using scripted fallback")
             last_turn_fallback = True
-            await flow.scripted_fallback(contact, conv)
+            await flow.scripted_fallback(contact, conv, image_paths)
         return
     except RefusalError:
         last_turn_fallback = True
@@ -151,7 +151,7 @@ async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | No
         log.warning("agent turn failed (%s: %s); scripted fallback", type(exc).__name__, exc)
         last_turn_fallback = True
         if ctx.sent == 0:
-            await flow.scripted_fallback(contact, conv)
+            await flow.scripted_fallback(contact, conv, image_paths)
     # Keep history valid (alternating, no dangling tool_use) after a failed turn.
     conv.history = list(conv.history) + [
         {"role": "user", "content": [b for b in user_msg["content"] if b["type"] == "text"]},

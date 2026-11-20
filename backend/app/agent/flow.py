@@ -6,8 +6,11 @@ here calls the LLM, so the critical taps are instant and unbreakable.
 """
 from __future__ import annotations
 
+import hashlib
 import logging
+import re
 import time
+from pathlib import Path
 from app.channels.base import Option
 
 from . import _backend as be
@@ -305,18 +308,78 @@ async def on_fixed(contact, case_id: str, fixed: bool) -> None:
         await out.text(contact, case_id, f"Oh nein! Ich gebe das sofort an {partner_label(case_id)} weiter.")
 
 
+# ---------------------------------------------------------------- error codes without the LLM
+ERROR_CODES_DE = {
+    "F.22": "der Wasserdruck ist zu niedrig",
+    "F.28": "die Zündung ist fehlgeschlagen",
+    "F.29": "die Flamme ist im Betrieb ausgegangen",
+}
+_CODE_RE = re.compile(r"\bF\s?\.?\s?(\d{2})\b", re.IGNORECASE)
+# Photos we know: the demo boiler display (data/demo/boiler_display_F28.jpg) shows F.28.
+_KNOWN_PHOTOS = {"boiler_display_F28.jpg": "F.28"}
+_known_hashes: dict[str, str] | None = None
+
+
+def _photo_hashes() -> dict[str, str]:
+    global _known_hashes
+    if _known_hashes is None:
+        _known_hashes = {}
+        demo_dir = Path(__file__).resolve().parents[3] / "data" / "demo"
+        for name, code in _KNOWN_PHOTOS.items():
+            try:
+                _known_hashes[hashlib.sha256((demo_dir / name).read_bytes()).hexdigest()] = code
+            except OSError:
+                pass
+    return _known_hashes
+
+
+def detect_error_code(texts: list[str], image_paths: list[str]) -> str | None:
+    """Code the resident typed/said, or the code on a photo we can recognise exactly. No guessing."""
+    for t in reversed(texts):
+        m = _CODE_RE.search(t or "")
+        if m:
+            return f"F.{m.group(1)}"
+    for p in image_paths:
+        try:
+            code = _photo_hashes().get(hashlib.sha256(Path(p).read_bytes()).hexdigest())
+        except OSError:
+            code = None
+        if code:
+            return code
+    return None
+
+
+def error_code_sentence(code: str) -> str:
+    meaning = ERROR_CODES_DE.get(code)
+    return f"Am Display sehe ich {code}" + (f" – {meaning}." if meaning else ".")
+
+
 # ---------------------------------------------------------------- scripted fallback (Claude down / slow)
-async def scripted_fallback(contact, conv: st.Conversation) -> None:
+async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[str] | None = None) -> None:
     cid = conv.case_id
+    code = detect_error_code(conv.tenant_texts[-3:], image_paths or [])
+    new_code = code if code and code != conv.error_code else None
     if conv.step == st.NEW or not cid:
         said = " ".join(conv.tenant_texts[-3:]).strip() or "Heizung ausgefallen"
-        res = await ensure_case(contact, summary="Heizung kalt", symptoms=said[:500])
+        summary = f"Heizung kalt, Fehler {code}" if code else "Heizung kalt"
+        res = await ensure_case(contact, summary=summary, symptoms=said[:500], error_code=code)
         if res["duplicate"]:
             await send_duplicate_notice(contact, res["case_id"])
         else:
-            await ask_cold(contact, res["case_id"], prefix="Danke, ich habe das aufgenommen.")
+            prefix = "Danke, ich habe das aufgenommen."
+            if new_code:
+                prefix = f"Danke! {error_code_sentence(new_code)} Ich habe einen Fall angelegt."
+                conv.error_code = new_code
+            await ask_cold(contact, res["case_id"], prefix=prefix)
     elif conv.step == st.TRIAGE:
-        if not _asked_recently(conv, st.TRIAGE):  # e.g. the photo arrived just after the voice note
+        if new_code:  # e.g. the photo arrived just after the voice note
+            conv.error_code = new_code
+            be.record_event(cid, "debye", "triage.error_code", f"Display zeigt {new_code}", {"error_code": new_code})
+            if _asked_recently(conv, st.TRIAGE):
+                await out.text(contact, cid, f"{error_code_sentence(new_code)} Das habe ich im Fall notiert.")
+            else:
+                await ask_cold(contact, cid, prefix=error_code_sentence(new_code))
+        elif not _asked_recently(conv, st.TRIAGE):
             await ask_cold(contact, cid)
     elif conv.step == st.CONSENT:
         if not _asked_recently(conv, st.CONSENT):

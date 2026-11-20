@@ -4,7 +4,8 @@ import { api } from '../api/client'
 import type { CaseSummary } from '../api/types'
 import { PriorityBadge } from '../components/case/CasePanels'
 import { Icon } from '../components/icons'
-import { Empty, ErrorBox, Loading, StatusPill } from '../components/ui'
+import { DebyeMark, Empty, ErrorBox, Loading, StatusPill } from '../components/ui'
+import { LiveDot } from '../components/Layout'
 import { fmtEur, fmtRelative } from '../lib/format'
 import { useStream } from '../lib/stream'
 import { useNewKeys } from '../lib/useNewKeys'
@@ -118,7 +119,15 @@ export default function StaffCases() {
         </div>
       )}
 
-      {data && shown.length === 0 && <Empty>No cases yet. When a resident messages Debye on WhatsApp, the case appears here live.</Empty>}
+      {data && data.length === 0 && (
+        <section className="flex flex-col items-center gap-4 rounded-card border border-dashed border-line bg-surface px-card py-16 text-center">
+          <DebyeMark size={72} />
+          <h2 className="text-2xl">No open cases. Debye is listening on WhatsApp.</h2>
+          <p className="max-w-xl text-body-sm text-muted">When a resident sends a message, a voice note or a photo, the case opens here live, with the unit already filled in.</p>
+          <LiveDot />
+        </section>
+      )}
+      {data && data.length > 0 && shown.length === 0 && <Empty>No cases in this filter.</Empty>}
 
       {shown.length > 0 && (
         <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">

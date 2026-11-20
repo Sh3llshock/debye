@@ -195,5 +195,20 @@ def test_demo_triggers_and_reset(client):
     assert any(d["kind"] == "photo" for d in detail["documents"])
     assert client.post("/demo/skip-to-tomorrow").json()["ok"]
     assert client.post("/demo/trigger/nope").status_code == 404
+    assert client.post("/demo/trigger/neighbour", json={}).json()["duplicate_of"] == cid
+    from app.config import settings
+    from app.db import get_session
+    from app.models import Conversation
+    with get_session() as s:
+        s.add(Conversation(contact_id="c_202", case_id=cid, claude_messages=[{"role": "user"}]))
+        s.commit()
+    sim_id = client.post("/demo/sim-media", files={"file": ("x.jpg", b"jpg", "image/jpeg")}).json()["media_id"]
+    from app.demo import sim_media_path
+    assert sim_media_path(sim_id).exists()
     client.post("/demo/reset")
     assert client.get("/api/staff/cases").json() == []
+    assert not sim_media_path(sim_id).exists()
+    with get_session() as s:
+        from sqlmodel import select
+        assert s.exec(select(Conversation)).all() == []
+    assert client.get("/healthz").json()["ok"] is True

@@ -22,9 +22,11 @@ def test_demo_transcript_without_key(monkeypatch, tmp_path):
     from app import media
 
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.setenv("DEMO_MODE", "1")
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "demo_mode", True)
     assert asyncio.run(media.transcribe(str(tmp_path / "x.ogg"))) == media.DEMO_TRANSCRIPT
-    monkeypatch.setenv("DEMO_MODE", "0")
+    monkeypatch.setattr(settings, "demo_mode", False)
     assert asyncio.run(media.transcribe(str(tmp_path / "x.ogg"))) == ""
 
 
@@ -73,3 +75,22 @@ def test_no_anthropic_key_falls_back_immediately(client, svc, monkeypatch):
     client.post("/webhooks/whatsapp", json=body)
     assert _t.perf_counter() - t0 < 3
     assert loop.last_turn_fallback is True
+
+def test_invoice_fallback_matches_demo_pdf(monkeypatch, tmp_path):
+    from app import media
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    inv = asyncio.run(media.extract_invoice(str(tmp_path / "x.pdf")))
+    assert (inv["invoice_number"], inv["net_eur"], inv["vat_eur"], inv["gross_eur"], inv["labour_hours"]) == (
+        "RE-2026-1187", 199.5, 37.91, 237.41, 1.0)
+    assert [(li["qty"], li["unit_price"]) for li in inv["line_items"]] == [(1, 89.0), (1, 72.0), (1, 38.5)]
+
+
+def test_outbox_follows_settings_demo_mode(client, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.delenv("DEMO_MODE", raising=False)
+    monkeypatch.setattr(settings, "demo_mode", True)
+    assert client.get("/webhooks/whatsapp/_outbox").status_code == 200
+    monkeypatch.setattr(settings, "demo_mode", False)
+    assert client.get("/webhooks/whatsapp/_outbox").status_code == 404

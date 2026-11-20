@@ -22,7 +22,9 @@ DEMO_TRANSCRIPT = "Hi, die Heizung ist kalt seit heute Morgen."
 
 
 def _demo_mode() -> bool:
-    return os.getenv("DEMO_MODE", "1") == "1"
+    from app.channels.base import demo_mode
+
+    return demo_mode()
 
 
 async def transcribe(path: str, language: str = "de") -> str:

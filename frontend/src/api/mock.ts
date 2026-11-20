@@ -489,7 +489,8 @@ export const mockApi = {
     newDoc(c, 'invoice', 'RE-2026-1187.pdf', extracted)
     addEvent(c, 'partner', 'document.attached', `Invoice attached: ${invoice?.name || 'RE-2026-1187.pdf'}`)
     c.status = 'invoiced'
-    c.price_check = { status: 'ok', note: 'all lines within framework prices' }
+    c.price_check = { result: 'ok', flags: [] }
+    ;(c.documents.find((d) => d.kind === 'invoice')!.extracted as Record<string, unknown>).price_check = c.price_check
     addEvent(c, 'debye', 'invoice.checked', 'Invoice RE-2026-1187 read: €237.41 gross, matches framework prices. Filed on unit 4b.')
     return clone(jobFor(partnerId, c))
   },

@@ -27,7 +27,7 @@ log = logging.getLogger("debye")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     events.bind_loop(asyncio.get_running_loop())
-    seed()
+    seed(reset=settings.reseed_on_boot)
     yield
 
 
@@ -51,6 +51,7 @@ try:
 except ImportError as e:
     log.warning("webchat router not mounted: %s", e)
 
+@app.get("/healthz")
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True, "demo_mode": settings.demo_mode}
