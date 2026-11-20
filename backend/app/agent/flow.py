@@ -242,7 +242,7 @@ async def send_slots(case_id: str, slots: list[dict]) -> None:
 async def on_slot(contact, case_id: str, n: int) -> None:
     """n is 1-based as in the list row id slot_<n>."""
     cs = st.case_state(case_id)
-    be.confirm_slot(case_id, n - 1)
+    be.confirm_slot(case_id, n)  # services.confirm_slot is 1-based
     label = slot_label(cs.slots[n - 1]) if 0 < n <= len(cs.slots) else f"Termin {n}"
     st.conversation(be.attr(contact, "id")).step = st.SCHEDULED
     await out.text(

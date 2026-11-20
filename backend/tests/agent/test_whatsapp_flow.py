@@ -124,9 +124,9 @@ def test_golden_path(client, svc, claude, monkeypatch, tmp_path):
     assert p["interactive"]["type"] == "list"
     assert ids(p) == ["slot_1:case_0001", "slot_2:case_0001", "slot_none:case_0001"]
 
-    # 5. resident picks slot 1 → confirm_slot with 0-based index
+    # 5. resident picks slot 1 → confirm_slot with 1-based index
     client.post("/webhooks/whatsapp", json=list_reply(LENA, "slot_1:case_0001", "Morgen 8–10"))
-    assert ("confirm_slot", "case_0001", 0) in svc.calls
+    assert ("confirm_slot", "case_0001", 1) in svc.calls
     assert "Morgen 8–10" in last_payload(client)["text"]["body"]
 
     # 6. partner done → "warm again?" → yes closes

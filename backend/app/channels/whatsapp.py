@@ -196,6 +196,10 @@ class WhatsAppChannel(Channel):
                 alt = Path(__file__).resolve().parents[3] / src
                 src = alt if alt.exists() else src
             shutil.copyfile(src, dest)
+        elif media.media_id.startswith("sim-"):
+            # simulator uploads via POST /demo/sim-media (backend-core convention)
+            from app.demo import sim_media_path
+            shutil.copyfile(sim_media_path(media.media_id), dest)
         else:
             r = await self.client.get(f"{_graph()}/{media.media_id}", headers=self._headers())
             r.raise_for_status()

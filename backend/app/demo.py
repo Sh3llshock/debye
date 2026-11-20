@@ -40,6 +40,11 @@ def sim_media_path(media_id: str) -> Path:
 async def reset() -> dict:
     _require_demo()
     seed(reset=True)
+    try:  # agent conversation state lives in memory (agent-whatsapp)
+        from app.agent import state as agent_state
+        agent_state.reset_all()
+    except ImportError:
+        pass
     await publish("demo.reset", None, {"ts": now_iso()})
     return {"ok": True}
 
