@@ -58,14 +58,13 @@ function JobView(props: ActionProps) {
             {job.created_at ? ` · ${fmtDateTime(job.created_at)}` : ''}
           </div>
         </div>
-        <div className="mt-8 overflow-x-auto">
-          <div className="min-w-[520px]">
-            <ServiceLine line={line} />
-          </div>
+        <div className="mt-6 sm:mt-8">
+          <ServiceLine line={line} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 border-b border-line px-5 py-6 md:grid-cols-[minmax(0,1fr)_240px] lg:px-work">
+      <div className="flex flex-col">
+      <div className="order-2 grid grid-cols-1 gap-6 border-b border-line px-5 py-6 md:order-none md:grid-cols-[minmax(0,1fr)_240px] lg:px-work">
         <div className="min-w-0">
           {(job.summary || job.description) && <p className="mb-3 text-body text-secondary">{explainCodes(job.summary ?? job.description ?? '')}</p>}
           <dl>
@@ -122,8 +121,9 @@ function JobView(props: ActionProps) {
         </figure>
       </div>
 
-      <div className="px-5 py-6 lg:px-work">
+      <div className="order-1 border-b border-line px-5 py-6 md:order-none md:border-b-0 lg:px-work">
         <Actions {...props} />
+      </div>
       </div>
     </section>
   )
@@ -242,7 +242,39 @@ function WeekGrid({ job, partnerId, jobs, onChange }: ActionProps) {
     <div>
       <h2 className="text-panel">Offer visit times</h2>
       <p className="mt-1 text-body-sm text-secondary">Choose two or three. Debye sends them to {who} on WhatsApp and books the one {who === 'the resident' ? 'they pick' : 'she picks'}.</p>
-      <div className="mt-4 overflow-x-auto rounded border border-line">
+      {/* phone: one row per day, three times each */}
+      <div className="mt-4 flex flex-col gap-3 sm:hidden">
+        {days.map((d) => (
+          <div key={d.date}>
+            <div className="mb-1.5 text-label font-medium">{d.label}</div>
+            <div className="grid grid-cols-3 gap-2">
+              {WINDOWS.map(([a, b]) => {
+                const s: Slot = { start: `${d.date}T${a}:00${d.off}`, end: `${d.date}T${b}:00${d.off}` }
+                const busyCell = isBusy(s)
+                const on = picked.some((x) => x.start === s.start)
+                return (
+                  <button
+                    key={a}
+                    disabled={busyCell}
+                    onClick={() => toggle(s)}
+                    aria-pressed={on}
+                    className={`flex h-14 flex-col items-center justify-center rounded text-label leading-tight transition-colors ${
+                      busyCell ? 'cursor-not-allowed bg-sub text-muted' : on ? 'bg-action font-semibold text-on-action' : 'border border-line bg-surface text-ink hover:border-action'
+                    }`}
+                  >
+                    <span className="font-medium">
+                      {a.slice(0, 2)}–{b.slice(0, 2)}
+                    </span>
+                    <span className="text-meta">{busyCell ? 'Busy' : on ? 'Offered' : 'Free'}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* tablet and up: week grid table */}
+      <div className="mt-4 hidden overflow-x-auto rounded border border-line sm:block">
         <table className="w-full min-w-[560px] table-fixed text-left">
           <thead className="bg-sub">
             <tr className="text-label text-muted">

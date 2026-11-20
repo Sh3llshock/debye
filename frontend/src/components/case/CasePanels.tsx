@@ -19,7 +19,32 @@ function shortTs(iso?: string) {
 export function ServiceLine({ line, waiting }: { line: LineState; waiting?: string | null }) {
   const n = line.stations.length
   return (
-    <ol className="grid" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
+    <>
+      {/* phone: vertical */}
+      <ol className="sm:hidden">
+        {line.stations.map((s, i) => {
+          const current = i === line.reached - 1
+          const next = i === line.reached
+          return (
+            <li key={s.label} className="relative flex gap-3 pb-3 last:pb-0">
+              {i < n - 1 && <span className={`absolute left-[8px] top-[18px] h-[calc(100%-12px)] w-[3px] ${i < line.reached - 1 ? 'bg-life-done' : 'bg-life-track'}`} />}
+              <span className="relative z-10 flex h-[18px] w-[18px] shrink-0 items-center justify-center">
+                {current ? (
+                  <span key={`cur-${line.reached}`} className="animate-station h-[18px] w-[18px] rounded-full border-[3px] border-surface bg-life-current ring-1 ring-life-current" />
+                ) : (
+                  <span className={`h-3 w-3 rounded-full ${s.reached ? 'bg-life-done' : 'border-2 border-life-upcoming bg-surface'}`} />
+                )}
+              </span>
+              <span className="-mt-0.5 flex flex-wrap items-baseline gap-x-2">
+                <span className={`text-label ${s.reached ? 'font-medium text-ink' : 'text-muted'}`}>{s.label}</span>
+                <span className="text-meta text-muted">{s.reached ? shortTs(s.ts) : next && waiting ? waiting : ''}</span>
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+      {/* tablet and up: horizontal */}
+    <ol className="hidden sm:grid" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
       {line.stations.map((s, i) => {
         const current = i === line.reached - 1
         const next = i === line.reached
@@ -40,6 +65,7 @@ export function ServiceLine({ line, waiting }: { line: LineState; waiting?: stri
         )
       })}
     </ol>
+    </>
   )
 }
 

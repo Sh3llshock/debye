@@ -29,7 +29,8 @@ export function LiveDot() {
 
 type RailItem = { to: string; label: string; icon: string; end?: boolean }
 
-function Shell({ logo, items, crumbs, right, children }: { logo: ReactNode; items: RailItem[]; crumbs: Crumb[]; right: ReactNode; children: ReactNode }) {
+function Shell({ logo, items, crumbs, right, children, phoneCrumb }: { logo: ReactNode; items: RailItem[]; crumbs: Crumb[]; right: ReactNode; children: ReactNode; phoneCrumb?: number }) {
+  const keep = phoneCrumb ?? crumbs.length - 1
   return (
     <div className="min-h-screen md:pl-rail">
       <aside className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around bg-rail md:inset-y-0 md:left-0 md:right-auto md:h-auto md:w-rail md:flex-col md:justify-start md:gap-2 md:py-4">
@@ -52,8 +53,8 @@ function Shell({ logo, items, crumbs, right, children }: { logo: ReactNode; item
         <div className="md:hidden">{logo}</div>
         <nav className="flex min-w-0 items-center gap-2 text-body">
           {crumbs.map((c, i) => (
-            <span key={i} className="flex min-w-0 items-center gap-2">
-              {i > 0 && <Icon name="chevron" className="h-4 w-4 shrink-0 text-muted" />}
+            <span key={i} className={`min-w-0 items-center gap-2 ${i === keep ? 'flex' : 'hidden sm:flex'}`}>
+              {i > 0 && <Icon name="chevron" className={`h-4 w-4 shrink-0 text-muted ${i === keep ? 'hidden sm:block' : ''}`} />}
               {c.to ? (
                 <Link to={c.to} className={`truncate ${i === 0 ? 'font-semibold text-ink' : 'text-action'} hover:underline`}>
                   {c.label}
@@ -116,6 +117,7 @@ export function PartnerLayout({ partnerName, partnerId, staffName, children }: {
       logo={logo}
       items={[{ to: `/partner/${partnerId}`, label: 'Jobs', icon: 'jobs' }]}
       crumbs={[{ label: partnerName ?? partnerId, to: `/partner/${partnerId}` }, { label: 'Jobs from reltix, sent by Debye' }]}
+      phoneCrumb={0}
       right={
         <>
           <LiveDot />
