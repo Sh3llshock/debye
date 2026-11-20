@@ -46,6 +46,8 @@ def _approval_card(s, c: Case, approval: dict) -> dict:
     out = {"required": approval.get("required", False), "rule": approval.get("rule"),
            "granted": approval.get("granted", False), "rejected": bool(approval.get("rejected")),
            "reason": approval.get("reason"), "amount_eur": c.estimated_cost_eur,
+           "granted_by": approval.get("granted_by"), "granted_at": approval.get("granted_at"),
+           "rejected_by": approval.get("rejected_by"),
            "partner": None, "suggested_technician": None, "suggested_slot": None,
            "trade": services.case_trade(c), "diagnosis": None}
     diag = data.get("diagnosis")
@@ -205,12 +207,16 @@ def get_case(case_id: str) -> dict:
         return case_detail(s, c)
 
 
+class ApproveBody(BaseModel):
+    staff_name: str | None = None  # who clicked; default: the seeded property manager
+
+
 @router.post("/cases/{case_id}/approve")
-async def approve(case_id: str) -> dict:
+async def approve(case_id: str, body: ApproveBody | None = None) -> dict:
     if services.get_case(case_id) is None:
         raise HTTPException(404, f"case {case_id} not found")
     try:
-        result = services.approve_case(case_id)
+        result = services.approve_case(case_id, staff_name=body.staff_name if body else None)
     except rules.RuleViolation as rv:
         raise HTTPException(409, rv.message)
     await notify.notify_tenant(case_id, "approval_granted",
@@ -222,6 +228,7 @@ async def approve(case_id: str) -> dict:
 
 class RejectBody(BaseModel):
     reason: str = ""
+    staff_name: str | None = None
 
 
 @router.post("/cases/{case_id}/reject")
@@ -230,7 +237,7 @@ async def reject(case_id: str, body: RejectBody | None = None) -> dict:
         raise HTTPException(404, f"case {case_id} not found")
     reason = body.reason if body else ""
     try:
-        result = services.reject_case(case_id, reason)
+        result = services.reject_case(case_id, reason, staff_name=body.staff_name if body else None)
     except rules.RuleViolation as rv:
         raise HTTPException(409, rv.message)
     await notify.notify_tenant(case_id, "approval_rejected",

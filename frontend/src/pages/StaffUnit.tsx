@@ -3,7 +3,7 @@ import { api } from '../api/client'
 import { Documents, MiniLine } from '../components/case/CasePanels'
 import { useCrumbs } from '../components/Layout'
 import { ErrorBox, Loading, Panel, Prop } from '../components/ui'
-import { fmtDate, fmtEur, fmtRelative, humanize } from '../lib/format'
+import { fmtDate, fmtEur, fmtRelative, humanize, placeLabel, unitLabel } from '../lib/format'
 import { lineState, STAFF_STATIONS } from '../lib/lifecycle'
 import { useStream } from '../lib/stream'
 import { useDebounced, useResource } from '../lib/useResource'
@@ -36,7 +36,7 @@ export function StaffUnits() {
                 <tr key={u.unit_id} className="h-row border-b border-line last:border-b-0 hover:bg-sub">
                   <td className="px-5 py-3">
                     <Link to={`/staff/units/${u.unit_id}`} className="font-semibold hover:underline">
-                      {t('Unit {u}', { u: u.unit_id.replace('unit_', '') })}
+                      {t('Unit {u}', { u: unitLabel(u.unit_id, u.address) })}
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-body-sm">{u.address}</td>
@@ -55,11 +55,11 @@ export function StaffUnits() {
 
 export default function StaffUnit() {
   const { unitId = '' } = useParams()
-  const label = unitId.replace('unit_', '')
   const { data: u, error, reload } = useResource(() => api.staffUnit(unitId), [unitId])
+  const label = unitLabel(unitId, u?.property?.address)
   const refetch = useDebounced(reload, 300)
   useStream(() => refetch())
-  useCrumbs([{ label: 'Units', to: '/staff/units' }, { label: u ? `${(u.property?.address ?? '').split(',')[0]} · ${label}` : label }])
+  useCrumbs([{ label: 'Units', to: '/staff/units' }, { label: u ? placeLabel(u.property?.address, unitId) : label }])
 
   if (error && !u) return <ErrorBox error={error} onRetry={reload} />
   if (!u) return <Loading what={t('Loading unit')} />
