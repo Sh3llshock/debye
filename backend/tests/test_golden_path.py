@@ -212,3 +212,54 @@ def test_demo_triggers_and_reset(client):
         from sqlmodel import select
         assert s.exec(select(Conversation)).all() == []
     assert client.get("/healthz").json()["ok"] is True
+
+
+def test_error_labels_everywhere(client):
+    assert services.error_label("F.28") == "Ignition failed: no flame at start-up"
+    assert services.error_label("f22") == "Water pressure too low"
+    assert services.error_label("F.29") == "Flame lost during operation"
+    assert services.error_label("F.99") == "Error code F.99"
+    assert services.error_label(None) is None
+    assert services.error_phrase("F.28") == "Boiler error: ignition failed (F.28)"
+
+    lena, boiler, case = _open_lena_case()
+    label = "Ignition failed: no flame at start-up"
+    summary = client.get("/api/staff/cases").json()[0]
+    assert summary["error_code"] == "F.28" and summary["error_label"] == label
+    detail = client.get(f"/api/staff/cases/{case.id}").json()
+    assert detail["asset"]["error_label"] == label
+    created = next(e for e in detail["events"] if e["kind"] == "case.created")
+    assert created["summary"] == "Case opened from Lena's report. Boiler error: ignition failed (F.28)"
+    assert services.get_unit_context("unit_4b")["open_cases"][0]["error_label"] == label
+
+    services.record_consent(lena.id, "heizung-schmidt", case.id, ["address"], "repair", "whatsapp")
+    services.dispatch_job(case.id, "heizung-schmidt")
+    jobs = client.get("/api/partner/heizung-schmidt/jobs").json()
+    assert jobs[0]["error_label"] == label
+    job = client.get(f"/api/partner/heizung-schmidt/jobs/{case.id}").json()
+    assert job["error_label"] == label and job["asset"]["error_label"] == label
+    sent = next(e for e in client.get(f"/api/staff/cases/{case.id}").json()["events"] if e["kind"] == "job.sent")
+    assert sent["summary"].endswith("Boiler error: ignition failed (F.28)")
+
+
+def test_set_case_error_code(client):
+    lena = services.get_contact_by_phone("+490000000001")
+    boiler = services.get_unit_context(lena.unit_id)["assets"][0]
+    case = services.open_case(lena.id, "repair.heating", "urgent", "kalt", "kalt", None, boiler["id"])
+    assert case.error_code is None
+    est_before = case.estimated_cost_eur
+
+    updated = services.set_case_error_code(case.id, "f22")
+    assert updated.error_code == "F.22"
+    assert updated.estimated_cost_eur != est_before  # re-estimated for the new code
+    services.set_case_error_code(case.id, "F.22")  # same code → no second event
+
+    detail = client.get(f"/api/staff/cases/{case.id}").json()
+    evs = [e for e in detail["events"] if e["kind"] == "case.error_code"]
+    assert len(evs) == 1
+    assert evs[0]["summary"] == "Boiler error: water pressure too low (F.22)"
+    assert evs[0]["data"]["error_label"] == "Water pressure too low"
+    assert detail["asset"]["error_label"] == "Water pressure too low"
+
+    with pytest.raises(rules.RuleViolation):
+        services.set_case_error_code(case.id, " ")

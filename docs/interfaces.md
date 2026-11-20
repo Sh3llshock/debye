@@ -59,6 +59,10 @@ def log_message(contact_id: str, case_id: str | None, channel: str, direction: s
                 text: str | None, wa_message_id: str | None, media_ids: list[str]) -> Message
     # direction "in" | "out"; writes a message row and publishes message.in / message.out
 def get_case_contacts(case_id: str) -> list[Contact]       # reporter + affected tenants (notify_tenant messages all of them)
+def set_case_error_code(case_id: str, code: str) -> Case
+    # sets case.error_code (e.g. read from a photo after the case was opened), records one event
+    # "case.error_code" with summary "Boiler error: <label> (<code>)", re-estimates cost before dispatch;
+    # same code again is a no-op. The agent calls this instead of writing Case.error_code directly.
 def tenant_confirms_fixed(case_id: str, fixed: bool) -> dict   # fixed=True closes the case, returns result payload
 def close_case(case_id: str, resolution: str) -> dict          # result payload (technical-plan §12)
 ```
@@ -134,7 +138,7 @@ All JSON. Errors: `{"detail": "..."}` with 4xx.
 
 // CaseDetail = CaseSummary + 
 {"reporters":[{"contact_id":"c_202","name":"Lena Hoffmann","unit_id":"unit_4b","relation":"reporter"}],
- "asset":{"make":"Vaillant","model":"ecoTEC plus VC 206/5-5","error_code":"F.28"},
+ "asset":{"make":"Vaillant","model":"ecoTEC plus VC 206/5-5","error_code":"F.28","error_label":"Ignition failed: no flame at start-up"},
  "cost_bearer":"landlord","estimated_cost_eur":250,"approval":{"required":false,"rule":"auto-approved: < €500"},
  "slot":{"start":"...","end":"..."},
  "zero_forms":{"prefilled":["address","unit","floor","boiler model","..."],"tenant_inputs":["voice note","tap: Überall kalt","tap: consent"]},
@@ -145,7 +149,8 @@ All JSON. Errors: `{"detail": "..."}` with 4xx.
  "messages":[{"ts":"...","direction":"in","contact":"Lena Hoffmann","text":"Die Heizung ist kalt …","media":[]}],
  "result":null}
 
-// JobSummary / JobDetail (partner view): status, address, floor, asset, error_code, photos[], tenant contact
+// CaseSummary also carries error_code + error_label (plain-English meaning, e.g. "Water pressure too low").
+// JobSummary / JobDetail (partner view): status, address, floor, asset, error_code, error_label, photos[], tenant contact
 // (only if consented), proposed slots, confirmed slot, documents
 ```
 

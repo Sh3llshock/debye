@@ -52,6 +52,7 @@ def job_summary(s, c: Case, partner_id: str) -> dict:
         "floor": unit.floor if unit else None,
         "asset": {"type": asset.type, "make": asset.make, "model": asset.model} if asset else None,
         "error_code": c.error_code,
+        "error_label": services.error_label(c.error_code, asset.known_error_codes if asset else None),
         "slot": {"start": c.slot_start, "end": c.slot_end} if c.slot_start else None,
         "created_at": c.created_at, "updated_at": c.updated_at,
     }
@@ -79,7 +80,8 @@ def job_detail(s, c: Case, partner_id: str) -> dict:
         "symptoms": c.symptoms,
         "asset": ({"type": asset.type, "make": asset.make, "model": asset.model,
                    "installed": asset.installed, "last_service": asset.last_service,
-                   "error_meaning": (asset.known_error_codes or {}).get(c.error_code or "")}
+                   "error_label": services.error_label(c.error_code, asset.known_error_codes),
+                   "error_meaning": services.error_label(c.error_code, asset.known_error_codes)}
                   if asset else None),
         "tenant": tenant_view,
         "consented_fields": sorted(fields),

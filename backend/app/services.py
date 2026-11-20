@@ -87,6 +87,49 @@ def _case_title(case_type: str, asset: Asset | None) -> str:
     return case_type.replace(".", " ").capitalize()
 
 
+# Plain-English meaning of boiler error codes for the pages (judges don't know what F.28 is).
+ERROR_LABELS_EN = {
+    "F.22": "Water pressure too low",
+    "F.28": "Ignition failed: no flame at start-up",
+    "F.29": "Flame lost during operation",
+}
+_ERROR_SHORT_EN = {
+    "F.22": "water pressure too low",
+    "F.28": "ignition failed",
+    "F.29": "flame lost during operation",
+}
+
+
+def _norm_code(code: str | None) -> str:
+    c = (code or "").strip().upper().replace(" ", "")
+    if c.startswith("F") and len(c) > 1 and c[1] != ".":
+        c = "F." + c[1:]  # "F28" → "F.28"
+    return c
+
+
+def error_label(code: str | None, known: dict | None = None) -> str | None:
+    """'F.28' → 'Ignition failed: no flame at start-up'. Falls back to the asset's
+    known_error_codes, then to 'Error code <code>'. None if there is no code."""
+    if not code:
+        return None
+    c = _norm_code(code)
+    if c in ERROR_LABELS_EN:
+        return ERROR_LABELS_EN[c]
+    known = {_norm_code(k): v for k, v in (known or {}).items()}
+    return known.get(c) or f"Error code {code}"
+
+
+def error_phrase(code: str | None, known: dict | None = None) -> str | None:
+    """For event summaries, meaning first: 'Boiler error: ignition failed (F.28)'."""
+    if not code:
+        return None
+    short = _ERROR_SHORT_EN.get(_norm_code(code))
+    if not short:
+        label = error_label(code, known) or ""
+        short = label[:1].lower() + label[1:]
+    return f"Boiler error: {short} ({code})"
+
+
 GERMAN_DAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 
 
@@ -136,6 +179,7 @@ def get_unit_context(unit_id: str) -> dict:
             "open_cases": [{"case_id": c.id, "type": c.type, "status": c.status,
                             "asset_id": c.asset_id, "unit_id": c.unit_id, "title": c.title,
                             "summary": c.summary, "error_code": c.error_code,
+                            "error_label": error_label(c.error_code),
                             "created_at": c.created_at} for c in open_cases],
         }
 
@@ -186,11 +230,42 @@ def open_case(reporter_contact_id: str, type: str, priority: str, summary: str,
         s.commit()
         s.refresh(case)
         first = reporter.name.split()[0]
-    record_event(case.id, "debye", "case.created", f"Case opened from {first}'s report",
-                 {"priority": case.priority, "error_code": error_code, "asset_id": case.asset_id,
+        known = asset.known_error_codes if asset else None
+    phrase = error_phrase(error_code, known)
+    record_event(case.id, "debye", "case.created",
+                 f"Case opened from {first}'s report" + (f". {phrase}" if phrase else ""),
+                 {"priority": case.priority, "error_code": error_code,
+                  "error_label": error_label(error_code, known), "asset_id": case.asset_id,
                   "estimated_cost_eur": estimate})
     _claim_orphan_media(case.id, reporter_contact_id)
     return get_case(case.id)
+
+
+def set_case_error_code(case_id: str, code: str) -> Case:
+    """Set the boiler error code read later (e.g. from a photo). Records one event
+    'Boiler error: <label> (<code>)' that the staff page picks up live. Same code again → no-op.
+    While the job isn't dispatched yet, the cost estimate is recomputed for the new code."""
+    code = (code or "").strip()
+    if not code:
+        raise rules.RuleViolation("invalid_error_code", "error code is empty")
+    code = _norm_code(code) if _norm_code(code) in ERROR_LABELS_EN else code
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        if case.error_code == code:
+            return case
+        previous = case.error_code
+        case.error_code = code
+        if case.status in ("new", "awaiting_approval") and not case.partner_id:
+            fw = s.exec(select(Contract).where(Contract.type == "framework")).first()
+            case.estimated_cost_eur = rules.estimate_cost(s, code, fw.partner_id if fw else None)
+        asset = s.get(Asset, case.asset_id) if case.asset_id else None
+        known = asset.known_error_codes if asset else None
+        _save_case(s, case)
+        estimate = case.estimated_cost_eur
+    record_event(case_id, "debye", "case.error_code", error_phrase(code, known),
+                 {"error_code": code, "error_label": error_label(code, known),
+                  "previous_error_code": previous, "estimated_cost_eur": estimate})
+    return get_case(case_id)
 
 
 def _claim_orphan_media(case_id: str, contact_id: str) -> None:
@@ -324,7 +399,9 @@ def dispatch_job(case_id: str, partner_id: str) -> dict:
                     pending_partner_id=None)
         _save_case(s, case)
         transport = partner.manifest.get("transport", {})
-    record_event(case_id, "debye", "job.sent", f"Job sent to {name}",
+        asset = s.get(Asset, case.asset_id) if case.asset_id else None
+        phrase = error_phrase(case.error_code, asset.known_error_codes if asset else None)
+    record_event(case_id, "debye", "job.sent", f"Job sent to {name}" + (f". {phrase}" if phrase else ""),
                  {"partner_id": partner_id, "transport": transport.get("type"),
                   "url": transport.get("url")})
     return {"case_id": case_id, "partner_id": partner_id, "partner_name": name,
