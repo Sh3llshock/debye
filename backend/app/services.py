@@ -422,6 +422,11 @@ def close_without_partner(case_id: str, resolution: str = "self_help", note: str
     return result
 
 
+def close_self_help(case_id: str, resolution_text: str = "") -> dict:
+    """Self-help case solved without a technician → status closed, resolution "self_help"."""
+    return close_without_partner(case_id, "self_help", resolution_text)
+
+
 def notify_caretaker(case_id: str, reason: str) -> dict:
     """Hand the case to the reltix caretaker (no partner, no approval): e.g. top up system pressure.
     Records "Caretaker Peter Wolf notified: <reason>"."""

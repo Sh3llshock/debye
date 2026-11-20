@@ -50,6 +50,7 @@ def open_case(reporter_contact_id: str, type: str, priority: str, summary: str,
     # trade: heating | plumbing | electrical (from the diagnosis); diagnosis: see §4c
 def set_case_diagnosis(case_id: str, diagnosis: dict, trade: str | None = None) -> Case   # §4c, later diagnosis
 def notify_caretaker(case_id: str, reason: str) -> dict   # §4c, caretaker outcome, no partner
+def close_self_help(case_id: str, resolution_text: str = "") -> dict   # = close_without_partner(case_id, "self_help", text)
 def close_without_partner(case_id: str, resolution: str = "self_help", note: str = "") -> dict
     # §4c: self_help | caretaker | utility → status closed, no partner, saving shown on the staff page
 def link_contact_to_case(case_id: str, contact_id: str, relation: str) -> None

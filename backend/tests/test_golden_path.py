@@ -578,7 +578,7 @@ def test_self_help_case_closes_without_partner(client):
                               None, None, diagnosis={"cause_id": "hot_water_used_up", "confidence": 0.9,
                                                      "reasoning": "two people showered just before"})
     assert client.get(f"/api/staff/cases/{case.id}").json()["diagnosis"]["estimated_saving_eur"] == 180
-    res = services.close_without_partner(case.id, "self_help", "tank reheated")
+    res = services.close_self_help(case.id, "tank reheated")
     assert res["resolution"] == "self_help" and res["estimated_saving_eur"] == 180
     d = client.get(f"/api/staff/cases/{case.id}").json()
     assert d["status"] == "closed" and d["partner"] is None
