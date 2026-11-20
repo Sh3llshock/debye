@@ -66,10 +66,11 @@ class FakeServices:
         return next((SimpleNamespace(**c) for c in self.cases.values()
                      if c["asset_id"] == asset_id and c["status"] != "closed"), None)
 
-    def open_case(self, reporter_contact_id, type, priority, summary, symptoms, error_code, asset_id):
+    def open_case(self, reporter_contact_id, type, priority, summary, symptoms, error_code, asset_id, trade=None,
+                  diagnosis=None):
         cid = f"case_{len(self.cases) + 1:04d}"
         self.cases[cid] = dict(id=cid, status="new", asset_id=asset_id, summary=summary, error_code=error_code,
-                               priority=priority, reporter_contact_id=reporter_contact_id)
+                               priority=priority, reporter_contact_id=reporter_contact_id, type=type, trade=trade)
         self.case_contacts[cid] = [(reporter_contact_id, "reporter")]
         self.calls.append(("open_case", cid, summary, error_code))
         return SimpleNamespace(**self.cases[cid])
@@ -113,6 +114,10 @@ class FakeServices:
         self.cases[case_id]["error_code"] = code
         self.calls.append(("error_code", case_id, code))
         getattr(self, "events", []).append((case_id, "debye", "case.error_code", timeline_summary(code), {"error_code": code}))
+
+    def set_case_data(self, case_id, **kv):
+        self.cases[case_id].setdefault("data", {}).update(kv)
+        self.calls.append(("case_data", case_id, tuple(sorted(kv))))
 
     def add_tenant_input(self, case_id, label):
         self.calls.append(("input", case_id, label))
