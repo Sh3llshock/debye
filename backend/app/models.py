@@ -86,6 +86,18 @@ class Technician(SQLModel, table=True):
     busy: list = _json(list)
 
 
+class Notice(SQLModel, table=True):
+    """Building notice from centrix (e.g. planned maintenance: hot water off 9–13)."""
+    id: str = Field(primary_key=True)
+    property_id: str = Field(index=True)
+    title: str
+    body: str = ""
+    kind: str = "maintenance"
+    active: bool = False
+    starts: Optional[str] = None
+    ends: Optional[str] = None
+
+
 class Case(SQLModel, table=True):
     __tablename__ = "cases"
 

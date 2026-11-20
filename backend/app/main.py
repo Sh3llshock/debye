@@ -36,6 +36,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 app.include_router(events.router)
 app.include_router(staff_api.router)
+app.include_router(partner_api.list_router)
 app.include_router(partner_api.router)
 app.include_router(tech_api.router)
 app.include_router(demo.router)

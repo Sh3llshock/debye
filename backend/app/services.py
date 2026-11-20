@@ -198,6 +198,8 @@ def get_unit_context(unit_id: str) -> dict:
         assets = [a for a in assets if a.unit_id in (None, unit_id)]
         tenant = _tenant_for_unit(s, unit_id)
         lease = _lease_for_unit(s, unit_id)
+        from .models import Notice
+        notices = s.exec(select(Notice).where(Notice.property_id == unit.property_id)).all()
         open_cases = [c for c in s.exec(select(Case).where(Case.property_id == unit.property_id)).all()
                       if c.status not in OPEN_STATUSES_EXCLUDED]
         return {
@@ -206,6 +208,9 @@ def get_unit_context(unit_id: str) -> dict:
             "assets": [a.model_dump() for a in assets],
             "tenant": tenant.model_dump() if tenant else None,
             "lease": lease.model_dump() if lease else None,
+            # building notices (planned maintenance etc.); only active ones matter for triage
+            "notices": [{"id": n.id, "title": n.title, "body": n.body, "kind": n.kind,
+                         "active": n.active, "starts": n.starts, "ends": n.ends} for n in notices],
             "open_cases": [{"case_id": c.id, "type": c.type, "status": c.status,
                             "asset_id": c.asset_id, "unit_id": c.unit_id, "title": c.title,
                             "summary": c.summary, "error_code": c.error_code,

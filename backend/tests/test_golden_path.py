@@ -647,3 +647,23 @@ def test_demo_scenarios(client):
     assert len(client.post("/demo/reset?scenarios=1").json()["cases"]) == 9
     client.post("/demo/reset")
     assert client.get("/api/staff/cases").json() == []
+
+
+def test_partners_list_and_notices(client):
+    client.post("/demo/scenarios")
+    partners = {p["partner_id"]: p for p in client.get("/api/partners").json()}
+    assert {"heizung-schmidt", "elektro-klein", "waerme-wagner", "heiztechnik-gruen"} <= set(partners)
+    hs = partners["heizung-schmidt"]
+    assert hs["name"] == "Heizung Schmidt GmbH" and hs["active"] is True
+    assert hs["open_jobs"] >= 2 and hs["total_jobs"] >= 3
+    assert {t["tech_id"] for t in hs["technicians"]} == {"tech_tom", "tech_ali", "tech_jana"}
+    assert partners["waerme-wagner"]["open_jobs"] == 0 and partners["waerme-wagner"]["total_jobs"] == 1
+    # single partner endpoint unchanged
+    assert client.get("/api/partner/heizung-schmidt").json()["name"] == "Heizung Schmidt GmbH"
+
+    ctx = services.get_unit_context("unit_4b")
+    assert [n["id"] for n in ctx["notices"]] == ["notice_12_maint"]
+    assert ctx["notices"][0]["active"] is False  # live demo not diverted by default
+    r = client.post("/demo/trigger/maintenance_notice", json={"notice_id": "notice_12_maint", "active": True})
+    assert r.json()["active"] is True
+    assert services.get_unit_context("unit_4b")["notices"][0]["active"] is True

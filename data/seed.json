@@ -501,5 +501,23 @@
     }
   ],
   "_technicians_notes": "busy windows are relative to the demo day: day 1 = tomorrow; window 08-10 | 10-12 | 14-16 | all.",
-  "_notes": "Replace the +4900000000xx placeholders with the team's real demo phone numbers in a local, uncommitted override (data/seed.local.json)."
+  "_notes": "Replace the +4900000000xx placeholders with the team's real demo phone numbers in a local, uncommitted override (data/seed.local.json).",
+  "notices": [
+    {
+      "id": "notice_12_maint",
+      "property_id": "prop_12",
+      "kind": "maintenance",
+      "active": false,
+      "title": "Planned maintenance: hot water off today 9:00–13:00",
+      "body": "The heating company services the central boiler. Hot water and heating are off from 9:00 to 13:00."
+    },
+    {
+      "id": "notice_41_service",
+      "property_id": "prop_41",
+      "kind": "maintenance",
+      "active": false,
+      "title": "Annual boiler service next Tuesday 8:00–12:00",
+      "body": "Heizung Schmidt services the Viessmann boiler. Short interruptions of hot water are possible."
+    }
+  ]
 }

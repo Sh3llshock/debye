@@ -10,6 +10,7 @@ from .db import get_session
 from .models import Asset, Case, CaseEvent, Contact, Document, Partner, Property, Unit
 
 router = APIRouter(prefix="/api/partner", tags=["partner"])
+list_router = APIRouter(tags=["partner"])  # GET /api/partners (staff "Partners" page)
 
 VISIBLE_STATUSES = {"requested", "accepted", "slots_proposed", "awaiting_technician", "scheduled",
                     "completed", "invoiced", "closed", "reopened"}
@@ -122,13 +123,33 @@ def _guard(fn, *args):
 
 # --------------------------------------------------------------------------- routes
 
+def _partner_view(s, p: Partner, with_counts: bool = False) -> dict:
+    staff = s.exec(select(Contact).where(Contact.partner_id == p.id)).all()
+    out = {**p.manifest, "active": p.active,
+           "staff": [{"contact_id": c.id, "name": c.name} for c in staff]}
+    if with_counts:
+        from .models import Technician
+        cases = s.exec(select(Case).where(Case.partner_id == p.id)).all()
+        out["open_jobs"] = sum(1 for c in cases if c.status not in services.OPEN_STATUSES_EXCLUDED)
+        out["total_jobs"] = len(cases)
+        out["technicians"] = [{"tech_id": t.id, "name": t.name, "skills": t.skills}
+                              for t in s.exec(select(Technician).where(Technician.partner_id == p.id)
+                                              .order_by(Technician.id)).all()]
+    return out
+
+
+@list_router.get("/api/partners")
+def list_partners() -> list[dict]:
+    """One entry per partner: the manifest + {active, staff, open_jobs, total_jobs, technicians}."""
+    with get_session() as s:
+        return [_partner_view(s, p, with_counts=True)
+                for p in s.exec(select(Partner).order_by(Partner.id)).all()]
+
+
 @router.get("/{partner_id}")
 def get_partner(partner_id: str) -> dict:
     with get_session() as s:
-        p = _partner(s, partner_id)
-        staff = s.exec(select(Contact).where(Contact.partner_id == partner_id)).all()
-        return {**p.manifest, "active": p.active,
-                "staff": [{"contact_id": c.id, "name": c.name} for c in staff]}
+        return _partner_view(s, _partner(s, partner_id))
 
 
 @router.get("/{partner_id}/jobs")
