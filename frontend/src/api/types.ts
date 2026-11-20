@@ -42,6 +42,10 @@ export interface CaseSummary {
   error_code?: string | null
   error_label?: string | null
   technician?: TechnicianRef | null
+  /** closed without a partner: self_help | caretaker | utility, with the avoided call-out cost */
+  resolution?: string | null
+  saving_eur?: number | null
+  trade?: string | null
 }
 
 export interface TechnicianRef {
