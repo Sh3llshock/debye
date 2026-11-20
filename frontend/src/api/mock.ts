@@ -24,15 +24,17 @@ const ADDRESS = 'Musterstraße 12, 52062 Aachen'
 const SCHMIDT = { partner_id: 'heizung-schmidt', name: 'Heizung Schmidt GmbH' }
 
 const partners: Record<string, PartnerProfile> = {
-  'heizung-schmidt': { partner_id: 'heizung-schmidt', name: 'Heizung Schmidt GmbH', category: 'repair.heating', rating: 4.8, staff: [{ contact_id: 'c_301', name: 'Tom Schmidt' }] },
-  'waerme-wagner': { partner_id: 'waerme-wagner', name: 'Wärme Wagner', category: 'repair.heating', rating: 4.6 },
-  'heiztechnik-gruen': { partner_id: 'heiztechnik-gruen', name: 'Heiztechnik Grün', category: 'repair.heating', rating: 4.1 },
+  'heizung-schmidt': { partner_id: 'heizung-schmidt', name: 'Heizung Schmidt GmbH', category: 'repair.heating', rating: 4.8, capabilities: { trades: ['heating', 'plumbing'], brands_certified: ['Vaillant', 'Viessmann'] }, service_area: { postcodes: ['52062', '52064', '52066', '52068', '52070'] }, staff: [{ contact_id: 'c_301', name: 'Tom Schmidt' }] },
+  'waerme-wagner': { partner_id: 'waerme-wagner', name: 'Wärme Wagner', category: 'repair.heating', rating: 4.9, capabilities: { trades: ['heating', 'solar'], brands_certified: ['Vaillant'] }, service_area: { postcodes: ['52062', '52066', '52074'] } },
+  'heiztechnik-gruen': { partner_id: 'heiztechnik-gruen', name: 'Heiztechnik Grün', category: 'repair.heating', rating: 4.2, capabilities: { trades: ['heating'], brands_certified: ['Buderus'] }, service_area: { postcodes: ['52062', '52064', '52072'] } },
+  'elektro-klein': { partner_id: 'elektro-klein', name: 'Elektro Klein', category: 'repair.electrical', rating: 4.6, capabilities: { trades: ['electrical'] }, service_area: { postcodes: ['52062', '52064', '52066', '52068'] } },
 }
 
 // ---------- technicians (dispatcher + technician pages) ----------
 const TECHS: Record<string, { tech_id: string; name: string; partner_id: string; skills: string[]; busy: string[] }> = {
   tech_tom: { tech_id: 'tech_tom', name: 'Tom Schmidt', partner_id: 'heizung-schmidt', skills: ['Vaillant', 'gas boilers', 'heat pumps'], busy: ['1-14:00', '2-08:00', '3-10:00'] },
-  tech_ali: { tech_id: 'tech_ali', name: 'Ali Yilmaz', partner_id: 'heizung-schmidt', skills: ['Buderus', 'gas boilers'], busy: ['1-08:00', '1-10:00', '2-14:00'] },
+  tech_ali: { tech_id: 'tech_ali', name: 'Ali Yilmaz', partner_id: 'heizung-schmidt', skills: ['heating', 'plumbing'], busy: ['1-08:00', '1-10:00', '2-14:00'] },
+  tech_marco: { tech_id: 'tech_marco', name: 'Marco Klein', partner_id: 'elektro-klein', skills: ['electrical'], busy: ['1-14:00'] },
 }
 const WINDOWS: [string, string][] = [['08:00', '10:00'], ['10:00', '12:00'], ['14:00', '16:00']]
 function berlinDay(i: number) {
@@ -77,7 +79,7 @@ type State = {
   dayOffset: number
   minute: number
 }
-const STORE_KEY = 'debye-fixtures-v4'
+const STORE_KEY = 'debye-fixtures-v5'
 let state: State = loadState() ?? initialState()
 
 function loadState(): State | null {
@@ -129,7 +131,57 @@ function initialState(): State {
     ],
     result: null,
   }
-  return { cases: { case_0002: approvalCase }, docSeq: 1, unitDocs: [], pendingSlots: {}, dayOffset: 0, minute: 0 }
+  const selfHelp: CaseDetail = {
+    case_id: 'case_0003',
+    type: 'repair.plumbing',
+    title: 'Shower is cold',
+    status: 'closed',
+    priority: 'normal',
+    unit_id: 'unit_2a',
+    address: ADDRESS,
+    partner: null,
+    updated_at: at(20, 15, 10),
+    created_at: at(20, 14, 52),
+    reporters: [{ contact_id: 'c_203', name: 'Jonas Weber', unit_id: 'unit_2a', relation: 'reporter' }],
+    asset: null,
+    cost_bearer: null,
+    estimated_cost_eur: null,
+    approval: null,
+    slot: null,
+    zero_forms: { prefilled: ['address', 'unit', 'floor', 'tenant name', 'phone', 'heating type', 'boiler model'], tenant_inputs: ['message', 'tap: only shower', 'tap: knob was wrong'] },
+    ranking: [],
+    consents: [],
+    documents: [],
+    trade: null,
+    resolution: 'self_help',
+    saving_eur: 180,
+    diagnosis: {
+      cause_id: 'shower_knob_or_limiter',
+      label: 'Shower knob or temperature limiter set too low',
+      confidence: 0.9,
+      reasoning: 'Sinks are hot, only the shower is cold, and the knob was turned to the cold side → shower setting, no fault',
+      questions_asked: [
+        { id: 'q_scope', question: 'Is it only the shower, or is the hot water cold at the sinks too?', answer: 'only the shower is cold, sinks are hot' },
+        { id: 'q_knob', question: 'Could the shower knob or temperature limiter have been turned?', answer: 'yes, it was on the cold side' },
+      ],
+      outcome: 'self_help',
+      trade: null,
+    },
+    events: [
+      { ts: at(20, 14, 52), actor: 'debye', kind: 'case.created', summary: "Case opened from Jonas's message: shower is cold" },
+      { ts: at(20, 14, 55), actor: 'debye', kind: 'diagnosis.recorded', summary: 'Diagnosis: shower knob set too low (90%). Self-help tip sent, no technician' },
+      { ts: at(20, 15, 10), actor: 'tenant', kind: 'case.closed', summary: 'Jonas confirmed the shower is hot again' },
+    ],
+    messages: [
+      { ts: at(20, 14, 51), direction: 'in', contact: 'Jonas Weber', text: 'Meine Dusche ist kalt.', media: [] },
+      { ts: at(20, 14, 54), direction: 'out', contact: 'Jonas Weber', text: 'Ist es nur die Dusche, oder ist das Wasser auch an den Waschbecken kalt? [Nur die Dusche] · [Überall]', media: [] },
+      { ts: at(20, 14, 54), direction: 'in', contact: 'Jonas Weber', text: 'Nur die Dusche', media: [] },
+      { ts: at(20, 14, 55), direction: 'out', contact: 'Jonas Weber', text: 'Dreh bitte den Duschgriff ganz auf warm und lass das Wasser eine Minute laufen. Ich frage gleich nach.', media: [] },
+      { ts: at(20, 15, 9), direction: 'in', contact: 'Jonas Weber', text: 'Jetzt ist es warm, danke!', media: [] },
+    ],
+    result: null,
+  }
+  return { cases: { case_0002: approvalCase, case_0003: selfHelp }, docSeq: 1, unitDocs: [], pendingSlots: {}, dayOffset: 0, minute: 0 }
 }
 
 // ---------- event bus ----------
@@ -257,6 +309,21 @@ export const mockSteps: MockStep[] = [
     ready: () => !!heating() && heating()!.ranking.length === 0,
     run: () => {
       const c = heating()!
+      c.trade = 'heating'
+      c.diagnosis = {
+        cause_id: 'boiler_fault',
+        label: 'Boiler fault (ignition failed, F.28)',
+        confidence: 0.85,
+        reasoning: 'Hot water and radiators are cold everywhere and the boiler display shows F.28 → central boiler fault',
+        questions_asked: [
+          { id: 'q_scope', question: 'Is it only the shower, or is the hot water cold at the sinks too?', answer: 'cold or lukewarm everywhere' },
+          { id: 'q_radiators', question: 'Are the radiators cold too?', answer: 'yes, all radiators are cold' },
+          { id: 'q_display', question: 'What does the boiler display show?', answer: 'an error code: F.28' },
+        ],
+        outcome: 'technician',
+        trade: 'heating',
+        estimated_cost_eur: 263,
+      }
       c.ranking = [
         { partner_id: 'heizung-schmidt', name: 'Heizung Schmidt GmbH', score: 0.86, reasons: ['Vaillant-certified', 'Free tomorrow 8–10', 'Framework agreement'] },
         { partner_id: 'waerme-wagner', name: 'Wärme Wagner', score: 0.71, reasons: ['Vaillant-certified', 'Fully booked until Tue'] },
@@ -279,7 +346,7 @@ export const mockSteps: MockStep[] = [
       c.partner = SCHMIDT
       c.status = 'approval_pending'
       const slot = freeSlots('tech_tom')[0]
-      c.approval = { required: true, rule: 'Every job needs staff approval', amount_eur: c.estimated_cost_eur, suggested_technician: { tech_id: 'tech_tom', name: 'Tom Schmidt' }, suggested_slot: slot ?? null }
+      c.approval = { required: true, rule: 'Every job needs staff approval', amount_eur: c.estimated_cost_eur, partner: SCHMIDT, suggested_technician: { tech_id: 'tech_tom', name: 'Tom Schmidt' }, suggested_slot: slot ?? null }
       addEvent(c, 'debye', 'approval.requested', `Waiting for staff approval: Heizung Schmidt GmbH, est. €${c.estimated_cost_eur}, Tom Schmidt available`)
     },
   },
@@ -371,7 +438,7 @@ const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 const summary = (c: CaseDetail): CaseSummary => ({
   case_id: c.case_id, type: c.type, title: c.title, status: c.status, priority: c.priority,
   unit_id: c.unit_id, address: c.address, partner: c.partner, updated_at: c.updated_at, created_at: c.created_at,
-  error_code: c.asset?.error_code ?? null, technician: c.technician ?? null,
+  error_code: c.asset?.error_code ?? null, technician: c.technician ?? null, resolution: c.resolution ?? null, saving_eur: c.saving_eur ?? null,
 })
 
 function jobFor(partnerId: string, c: CaseDetail): JobDetail {
@@ -467,7 +534,7 @@ export const mockApi = {
   async reject(caseId: string, reason: string): Promise<CaseDetail> {
     await delay()
     const c = state.cases[caseId]
-    c.approval = { ...(c.approval ?? { rule: '' }), required: false, granted: false, rejected_reason: reason }
+    c.approval = { ...(c.approval ?? { rule: '' }), required: false, granted: false, rejected: true, reason }
     c.status = 'rejected'
     addEvent(c, 'staff', 'approval.rejected', `Anna Becker rejected: ${reason}`, { reason })
     addMessage(c, 'out', c.reporters[0].name, 'Die Hausverwaltung hat den Auftrag noch nicht freigegeben. Ich melde mich, sobald es weitergeht.')
@@ -586,8 +653,35 @@ export const mockApi = {
     addEvent(c, 'debye', 'invoice.checked', 'Invoice RE-2026-1187 read: €237.41 gross, matches framework prices. Filed on unit 4b.')
     return clone(jobFor(partnerId, c))
   },
-  async demoReset(): Promise<void> {
+  async partners(): Promise<PartnerProfile[]> {
+    await delay()
+    return Object.values(partners).map((p) => ({
+      ...p,
+      open_jobs: Object.values(state.cases).filter((c) => c.partner?.partner_id === p.partner_id && !['closed', 'rejected', 'approval_pending'].includes(c.status)).length,
+    }))
+  },
+  /** Like POST /demo/scenarios: a realistic mix of ~8 cases in different states. */
+  async demoScenarios(): Promise<void> {
     state = initialState()
+    const base = state.cases['case_0002']
+    const mk = (id: string, title: string, status: string, unit: string, partner: { partner_id: string; name: string } | null, minsAgo: number, extra: Partial<CaseDetail> = {}) => {
+      const ts = berlin(new Date(Date.now() - minsAgo * 60_000))
+      state.cases[id] = {
+        ...clone(base), case_id: id, title, status, unit_id: unit, partner, updated_at: ts, created_at: ts,
+        reporters: [{ contact_id: unit === 'unit_4b' ? 'c_202' : 'c_203', name: unit === 'unit_4b' ? 'Luka' : 'Jonas Weber', unit_id: unit, relation: 'reporter' }],
+        events: [{ ts, actor: 'debye', kind: 'case.created', summary: `Case opened: ${title}` }], messages: [], approval: null, priority: 'normal', ...extra,
+      } as CaseDetail
+    }
+    mk('case_0004', 'Leak under the kitchen sink', 'approval_pending', 'unit_4b', null, 3, { priority: 'high', estimated_cost_eur: 180, approval: { required: true, rule: 'Every job needs staff approval', amount_eur: 180, partner: SCHMIDT, suggested_technician: { tech_id: 'tech_ali', name: 'Ali Yilmaz' }, suggested_slot: freeSlots('tech_ali')[0] ?? null } })
+    mk('case_0005', 'Stairwell light broken', 'requested', 'unit_2a', { partner_id: 'elektro-klein', name: 'Elektro Klein' }, 25)
+    mk('case_0006', 'Radiator ticking at night', 'slots_proposed', 'unit_4b', SCHMIDT, 50, { technician: { tech_id: 'tech_tom', name: 'Tom Schmidt' } })
+    mk('case_0007', 'Boiler pressure low (F.22)', 'closed', 'unit_2a', null, 120, { resolution: 'caretaker', saving_eur: 180, diagnosis: { cause_id: 'low_system_pressure', label: 'Low system pressure (F.22)', confidence: 0.8, outcome: 'caretaker' } })
+    mk('case_0008', 'No hot water at 7 am', 'scheduled', 'unit_4b', SCHMIDT, 200, { technician: { tech_id: 'tech_tom', name: 'Tom Schmidt' }, priority: 'urgent' })
+    mk('case_0009', 'Dripping tap in the bathroom', 'rejected', 'unit_2a', null, 300, { approval: { required: false, rule: '', rejected: true, reason: 'Tenant must pay this' } })
+    emit({ type: 'demo.reset', case_id: null, event: null })
+  },
+  async demoReset(): Promise<void> {
+    state = { ...initialState(), cases: {} } // like the backend: empty
     emit({ type: 'demo.reset', case_id: null, event: null })
   },
   async demoSkip(): Promise<void> {

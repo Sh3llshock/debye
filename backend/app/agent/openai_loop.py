@@ -20,7 +20,7 @@ log = logging.getLogger("debye.agent.openai")
 
 DEFAULT_MODEL = "gpt-6-luna"
 MAX_ITERATIONS = 6
-SENDING_TOOLS = {"reply", "ask_buttons", "ask_list", "record_triage_answer"}
+SENDING_TOOLS = {"reply", "ask_buttons", "ask_list", "record_triage_answer", "ask_question", "conclude_diagnosis"}
 
 TOOLS = [
     {
@@ -95,13 +95,22 @@ def to_openai_content(blocks: list[dict]) -> list[dict]:
     return out
 
 
+def _in_diagnosis(ctx: TurnContext) -> bool:
+    try:
+        from . import diagnosis
+
+        return bool(diagnosis.active(ctx.conv))
+    except Exception:
+        return False
+
+
 def repair_call(name: str, args: dict, ctx: TurnContext) -> tuple[str, dict]:
     """qwen3.5:2b sometimes jumps straight to the triage buttons without opening the case. The intent is
     clear (a heating fault), so open the case instead; local_follow_up then asks the triage question."""
     opts = args.get("options") if isinstance(args, dict) else None
     is_cold = name == "ask_buttons" and isinstance(opts, list) and any(
         str((o or {}).get("id", "")).startswith(("cold_all:", "cold_some:")) for o in opts if isinstance(o, dict))
-    if is_cold and not getattr(ctx.conv, "case_id", None):
+    if is_cold and not getattr(ctx.conv, "case_id", None) and not _in_diagnosis(ctx):
         said = " ".join((getattr(ctx.conv, "tenant_texts", None) or [])[-3:]).strip() or "Heating not working"
         log.info("local model asked triage before open_case; opening the case first")
         return "open_case", {"summary": "No heating / hot water", "symptoms": said[:500], "error_code": None,
@@ -190,7 +199,7 @@ async def run_loop(messages: list, ctx: TurnContext, timeout: float) -> list:
             assistant["content"] = ""
         messages.append(assistant)
         if not tool_calls:
-            if local and ctx.sent == 0 and (msg.content or "").strip():
+            if local and ctx.sent == 0 and (msg.content or "").strip() and not _in_diagnosis(ctx):
                 # Small local models sometimes answer in plain text instead of calling reply:
                 # deliver that text instead of dropping it and falling back to the script.
                 log.info("local model answered without a tool; sending its text as a reply")

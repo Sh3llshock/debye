@@ -42,10 +42,17 @@ def record_event(case_id: str, actor: str, kind: str, summary: str, data: dict |
 ### 3.3 `services.py` (backend-core): what the agent calls
 ```python
 def get_contact_by_phone(phone_e164: str) -> Contact | None
-def get_unit_context(unit_id: str) -> dict            # property, unit, assets, lease, open cases (JSON-safe)
+def get_unit_context(unit_id: str) -> dict            # property, unit, assets, lease, open cases (JSON-safe)   # + "notices": [{id, title, body, kind, active, starts, ends}] (building notices; demo trigger maintenance_notice toggles one)
 def find_open_case_for_asset(asset_id: str) -> Case | None
 def open_case(reporter_contact_id: str, type: str, priority: str, summary: str,
-              symptoms: str, error_code: str | None, asset_id: str | None) -> Case
+              symptoms: str, error_code: str | None, asset_id: str | None,
+              trade: str | None = None, diagnosis: dict | None = None) -> Case
+    # trade: heating | plumbing | electrical (from the diagnosis); diagnosis: see §4c
+def set_case_diagnosis(case_id: str, diagnosis: dict, trade: str | None = None) -> Case   # §4c, later diagnosis
+def notify_caretaker(case_id: str, reason: str) -> dict   # §4c, caretaker outcome, no partner
+def close_self_help(case_id: str, resolution_text: str = "") -> dict   # = close_without_partner(case_id, "self_help", text)
+def close_without_partner(case_id: str, resolution: str = "self_help", note: str = "") -> dict
+    # §4c: self_help | caretaker | utility → status closed, no partner, saving shown on the staff page
 def link_contact_to_case(case_id: str, contact_id: str, relation: str) -> None
 def attach_document(case_id: str, kind: str, filename: str, mime: str, path: str,
                     extracted: dict | None = None) -> Document
@@ -121,6 +128,7 @@ All JSON. Errors: `{"detail": "..."}` with 4xx.
 ### Partner page (partner chosen by `partner_id` in the URL; no auth for the demo)
 | Method | Path | Body | Returns |
 |---|---|---|---|
+| GET | `/api/partners` | | `[manifest + {active, staff, open_jobs, total_jobs, technicians:[{tech_id,name,skills}]}]`, one per partner (staff "Partners" page) |
 | GET | `/api/partner/{partner_id}` | | partner profile from manifest |
 | GET | `/api/partner/{partner_id}/jobs` | | `[JobSummary]` |
 | GET | `/api/partner/{partner_id}/jobs/{case_id}` | | `JobDetail` (only consented context!) |
@@ -131,7 +139,7 @@ All JSON. Errors: `{"detail": "..."}` with 4xx.
 | POST | `/api/partner/{partner_id}/jobs/{case_id}/complete` | multipart: `notes`, `photo`, `invoice` (PDF) | `JobDetail` |
 
 ### Files and demo
-`GET /files/{document_id}`; `POST /demo/reset`, `POST /demo/skip-to-tomorrow`, `POST /demo/trigger/{name}` (only when `DEMO_MODE=1`).
+`GET /files/{document_id}`; `POST /demo/scenarios` (reset + 9 realistic demo cases built through the real services; units 4b and 2a stay empty; also `POST /demo/reset?scenarios=1`); `POST /demo/reset`, `POST /demo/skip-to-tomorrow`, `POST /demo/trigger/{name}` (only when `DEMO_MODE=1`).
 
 ### Shapes
 ```jsonc
@@ -197,6 +205,26 @@ A reltix staff member confirms **every** job before the partner is contacted, so
 - `POST /api/staff/cases/{id}/approve` records `approval.granted` ("Staff approved the job for Heizung Schmidt GmbH (est. €263)"), dispatches the job (`job.sent`, status `requested`; the partner sees it only now), and calls `notify_tenant(case_id, "approval_granted", {partner_name, dispatched})`.
 - `POST /api/staff/cases/{id}/reject {reason}` is only allowed in `approval_pending` (409 otherwise). It sets status **`rejected`**, records `approval.rejected` ("Staff rejected the job for Heizung Schmidt GmbH: <reason>"), and calls `notify_tenant(case_id, "approval_rejected", {partner_name, reason})`. The partner is never contacted. A rejected case doesn't count as open, so a new report opens a new case.
 - CaseDetail `approval` (the staff card): `{required, granted, rejected, reason, rule, amount_eur, partner:{partner_id,name}, suggested_technician:{tech_id,name}|null, suggested_slot:{start,end,label}|null}`. `partner` is the pending partner, because `case.partner` stays null until the job is sent. The suggestion (only while `approval_pending`) is what auto-assign would pick for the earliest free slot, e.g. Tom Schmidt, "Tomorrow 8–10"; it's informational and nothing is booked. With `always` the rule is "reltix staff approve every job before the partner is contacted". The old status `awaiting_approval` is gone; use `approval_pending`.
+
+## 4c. Diagnosis and trade routing
+
+The knowledge base is `data/diagnosis/no_hot_water.json` ([docs/diagnosis.md](diagnosis.md)). The agent diagnoses and backend-core stores the result and routes on it.
+
+- `open_case(..., trade=None, diagnosis=None)` stores both on the case (`case.data.trade`, `case.data.diagnosis`). A diagnosis records the event `diagnosis.recorded` "Debye diagnosed: Shower mixer / thermostatic cartridge faulty (85%)". `set_case_diagnosis(case_id, diagnosis, trade=None)` does the same when the agent concludes after the case was opened.
+- **Input** (agent): `{cause_id, confidence, reasoning, questions_asked}`, plus optional `label`, `outcome`, `trade`, `estimated_cost_eur`, `estimated_saving_eur`. Missing fields are filled from the KB cause (`cause_id`). `confidence` may be 0–1 or a percentage (85 → 0.85). `questions_asked` items may be `{question, answer}` dicts or plain strings or KB question ids (an id is replaced by the KB wording, answer null).
+- **Stored and returned** `CaseDetail.diagnosis` = `{cause_id, label, confidence (0–1), reasoning, questions_asked:[{question, answer}], outcome (self_help|caretaker|technician|utility|emergency), trade, estimated_cost_eur, estimated_saving_eur}`.
+  - `estimated_cost_eur` comes from the KB cause and also becomes the case estimate when there's no partner yet.
+  - `estimated_saving_eur` is only set for self_help/caretaker: the cause's `estimated_saving_eur` if the KB has one, else €180 (a typical plumber visit).
+- **Closed without a partner:** `close_without_partner(case_id, resolution, note)` (resolution `self_help` | `caretaker` | `utility`). Status `closed`, `case.partner` null. Event `case.closed` "Closed without a technician (self-help), saved ~€180: tank reheated". CaseSummary and CaseDetail get `resolution` and `saving_eur`. 409 (RuleViolation `has_partner`) if a partner is already on the job; use `close_case` then.
+- Without an explicit trade, the trade comes from the case type (`repair.heating` → `heating`).
+- **Ranking** (`rank_partners`) filters by trade: partners whose manifest `capabilities.trades` include the case trade. Plumbing → Heizung Schmidt (its `plumbing` trade); electrical → Elektro Klein. The brand bonus (Vaillant-certified) applies only to heating; for other trades its weight goes to the trade match (reason "plumbing trade").
+- **Technician pre-selection** (auto-assign and the approval-card suggestion) only considers technicians with the trade skill when the partner has any. Plumbing → Ali Yilmaz; electrical → Marco Klein. For heating the Vaillant skill still comes first.
+- **Caretaker outcome:** `notify_caretaker(case_id, reason)` stores `case.data.caretaker = {contact_id, name, phone_e164, reason, notified_at}` and records the event `caretaker.notified` "Caretaker Peter Wolf notified: top up system pressure". No partner and no approval; the case status is unchanged.
+- **Shapes:** CaseSummary gets `trade`, `resolution`, `saving_eur`. CaseDetail gets `trade`, `diagnosis`, `caretaker`, `resolution`, `saving_eur`. The staff approval card (`CaseDetail.approval`, §4b) gets `trade` and `diagnosis: {cause_id, label, confidence, reasoning, outcome, estimated_cost_eur}`.
+- **Agent call sequence:**
+  - technician outcome: `open_case(..., trade, diagnosis)` → consent → `dispatch_job` (approval_pending)
+  - self-help: `open_case(..., diagnosis)` → `close_without_partner(case_id, "self_help", note)` once the tenant confirms it worked (or right away)
+  - caretaker: `open_case(..., diagnosis)` → `notify_caretaker(case_id, reason)` → later `close_without_partner(case_id, "caretaker")`
 
 ## 5. Definition of done for any PR
 - Runs locally from a clean clone with the README steps.

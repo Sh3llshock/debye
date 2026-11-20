@@ -82,6 +82,11 @@ For comparison, `gpt-6-luna` takes 1–3 s per turn. Each model call on this CPU
 then writes at ~8 tokens/s. That's why the turn budget is 120 s here (`AGENT_TIMEOUT`, 20 s with the cloud models) and the
 scripted fallback still answers if the model is slower than that or Ollama isn't running.
 
+**Diagnosis mode ("no hot water", from main):** works with the local model in principle (the diagnosis rules are part of
+`LOCAL_SYSTEM`), but the `<diagnosis>` knowledge-base block makes each prompt much longer. On this laptop, diagnosis turns
+took 60–120 s and some hit the 120 s budget, so the scripted fallback answered them. The numbers in the table above are from
+the golden path before main added the diagnosis flow. Use a machine with a GPU or a faster model for the diagnosis demo.
+
 **Small-model guardrails** (only with `LLM_PROVIDER=ollama`): a shorter system prompt (`LOCAL_SYSTEM` in
 `agent/prompts.py`); after `open_case` / `note_error_code` the follow-up message (triage buttons, duplicate notice, error-code
 sentence) is sent deterministically instead of by a second model call; plain-text answers without a tool call are delivered

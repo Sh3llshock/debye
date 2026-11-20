@@ -68,11 +68,11 @@ def fast_match(text: str | None, options: list[Option]) -> Option | None:
     if is_question:
         words = set()  # "is it ok if ...?" is not a yes
     if not is_question and t in YES or (words & {"yes", "sure", "ok", "okay", "ja", "klar"} and not words & {"no", "not", "nein", "nicht"}):
-        hit = next((o for o in options if o.id.startswith(_YES_PREFIXES)), None)
+        hit = next((o for o in options if o.id.startswith(_YES_PREFIXES) or o.id.endswith(":yes")), None)
         if hit:
             return hit
     if not is_question and (t in NO or t.startswith(("no ", "nein "))):
-        hit = next((o for o in options if o.id.startswith(_NO_PREFIXES)), None)
+        hit = next((o for o in options if o.id.startswith(_NO_PREFIXES) or o.id.endswith(":no")), None)
         if hit:
             return hit
     # slots: "8-10", "8 to 10", "Saturday works", "Sat"

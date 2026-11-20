@@ -97,9 +97,27 @@ async def handle_inbound(msg: InboundMessage) -> None:
     if not text and not images:
         return
 
+    from app.agent import diagnosis
+
+    # "My shower is cold": start the diagnosis (safety question first, asked by code)
+    if (text and not conv.case_id and not conv.diagnosis and conv.step == st.NEW and diagnosis.applies(text)):
+        conv.tenant_texts.append(text)
+        async with _locks[cid]:
+            await diagnosis.begin(contact, conv, text)
+        return
+    # a photo of the display (or a code typed in the text) during the diagnosis answers q_display
+    if (images or text) and diagnosis.active(conv) and "q_display" not in conv.diagnosis["answers"]:
+        code, _src = flow.detect_error_code([text or ""], images)
+        if code:
+            conv.error_code = conv.error_code or code
+            conv.diagnosis["answers"]["q_display"] = "code"
+
     # A free-text answer to the open question ("sure", "just the shower", "Saturday works") is handled
     # exactly like the tap, so consent/slots are really recorded before anything is confirmed.
-    if text and not images and conv.pending_options:
+    in_diagnosis = diagnosis.active(conv) and conv.diagnosis.get("safety_done")
+    if text and not images and conv.pending_options and not in_diagnosis:
+        # (during a diagnosis the model reads the whole message and records every answer in it;
+        #  only the safety question is mapped here, by code)
         from app.agent import choice
 
         opt = await choice.match(text, conv.pending_options, conv.pending_question)
@@ -145,6 +163,26 @@ def _attach(case_id: str, kind: str, path: str, mime: str, filename: str | None 
 
 async def handle_button(contact, button_id: str) -> bool:
     """Handles §3.6 ids in code. Returns False for ids it does not know."""
+    if (button_id or "").startswith(("diagfu_yes:", "diagfu_no:")):  # follow-up after a self-help tip
+        from app.agent import diagnosis
+
+        kind, _, cause_id = button_id.partition(":")
+        st.conversation(be.attr(contact, "id")).pending_options = []
+        try:
+            await diagnosis.on_follow_up(contact, cause_id, kind == "diagfu_yes")
+        except Exception:
+            log.exception("diagnosis follow-up %s failed", button_id)
+        return True
+    if (button_id or "").startswith("diag:"):
+        _, qid, key = (button_id.split(":") + ["", ""])[:3]
+        from app.agent import diagnosis
+
+        st.conversation(be.attr(contact, "id")).pending_options = []
+        try:
+            await diagnosis.on_answer(contact, qid, key)
+        except Exception:
+            log.exception("diagnosis answer %s failed", button_id)
+        return True
     m = BUTTON_RE.match(button_id or "")
     if not m:
         return False

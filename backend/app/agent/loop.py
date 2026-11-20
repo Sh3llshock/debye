@@ -99,6 +99,13 @@ def build_user_content(contact, conv: st.Conversation, text: str | None, image_p
         status["waiting_for"] = "resident's consent tap (already asked, do not repeat)"
     if conv.error_code:
         status["error_code_already_explained"] = conv.error_code
+    from . import diagnosis
+
+    if diagnosis.active(conv):
+        status["mode"] = "diagnosis"
+        last = conv.diagnosis["asked"][-1] if conv.diagnosis["asked"] else None
+        if last and last not in conv.diagnosis["answers"]:
+            status["waiting_for"] = f"answer to diagnosis question {last} (already asked, do not repeat)"
     content: list[dict] = []
     for p in image_paths:
         blk = _image_block(p)
@@ -109,7 +116,9 @@ def build_user_content(contact, conv: st.Conversation, text: str | None, image_p
             "type": "text",
             "text": f"<centrix_context>{json.dumps(facts, ensure_ascii=False, default=str)}</centrix_context>\n"
             f"<state>{json.dumps(status)}</state>\n"
-            f"<resident_message>{text or '(no text)'}</resident_message>",
+            + (f"<diagnosis>{json.dumps(diagnosis.context_block(conv), ensure_ascii=False)}</diagnosis>\n"
+               if diagnosis.active(conv) else "")
+            + f"<resident_message>{text or '(no text)'}</resident_message>",
         }
     )
     return content

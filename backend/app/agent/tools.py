@@ -90,6 +90,33 @@ SCHEMAS: list[dict] = [
     },
 ]
 
+SCHEMAS += [
+    {
+        "name": "ask_question",
+        "description": "Diagnosis mode only: ask one question from <diagnosis>.questions by id (sent with its answer "
+        "options). Pick the one that best splits the remaining causes. Max 5 per diagnosis.",
+        "input_schema": _obj({"question_id": {"type": "string"},
+                              "lead_in": {"type": ["string", "null"],
+                                          "description": "optional short empathetic or acknowledging sentence "
+                                          "(no question in it; the question text is added by the system)"}}),
+    },
+    {
+        "name": "record_answer",
+        "description": "Diagnosis mode only: record what the resident told you in free text as an answer key of a "
+        "question (also for questions you didn't ask, e.g. 'my roommate just showered' → q_recent_use=yes).",
+        "input_schema": _obj({"question_id": {"type": "string"}, "answer_key": {"type": "string"}}),
+    },
+    {
+        "name": "conclude_diagnosis",
+        "description": "Diagnosis mode only: finish with the most likely cause from <diagnosis>.causes. The system "
+        "tells the resident the cause and does the right next step (tip + follow-up, caretaker, or case + consent "
+        "for a technician). Do not send another message after it.",
+        "input_schema": _obj({"cause_id": {"type": "string"},
+                              "confidence": {"type": "number", "description": "0..1"},
+                              "reasoning": {"type": "string", "description": "one or two sentences for the staff"}}),
+    },
+]
+
 for s in SCHEMAS:
     s["strict"] = True
 
@@ -100,8 +127,18 @@ async def _reply(ctx: TurnContext, text: str) -> dict:
     return {"ok": True, "delivered": True}
 
 
+def _no_free_questions_in_diagnosis(ctx: TurnContext) -> None:
+    from . import diagnosis
+
+    if diagnosis.active(ctx.conv):
+        raise ValueError("A diagnosis is running: ask only with ask_question (or reply without a question). "
+                         + ("A question was already sent this turn; stop now." if ctx.sent else ""))
+
+
 async def _ask_buttons(ctx: TurnContext, text: str, options: list[dict]) -> dict:
     import time
+
+    _no_free_questions_in_diagnosis(ctx)
 
     if not options:
         raise ValueError("options must not be empty")
@@ -121,6 +158,7 @@ async def _ask_buttons(ctx: TurnContext, text: str, options: list[dict]) -> dict
 
 
 async def _ask_list(ctx: TurnContext, text: str, button_label: str, rows: list[dict]) -> dict:
+    _no_free_questions_in_diagnosis(ctx)
     if not rows:
         raise ValueError("rows must not be empty")
     await out.list_(ctx.contact, ctx.conv.case_id, text, button_label, [Option(r["id"], r["title"]) for r in rows])
@@ -137,6 +175,10 @@ def _clean_code(code) -> str | None:
 
 
 async def _open_case(ctx: TurnContext, summary: str, symptoms: str, error_code: str | None, priority: str) -> dict:
+    from . import diagnosis
+
+    if diagnosis.active(ctx.conv):
+        raise ValueError("A diagnosis is running: use ask_question / record_answer / conclude_diagnosis instead.")
     error_code = _clean_code(error_code)
     res = await flow.ensure_case(
         ctx.contact, summary=summary, symptoms=symptoms, error_code=error_code, priority=priority
@@ -177,7 +219,55 @@ async def _record_triage(ctx: TurnContext, case_id: str, all_radiators_cold: boo
     return {"ok": True, "note": "Consent question was sent to the resident. Do not send another message."}
 
 
+async def _ask_question(ctx: TurnContext, question_id: str, lead_in: str | None) -> dict:
+    from . import diagnosis
+
+    if not diagnosis.active(ctx.conv):
+        raise ValueError("no diagnosis running")
+    d = ctx.conv.diagnosis
+    if not d.get("safety_done"):
+        raise ValueError("Wait: the safety question (gas smell) must be answered first; send nothing now.")
+    if question_id not in diagnosis.questions():
+        raise ValueError(f"unknown question {question_id}")
+    if question_id in d["answers"]:
+        raise ValueError(f"{question_id} is already answered ({d['answers'][question_id]}); ask something else")
+    if len(d["asked"]) >= diagnosis.MAX_QUESTIONS:
+        raise ValueError("5 questions asked: call conclude_diagnosis now with the most likely cause")
+    if ctx.conv.step == st.DIAGNOSIS and d["asked"] and d["asked"][-1] not in d["answers"] and ctx.sent:
+        raise ValueError("A question was already sent this turn. Stop now and send nothing else.")
+    if lead_in and "?" in lead_in:  # the KB question follows; never ask twice
+        head = lead_in.split("?")[0]
+        lead_in = head.rsplit(".", 1)[0].strip() + "." if "." in head else None
+    await diagnosis.ask(ctx.contact, ctx.conv, question_id, lead=lead_in)
+    ctx.sent += 1
+    return {"ok": True, "delivered": True, "note": "Question sent with its options. Wait for the answer."}
+
+
+async def _record_answer(ctx: TurnContext, question_id: str, answer_key: str) -> dict:
+    from . import diagnosis
+
+    if not diagnosis.active(ctx.conv):
+        raise ValueError("no diagnosis running")
+    diagnosis.record(ctx.conv, question_id, answer_key)
+    action, ident, conf = diagnosis.next_step(ctx.conv)
+    return {"ok": True, "answers_so_far": ctx.conv.diagnosis["answers"],
+            "suggested_next": {"action": action, "id": ident, "confidence": conf}}
+
+
+async def _conclude(ctx: TurnContext, cause_id: str, confidence: float, reasoning: str) -> dict:
+    from . import diagnosis
+
+    if not diagnosis.active(ctx.conv):
+        raise ValueError("no diagnosis running")
+    res = await diagnosis.conclude(ctx.contact, ctx.conv, cause_id, max(0.0, min(1.0, confidence)), reasoning)
+    ctx.sent += 1
+    return res
+
+
 IMPLS: dict[str, Callable[..., Awaitable[dict]]] = {
+    "ask_question": _ask_question,
+    "record_answer": _record_answer,
+    "conclude_diagnosis": _conclude,
     "reply": _reply,
     "ask_buttons": _ask_buttons,
     "ask_list": _ask_list,

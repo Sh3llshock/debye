@@ -42,6 +42,10 @@ export interface CaseSummary {
   error_code?: string | null
   error_label?: string | null
   technician?: TechnicianRef | null
+  /** closed without a partner: self_help | caretaker | utility, with the avoided call-out cost */
+  resolution?: string | null
+  saving_eur?: number | null
+  trade?: string | null
 }
 
 export interface TechnicianRef {
@@ -139,6 +143,32 @@ export interface Approval {
   suggested_technician?: TechnicianRef | null
   suggested_slot?: Slot | null
   rejected_reason?: string | null
+  /** backend: the partner the job would go to (case.partner is null while approval_pending) */
+  partner?: PartnerRef | null
+  rejected?: boolean
+  reason?: string | null
+}
+
+/** Debye's diagnosis before dispatching (KB: data/diagnosis/*.json). */
+export interface DiagnosisQA {
+  id?: string
+  question?: string
+  text?: string
+  q?: string
+  answer?: string
+  answer_text?: string
+  a?: string
+}
+export interface Diagnosis {
+  cause_id: string
+  label: string
+  confidence?: number | null // 0..1 (or 0..100)
+  reasoning?: string | null
+  questions_asked?: (DiagnosisQA | string)[]
+  outcome?: 'self_help' | 'caretaker' | 'technician' | 'utility' | 'emergency' | (string & {}) | null
+  trade?: string | null
+  estimated_cost_eur?: number | null
+  estimated_saving_eur?: number | null
 }
 
 export interface CaseDetail extends CaseSummary {
@@ -159,6 +189,8 @@ export interface CaseDetail extends CaseSummary {
   symptoms?: string | null
   proposed_slots?: Slot[]
   price_check?: unknown
+  trade?: string | null
+  diagnosis?: Diagnosis | null
   closed_at?: string | null
 }
 
@@ -200,6 +232,11 @@ export interface PartnerProfile {
   name: string
   category?: string
   rating?: number
+  capabilities?: { trades?: string[]; brands_certified?: string[]; [k: string]: unknown }
+  service_area?: { postcodes?: string[] }
+  active?: boolean
+  staff?: { contact_id: string; name: string }[]
+  open_jobs?: number
   [k: string]: unknown
 }
 

@@ -17,6 +17,8 @@ SCHEDULED = "scheduled"
 CONFIRM_FIXED = "confirm_fixed"  # "Ist es wieder warm?" sent
 CLOSED = "closed"
 WAITING_APPROVAL = "waiting_approval"
+DIAGNOSIS = "diagnosis"  # "no hot water" diagnosis questions running
+SELF_HELP = "self_help"  # tip given, follow-up check pending
 
 
 @dataclass
@@ -29,6 +31,7 @@ class Conversation:
     tenant_texts: list[str] = field(default_factory=list)
     voice_replied: bool = False  # Debye's one-time voice note (ElevenLabs) was sent
     error_code: str | None = None  # display code already told to the resident
+    diagnosis: dict | None = None  # see agent/diagnosis.py
     pending_options: list = field(default_factory=list)  # Options of the last open question (buttons/list)
     pending_question: str | None = None
     asked_at: dict = field(default_factory=dict)  # step -> time.monotonic() of the last question

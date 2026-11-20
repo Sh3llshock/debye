@@ -6,8 +6,9 @@ import { approvalProposal, MiniLine } from '../components/case/CasePanels'
 import { LiveDot, useCrumbs } from '../components/Layout'
 import { ErrorBox, Loading, Mascot, PriorityChip } from '../components/ui'
 import { errorText } from '../lib/errors'
-import { fmtRelative } from '../lib/format'
-import { lineState, needsApproval, STAFF_STATIONS } from '../lib/lifecycle'
+import { fmtEur, fmtRelative, placeLabel } from '../lib/format'
+import { lineState, needsApproval, NO_TECH_STATIONS, STAFF_STATIONS } from '../lib/lifecycle'
+import { isNoTechnicianSummary } from '../components/case/Diagnosis'
 import { useStream } from '../lib/stream'
 import { useNewKeys } from '../lib/useNewKeys'
 import { useDebounced, useResource } from '../lib/useResource'
@@ -18,7 +19,7 @@ const FILTERS: { key: Filter; label: string; test: (c: CaseSummary) => boolean }
   { key: 'all', label: 'All', test: () => true },
   { key: 'open', label: 'Open', test: (c) => c.status !== 'closed' && c.status !== 'rejected' },
   { key: 'decision', label: 'Needs approval', test: (c) => needsApproval(c.status) },
-  { key: 'closed', label: 'Closed', test: (c) => c.status === 'closed' },
+  { key: 'closed', label: 'Closed', test: (c) => c.status === 'closed' || c.status === 'rejected' },
 ]
 
 /** Every job needs staff approval: an amber "Needs your approval" row at the top of the table. */
@@ -38,7 +39,7 @@ function DecisionRow({ c, onDone }: { c: CaseSummary; onDone: () => void }) {
               {prop?.meta ? ` · ${prop.meta}` : ''}
             </div>
             <div className="text-body-sm text-secondary">
-              {c.title} · {(c.address ?? '').split(',')[0]}, {c.unit_id.replace('unit_', '')} · {c.case_id}
+              {c.title} · {placeLabel(c.address, c.unit_id)} · {c.case_id}
             </div>
             {err && <div className="mt-1 text-negative">{err}</div>}
           </div>
@@ -83,7 +84,8 @@ export default function StaffCases() {
 
   const shown = data?.filter(FILTERS.find((f) => f.key === filter)!.test) ?? []
   const decisions = shown.filter((c) => needsApproval(c.status))
-  const rows = shown.filter((c) => !needsApproval(c.status))
+  // Needs-approval rows first (above), then everything else by last update.
+  const rows = shown.filter((c) => !needsApproval(c.status)).sort((a, b) => b.updated_at.localeCompare(a.updated_at))
   const open = data?.filter((c) => c.status !== 'closed' && c.status !== 'rejected').length ?? 0
   const need = data?.filter((c) => needsApproval(c.status)).length ?? 0
 
@@ -108,6 +110,7 @@ export default function StaffCases() {
               className={`rounded px-4 py-2 text-body transition-colors ${filter === f.key ? 'bg-ink font-semibold text-on-action' : 'text-ink hover:bg-sub'}`}
             >
               {t(f.label)}
+              {data && <span className={`ml-1.5 ${filter === f.key ? 'text-on-action/70' : 'text-muted'}`}>{data.filter(f.test).length}</span>}
             </button>
           ))}
         </div>
@@ -143,7 +146,8 @@ export default function StaffCases() {
                 <DecisionRow key={c.case_id} c={c} onDone={reload} />
               ))}
               {rows.map((c) => {
-                const line = lineState(STAFF_STATIONS, c.status)
+                const noTech = isNoTechnicianSummary(c)
+                const line = lineState(noTech ? NO_TECH_STATIONS : STAFF_STATIONS, c.status)
                 return (
                   <tr
                     key={c.case_id}
@@ -160,16 +164,24 @@ export default function StaffCases() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-body-sm">
-                      {(c.address ?? '').split(',')[0]}, {c.unit_id.replace('unit_', '')}
+                      {placeLabel(c.address, c.unit_id)}
                     </td>
                     <td className="px-4 py-3">
-                      <MiniLine total={STAFF_STATIONS.length} reached={line.reached} status={c.status} />
+                      <MiniLine total={line.stations.length} reached={line.reached} status={c.status} />
                     </td>
                     <td className="px-4 py-3">
                       <PriorityChip priority={c.priority} />
                     </td>
                     <td className="px-4 py-3 text-body-sm">
-                      {c.partner?.name ?? <span className="text-muted">—</span>}
+                      {c.partner?.name ??
+                        (noTech ? (
+                          <span className="text-positive">
+                            {t('No technician')}
+                            {c.saving_eur ? ` · ${t('saved ~{eur}', { eur: fmtEur(c.saving_eur) })}` : ''}
+                          </span>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        ))}
                       {c.technician && <div className="text-meta text-muted">{c.technician.name}</div>}
                     </td>
                     <td className="px-4 py-3 text-body-sm text-secondary">{fmtRelative(c.updated_at)}</td>

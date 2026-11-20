@@ -340,4 +340,37 @@ export const DE: Record<string, string> = {
   '{n} need your approval': '{n} brauchen Ihre Freigabe',
   'Every job needs staff approval': 'Jeder Auftrag braucht eine Freigabe',
   'Approved by Anna Becker': 'Freigegeben von Anna Becker',
+
+  // Debye's diagnosis
+  "Debye's diagnosis": 'Debyes Diagnose',
+  'Likely cause': 'Wahrscheinliche Ursache',
+  '{n}% confident': '{n} % sicher',
+  'Questions Debye asked': 'Fragen von Debye',
+  'No technician needed': 'Kein Techniker nötig',
+  'No technician sent, saved ~{eur}': 'Kein Techniker geschickt, ca. {eur} gespart',
+  'No technician sent, the caretaker handles it. Saved ~{eur}': 'Kein Techniker geschickt, der Hausmeister kümmert sich. Ca. {eur} gespart',
+  'Typical cost for this cause: {eur}': 'Übliche Kosten bei dieser Ursache: {eur}',
+  Plumber: 'Sanitär',
+  Heating: 'Heizung',
+  Electrician: 'Elektriker',
+  Caretaker: 'Hausmeister',
+  'Gas utility': 'Gasversorger',
+  Diagnosed: 'Diagnostiziert',
+
+  // partners page
+  Partners: 'Partner',
+  'Framework partners Debye can send jobs to. Open their portal or a technician view to see what they see.':
+    'Rahmenvertragspartner, an die Debye Aufträge senden kann. Öffnen Sie ihr Portal oder eine Techniker-Ansicht, um zu sehen, was sie sehen.',
+  'Loading partners': 'Partner werden geladen',
+  'Service area': 'Einsatzgebiet',
+  Certified: 'Zertifiziert',
+  'Open jobs': 'Offene Aufträge',
+  Technicians: 'Techniker',
+  'No technicians listed': 'Keine Techniker hinterlegt',
+  'Open partner portal': 'Partnerportal öffnen',
+  Solar: 'Solar',
+  Electrical: 'Elektro',
+  Plumbing: 'Sanitär',
+  'No technician': 'Kein Techniker',
+  'saved ~{eur}': 'ca. {eur} gespart',
 }

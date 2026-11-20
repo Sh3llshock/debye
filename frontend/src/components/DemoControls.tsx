@@ -76,7 +76,8 @@ export function DemoControls() {
         )}
         <button className="btn-secondary" disabled={busy} onClick={() => run('Skipped to tomorrow', api.demoSkip)}>Skip to tomorrow</button>
         <TextSize />
-        <button className="btn-ghost" disabled={busy} onClick={() => confirm('Reset all demo data?') && run('Reset', async () => { await api.demoReset(); location.reload() })}>Reset</button>
+        <button className="btn-secondary" disabled={busy} onClick={() => run('Demo cases loaded', async () => { await api.demoScenarios(); location.reload() })}>Load demo cases</button>
+        <button className="btn-ghost" disabled={busy} onClick={() => confirm('Delete all cases and start empty?') && run('Reset', async () => { await api.demoReset(); location.reload() })}>Reset (empty)</button>
       </div>
       {msg && <div className="mt-3 text-label text-muted">{msg}</div>}
     </div>

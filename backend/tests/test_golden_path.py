@@ -453,3 +453,248 @@ def test_english_slot_labels(client):
     from datetime import datetime
     d = datetime.fromisoformat(later["start"])
     assert lbl(later["start"], later["end"], "en") == f"{services.EN_DAYS[d.weekday()]} {d.day} {services.EN_MONTHS[d.month - 1]}, 14–16"
+
+
+# ---------------------------------------------------------------- diagnosis (docs/diagnosis.md)
+import json as _json
+
+KB = _json.loads((Path(__file__).resolve().parents[2] / "data" / "diagnosis" / "no_hot_water.json")
+                 .read_text(encoding="utf-8"))
+CAUSES = {c["id"]: c for c in KB["causes"]}
+
+
+def _diag(cause_id: str, confidence: float = 0.8) -> dict:
+    c = CAUSES[cause_id]
+    return {"cause_id": cause_id, "label": c["label"], "confidence": confidence,
+            "reasoning": "Shower cold, radiators fine, other taps hot", "questions_asked": ["q_scope", "q_radiators"]}
+
+
+def _open_with(cause_id: str):
+    luka = services.get_contact_by_phone("+490000000001")
+    boiler = services.get_unit_context(luka.unit_id)["assets"][0]
+    trade = CAUSES[cause_id]["trade"]
+    case = services.open_case(luka.id, "repair.hot_water", "normal", "No hot water in the shower",
+                              "no hot water", None, boiler["id"], trade=trade, diagnosis=_diag(cause_id))
+    return luka, case
+
+
+def test_diagnosis_stored_and_shown(client):
+    luka, case = _open_with("shower_mixer_faulty")
+    d = client.get(f"/api/staff/cases/{case.id}").json()
+    assert d["trade"] == "plumbing"
+    assert d["diagnosis"]["cause_id"] == "shower_mixer_faulty"
+    assert d["diagnosis"]["label"] == CAUSES["shower_mixer_faulty"]["label"]
+    qs = {q["id"]: q["text"] for q in KB["questions"]}
+    assert d["diagnosis"]["questions_asked"] == [{"question": qs["q_scope"], "answer": None},
+                                                 {"question": qs["q_radiators"], "answer": None}]
+    assert d["diagnosis"]["outcome"] == "technician" and d["diagnosis"]["trade"] == "plumbing"
+    assert d["diagnosis"]["estimated_cost_eur"] == CAUSES["shower_mixer_faulty"]["estimated_cost_eur"]
+    assert d["diagnosis"]["estimated_saving_eur"] is None
+    assert d["estimated_cost_eur"] == CAUSES["shower_mixer_faulty"]["estimated_cost_eur"]  # KB estimate wins
+    ev = next(e for e in d["events"] if e["kind"] == "diagnosis.recorded")
+    assert ev["summary"] == f"Debye diagnosed: {CAUSES['shower_mixer_faulty']['label']} (80%)"
+    assert client.get("/api/staff/cases").json()[0]["trade"] == "plumbing"
+
+
+def test_plumbing_ranks_by_trade_and_preselects_ali(client):
+    luka, case = _open_with("shower_mixer_faulty")
+    ranking = services.rank_partners(case.id)
+    assert [r["partner_id"] for r in ranking] == ["heizung-schmidt"]  # only partner with the plumbing trade
+    assert "plumbing trade" in ranking[0]["reasons"]
+    assert not any("certified" in r for r in ranking[0]["reasons"])  # no brand bonus for plumbing
+    services.record_consent(luka.id, "heizung-schmidt", case.id, ["name", "address"], "repair", "whatsapp")
+    with pytest.raises(rules.RuleViolation):
+        services.dispatch_job(case.id, "heizung-schmidt")
+    card = client.get(f"/api/staff/cases/{case.id}").json()["approval"]
+    assert card["suggested_technician"]["tech_id"] == "tech_ali"  # the plumber
+    assert card["trade"] == "plumbing"
+    assert card["diagnosis"]["label"] == CAUSES["shower_mixer_faulty"]["label"]
+    assert card["diagnosis"]["reasoning"].startswith("Shower cold")
+    services.approve_case(case.id)
+    client.post(f"/api/partner/heizung-schmidt/jobs/{case.id}/accept")
+    slots = [s for t in client.get("/api/partner/heizung-schmidt/technicians").json()
+             if t["tech_id"] == "tech_ali" for s in t["free_slots"]][:1]
+    job = client.post(f"/api/partner/heizung-schmidt/jobs/{case.id}/slots", json={"slots": slots}).json()
+    assert job["technician"]["tech_id"] == "tech_ali"  # auto-assign matches the trade skill
+
+
+def test_electrical_goes_to_elektro_klein(client):
+    luka = services.get_contact_by_phone("+490000000001")
+    case = services.open_case(luka.id, "repair.electrical", "urgent", "Boiler has no power", "dead display",
+                              None, None, trade="electrical",
+                              diagnosis={"cause_id": "no_power_to_boiler", "label": "Boiler has no power",
+                                         "confidence": 0.7, "reasoning": "display dark", "questions_asked": []})
+    ranking = services.rank_partners(case.id)
+    assert [r["partner_id"] for r in ranking] == ["elektro-klein"]
+    sug = services.suggest_technician(case.id, "elektro-klein")
+    assert sug["technician"]["tech_id"] == "tech_marco"
+
+
+def test_heating_keeps_brand_bonus(client):
+    luka, case = _open_with("boiler_fault")
+    ranking = services.rank_partners(case.id)
+    assert ranking[0]["partner_id"] == "heizung-schmidt"
+    assert "Vaillant-certified" in ranking[0]["reasons"]
+    assert len(ranking) == 3
+
+
+def test_notify_caretaker(client):
+    luka, case = _open_with("low_system_pressure")
+    out = services.notify_caretaker(case.id, "top up system pressure")
+    assert out["caretaker"]["name"] == "Peter Wolf"
+    d = client.get(f"/api/staff/cases/{case.id}").json()
+    ev = next(e for e in d["events"] if e["kind"] == "caretaker.notified")
+    assert ev["summary"] == "Caretaker Peter Wolf notified: top up system pressure"
+    assert d["caretaker"]["reason"] == "top up system pressure"
+    assert d["partner"] is None and "job.sent" not in [e["kind"] for e in d["events"]]
+
+
+def test_set_case_diagnosis_later(client):
+    luka, boiler, case = _open_luka_case()
+    services.set_case_diagnosis(case.id, _diag("circulation_pump_faulty", 0.6), trade="heating")
+    d = client.get(f"/api/staff/cases/{case.id}").json()
+    assert d["diagnosis"]["cause_id"] == "circulation_pump_faulty" and d["trade"] == "heating"
+
+
+
+def test_diagnosis_shape_from_agent(client):
+    """Agent-style input: question/answer pairs, confidence in percent, trade taken from the KB."""
+    luka = services.get_contact_by_phone("+490000000001")
+    case = services.open_case(
+        luka.id, "repair.hot_water", "normal", "No hot water in the shower", "cold shower", None, None,
+        diagnosis={"cause_id": "shower_mixer_faulty", "confidence": 85, "reasoning": "only the shower",
+                   "questions_asked": [{"question": "Only the shower?", "answer": "yes, sinks are hot"}]})
+    d = client.get(f"/api/staff/cases/{case.id}").json()
+    assert d["trade"] == "plumbing"  # from the KB cause
+    assert d["diagnosis"]["confidence"] == 0.85
+    assert d["diagnosis"]["questions_asked"] == [{"question": "Only the shower?", "answer": "yes, sinks are hot"}]
+    ev = next(e for e in d["events"] if e["kind"] == "diagnosis.recorded")
+    assert ev["summary"].endswith("(85%)")
+
+
+def test_self_help_case_closes_without_partner(client):
+    luka = services.get_contact_by_phone("+490000000001")
+    case = services.open_case(luka.id, "repair.hot_water", "normal", "Shower lukewarm", "others showered",
+                              None, None, diagnosis={"cause_id": "hot_water_used_up", "confidence": 0.9,
+                                                     "reasoning": "two people showered just before"})
+    assert client.get(f"/api/staff/cases/{case.id}").json()["diagnosis"]["estimated_saving_eur"] == 180
+    res = services.close_self_help(case.id, "tank reheated")
+    assert res["resolution"] == "self_help" and res["estimated_saving_eur"] == 180
+    d = client.get(f"/api/staff/cases/{case.id}").json()
+    assert d["status"] == "closed" and d["partner"] is None
+    assert d["resolution"] == "self_help" and d["saving_eur"] == 180
+    ev = next(e for e in d["events"] if e["kind"] == "case.closed")
+    assert ev["summary"] == "Closed without a technician (self-help), saved ~€180: tank reheated"
+    row = client.get("/api/staff/cases").json()[0]
+    assert row["status"] == "closed" and row["resolution"] == "self_help" and row["saving_eur"] == 180
+
+
+def test_caretaker_case_closes_without_partner(client):
+    luka, case = _open_with("low_system_pressure")
+    services.notify_caretaker(case.id, "top up system pressure")
+    res = services.close_without_partner(case.id, "caretaker", "pressure topped up")
+    assert res["estimated_saving_eur"] == 180
+    # a case with a partner can't be closed this way
+    luka2, boiler, c2 = _open_luka_case()
+    services.record_consent(luka2.id, "heizung-schmidt", c2.id, ["address"], "repair", "whatsapp")
+    _dispatch(c2.id)
+    with pytest.raises(rules.RuleViolation):
+        services.close_without_partner(c2.id, "self_help")
+
+
+# ---------------------------------------------------------------- demo scenarios
+def test_demo_scenarios(client):
+    r = client.post("/demo/scenarios")
+    assert r.status_code == 200, r.text
+    by = {c["scenario"]: c for c in r.json()["cases"]}
+    expect = {"s1_approval_pending": "approval_pending", "s2_requested": "requested",
+              "s3_awaiting_technician": "awaiting_technician", "s4_scheduled_electrical": "scheduled",
+              "s5_closed_invoiced": "closed", "s6_self_help": "closed", "s7_caretaker": "new",
+              "s8_wagner_closed": "closed", "s9_gruen_requested": "requested"}
+    assert {k: v["status"] for k, v in by.items()} == expect
+
+    # live demo units stay empty, and nothing open on Musterstraße's central boiler
+    assert client.get("/api/staff/units/unit_4b").json()["cases"] == []
+    assert client.get("/api/staff/units/unit_2a").json()["cases"] == []
+    assert services.find_open_case_for_asset("asset_boiler_1") is None
+
+    # every partner portal has a job
+    for pid in ("heizung-schmidt", "elektro-klein", "waerme-wagner", "heiztechnik-gruen"):
+        assert client.get(f"/api/partner/{pid}/jobs").json(), pid
+
+    s1 = client.get(f"/api/staff/cases/{by['s1_approval_pending']['case_id']}").json()
+    assert s1["diagnosis"]["confidence"] == 0.85 and s1["asset"]["make"] == "Viessmann"
+    assert s1["asset"]["error_label"] == "No flame signal at start-up (ignition failed)"
+    assert s1["approval"]["partner"]["partner_id"] == "heizung-schmidt" and len(s1["messages"]) >= 4
+    s3 = client.get(f"/api/staff/cases/{by['s3_awaiting_technician']['case_id']}").json()
+    assert s3["technician"]["tech_id"] == "tech_ali" and s3["trade"] == "plumbing"
+    s4 = client.get(f"/api/staff/cases/{by['s4_scheduled_electrical']['case_id']}").json()
+    assert s4["technician"]["tech_id"] == "tech_marco" and s4["partner"]["partner_id"] == "elektro-klein"
+    s5 = client.get(f"/api/staff/cases/{by['s5_closed_invoiced']['case_id']}").json()
+    inv = next(d for d in s5["documents"] if d["kind"] == "invoice")
+    assert inv["extracted"]["gross_eur"] == 498.61 and inv["extracted"]["price_check"]["result"] == "ok"
+    assert client.get(inv["url"]).content.startswith(b"%PDF-1.4")
+    unit = client.get("/api/staff/units/unit_41_3").json()
+    assert {"invoice", "report"} <= {d["kind"] for d in unit["documents"]}
+    s6 = client.get(f"/api/staff/cases/{by['s6_self_help']['case_id']}").json()
+    assert s6["resolution"] == "self_help" and s6["saving_eur"] == 180 and s6["partner"] is None
+    s7 = client.get(f"/api/staff/cases/{by['s7_caretaker']['case_id']}").json()
+    assert s7["caretaker"]["name"] == "Peter Wolf"
+    # timelines look realistic: the closed case is days old
+    assert s5["created_at"] < s1["created_at"]
+
+    # reset with scenarios works too, and a plain reset empties everything
+    assert len(client.post("/demo/reset?scenarios=1").json()["cases"]) == 9
+    client.post("/demo/reset")
+    assert client.get("/api/staff/cases").json() == []
+
+
+def test_partners_list_and_notices(client):
+    client.post("/demo/scenarios")
+    partners = {p["partner_id"]: p for p in client.get("/api/partners").json()}
+    assert {"heizung-schmidt", "elektro-klein", "waerme-wagner", "heiztechnik-gruen"} <= set(partners)
+    hs = partners["heizung-schmidt"]
+    assert hs["name"] == "Heizung Schmidt GmbH" and hs["active"] is True
+    assert hs["open_jobs"] >= 2 and hs["total_jobs"] >= 3
+    assert {t["tech_id"] for t in hs["technicians"]} == {"tech_tom", "tech_ali", "tech_jana"}
+    assert partners["waerme-wagner"]["open_jobs"] == 0 and partners["waerme-wagner"]["total_jobs"] == 1
+    # single partner endpoint unchanged
+    assert client.get("/api/partner/heizung-schmidt").json()["name"] == "Heizung Schmidt GmbH"
+
+    ctx = services.get_unit_context("unit_4b")
+    assert [n["id"] for n in ctx["notices"]] == ["notice_12_maint"]
+    assert ctx["notices"][0]["active"] is False  # live demo not diverted by default
+    r = client.post("/demo/trigger/maintenance_notice", json={"notice_id": "notice_12_maint", "active": True})
+    assert r.json()["active"] is True
+    assert services.get_unit_context("unit_4b")["notices"][0]["active"] is True
+
+
+def test_demo_scenarios_never_half_loaded(client, monkeypatch):
+    from app import scenarios as sc
+    from app.config import now as clock_now
+    from datetime import datetime as _dt
+    calls = {"n": 0}
+    original = sc.s6_self_help
+
+    def flaky():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise MemoryError("simulated low RAM")
+        return original()
+
+    # fails once in the middle (after earlier scenarios already committed) → retried from a clean reset
+    monkeypatch.setattr(sc, "SCENARIOS", [flaky if f is original else f for f in sc.SCENARIOS])
+    r = client.post("/demo/scenarios")
+    assert r.status_code == 200, r.text
+    assert r.json()["attempts"] == 2 and len(r.json()["cases"]) == 9
+    assert len(client.get("/api/staff/cases").json()) == 9  # no leftovers from the failed attempt
+    assert abs((clock_now() - _dt.now(clock_now().tzinfo)).total_seconds()) < 5  # clock not left shifted
+
+    # fails every time → 503 and a clean, empty seed (not 3 stray cases)
+    def broken():
+        raise MemoryError("still low RAM")
+    monkeypatch.setattr(sc, "SCENARIOS", [broken if f is flaky else f for f in sc.SCENARIOS])
+    r = client.post("/demo/scenarios")
+    assert r.status_code == 503 and "reset to the empty seed" in r.json()["detail"]
+    assert client.get("/api/staff/cases").json() == []
+    assert client.get("/api/staff/units").json()  # seed itself is intact

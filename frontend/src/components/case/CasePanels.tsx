@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { CaseDetail, CaseEvent, DocumentItem, RankingEntry, ThreadMessage, UnitDetail } from '../../api/types'
 import { errorText, explainCodes } from '../../lib/errors'
-import { fmtDateTime, fmtEur, fmtSlot, fmtSlotShort, fmtTime, humanize } from '../../lib/format'
+import { fmtDateTime, fmtEur, fmtSlot, fmtSlotShort, fmtTime, humanize, unitLabel } from '../../lib/format'
 import { eventKey, messageKey } from '../../lib/keys'
 import { needsApproval, statusText, type LineState } from '../../lib/lifecycle'
 import { locale, t } from '../../lib/i18n'
@@ -419,14 +419,14 @@ export function Inspector({ c, unit, docs, partnerName }: { c: CaseDetail; unit:
           {gross != null ? `${t('{eur} invoiced', { eur: fmtEur(gross, true) })}, ` : ''}
           {c.estimated_cost_eur != null ? t('{eur} estimated', { eur: fmtEur(c.estimated_cost_eur) }) : '—'}
         </Prop>
-        <Prop label={t('Approval')}>{needsApproval(c.status) ? t('Needs your approval') : c.status === 'rejected' ? t('Rejected: {reason}', { reason: c.approval?.rejected_reason ?? '—' }) : c.approval?.rule && c.approval.rule !== 'not evaluated yet' ? humanize(c.approval.rule) : '—'}</Prop>
+        <Prop label={t('Approval')}>{needsApproval(c.status) ? t('Needs your approval') : c.status === 'rejected' ? t('Rejected: {reason}', { reason: c.approval?.reason ?? c.approval?.rejected_reason ?? '—' }) : c.approval?.rule && c.approval.rule !== 'not evaluated yet' ? humanize(c.approval.rule) : '—'}</Prop>
         {z && (
           <Prop label={t("{name}'s input", { name })}>
             {t('{inputs}. Debye filled the other {n} fields from centrix', { inputs: z.inputs, n: z.prefilled })}
           </Prop>
         )}
       </Section>
-      <Section title={`Unit ${c.unit_id.replace('unit_', '')}`}>
+      <Section title={t('Unit {u}', { u: unitLabel(c.unit_id, c.address) })}>
         {unit ? (
           <>
             <Prop label={t('Address')}>{p?.address}</Prop>
@@ -486,7 +486,7 @@ export function Inspector({ c, unit, docs, partnerName }: { c: CaseDetail; unit:
 // ---------- partner choice (table, with the approval as a "needs decision" group) ----------
 /** Who/what the approval would send: the assigned partner, else Debye's top-ranked one. */
 export function approvalProposal(c: CaseDetail) {
-  const partner = c.partner?.name ?? c.ranking[0]?.name ?? t('the partner')
+  const partner = c.approval?.partner?.name ?? c.partner?.name ?? c.ranking[0]?.name ?? t('the partner')
   const amount = c.approval?.amount_eur ?? c.estimated_cost_eur
   const tech = c.approval?.suggested_technician
   const slot = c.approval?.suggested_slot
