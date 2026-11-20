@@ -224,8 +224,31 @@ PREFILLED_FROM_CENTRIX = [
 ]
 
 
+DIAGNOSIS_KEYS = ("cause_id", "label", "confidence", "reasoning", "questions_asked", "outcome")
+
+
+def _clean_diagnosis(diagnosis: dict | None) -> dict | None:
+    if not diagnosis:
+        return None
+    d = {k: diagnosis.get(k) for k in DIAGNOSIS_KEYS if k in diagnosis}
+    d["questions_asked"] = list(d.get("questions_asked") or [])
+    return d
+
+
+def case_trade(case: Case) -> str | None:
+    """The trade the case needs (heating | plumbing | electrical | ...). Default: from the case type."""
+    t = (case.data or {}).get("trade")
+    if t:
+        return t
+    return case.type.split(".")[-1] if case.type and case.type.startswith("repair.") else None
+
+
 def open_case(reporter_contact_id: str, type: str, priority: str, summary: str,
-              symptoms: str, error_code: str | None, asset_id: str | None) -> Case:
+              symptoms: str, error_code: str | None, asset_id: str | None,
+              trade: str | None = None, diagnosis: dict | None = None) -> Case:
+    """trade: which trade the job needs (heating | plumbing | electrical), from the diagnosis.
+    diagnosis: {cause_id, label, confidence, reasoning, questions_asked[]} (see docs/diagnosis.md)."""
+    diagnosis = _clean_diagnosis(diagnosis)
     with get_session() as s:
         reporter = _get(s, Contact, reporter_contact_id)
         unit = s.get(Unit, reporter.unit_id) if reporter.unit_id else None
@@ -245,7 +268,9 @@ def open_case(reporter_contact_id: str, type: str, priority: str, summary: str,
             unit_id=reporter.unit_id, asset_id=asset.id if asset else None,
             reporter_contact_id=reporter.id, cost_bearer="landlord",
             estimated_cost_eur=estimate, created_at=ts, updated_at=ts,
-            data={"prefilled_fields": PREFILLED_FROM_CENTRIX, "tenant_inputs": []},
+            data={"prefilled_fields": PREFILLED_FROM_CENTRIX, "tenant_inputs": [],
+                  **({"trade": trade} if trade else {}),
+                  **({"diagnosis": diagnosis} if diagnosis else {})},
         )
         s.add(case)
         s.add(CaseContact(case_id=case.id, contact_id=reporter.id, relation="reporter"))
@@ -259,7 +284,9 @@ def open_case(reporter_contact_id: str, type: str, priority: str, summary: str,
                  f"Case opened from {first}'s report" + (f". {phrase}" if phrase else ""),
                  {"priority": case.priority, "error_code": error_code,
                   "error_label": error_label(error_code, known), "asset_id": case.asset_id,
-                  "estimated_cost_eur": estimate})
+                  "estimated_cost_eur": estimate, "trade": trade})
+    if diagnosis:
+        _record_diagnosis_event(case.id, diagnosis, trade)
     _claim_orphan_media(case.id, reporter_contact_id)
     return get_case(case.id)
 
@@ -289,6 +316,46 @@ def set_case_error_code(case_id: str, code: str) -> Case:
                  {"error_code": code, "error_label": error_label(code, known),
                   "previous_error_code": previous, "estimated_cost_eur": estimate})
     return get_case(case_id)
+
+
+def _record_diagnosis_event(case_id: str, diagnosis: dict, trade: str | None) -> None:
+    conf = diagnosis.get("confidence")
+    conf_txt = f", {conf:.0%} sure" if isinstance(conf, (int, float)) and conf <= 1 else \
+        (f", {conf}" if conf else "")
+    who = f" → {trade}" if trade else ""
+    record_event(case_id, "debye", "diagnosis.recorded",
+                 f"Likely cause: {diagnosis.get('label') or diagnosis.get('cause_id')}{conf_txt}{who}",
+                 {**diagnosis, "trade": trade})
+
+
+def set_case_diagnosis(case_id: str, diagnosis: dict, trade: str | None = None) -> Case:
+    """Record (or update) the diagnosis after the case was opened; optionally set the trade."""
+    diagnosis = _clean_diagnosis(diagnosis) or {}
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        _patch_data(case, diagnosis=diagnosis, **({"trade": trade} if trade else {}))
+        _save_case(s, case)
+        trade = trade or (case.data or {}).get("trade")
+    _record_diagnosis_event(case_id, diagnosis, trade)
+    return get_case(case_id)
+
+
+def notify_caretaker(case_id: str, reason: str) -> dict:
+    """Hand the case to the reltix caretaker (no partner, no approval): e.g. top up system pressure.
+    Records "Caretaker Peter Wolf notified: <reason>"."""
+    import re
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        ct = s.exec(select(Contact).where(Contact.role == "caretaker")).first()
+        if ct is None:
+            raise rules.RuleViolation("no_caretaker", "no caretaker in centrix")
+        name = re.sub(r"\s*\(.*?\)\s*$", "", ct.name).strip()
+        info = {"contact_id": ct.id, "name": name, "phone_e164": ct.phone_e164,
+                "reason": reason, "notified_at": now_iso()}
+        _patch_data(case, caretaker=info)
+        _save_case(s, case)
+    record_event(case_id, "debye", "caretaker.notified", f"Caretaker {name} notified: {reason}", info)
+    return {"case_id": case_id, "caretaker": info}
 
 
 def _claim_orphan_media(case_id: str, contact_id: str) -> None:
@@ -383,7 +450,7 @@ def rank_partners(case_id: str) -> list[dict]:
                      for p in s.exec(select(Partner).where(Partner.active == True)).all()]  # noqa: E712
         fw_ids = {c.partner_id for c in s.exec(select(Contract).where(Contract.type == "framework")).all()}
         declined = set((case.data or {}).get("declined_by", []))
-        full = [r for r in rank(case.type, ctx, manifests, fw_ids, case.property_id)
+        full = [r for r in rank(case.type, ctx, manifests, fw_ids, case.property_id, trade=case_trade(case))
                 if r["partner_id"] not in declined]
         top = [r for r in full if r["eligible"]][:3]
         _patch_data(case, ranking=top)
@@ -538,22 +605,32 @@ def _pick_technician(s, case: Case, partner_id: str, slots: list[dict]):
     from .partners.technicians import is_free
     asset = s.get(Asset, case.asset_id) if case.asset_id else None
     brand = (asset.make or "").lower() if asset else ""
-    trade = case.type.split(".")[-1] if case.type else ""
+    trade = case_trade(case) or ""
     best, best_key = None, None
-    for t in s.exec(select(Technician).where(Technician.partner_id == partner_id)).all():
+    techs = s.exec(select(Technician).where(Technician.partner_id == partner_id)).all()
+    skilled = [t for t in techs if trade and trade in {k.lower() for k in t.skills or []}]
+    if skilled:  # only technicians with the needed trade (no heating-only tech on a plumbing job)
+        techs = skilled
+    for t in techs:
         if not all(is_free(t.busy, sl) for sl in slots):
             continue
         skills = {k.lower() for k in t.skills or []}
         jobs = sum(1 for b in t.busy if str(b.get("reason", "")).startswith("job"))
-        key = (brand in skills, trade in skills, -jobs, t.id)
+        if trade in ("heating", ""):
+            key = (brand in skills, trade in skills, -jobs, t.id)
+        else:  # plumbing/electrical: the trade skill decides, brand doesn't matter
+            key = (trade in skills, False, -jobs, t.id)
         if best_key is None or key[:3] > best_key[:3] or (key[:3] == best_key[:3] and t.id < best_key[3]):
             best, best_key = t, key
     reason = None
     if best:
         bits = []
-        if best_key[0]:
-            bits.append(f"{asset.make}-skilled")
-        if best_key[1]:
+        if trade in ("heating", ""):
+            if best_key[0]:
+                bits.append(f"{asset.make}-skilled")
+            if best_key[1]:
+                bits.append(f"{trade} trade")
+        elif best_key[0]:
             bits.append(f"{trade} trade")
         bits.append("free in all proposed slots")
         reason = ", ".join(bits)

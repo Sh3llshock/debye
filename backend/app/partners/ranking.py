@@ -36,14 +36,23 @@ def _availability_score(days: int) -> float:
 
 
 def rank(case_type: str, ctx: dict, manifests: list[Manifest],
-         framework_partner_ids: set[str], property_id: str | None) -> list[dict]:
+         framework_partner_ids: set[str], property_id: str | None,
+         trade: str | None = None) -> list[dict]:
     """ctx: nested dict with property/unit/asset/tenant keys. Returns all candidates, sorted;
-    each {partner_id, name, score, reasons, eligible, breakdown, next_free}."""
+    each {partner_id, name, score, reasons, eligible, breakdown, next_free}.
+    With a trade (from the diagnosis), partners are filtered by capabilities.trades instead of the
+    category, and the brand bonus applies only to heating (a plumber doesn't need Vaillant)."""
     flat = flatten(ctx)
     make = (ctx.get("asset") or {}).get("make")
+    brand_matters = trade in (None, "heating")
     out = []
     for m in manifests:
-        if m.category != case_type:
+        if m.kind != "deliver":
+            continue
+        if trade:
+            if trade not in (m.capabilities.get("trades") or []):
+                continue
+        elif m.category != case_type:
             continue
         eligible, why_not = evaluate(m, flat)
         if not eligible:
@@ -53,9 +62,13 @@ def rank(case_type: str, ctx: dict, manifests: list[Manifest],
         reasons: list[str] = []
         breakdown: dict[str, float] = {}
 
-        certified = bool(make) and make in m.brands_certified
-        breakdown["brand_certified"] = WEIGHTS["brand_certified"] * (1.0 if certified else 0.0)
-        reasons.append(f"{make}-certified" if certified else f"not {make}-certified")
+        if brand_matters:
+            certified = bool(make) and make in m.brands_certified
+            breakdown["brand_certified"] = WEIGHTS["brand_certified"] * (1.0 if certified else 0.0)
+            reasons.append(f"{make}-certified" if certified else f"not {make}-certified")
+        else:  # the weight goes to the trade match instead (every candidate here has the trade)
+            breakdown["brand_certified"] = WEIGHTS["brand_certified"]
+            reasons.append(f"{trade} trade")
 
         av = KNOWN_AVAILABILITY.get(m.partner_id, DEFAULT_AVAILABILITY)
         breakdown["availability"] = WEIGHTS["availability"] * _availability_score(av["days"])
