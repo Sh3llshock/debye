@@ -1,5 +1,8 @@
 import type { CaseDetail, CaseSummary, JobDetail, JobSummary, PartnerProfile, Slot, TechProfile, Technician, UnitDetail, UnitSummary } from './types'
 
+/** The signed-in staff member shown in the top bar; sent as staff_name on approve/reject. */
+export const STAFF_NAME = 'Anna Becker'
+
 export const USE_FIXTURES = import.meta.env.VITE_USE_FIXTURES === '1'
 export const DEMO = import.meta.env.VITE_DEMO === '1'
 
@@ -40,8 +43,8 @@ const http = {
   staffUnit: (id: string) => req<UnitDetail>('GET', `/api/staff/units/${enc(id)}`),
   staffCases: () => req<CaseSummary[]>('GET', '/api/staff/cases'),
   staffCase: (id: string) => req<CaseDetail>('GET', `/api/staff/cases/${enc(id)}`),
-  approve: (id: string) => req<CaseDetail>('POST', `/api/staff/cases/${enc(id)}/approve`),
-  reject: (id: string, reason: string) => req<CaseDetail>('POST', `/api/staff/cases/${enc(id)}/reject`, { reason }),
+  approve: (id: string) => req<CaseDetail>('POST', `/api/staff/cases/${enc(id)}/approve`, { staff_name: STAFF_NAME }),
+  reject: (id: string, reason: string) => req<CaseDetail>('POST', `/api/staff/cases/${enc(id)}/reject`, { reason, staff_name: STAFF_NAME }),
   partner: (pid: string) => req<PartnerProfile>('GET', `/api/partner/${enc(pid)}`),
   jobs: (pid: string) => req<JobSummary[]>('GET', `/api/partner/${enc(pid)}/jobs`),
   job: (pid: string, cid: string) => req<JobDetail>('GET', `/api/partner/${enc(pid)}/jobs/${enc(cid)}`),

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { onStreamStatus } from '../lib/stream'
-import { DEMO, USE_FIXTURES } from '../api/client'
+import { DEMO, STAFF_NAME, USE_FIXTURES } from '../api/client'
 import { initials } from '../lib/format'
 import { t, useLang } from '../lib/i18n'
 import { DemoControls } from './DemoControls'
@@ -120,7 +120,7 @@ export function StaffLayout({ children }: { children: ReactNode }) {
           <>
             {USE_FIXTURES && <span className="rounded-chip bg-warning-soft px-2 py-0.5 text-meta font-semibold text-warning">fixtures</span>}
             <LiveDot />
-            <span className="hidden text-body text-secondary lg:inline">Anna Becker · reltix</span>
+            <span className="hidden text-body text-secondary lg:inline">{STAFF_NAME} · reltix</span>
           </>
         }
       >

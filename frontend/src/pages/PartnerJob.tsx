@@ -17,8 +17,8 @@ function approvalText(a?: JobApproval | null): string {
   if (!a?.granted) return ''
   const text = a.text?.trim().replace(/\.$/, '') ?? ''
   const staff = text.match(/^Approved by reltix staff \((.+)\)$/)?.[1] ?? (!text && a.granted_by ? a.granted_by : null)
-  if (staff) return t('Approved by reltix staff ({name}).', { name: staff })
-  if (text) return getLang() === 'de' && /^Approved automatically/.test(text) ? t('Approved automatically.') : `${text}.`
+  if (staff) return t('Approved by reltix staff ({name})', { name: staff })
+  if (text) return getLang() === 'de' && /^Approved automatically/.test(text) ? t('Approved automatically') : text
   return ''
 }
 
@@ -231,8 +231,8 @@ function AcceptDecline({ job, partnerId, onChange }: ActionProps) {
     <div>
       <h2 className="text-panel">{t('New job from Debye')}</h2>
       <p className="mt-1 text-body-sm text-secondary">
-        {job.estimated_cost_eur != null ? t('Framework job, estimate {eur}.', { eur: fmtEur(job.estimated_cost_eur) }) : t('Framework job.')}{' '}
-        {approvalText(job.approval)} {t('Accept, then pick a technician and offer visit times.')}
+        {[job.estimated_cost_eur != null ? t('Framework job, estimate {eur}', { eur: fmtEur(job.estimated_cost_eur) }) : t('Framework job'), approvalText(job.approval)].filter(Boolean).join(' · ')}.{' '}
+        {t('Accept, then pick a technician and offer visit times.')}
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
         <button className="btn-primary" disabled={busy} onClick={() => run(() => api.accept(partnerId, job.case_id))}>
