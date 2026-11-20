@@ -365,7 +365,8 @@ def main() -> int:
                     help="send local:<path> media ids instead of uploading to /demo/sim-media")
     ap.add_argument("--reset", action="store_true", help="POST /demo/reset first")
     ap.add_argument("--step", choices=STEPS, help="run one step only")
-    ap.add_argument("--wait", type=float, default=20.0, help="max seconds to wait for Debye's reply")
+    ap.add_argument("--wait", type=float, default=60.0,
+                    help="max seconds to wait for Debye's reply (returns as soon as it arrives; LLM timeouts can take ~20s)")
     ap.add_argument("--pause", type=float, default=0.0, help="seconds between steps (for live demos)")
     args = ap.parse_args()
     try:
