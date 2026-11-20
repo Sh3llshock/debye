@@ -139,6 +139,10 @@ export interface Approval {
   suggested_technician?: TechnicianRef | null
   suggested_slot?: Slot | null
   rejected_reason?: string | null
+  /** backend: the partner the job would go to (case.partner is null while approval_pending) */
+  partner?: PartnerRef | null
+  rejected?: boolean
+  reason?: string | null
 }
 
 export interface CaseDetail extends CaseSummary {
