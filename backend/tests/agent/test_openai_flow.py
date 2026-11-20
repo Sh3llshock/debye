@@ -183,6 +183,6 @@ def test_error_code_always_explained(client, svc, gpt):
     client.post("/webhooks/whatsapp", json=wa_text("Heizung kalt, F.28"))
     tool_result = json.loads(stub.requests[1]["messages"][-1]["content"])
     assert tool_result["explain_error_code"] == "Am Display sehe ich den Fehler F.28 – das heißt, die Zündung ist fehlgeschlagen (die Heizung startet nicht)."
-    assert any(e[2] == "triage.error_code" and e[3] == "Boiler error: ignition failed (F.28)" for e in svc.events)
+    assert any(c[0] == "open_case" and c[-1] == "F.28" for c in svc.calls)  # services' case.created states the meaning
     system = stub.requests[0]["messages"][0]["content"]
     assert "Never mention an error code without saying what it means" in system

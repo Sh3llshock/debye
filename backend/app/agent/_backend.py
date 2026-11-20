@@ -101,10 +101,10 @@ def set_case_error_code(case_id: str, error_code: str) -> None:
     """Writes the display code onto an open case and records it on the timeline."""
     svc = _services()
     fn = getattr(svc, "set_case_error_code", None)
-    if fn is not None:  # it only writes the field; the timeline event below is recorded here (once)
+    if fn is not None:  # services records the single "case.error_code" timeline event itself
         fn(case_id, error_code)
-    else:
-        _set_error_code_directly(case_id, error_code)
+        return
+    _set_error_code_directly(case_id, error_code)
     from .error_codes import timeline_summary
 
     record_event(case_id, "debye", "triage.error_code", timeline_summary(error_code), {"error_code": error_code})

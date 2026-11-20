@@ -240,4 +240,4 @@ def test_fallback_reads_demo_photo_after_voice_note(client, svc, claude, tmp_pat
     msgs = outbox(client)
     assert len(msgs) == n + 1
     assert msgs[-1]["payload"]["text"]["body"].startswith("Am Display sehe ich den Fehler F.28 – das heißt, die Zündung ist fehlgeschlagen (die Heizung startet nicht).")
-    assert any(e[2] == "triage.error_code" and e[3] == "Boiler error: ignition failed (F.28)" for e in svc.events)
+    assert any(e[2] == "case.error_code" and e[3] == "Boiler error: ignition failed (F.28)" for e in svc.events)
