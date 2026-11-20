@@ -82,7 +82,7 @@ export default function StaffCase() {
           </div>
         </div>
         <div className="mt-8 overflow-x-auto">
-          <div className="min-w-[720px]">
+          <div className="sm:min-w-[720px]">
             <ServiceLine line={line} waiting={waitingText(c.status, who)} />
           </div>
         </div>
