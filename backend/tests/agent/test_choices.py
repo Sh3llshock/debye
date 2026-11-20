@@ -59,7 +59,7 @@ def test_free_text_consent_records_and_dispatches(client, svc, claude):
     client.post("/webhooks/whatsapp", json=wa("Sure"))
     assert any(c[0] == "consent" for c in svc.calls)  # consent really recorded
     assert ("dispatch", "case_0001", "heizung-schmidt") in svc.calls
-    assert "booked" in last(client)
+    assert "has the job" in last(client)
 
 
 def test_model_step_maps_free_text(client, svc, claude, monkeypatch):

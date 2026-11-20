@@ -137,8 +137,8 @@ async def send_duplicate_notice(contact, case_id: str) -> None:
     await out.text(
         contact,
         case_id,
-        f"Thanks{', ' + name if name else ''}! The heating for the whole building has already been reported and a "
-        "technician is on it 🔧 I'll keep you posted.",
+        f"Thanks{', ' + name if name else ''}. The heating for the whole building is already reported and a "
+        "technician is on it. I'll keep you posted.",
     )
 
 
@@ -203,7 +203,7 @@ async def on_consent(contact, case_id: str, yes: bool) -> None:
         be.record_event(case_id, "tenant", "consent.declined", "Tenant declined sharing their details")
         conv.step = st.WAITING_APPROVAL
         await out.text(
-            contact, case_id, "No problem, I won't share anything. Someone from the property management will get in touch 🙂"
+            contact, case_id, "Understood, I won't share anything. Someone from the property management will get in touch."
         )
         return
     if not cs.partner_id:
@@ -214,7 +214,7 @@ async def on_consent(contact, case_id: str, yes: bool) -> None:
         except Exception:
             log.exception("rank_partners failed")
     if not cs.partner_id:
-        await out.text(contact, case_id, "Thanks! I'm finding the right company for you, back in a moment.")
+        await out.text(contact, case_id, "Thanks. I'm finding the right company and will get back to you shortly.")
         return
     be.add_tenant_input(case_id, "tap: consent")
     be.record_consent(
@@ -229,18 +229,17 @@ async def on_consent(contact, case_id: str, yes: bool) -> None:
             await tell_approval_pending(case_id, [contact])
             return
         log.exception("dispatch_job failed")
-        await out.text(contact, case_id, "Thanks! I'm on it and I'll get back to you shortly.")
+        await out.text(contact, case_id, "Thanks. I'm on it and will get back to you shortly.")
         return
     conv.step = st.DISPATCHED
     await out.text(
         contact,
         case_id,
-        f"Great, thanks! I've booked {partner_label(case_id)} 🙌 As soon as they suggest times, "
-        "you can pick one right here.",
+        f"Thanks. {partner_label(case_id)} has the job. As soon as they suggest times, you can pick one here.",
     )
 
 
-APPROVAL_PENDING_TEXT = "Thanks! Your property manager is confirming the repair, I'll update you in a moment."
+APPROVAL_PENDING_TEXT = "Thanks. Your property manager is confirming the repair, I'll update you shortly."
 
 
 async def tell_approval_pending(case_id: str, contacts: list | None = None) -> None:
@@ -308,15 +307,15 @@ async def on_slot(contact, case_id: str, n: int) -> None:
     st.conversation(be.attr(contact, "id")).step = st.SCHEDULED
     if cs.technician_name:  # dispatcher flow: the technician still confirms (notify "technician_confirmed")
         await out.text(
-            contact, case_id, f"Great, I've asked {cs.technician_name} to confirm, I'll let you know in a moment."
+            contact, case_id, f"Thanks. I've asked {cs.technician_name} to confirm and will let you know shortly."
         )
         return
     await out.text(
         contact, case_id,
-        f"Perfect, {partner_label(case_id)} will come {natural_when(label)} 👍 I'll remind you the evening before."
+        f"{partner_label(case_id)} will come {natural_when(label)}. I'll remind you the evening before."
     )
     await _tell_neighbours(contact, case_id,
-                           f"Quick update: a technician is coming {natural_when(label)} for the building's heating 🔧")
+                           f"Update: a technician is coming {natural_when(label)} for the building's heating.")
 
 
 async def _tell_neighbours(contact, case_id: str, text: str) -> None:
@@ -339,17 +338,17 @@ async def on_technician_confirmed(case_id: str, technician_name: str | None, slo
         await out.text(
             c,
             case_id,
-            f"Perfect{', ' + name if name else ''}! {tech} from {partner_label(case_id)} will come to your apartment "
-            f"{when}. I'll remind you the evening before 👍",
+            f"{name + ', ' if name else ''}{tech} from {partner_label(case_id)} will come to your apartment "
+            f"{when}. I'll remind you the evening before.",
         )
     await _tell_neighbours(reporters[0] if reporters else None, case_id,
-                           f"Quick update: {tech} from {partner_label(case_id)} is coming {when} for the "
-                           "building's heating 🔧")
+                           f"Update: {tech} from {partner_label(case_id)} is coming {when} for the "
+                           "building's heating.")
 
 
 async def on_slot_none(contact, case_id: str) -> None:
     be.record_event(case_id, "tenant", "slot.rejected", "None of the proposed times work for the tenant")
-    await out.text(contact, case_id, f"No problem! I'll ask {partner_label(case_id)} for other times.")
+    await out.text(contact, case_id, f"Understood. I'll ask {partner_label(case_id)} for other times.")
 
 
 # ---------------------------------------------------------------- close the loop
@@ -359,7 +358,7 @@ async def ask_fixed(case_id: str, notes: str | None = None) -> None:
         await out.buttons(
             c,
             case_id,
-            f"{partner_label(case_id)} has finished the repair 🔧 Is it nice and warm again at your place?",
+            f"{partner_label(case_id)} has finished the repair. Is it warm again at your place?",
             [Option(f"fixed_yes:{case_id}", "Yes, all warm"), Option(f"fixed_no:{case_id}", "No, still cold")],
         )
 
@@ -370,18 +369,17 @@ async def on_fixed(contact, case_id: str, fixed: bool) -> None:
         await out.text(
             contact,
             case_id,
-            "So glad it's warm again! 🎉 The invoice goes straight to the property management, "
-            "so there's nothing for you to pay.",
+            "Good. The invoice goes straight to the property management, so there's nothing for you to pay.",
         )
         me = be.attr(contact, "id")
         for other in tenant_contacts(case_id):
             if be.attr(other, "id") != me:
-                await out.text(other, case_id, "Good news: the building's heating is working again 🎉 Let me know if it's still cold at your place.")
+                await out.text(other, case_id, "The building's heating is working again. Let me know if it's still cold at your place.")
         for conv in st.conversations_for_case(case_id):
             st.reset_conversation(conv.contact_id)
     else:
         st.conversation(be.attr(contact, "id")).step = st.DISPATCHED
-        await out.text(contact, case_id, f"Oh no, I'm sorry 😕 I'll let {partner_label(case_id)} know right away.")
+        await out.text(contact, case_id, f"Thanks for telling me. I'll let {partner_label(case_id)} know right away.")
 
 
 HEATING_WORDS = ("heat", "radiator", "boiler", "cold", "warm", "hot water", "heiz", "kalt", "kessel", "therme",
@@ -514,9 +512,9 @@ async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[st
         if res["duplicate"]:
             await send_duplicate_notice(contact, res["case_id"])
         else:
-            prefix = "Oh no, a cold flat is the worst 😕 I'm on it."
+            prefix = ""
             if new_code:
-                prefix = f"Oh no 😕 {error_code_sentence(new_code, source)} I'm on it."
+                prefix = error_code_sentence(new_code, source)
                 conv.error_code = new_code
             await ask_cold(contact, res["case_id"], prefix=prefix)
     elif conv.step == st.TRIAGE:
@@ -524,7 +522,7 @@ async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[st
             conv.error_code = new_code
             be.set_case_error_code(cid, new_code)
             if st.TRIAGE in conv.asked_at:  # cold question still open: acknowledge only, don't ask again
-                await out.text(contact, cid, f"{error_code_sentence(new_code, source)} Thanks for the photo, that really helps the technician 👍")
+                await out.text(contact, cid, f"{error_code_sentence(new_code, source)} Thanks for the photo, that helps the technician.")
             else:
                 await ask_cold(contact, cid, prefix=error_code_sentence(new_code, source))
         elif not _asked_recently(conv, st.TRIAGE):
@@ -537,4 +535,4 @@ async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[st
     elif conv.step == st.CONFIRM_FIXED:
         await ask_fixed(cid)
     else:
-        await out.text(contact, cid, "Thanks! I'm on it and I'll let you know as soon as there's news.")
+        await out.text(contact, cid, "Thanks. I'm on it and will let you know as soon as there's news.")

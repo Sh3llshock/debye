@@ -37,7 +37,7 @@ async def handle_inbound(msg: InboundMessage) -> None:
         log.info("unknown sender %s", msg.from_phone)
         await ch.send_text(
             msg.from_phone,
-            "Hallo! Diese Nummer ist bei reltix noch nicht registriert. Bitte wende dich an deine Hausverwaltung.",
+            "Hi. This number isn't registered with reltix yet. Please contact your property management.",
         )
         return
     cid = be.attr(contact, "id")
@@ -84,7 +84,7 @@ async def handle_inbound(msg: InboundMessage) -> None:
     role = be.attr(contact, "role")
     if role not in (None, "tenant", "owner"):
         await channel_for(msg.from_phone).send_text(
-            msg.from_phone, "Hallo! Aufträge und Termine findest du auf der Partnerseite von reltix."
+            msg.from_phone, "Hi. Jobs and appointments are on the reltix partner page."
         )
         return
 
@@ -226,5 +226,5 @@ async def handle_button(contact, button_id: str) -> bool:
     except Exception:
         log.exception("button %s failed", button_id)
         if outbound.sent_count == sent_before:  # only if the resident got no reply yet
-            await outbound.text(contact, case_id, "Danke! Ich kümmere mich darum und melde mich gleich.")
+            await outbound.text(contact, case_id, "Thanks. I'm on it and will get back to you shortly.")
     return True

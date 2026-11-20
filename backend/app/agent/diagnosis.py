@@ -209,7 +209,7 @@ def _options(qid: str) -> list[Option]:
     q = questions()[qid]
     short = {"only_shower": "Only the shower", "everywhere": "Everywhere", "yes": "Yes", "no": "No",
              "code": "Shows a code", "normal": "Looks normal", "dark": "It's dark", "none": "No gas stove",
-             "was_wrong": "That was it!", "correct": "Knob is fine", "low": "Below 1 bar", "ok": "1 bar or more",
+             "was_wrong": "That was it", "correct": "Knob is fine", "low": "Below 1 bar", "ok": "1 bar or more",
              "slow": "Warms up slowly", "stays_cold": "Stays cold"}
     return [Option(f"diag:{qid}:{k}", short.get(k, k.replace("_", " ").capitalize())[:20]) for k in q["answers"]]
 
@@ -294,7 +294,7 @@ async def on_answer(contact, qid: str, key: str) -> None:
             return
         last = d["asked"][-1] if d["asked"] else None
         if last and last not in d["answers"]:  # a late "no gas" while another question is open: keep it open
-            await out.text(contact, conv.case_id, "Thanks, good to know 👍")
+            await out.text(contact, conv.case_id, "Thanks, noted.")
             return
         if await apply_centrix_shortcuts(contact, conv):
             return
@@ -512,7 +512,7 @@ async def on_follow_up(contact, cause_id: str, fixed: bool) -> None:
                 be.close_self_help(conv.case_id, f"Tenant confirmed the hot water is back ({_label(cause_id)}).")
             except Exception:
                 log.exception("close_self_help failed")
-        await out.text(contact, conv.case_id, "Great to hear! 🎉 Enjoy the warm shower.")
+        await out.text(contact, conv.case_id, "Good to hear. I'll close this then.")
         st.reset_conversation(be.attr(contact, "id"))
         return
     # still cold after the self-help tip → send a heating technician

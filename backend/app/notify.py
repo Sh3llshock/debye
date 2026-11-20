@@ -32,7 +32,7 @@ async def notify_tenant(case_id: str, event: str, data: dict) -> None:
                 await out.text(
                     c,
                     case_id,
-                    f"Good news: {flow.partner_label(case_id)} has taken the job 🙌 They'll suggest times shortly.",
+                    f"{flow.partner_label(case_id)} has taken the job and will suggest times shortly.",
                 )
         elif event == "approval_pending":
             await flow.tell_approval_pending(case_id)
@@ -53,7 +53,7 @@ async def notify_tenant(case_id: str, event: str, data: dict) -> None:
                 await out.text(
                     c,
                     case_id,
-                    f"Good news, your property manager approved the repair 👍 {flow.partner_label(case_id)} will suggest times shortly.",
+                    f"Your property manager approved the repair. {flow.partner_label(case_id)} will suggest times shortly.",
                 )
         elif event == "partner_declined":
             nxt = data.get("next_partner_name")

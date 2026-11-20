@@ -203,7 +203,7 @@ async def _note_error_code(ctx: TurnContext, case_id: str, error_code: str) -> d
     from .error_codes import resident_sentence
 
     return {"ok": True, "case_id": case_id, "error_code": error_code,
-            "explain_error_code": resident_sentence(error_code, "photo") + " Thanks for the photo, that really helps the technician 👍"}
+            "explain_error_code": resident_sentence(error_code, "photo") + " Thanks for the photo, that helps the technician."}
 
 
 async def _record_triage(ctx: TurnContext, case_id: str, all_radiators_cold: bool) -> dict:
@@ -277,6 +277,9 @@ async def execute(block, ctx: TurnContext) -> dict:
         impl = IMPLS[name]
         result = await impl(ctx, **dict(block.input))
         return {"type": "tool_result", "tool_use_id": block.id, "content": json.dumps(result, ensure_ascii=False)}
+    except ValueError as exc:  # expected refusals (guards); the model gets the reason and adapts
+        log.info("tool %s refused: %s", name, exc)
+        return {"type": "tool_result", "tool_use_id": block.id, "content": f"Error: {exc}", "is_error": True}
     except Exception as exc:
         log.exception("tool %s failed", name)
         return {"type": "tool_result", "tool_use_id": block.id, "content": f"Error: {exc}", "is_error": True}
