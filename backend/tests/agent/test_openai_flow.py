@@ -160,7 +160,7 @@ def test_note_error_code_tool(client, svc, gpt):
             {"id": "cold_all:case_0001", "title": "All cold"}, {"id": "cold_some:case_0001", "title": "Just one room"}])],
         "",
         [oa_call("note_error_code", case_id="case_0001", error_code="F.28")],
-        [oa_call("reply", text="On the photo I can see the boiler's ignition failed (error code F.28), so the heating won't start. Thanks for the photo, that really helps the technician 👍")],
+        [oa_call("reply", text="On the photo I can see the boiler's ignition failed (error code F.28), so the heating won't start. Thanks for the photo, that helps the technician.")],
         "",
     ])
     client.post("/webhooks/whatsapp", json=wa_text("Heizung kalt"))
@@ -200,7 +200,7 @@ def test_cold_question_not_repeated(client, svc, gpt):
         [oa_call("note_error_code", case_id="case_0001", error_code="F.28"),
          oa_call("ask_buttons", text="Sind alle Heizkörper kalt?", options=[
              {"id": "cold_all:case_0001", "title": "All cold"}, {"id": "cold_some:case_0001", "title": "Just one room"}])],
-        [oa_call("reply", text="On the photo I can see the boiler's ignition failed (error code F.28), so the heating won't start. Thanks for the photo, that really helps the technician 👍")],
+        [oa_call("reply", text="On the photo I can see the boiler's ignition failed (error code F.28), so the heating won't start. Thanks for the photo, that helps the technician.")],
         "",
     ])
     client.post("/webhooks/whatsapp", json=wa_text("Heizung kalt"))

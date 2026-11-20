@@ -97,7 +97,7 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
 
     # neighbour reports while Claude is down → linked, no second case
     real.post("/webhooks/whatsapp", json=wa(JONAS, type="text", text={"body": "Bei uns ist es auch kalt"}))
-    assert "already been reported" in last(real, JONAS)["text"]["body"]
+    assert "already reported" in last(real, JONAS)["text"]["body"]
     assert len(real.get("/api/staff/cases").json()) == 1
 
     # partner page: accept, propose slots → resident gets a list
@@ -118,7 +118,7 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
     assert r.status_code == 200, r.text
     assert real.get(f"/api/staff/cases/{case_id}").json()["status"] == "scheduled"
     assert tech["name"] in last(real, LUKA)["text"]["body"]  # tenant told who is coming
-    assert "update" in last(real, JONAS)["text"]["body"]  # neighbour told once the technician confirmed
+    assert "Update" in last(real, JONAS)["text"]["body"]  # neighbour told once the technician confirmed
 
     # partner completes with photo + invoice → "warm again?" → yes → closed
     r = real.post(f"/api/partner/{partner}/jobs/{case_id}/complete", data={"notes": "Zündelektrode getauscht"},
