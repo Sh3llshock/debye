@@ -59,6 +59,8 @@ def fake_send_enabled() -> bool:
 
     if _env("WA_FAKE_SEND") == "1":
         return True
+    if wa_provider() == "wweb":
+        return False  # the local bridge needs no credentials
     if wa_provider() == "twilio":
         return not twilio_ready()
     return not _env("WA_TOKEN")
@@ -242,7 +244,12 @@ class ProviderChannel(Channel):
     def _impl(self) -> Channel:
         from . import twilio
 
-        if twilio.wa_provider() == "twilio" and not fake_send_enabled():
+        provider = twilio.wa_provider()
+        if provider == "wweb" and not fake_send_enabled():
+            from . import wweb
+
+            return wweb.channel
+        if provider == "twilio" and not fake_send_enabled():
             return twilio.channel
         return channel
 
@@ -263,6 +270,10 @@ class ProviderChannel(Channel):
 
         if media.media_id.startswith("https://") and "twilio" in media.media_id:
             return await twilio.channel.download_media(media)
+        if media.media_id.startswith("wweb-local:"):
+            from . import wweb
+
+            return await wweb.channel.download_media(media)
         return await channel.download_media(media)
 
 
@@ -374,6 +385,10 @@ async def webhook(request: Request, background: BackgroundTasks):
 from .twilio import router as _twilio_router  # noqa: E402  (POST /webhooks/twilio, status, media)
 
 router.include_router(_twilio_router)
+
+from .wweb import router as _wweb_router  # noqa: E402  (POST /webhooks/wweb, linked-phone bridge)
+
+router.include_router(_wweb_router)
 
 
 @router.get("/webhooks/whatsapp/_outbox")
