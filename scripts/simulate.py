@@ -49,7 +49,12 @@ INVOICE_PDF = DEMO / "invoice_RE-2026-1187.pdf"
 FAKE_OGG = b"OggS" + bytes(68)  # not playable; the transcription stub ignores it
 
 
+VOICE_NOTE = DEMO / "voice_note_heizung.ogg"  # real German voice note (OpenAI TTS), ~3 s
+
+
 def voice_note_path() -> Path:
+    if VOICE_NOTE.exists():
+        return VOICE_NOTE
     p = Path(tempfile.gettempdir()) / "debye_sim_voice.ogg"
     if not p.exists():
         p.write_bytes(FAKE_OGG)
