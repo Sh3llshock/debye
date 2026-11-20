@@ -70,7 +70,7 @@ def to_e164(raw: str) -> str:
 _pending: dict[str, tuple[float, list[Option]]] = {}  # phone -> (sent_at, options)
 
 
-def numbered_text(body: str, options: list[Option], intro: str = "Antworte mit der Zahl:") -> str:
+def numbered_text(body: str, options: list[Option], intro: str = "Reply with the number:") -> str:
     lines = [f"{i} = {o.title}" for i, o in enumerate(options, start=1)]
     return f"{body}\n\n{intro}\n" + "\n".join(lines)
 

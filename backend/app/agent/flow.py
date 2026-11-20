@@ -20,7 +20,7 @@ from . import state as st
 
 log = logging.getLogger("debye.flow")
 
-DEFAULT_PARTNER_NAME = "der Heizungsbetrieb"
+DEFAULT_PARTNER_NAME = "the heating company"
 
 
 # ---------------------------------------------------------------- helpers
@@ -133,8 +133,8 @@ async def send_duplicate_notice(contact, case_id: str) -> None:
     await out.text(
         contact,
         case_id,
-        f"Danke{', ' + name if name else ''}! Die Heizung im ganzen Haus ist schon gemeldet und ein Techniker ist "
-        "informiert 🔧 Ich sag dir Bescheid, sobald ich mehr weiß.",
+        f"Thanks{', ' + name if name else ''}! The heating for the whole building has already been reported and a "
+        "technician is on it 🔧 I'll keep you posted.",
     )
 
 
@@ -150,20 +150,20 @@ async def ask_cold(contact, case_id: str, prefix: str = "") -> None:
     await out.buttons(
         contact,
         case_id,
-        (prefix + " " if prefix else "") + "Sind alle Heizkörper kalt oder nur einer?",
-        [Option(f"cold_all:{case_id}", "Überall kalt"), Option(f"cold_some:{case_id}", "Nur ein Raum")],
+        (prefix + " " if prefix else "") + "Are all your radiators cold, or just one?",
+        [Option(f"cold_all:{case_id}", "All cold"), Option(f"cold_some:{case_id}", "Just one room")],
     )
 
 
 async def on_cold(contact, case_id: str, all_cold: bool) -> None:
     cs = st.case_state(case_id)
     cs.triage_answer = "all" if all_cold else "some"
-    be.add_tenant_input(case_id, "tap: Überall kalt" if all_cold else "tap: Nur ein Raum")
+    be.add_tenant_input(case_id, "tap: all cold" if all_cold else "tap: just one room")
     be.record_event(
         case_id,
         "tenant",
         "triage.answer",
-        "Alle Heizkörper kalt" if all_cold else "Nur ein Raum kalt",
+        "All radiators cold" if all_cold else "Only one room cold",
         {"all_radiators_cold": all_cold},
     )
     try:
@@ -182,13 +182,13 @@ async def request_consent(contact, case_id: str) -> None:
     conv = st.conversation(be.attr(contact, "id"))
     conv.step = st.CONSENT
     conv.asked_at[st.CONSENT] = time.monotonic()
-    who = cs.partner_name or "dem Heizungsbetrieb"
+    who = cs.partner_name or "a heating company"
     await out.buttons(
         contact,
         case_id,
-        f"Ich würde {who} vorbeischicken. Darf ich dafür deinen Namen, deine Telefonnummer, Adresse und Etage "
-        "sowie die Fotos weitergeben?",
-        [Option(f"consent_yes:{case_id}", "Ja, gerne"), Option(f"consent_no:{case_id}", "Nein")],
+        f"I'd like to send {who} over. Is it okay if I share your name, phone number, address, floor "
+        "and the photos with them?",
+        [Option(f"consent_yes:{case_id}", "Yes, go ahead"), Option(f"consent_no:{case_id}", "No")],
     )
 
 
@@ -196,10 +196,10 @@ async def on_consent(contact, case_id: str, yes: bool) -> None:
     conv = st.conversation(be.attr(contact, "id"))
     cs = st.case_state(case_id)
     if not yes:
-        be.record_event(case_id, "tenant", "consent.declined", "Mieter:in hat die Weitergabe abgelehnt")
+        be.record_event(case_id, "tenant", "consent.declined", "Tenant declined sharing their details")
         conv.step = st.WAITING_APPROVAL
         await out.text(
-            contact, case_id, "Alles klar, dann geb ich nichts weiter. Die Hausverwaltung meldet sich bei dir 🙂"
+            contact, case_id, "No problem, I won't share anything. Someone from the property management will get in touch 🙂"
         )
         return
     if not cs.partner_id:
@@ -210,7 +210,7 @@ async def on_consent(contact, case_id: str, yes: bool) -> None:
         except Exception:
             log.exception("rank_partners failed")
     if not cs.partner_id:
-        await out.text(contact, case_id, "Danke! Ich such dir grad einen passenden Betrieb raus und meld mich gleich.")
+        await out.text(contact, case_id, "Thanks! I'm finding the right company for you, back in a moment.")
         return
     be.add_tenant_input(case_id, "tap: consent")
     be.record_consent(
@@ -225,19 +225,19 @@ async def on_consent(contact, case_id: str, yes: bool) -> None:
             await out.text(
                 contact,
                 case_id,
-                "Danke! Die Hausverwaltung muss den Auftrag noch kurz freigeben, dann geht er sofort an "
+                "Thanks! The property management just needs to approve the job, then it goes straight to "
                 f"{partner_label(case_id)}.",
             )
             return
         log.exception("dispatch_job failed")
-        await out.text(contact, case_id, "Danke! Ich kümmer mich und meld mich gleich bei dir.")
+        await out.text(contact, case_id, "Thanks! I'm on it and I'll get back to you shortly.")
         return
     conv.step = st.DISPATCHED
     await out.text(
         contact,
         case_id,
-        f"Super, danke! {partner_label(case_id)} ist beauftragt 🙌 Sobald Terminvorschläge da sind, "
-        "kannst du dir hier einen aussuchen.",
+        f"Great, thanks! I've booked {partner_label(case_id)} 🙌 As soon as they suggest times, "
+        "you can pick one right here.",
     )
 
 
@@ -246,20 +246,24 @@ def slot_label(slot: dict) -> str:
     return slot.get("label") or f"{slot.get('start', '')[:16]}"
 
 
-async def send_slots(case_id: str, slots: list[dict]) -> None:
+async def send_slots(case_id: str, slots: list[dict], technician_name: str | None = None) -> None:
     cs = st.case_state(case_id)
     cs.slots = list(slots)
+    if technician_name:
+        cs.technician_name = technician_name
     rows = [Option(f"slot_{i + 1}:{case_id}", slot_label(s)) for i, s in enumerate(slots[:9])]
-    rows.append(Option(f"slot_none:{case_id}", "Passt nicht"))
+    rows.append(Option(f"slot_none:{case_id}", "None of these work"))
+    who = f"{partner_label(case_id)} can send {cs.technician_name}" if cs.technician_name else \
+        f"{partner_label(case_id)} can come"
     for c in tenant_contacts(case_id, reporter_only=True):
         st.conversation(be.attr(c, "id")).step = st.SCHEDULING
         await out.list_(
             c,
             case_id,
-            f"{partner_label(case_id)} kann zu diesen Zeiten vorbeikommen. Was passt dir am besten?",
-            "Termin wählen",
+            f"{who} at one of these times. Which one works for you?",
+            "Pick a time",
             rows,
-            section_title=(cs.partner_name or "Termine")[:24],
+            section_title=(cs.partner_name or "Times")[:24],
         )
 
 
@@ -267,20 +271,51 @@ async def on_slot(contact, case_id: str, n: int) -> None:
     """n is 1-based as in the list row id slot_<n>."""
     cs = st.case_state(case_id)
     be.confirm_slot(case_id, n)  # 1-based (interfaces §3.3); services counts the tap
-    label = slot_label(cs.slots[n - 1]) if 0 < n <= len(cs.slots) else f"Termin {n}"
+    label = slot_label(cs.slots[n - 1]) if 0 < n <= len(cs.slots) else f"option {n}"
+    cs.chosen_slot = cs.slots[n - 1] if 0 < n <= len(cs.slots) else None
     st.conversation(be.attr(contact, "id")).step = st.SCHEDULED
+    if cs.technician_name:  # dispatcher flow: the technician still confirms (notify "technician_confirmed")
+        await out.text(
+            contact, case_id, f"Great, I've asked {cs.technician_name} to confirm, I'll let you know in a moment."
+        )
+        return
     await out.text(
-        contact, case_id, f"Perfekt, {partner_label(case_id)} kommt {label} 👍 Ich erinner dich vorher nochmal."
+        contact, case_id, f"Perfect, {partner_label(case_id)} will come {label} 👍 I'll remind you the evening before."
     )
-    me = be.attr(contact, "id")
+    await _tell_neighbours(contact, case_id, f"Quick update: a technician is coming {label} for the building's heating 🔧")
+
+
+async def _tell_neighbours(contact, case_id: str, text: str) -> None:
+    me = be.attr(contact, "id") if contact is not None else None
     for other in tenant_contacts(case_id):
         if be.attr(other, "id") != me:
-            await out.text(other, case_id, f"Kleines Update: Der Techniker kommt {label} für die Heizung im Haus 🔧")
+            await out.text(other, case_id, text)
+
+
+async def on_technician_confirmed(case_id: str, technician_name: str | None, slot: dict | None) -> None:
+    """notify 'technician_confirmed': the technician accepted the slot the tenant picked."""
+    cs = st.case_state(case_id)
+    tech = technician_name or cs.technician_name or "The technician"
+    cs.technician_name = tech
+    label = slot_label(slot or cs.chosen_slot or {}) or "the agreed time"
+    reporters = tenant_contacts(case_id, reporter_only=True)
+    for c in reporters:
+        name = first_name(c)
+        st.conversation(be.attr(c, "id")).step = st.SCHEDULED
+        await out.text(
+            c,
+            case_id,
+            f"Perfect{', ' + name if name else ''}! {tech} from {partner_label(case_id)} will come to your apartment "
+            f"on {label}. I'll remind you the evening before 👍",
+        )
+    await _tell_neighbours(reporters[0] if reporters else None, case_id,
+                           f"Quick update: {tech} from {partner_label(case_id)} is coming on {label} for the "
+                           "building's heating 🔧")
 
 
 async def on_slot_none(contact, case_id: str) -> None:
-    be.record_event(case_id, "tenant", "slot.rejected", "Keiner der Termine passt")
-    await out.text(contact, case_id, f"Kein Problem! Ich frag {partner_label(case_id)} nach anderen Terminen.")
+    be.record_event(case_id, "tenant", "slot.rejected", "None of the proposed times work for the tenant")
+    await out.text(contact, case_id, f"No problem! I'll ask {partner_label(case_id)} for other times.")
 
 
 # ---------------------------------------------------------------- close the loop
@@ -290,8 +325,8 @@ async def ask_fixed(case_id: str, notes: str | None = None) -> None:
         await out.buttons(
             c,
             case_id,
-            f"{partner_label(case_id)} ist fertig mit der Reparatur 🔧 Ist es bei dir wieder schön warm?",
-            [Option(f"fixed_yes:{case_id}", "Ja, alles warm"), Option(f"fixed_no:{case_id}", "Nein, noch kalt")],
+            f"{partner_label(case_id)} has finished the repair 🔧 Is it nice and warm again at your place?",
+            [Option(f"fixed_yes:{case_id}", "Yes, all warm"), Option(f"fixed_no:{case_id}", "No, still cold")],
         )
 
 
@@ -301,21 +336,22 @@ async def on_fixed(contact, case_id: str, fixed: bool) -> None:
         await out.text(
             contact,
             case_id,
-            "Wie schön, endlich wieder warm! 🎉 Die Rechnung geht direkt an die Hausverwaltung, "
-            "für dich kostet das nichts.",
+            "So glad it's warm again! 🎉 The invoice goes straight to the property management, "
+            "so there's nothing for you to pay.",
         )
         me = be.attr(contact, "id")
         for other in tenant_contacts(case_id):
             if be.attr(other, "id") != me:
-                await out.text(other, case_id, "Gute Nachrichten: Die Heizung im Haus läuft wieder 🎉 Sag Bescheid, falls es bei dir noch kalt ist.")
+                await out.text(other, case_id, "Good news: the building's heating is working again 🎉 Let me know if it's still cold at your place.")
         for conv in st.conversations_for_case(case_id):
             st.reset_conversation(conv.contact_id)
     else:
         st.conversation(be.attr(contact, "id")).step = st.DISPATCHED
-        await out.text(contact, case_id, f"Oh nein, das tut mir leid 😕 Ich sag {partner_label(case_id)} sofort Bescheid.")
+        await out.text(contact, case_id, f"Oh no, I'm sorry 😕 I'll let {partner_label(case_id)} know right away.")
 
 
-HEATING_WORDS = ("heiz", "kalt", "warm", "kessel", "therme", "warmwasser")
+HEATING_WORDS = ("heat", "radiator", "boiler", "cold", "warm", "hot water", "heiz", "kalt", "kessel", "therme",
+                 "warmwasser")
 
 
 async def link_if_building_case_open(contact, conv: st.Conversation) -> bool:
@@ -354,9 +390,9 @@ async def maybe_voice_reply(contact) -> None:
     from app import media
 
     name = first_name(contact)
-    line = (f"Hi {name}, hier ist Debye. " if name else "Hi, hier ist Debye. ") + (
-        "Ich hab deine Sprachnachricht bekommen und kümmer mich drum. "
-        "Tipp einfach unten auf eine Antwort, dann geht's sofort weiter."
+    line = (f"Hi {name}, it's Debye. " if name else "Hi, it's Debye. ") + (
+        "Got your voice message, I'm on it. "
+        "Just answer my question below and we'll get things moving."
     )
     path = await media.speak(line)
     if not path:
@@ -412,15 +448,15 @@ async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[st
     code, source = detect_error_code(conv.tenant_texts[-3:], image_paths or [])
     new_code = code if code and code != conv.error_code else None
     if conv.step == st.NEW or not cid:
-        said = " ".join(conv.tenant_texts[-3:]).strip() or "Heizung ausgefallen"
+        said = " ".join(conv.tenant_texts[-3:]).strip() or "Heating not working"
         summary = error_codes.case_title(code)
         res = await ensure_case(contact, summary=summary, symptoms=said[:500], error_code=code)
         if res["duplicate"]:
             await send_duplicate_notice(contact, res["case_id"])
         else:
-            prefix = "Oh nein, das ist echt ungemütlich 😕 Ich kümmer mich drum."
+            prefix = "Oh no, a cold flat is the worst 😕 I'm on it."
             if new_code:
-                prefix = f"Oh nein 😕 {error_code_sentence(new_code, source)} Ich kümmer mich drum."
+                prefix = f"Oh no 😕 {error_code_sentence(new_code, source)} I'm on it."
                 conv.error_code = new_code
             await ask_cold(contact, res["case_id"], prefix=prefix)
     elif conv.step == st.TRIAGE:
@@ -428,7 +464,7 @@ async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[st
             conv.error_code = new_code
             be.set_case_error_code(cid, new_code)
             if st.TRIAGE in conv.asked_at:  # cold question still open: acknowledge only, don't ask again
-                await out.text(contact, cid, f"{error_code_sentence(new_code, source)} Danke für das Foto, das hilft dem Techniker sehr 👍")
+                await out.text(contact, cid, f"{error_code_sentence(new_code, source)} Thanks for the photo, that really helps the technician 👍")
             else:
                 await ask_cold(contact, cid, prefix=error_code_sentence(new_code, source))
         elif not _asked_recently(conv, st.TRIAGE):
@@ -441,4 +477,4 @@ async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[st
     elif conv.step == st.CONFIRM_FIXED:
         await ask_fixed(cid)
     else:
-        await out.text(contact, cid, "Danke dir! Ich bin dran und meld mich, sobald es was Neues gibt.")
+        await out.text(contact, cid, "Thanks! I'm on it and I'll let you know as soon as there's news.")

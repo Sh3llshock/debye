@@ -23,7 +23,7 @@ def openai_base_url() -> str:
     """OPENAI_BASE_URL from env/.env; default EU, because our OpenAI project is EU-region only."""
     return os.getenv("OPENAI_BASE_URL") or EU_OPENAI_BASE_URL
 
-DEMO_TRANSCRIPT = "Hi, die Heizung ist kalt seit heute Morgen."
+DEMO_TRANSCRIPT = "Hi, the heating has been cold since this morning."
 
 
 def _demo_mode() -> bool:
@@ -32,7 +32,7 @@ def _demo_mode() -> bool:
     return demo_mode()
 
 
-async def transcribe(path: str, language: str = "de") -> str:
+async def transcribe(path: str, language: str | None = None) -> str:
     """Voice note → text. Without a key or on failure: a canned line in DEMO_MODE, else ""."""
     if not os.getenv("OPENAI_API_KEY"):
         log.warning("OPENAI_API_KEY not set; %s", "using demo transcript" if _demo_mode() else "no transcript")
@@ -49,8 +49,8 @@ async def transcribe(path: str, language: str = "de") -> str:
                 result = await client.audio.transcriptions.create(
                     model=model,
                     file=(Path(path).name, audio),
-                    language=language,
-                    prompt="Mieterin meldet ein Problem mit der Heizung in ihrer Wohnung.",
+                    prompt="A tenant reports a problem with the heating in their flat.",
+                    **({"language": language} if language else {}),  # None: auto-detect (English by default, any language works)
                 )
             except Exception as exc:
                 # EU-resident OpenAI projects must use the EU endpoint; switch once and remember.
@@ -69,7 +69,7 @@ async def transcribe(path: str, language: str = "de") -> str:
 
 
 # ---------------------------------------------------------------- voice reply (ElevenLabs, event sponsor, optional)
-ELEVENLABS_DEFAULT_VOICE = "21m00Tcm4TlvDq8ikWAM"  # premade voice; set ELEVENLABS_VOICE_ID for a German one
+ELEVENLABS_DEFAULT_VOICE = "21m00Tcm4TlvDq8ikWAM"  # premade English voice ("Rachel"); ELEVENLABS_VOICE_ID overrides
 ELEVENLABS_MODEL = "eleven_multilingual_v2"
 
 
@@ -97,7 +97,7 @@ async def speak(text: str) -> str | None:
                 f"https://api.elevenlabs.io/v1/text-to-speech/{voice}",
                 params={"output_format": "opus_48000_64"},
                 headers={"xi-api-key": key, "accept": "audio/ogg"},
-                json={"text": text, "model_id": ELEVENLABS_MODEL, "language_code": "de"},
+                json={"text": text, "model_id": ELEVENLABS_MODEL, "language_code": os.getenv("ELEVENLABS_LANGUAGE", "en")},
             )
         if r.status_code >= 400:
             log.warning("ElevenLabs TTS failed: %s %s", r.status_code, r.text[:200])

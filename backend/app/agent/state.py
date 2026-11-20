@@ -42,6 +42,8 @@ class CaseState:
     consent_fields: list[str] = field(default_factory=lambda: ["name", "phone", "address", "unit_floor", "photos"])
     consent_purpose: str = "Heizungsreparatur vor Ort"
     slots: list[dict] = field(default_factory=list)  # [{start, end, label}]
+    technician_name: str | None = None  # set by notify slots_proposed / technician_confirmed
+    chosen_slot: dict | None = None
     triage_answer: str | None = None
 
 

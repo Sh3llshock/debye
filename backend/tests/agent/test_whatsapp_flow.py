@@ -88,8 +88,8 @@ def test_golden_path(client, svc, claude, monkeypatch, tmp_path):
         [tool_use("open_case", summary="Heizung kalt, Fehler F.28", symptoms="komplett kalt",
                   error_code="F.28", priority="urgent")],
         [tool_use("ask_buttons", text="Oh nein! Der Kessel zeigt F.28 (Zündung). Sind alle Heizkörper kalt?",
-                  options=[{"id": "cold_all:case_0001", "title": "Überall kalt"},
-                           {"id": "cold_some:case_0001", "title": "Nur ein Raum"}])],
+                  options=[{"id": "cold_all:case_0001", "title": "All cold"},
+                           {"id": "cold_some:case_0001", "title": "Just one room"}])],
         [text("done")],
     ])
     audio, photo = _media_files(tmp_path)
@@ -108,13 +108,13 @@ def test_golden_path(client, svc, claude, monkeypatch, tmp_path):
 
     # 2. tap "Überall kalt" → consent buttons, no LLM
     n_req = len(stub.requests)
-    client.post("/webhooks/whatsapp", json=button(LUKA, "cold_all:case_0001", "Überall kalt"))
+    client.post("/webhooks/whatsapp", json=button(LUKA, "cold_all:case_0001", "All cold"))
     assert len(stub.requests) == n_req
     assert ids(last_payload(client)) == ["consent_yes:case_0001", "consent_no:case_0001"]
     assert "Heizung Schmidt" in last_payload(client)["interactive"]["body"]["text"]
 
     # 3. consent → consent row + dispatch
-    client.post("/webhooks/whatsapp", json=button(LUKA, "consent_yes:case_0001", "Ja, gerne"))
+    client.post("/webhooks/whatsapp", json=button(LUKA, "consent_yes:case_0001", "Yes, go ahead"))
     assert any(c[0] == "consent" and c[2] == "heizung-schmidt" for c in svc.calls)
     assert ("dispatch", "case_0001", "heizung-schmidt") in svc.calls
 
@@ -134,7 +134,7 @@ def test_golden_path(client, svc, claude, monkeypatch, tmp_path):
     # 6. partner done → "warm again?" → yes closes
     asyncio.run(notify.notify_tenant("case_0001", "job_completed", {}))
     assert ids(last_payload(client)) == ["fixed_yes:case_0001", "fixed_no:case_0001"]
-    client.post("/webhooks/whatsapp", json=button(LUKA, "fixed_yes:case_0001", "Ja, alles warm"))
+    client.post("/webhooks/whatsapp", json=button(LUKA, "fixed_yes:case_0001", "Yes, all warm"))
     assert ("fixed", "case_0001", True) in svc.calls
     assert svc.cases["case_0001"]["status"] == "closed"
     # every outbound + inbound message was logged for the dashboard
@@ -152,7 +152,7 @@ def test_claude_down_uses_scripted_fallback(client, svc, claude):
 def test_refusal_hands_off(client, svc, claude):
     claude(["refusal"])
     client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "hallo"}))
-    assert "Hausverwaltung" in last_payload(client)["text"]["body"]
+    assert "property management" in last_payload(client)["text"]["body"]
 
 
 def test_agent_silent_turn_falls_back(client, svc, claude):
@@ -167,7 +167,7 @@ def test_neighbour_duplicate_is_linked(client, svc, claude):
     client.post("/webhooks/whatsapp", json=wa_body(JONAS, type="text", text={"body": "Bei mir auch kalt"}))
     assert ("link", "case_0001", "c_203", "affected") in svc.calls
     assert sum(c[0] == "open_case" for c in svc.calls) == 1
-    assert "schon gemeldet" in last_payload(client)["text"]["body"]
+    assert "already been reported" in last_payload(client)["text"]["body"]
 
 
 def test_dedupe_same_message_id(client, svc, claude):
@@ -185,7 +185,7 @@ def test_approval_required(client, svc, claude):
     client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "kalt"}))
     client.post("/webhooks/whatsapp", json=button(LUKA, "cold_all:case_0001"))
     client.post("/webhooks/whatsapp", json=button(LUKA, "consent_yes:case_0001"))
-    assert "freigeben" in last_payload(client)["text"]["body"]
+    assert "approve" in last_payload(client)["text"]["body"]
 
 
 def test_unknown_sender(client, svc, claude):
@@ -194,11 +194,11 @@ def test_unknown_sender(client, svc, claude):
 
 
 def test_tool_error_is_reported_to_claude(client, svc, claude):
-    stub = claude([[tool_use("ask_buttons", text="?", options=[])], [tool_use("reply", text="Wie kann ich helfen?")], [text("ok")]])
+    stub = claude([[tool_use("ask_buttons", text="?", options=[])], [tool_use("reply", text="How can I help?")], [text("ok")]])
     client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "hi"}))
     second = stub.requests[1]["messages"][-1]["content"][0]
     assert second["is_error"] is True
-    assert last_payload(client)["text"]["body"] == "Wie kann ich helfen?"
+    assert last_payload(client)["text"]["body"] == "How can I help?"
 
 
 def test_slots_go_to_reporter_neighbour_gets_update(client, svc, claude):
@@ -219,8 +219,8 @@ def test_fallback_names_error_code_from_text(client, svc, claude):
     claude([RuntimeError("down")])
     client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "Heizung kalt, am Kessel steht F28"}))
     body = last_payload(client)["interactive"]["body"]["text"]
-    assert "F.28" in body and "Zündung" in body
-    assert ("open_case", "case_0001", "Heizung kalt – Zündung fehlgeschlagen (F.28)", "F.28") in svc.calls
+    assert "F.28" in body and "ignition failed" in body
+    assert ("open_case", "case_0001", "No heating – ignition failed (F.28)", "F.28") in svc.calls
 
 
 def test_fallback_reads_demo_photo_after_voice_note(client, svc, claude, tmp_path):
@@ -239,5 +239,40 @@ def test_fallback_reads_demo_photo_after_voice_note(client, svc, claude, tmp_pat
     client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="image", image={"id": f"local:{demo_photo}", "mime_type": "image/jpeg"}))
     msgs = outbox(client)
     assert len(msgs) == n + 1
-    assert msgs[-1]["payload"]["text"]["body"] == "Auf dem Foto sehe ich, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht. Danke für das Foto, das hilft dem Techniker sehr 👍"
+    assert msgs[-1]["payload"]["text"]["body"] == "On the photo I can see the boiler's ignition failed (error code F.28), so the heating won't start. Thanks for the photo, that really helps the technician 👍"
     assert ("error_code", "case_0001", "F.28") in svc.calls  # services.set_case_error_code records the event
+
+
+def test_technician_flow_english(client, svc, claude):
+    from app import notify
+
+    claude([RuntimeError("down"), RuntimeError("down")])
+    client.post("/webhooks/whatsapp", json=wa_body(LUKA, type="text", text={"body": "My heating is cold"}))
+    client.post("/webhooks/whatsapp", json=wa_body(JONAS, type="text", text={"body": "Cold here too"}))
+    slots = [{"start": "2026-11-21T08:00:00+01:00", "end": "2026-11-21T10:00:00+01:00", "label": "Sat 8–10"},
+             {"start": "2026-11-22T14:00:00+01:00", "end": "2026-11-22T16:00:00+01:00", "label": "Sun 14–16"}]
+    asyncio.run(notify.notify_tenant("case_0001", "slots_proposed",
+                                     {"slots": slots, "technician_name": "Tom", "partner_name": "Heizung Schmidt"}))
+    p = last_payload(client)
+    assert p["interactive"]["body"]["text"].startswith("Heizung Schmidt can send Tom at one of these times")
+    assert ids(p) == ["slot_1:case_0001", "slot_2:case_0001", "slot_none:case_0001"]
+    n = len(outbox(client))
+    client.post("/webhooks/whatsapp", json=list_reply(LUKA, "slot_1:case_0001", "Sat 8–10"))
+    assert ("confirm_slot", "case_0001", 1) in svc.calls
+    assert last_payload(client)["text"]["body"] == "Great, I've asked Tom to confirm, I'll let you know in a moment."
+    assert len(outbox(client)) == n + 1  # neighbour not told yet: the technician hasn't confirmed
+    asyncio.run(notify.notify_tenant("case_0001", "technician_confirmed",
+                                     {"technician_name": "Tom", "slot": {"label": "Sat 21 Nov, 8–10"}}))
+    msgs = outbox(client)
+    luka = [m for m in msgs if m["to"] == "+490000000001"][-1]["payload"]["text"]["body"]
+    jonas = [m for m in msgs if m["to"] == "+490000000002"][-1]["payload"]["text"]["body"]
+    assert luka == ("Perfect, Luka! Tom from Heizung Schmidt will come to your apartment on Sat 21 Nov, 8–10. "
+                    "I'll remind you the evening before 👍")
+    assert "Tom from Heizung Schmidt is coming on Sat 21 Nov, 8–10" in jonas
+
+
+def test_twilio_numbered_list_english(monkeypatch):
+    from app.channels import twilio
+
+    t = twilio.numbered_text("Which one works for you?", [twilio.Option("slot_1:c", "Sat 8–10")])
+    assert "Reply with the number:" in t and "1 = Sat 8–10" in t
