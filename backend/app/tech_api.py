@@ -6,7 +6,7 @@ from sqlmodel import select
 
 from . import notify, rules, services
 from .db import get_session
-from .models import Case, Technician
+from .models import Case, Partner, Technician
 from .partner_api import job_detail, job_summary
 
 router = APIRouter(prefix="/api/tech", tags=["technician"])
@@ -37,7 +37,9 @@ def _tech_view(s, c: Case, tech: Technician, detail: bool) -> dict:
 def get_tech(tech_id: str) -> dict:
     with get_session() as s:
         t = _tech(s, tech_id)
-        return {"tech_id": t.id, "name": t.name, "partner_id": t.partner_id, "skills": t.skills}
+        p = s.get(Partner, t.partner_id)
+        return {"tech_id": t.id, "name": t.name, "partner_id": t.partner_id,
+                "partner_name": p.manifest.get("name") if p else None, "skills": t.skills}
 
 
 @router.get("/{tech_id}/jobs")

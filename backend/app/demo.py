@@ -171,20 +171,20 @@ async def t_tenant_report(body: dict) -> dict:
         services.link_contact_to_case(existing.id, contact.id, "affected")
         return {"case_id": existing.id, "duplicate_of": existing.id}
     case = services.open_case(contact.id, "repair.heating", "urgent",
-                              "Heizung komplett kalt, Kessel zeigt F.28",
+                              "Heating completely cold, boiler shows F.28",
                               text, body.get("error_code", "F.28"), asset["id"] if asset else None)
     services.add_tenant_input(case.id, "voice note")
     if doc_ids:
         services.add_tenant_input(case.id, "photo")
-    services.log_message(contact.id, case.id, "whatsapp", "out", "Danke! Sind alle Heizkörper kalt?")
-    services.add_tenant_input(case.id, "tap: Überall kalt")
-    services.log_message(contact.id, case.id, "whatsapp", "in", "Überall kalt")
+    services.log_message(contact.id, case.id, "whatsapp", "out", "Thanks! Are all the radiators cold, or just one room?")
+    services.add_tenant_input(case.id, "tap: All cold")
+    services.log_message(contact.id, case.id, "whatsapp", "in", "All cold")
     ranking = services.rank_partners(case.id)
     return {"case_id": case.id, "ranking": ranking}
 
 
 async def t_neighbour_report(body: dict) -> dict:
-    body = {"contact_id": "c_203", "text": "Bei uns im 1. Stock ist die Heizung auch kalt.", **body}
+    body = {"contact_id": "c_203", "text": "Our heating on the first floor is cold too.", **body}
     return await t_tenant_report(body)
 
 
@@ -203,7 +203,7 @@ async def t_consent(body: dict) -> dict:
     services.record_consent(case.reporter_contact_id, partner_id, case_id, fields,
                             body.get("purpose", "heating repair visit"), "whatsapp")
     services.add_tenant_input(case_id, "tap: consent")
-    services.log_message(case.reporter_contact_id, case_id, "whatsapp", "in", "✅ Ja, teilen")
+    services.log_message(case.reporter_contact_id, case_id, "whatsapp", "in", "✅ Yes, go ahead")
     try:
         return {"dispatched": services.dispatch_job(case_id, partner_id)}
     except rules.RuleViolation as rv:
@@ -227,7 +227,7 @@ async def t_fixed(body: dict) -> dict:
     case_id = _case_id(body)
     case = services.get_case(case_id)
     fixed = bool(body.get("fixed", True))
-    services.log_message(case.reporter_contact_id, case_id, "whatsapp", "in", "👍 Ja, warm!" if fixed else "Nein, noch kalt")
+    services.log_message(case.reporter_contact_id, case_id, "whatsapp", "in", "👍 Yes, all warm" if fixed else "No, still cold")
     return services.tenant_confirms_fixed(case_id, fixed)
 
 

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Debye anrufen</title>
+<title>Call Debye</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=Libre+Baskerville&display=swap" rel="stylesheet">
 <style>
@@ -39,12 +39,12 @@
 <body>
 <main>
   <img class="mascot" src="/mascot/debye-mascot-waving.png" alt="" onerror="this.style.display='none'">
-  <h1>Debye anrufen</h1>
-  <p class="sub">AI assistant von reltix · gleicher Fall wie auf WhatsApp</p>
-  <button id="btn">📞 Anrufen</button>
+  <h1>Call Debye</h1>
+  <p class="sub">AI assistant by reltix · same case as on WhatsApp</p>
+  <button id="btn">📞 Call</button>
   <div id="status"></div>
   <div id="log"></div>
-  <p class="who">Anrufen als
+  <p class="who">Call as
     <select id="contact">
       <option value="c_202">Luka (4B)</option>
       <option value="c_203">Jonas Weber (2A)</option>
@@ -78,7 +78,7 @@ function add(role, text) {
 
 async function start() {
   btn.disabled = true;
-  status("Verbinde …");
+  status("Connecting …");
   try {
     await navigator.mediaDevices.getUserMedia({ audio: true });
     const r = await fetch(`/api/voice/signed_url?contact=${encodeURIComponent(sel.value)}`);
@@ -88,16 +88,16 @@ async function start() {
     conversation = await Conversation.startSession({
       signedUrl: signed_url,
       dynamicVariables: { contact_id: sel.value },
-      onConnect: () => { status("Verbunden – sprich einfach los", true); btn.textContent = "Auflegen"; btn.className = "end"; btn.disabled = false; },
+      onConnect: () => { status("Connected – just start talking", true); btn.textContent = "Hang up"; btn.className = "end"; btn.disabled = false; },
       onMessage: (m) => { if (m && m.message) add(m.source === "user" ? "user" : "ai", m.message); },
-      onModeChange: (m) => { if (conversation) status(m.mode === "speaking" ? "Debye spricht …" : "Debye hört zu …", true); },
+      onModeChange: (m) => { if (conversation) status(m.mode === "speaking" ? "Debye is speaking …" : "Debye is listening …", true); },
       onDisconnect: () => ended(),
-      onError: (e) => { console.error(e); status("Fehler: " + (e && e.message ? e.message : e)); },
+      onError: (e) => { console.error(e); status("Error: " + (e && e.message ? e.message : e)); },
     });
     conversationId = conversation.getId();
   } catch (e) {
     console.error(e);
-    status("Konnte nicht verbinden: " + (e.message || e));
+    status("Could not connect: " + (e.message || e));
     btn.disabled = false;
   }
 }
@@ -105,8 +105,8 @@ async function start() {
 async function ended() {
   const id = conversationId || (conversation && conversation.getId && conversation.getId());
   conversation = null;
-  btn.textContent = "📞 Nochmal anrufen"; btn.className = ""; btn.disabled = false;
-  status("Aufgelegt. Debye meldet sich gleich auf WhatsApp.");
+  btn.textContent = "📞 Call again"; btn.className = ""; btn.disabled = false;
+  status("Call ended. Debye will follow up on WhatsApp in a moment.");
   if (id) {
     try { await fetch(`/api/voice/calls/${encodeURIComponent(id)}/end`, { method: "POST" }); } catch (e) { console.error(e); }
   }

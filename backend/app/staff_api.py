@@ -27,6 +27,8 @@ def case_summary(s, c: Case) -> dict:
         "case_id": c.id, "type": c.type, "title": c.title, "status": c.status,
         "priority": c.priority, "unit_id": c.unit_id,
         "error_code": c.error_code, "error_label": services.error_label(c.error_code),
+        "technician": ({"tech_id": c.data["technician"]["tech_id"], "name": c.data["technician"]["name"]}
+                       if (c.data or {}).get("technician") else None),
         "address": prop.address if prop else None,
         "partner": {"partner_id": partner.id, "name": partner.manifest.get("name")} if partner else None,
         "created_at": c.created_at, "updated_at": c.updated_at,

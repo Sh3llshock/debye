@@ -135,6 +135,7 @@ GERMAN_DAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 
 
 EN_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+EN_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
 def slot_clock(start: str, end: str) -> str:
@@ -146,7 +147,7 @@ def slot_clock(start: str, end: str) -> str:
 
 def case_label_slot(start: str, end: str, language: str = "de") -> str:
     """de: 'Morgen 8–10' / 'Heute 14–16' / 'Do 26.11. 8–10'.
-    en: 'Tomorrow 8–10' / 'Today 14–16' / 'Thu 26 Nov 8–10'."""
+    en: 'Tomorrow 8–10' / 'Today 14–16' / 'Thu 26 Nov, 8–10'."""
     s = datetime.fromisoformat(start).astimezone(TZ)
     e = datetime.fromisoformat(end).astimezone(TZ)
     today = now().date()
@@ -159,7 +160,7 @@ def case_label_slot(start: str, end: str, language: str = "de") -> str:
         elif delta == 1:
             day = "Tomorrow"
         else:
-            day = f"{EN_DAYS[s.weekday()]} {s.day} {s:%b}"
+            return f"{EN_DAYS[s.weekday()]} {s.day} {EN_MONTHS[s.month - 1]}, {hours}"
         return f"{day} {hours}"
     if delta == 0:
         day = "Heute"
@@ -501,11 +502,40 @@ def _tenant_language(s, case: Case) -> str:
     return (c.language if c else None) or "en"
 
 
+def _pick_technician(s, case: Case, partner_id: str, slots: list[dict]):
+    """Auto-assign: among the partner's technicians free in every slot, prefer skills matching
+    the asset brand, then the trade (heating), then the fewest booked jobs. None if nobody is free."""
+    from .partners.technicians import is_free
+    asset = s.get(Asset, case.asset_id) if case.asset_id else None
+    brand = (asset.make or "").lower() if asset else ""
+    trade = case.type.split(".")[-1] if case.type else ""
+    best, best_key = None, None
+    for t in s.exec(select(Technician).where(Technician.partner_id == partner_id)).all():
+        if not all(is_free(t.busy, sl) for sl in slots):
+            continue
+        skills = {k.lower() for k in t.skills or []}
+        jobs = sum(1 for b in t.busy if str(b.get("reason", "")).startswith("job"))
+        key = (brand in skills, trade in skills, -jobs, t.id)
+        if best_key is None or key[:3] > best_key[:3] or (key[:3] == best_key[:3] and t.id < best_key[3]):
+            best, best_key = t, key
+    reason = None
+    if best:
+        bits = []
+        if best_key[0]:
+            bits.append(f"{asset.make}-skilled")
+        if best_key[1]:
+            bits.append(f"{trade} trade")
+        bits.append("free in all proposed slots")
+        reason = ", ".join(bits)
+    return best, reason
+
+
 def propose_slots(case_id: str, partner_id: str, slots: list[dict],
                   tech_id: str | None = None) -> list[dict]:
     """slots: [{start, end}] ISO → stored with labels; returns [{start, end, label}].
-    With tech_id (technician flow) the technician must belong to the partner and be free
-    in every slot; it is stored on the case as data.technician."""
+    Technician flow: with tech_id the technician must belong to the partner and be free in
+    every slot (else RuleViolation). Without tech_id the dispatcher auto-assigns the best free
+    technician (brand skill → trade → fewest bookings). Stored on the case as data.technician."""
     from .partners.technicians import is_free
     labelled = []
     for sl in slots:
@@ -533,6 +563,16 @@ def propose_slots(case_id: str, partner_id: str, slots: list[dict],
                     "technician_busy",
                     f"{tech.name} is busy at {slot_clock(busy[0]['start'], busy[0]['end'])}")
             tech_view = {"tech_id": tech.id, "name": tech.name}
+            assigned = {"auto": False, "reason": "chosen by the dispatcher"}
+        else:
+            tech, reason = _pick_technician(s, case, partner_id, labelled)
+            has_techs = s.exec(select(Technician).where(Technician.partner_id == partner_id)).first()
+            if tech is None and has_techs:
+                raise rules.RuleViolation("no_technician_free",
+                                          "no technician is free in all proposed slots")
+            if tech is not None:
+                tech_view = {"tech_id": tech.id, "name": tech.name}
+                assigned = {"auto": True, "reason": reason}
         lang = _tenant_language(s, case)
         for sl in labelled:
             sl["label"] = case_label_slot(sl["start"], sl["end"], lang)
@@ -540,6 +580,12 @@ def propose_slots(case_id: str, partner_id: str, slots: list[dict],
         _patch_data(case, proposed_slots=labelled, **extra)
         case.status = "slots_proposed"
         _save_case(s, case)
+    if tech_view:
+        verb = "auto-assigned" if assigned["auto"] else "assigned"
+        record_event(case_id, "partner", "technician.assigned",
+                     f"Dispatcher {verb} {tech_view['name']}" +
+                     (f" ({assigned['reason']})" if assigned["auto"] and assigned["reason"] else ""),
+                     {**tech_view, **assigned})
     who = f" with {tech_view['name']}" if tech_view else ""
     record_event(case_id, "partner", "slot.proposed",
                  "Proposed " + " or ".join(sl["label"] for sl in labelled) + who,

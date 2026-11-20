@@ -183,7 +183,7 @@ class Slot(BaseModel):
 
 
 class SlotsBody(BaseModel):
-    tech_id: str | None = None  # required (technician flow); checked below for a clear 422
+    tech_id: str | None = None  # optional: without it the dispatcher auto-assigns the best free technician
     slots: list[Slot]
 
 
@@ -200,8 +200,6 @@ async def slots(partner_id: str, case_id: str, body: SlotsBody) -> dict:
         _job_case(s, partner_id, case_id)
     if not body.slots:
         raise HTTPException(422, "at least one slot required")
-    if not body.tech_id:
-        raise HTTPException(422, "tech_id required: pick a technician first (GET /technicians)")
     try:
         labelled = services.propose_slots(case_id, partner_id,
                                           [sl.model_dump() for sl in body.slots], body.tech_id)
@@ -211,7 +209,8 @@ async def slots(partner_id: str, case_id: str, body: SlotsBody) -> dict:
         raise HTTPException(422, f"bad slot time: {e}")
     with get_session() as s:
         name = s.get(Partner, partner_id).manifest.get("name")
-    tech = services.get_technician(body.tech_id)
+    tech_id = ((services.get_case(case_id).data or {}).get("technician") or {}).get("tech_id")
+    tech = services.get_technician(tech_id) if tech_id else None
     await notify.notify_tenant(case_id, "slots_proposed",
                                {"slots": labelled, "partner_name": name,
                                 "technician_name": tech.name if tech else None})

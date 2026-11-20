@@ -125,7 +125,7 @@ All JSON. Errors: `{"detail": "..."}` with 4xx.
 | POST | `/api/partner/{partner_id}/jobs/{case_id}/accept` | | `JobDetail` |
 | POST | `/api/partner/{partner_id}/jobs/{case_id}/decline` | `{reason}` | `JobDetail` |
 | GET | `/api/partner/{partner_id}/technicians` | | `[{tech_id, name, skills[], phone_e164, free_slots:[{start,end}]}]` |
-| POST | `/api/partner/{partner_id}/jobs/{case_id}/slots` | `{tech_id, slots:[{start,end}]}` (tech_id required) | `JobDetail` |
+| POST | `/api/partner/{partner_id}/jobs/{case_id}/slots` | `{tech_id?, slots:[{start,end}]}` (no tech_id → auto-assign, see §4a) | `JobDetail` |
 | POST | `/api/partner/{partner_id}/jobs/{case_id}/complete` | multipart: `notes`, `photo`, `invoice` (PDF) | `JobDetail` |
 
 ### Files and demo
@@ -166,21 +166,23 @@ The partner's dispatcher assigns one of the partner's technicians. The tenant th
 
 **Flow and statuses.**
 1. Partner accepts → `accepted`.
-2. The dispatcher picks a technician (`GET …/technicians`) and proposes 2–3 of that technician's free slots: `POST …/slots {tech_id, slots}` → `slots_proposed`. `case.data.technician = {tech_id, name}`. Errors: 422 without `tech_id`; 409 if the technician belongs to another partner or a slot isn't free. Slot labels follow the tenant's language (`en`: "Tomorrow 8–10", "Sun 22 Nov 14–16"). `notify_tenant("slots_proposed", {slots, partner_name, technician_name})`.
+2. The dispatcher picks a technician (`GET …/technicians`) and proposes 2–3 of that technician's free slots: `POST …/slots {tech_id, slots}` → `slots_proposed`. `case.data.technician = {tech_id, name}`, and the event `technician.assigned` is "Dispatcher assigned Tom Schmidt". An explicit `tech_id` returns 409 if the technician belongs to another partner or isn't free in a slot.
+   **Without `tech_id`** the dispatcher auto-assigns the best technician who is free in every proposed slot. Ranking: skill matching the asset brand (Vaillant), then the trade (heating), then the fewest booked jobs. The event is "Dispatcher auto-assigned Tom Schmidt (Vaillant-skilled, heating trade, free in all proposed slots)", with `data.auto = true`. 409 if nobody is free in all slots. A partner without technicians keeps the old flow (no technician, `confirm_slot` → `scheduled`).
+   Slot labels follow the tenant's language: `en` "Tomorrow 8–10", "Today 14–16", "Sat 21 Nov, 8–10". The agent uses them as-is. `notify_tenant("slots_proposed", {slots, partner_name, technician_name})`.
 3. The tenant picks on WhatsApp: `services.confirm_slot(case_id, n)` (1-based, unchanged) → **`awaiting_technician`** (only `scheduled` if no technician was assigned). Event `slot.confirmed`.
-4. The technician confirms: `POST /api/tech/{tech_id}/jobs/{case_id}/confirm` → **`scheduled`**. This books the slot on the technician's calendar, records the event `technician.confirmed` "Technician Tom Schmidt confirmed Sat 08:00–10:00", and calls `notify.notify_tenant(case_id, "technician_confirmed", {technician_name, tech_id, slot})`. 409 if the tenant hasn't picked yet or the job is already confirmed.
+4. The technician confirms: `POST /api/tech/{tech_id}/jobs/{case_id}/confirm` → **`scheduled`**. This books the slot on the technician's calendar, records the event `technician.confirmed` "Technician Tom Schmidt confirmed Sat 08:00–10:00" (actor `partner`), and calls `notify.notify_tenant(case_id, "technician_confirmed", {technician_name, tech_id, slot:{start, end, label}})`. The label is the one the tenant picked. 409 if the tenant hasn't picked yet or the job is already confirmed.
 
 Status lifecycle: `new → [awaiting_approval] → requested → accepted → slots_proposed → awaiting_technician → scheduled → completed → invoiced → closed` (side states `partner_declined`, `reopened`).
 
 **Technician phone page API** (technician chosen by `tech_id` in the URL; no auth for the demo):
 | Method | Path | Returns |
 |---|---|---|
-| GET | `/api/tech/{tech_id}` | `{tech_id, name, partner_id, skills}` |
+| GET | `/api/tech/{tech_id}` | `{tech_id, name, partner_id, partner_name, skills}` |
 | GET | `/api/tech/{tech_id}/jobs` | `[JobSummary + chosen_slot + needs_confirmation]`, only jobs assigned to this technician |
 | GET | `/api/tech/{tech_id}/jobs/{case_id}` | `JobDetail` (consented context only) + `chosen_slot:{start,end}` + `needs_confirmation` |
 | POST | `/api/tech/{tech_id}/jobs/{case_id}/confirm` | same as GET detail, status `scheduled` |
 
-**Shapes.** CaseDetail, JobSummary and JobDetail get `technician: {tech_id, name} | null`. The close-case result payload `service_job.technician` is the technician's name.
+**Shapes.** CaseSummary, CaseDetail, JobSummary and JobDetail get `technician: {tech_id, name} | null`. Technician jobs: `slot` (= `chosen_slot`) is the slot the tenant picked. The close-case result payload `service_job.technician` is the technician's name.
 
 Services (additive): `get_technicians(partner_id)`, `get_technician(tech_id)`, `technician_confirm(case_id, tech_id)`; `propose_slots(case_id, partner_id, slots, tech_id=None)`.
 

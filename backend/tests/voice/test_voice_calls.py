@@ -81,7 +81,7 @@ def test_call_opens_case_and_continues_on_whatsapp(app_client):
     assert call_ev["data"]["summary"].startswith("Luka reported")  # ElevenLabs' own summary kept in the data
 
     texts = outbox_texts(c)
-    assert "Danke für deinen Anruf, Luka" in texts[0]
+    assert "Thanks for your call, Luka" in texts[0]
     assert "That error means the boiler's ignition failed (error code F.28)" in texts[0]
     assert any(f"consent_yes:{case_id}" in t for t in texts)  # consent buttons; triage not asked again
     assert not any("cold_all" in t for t in texts)
@@ -133,7 +133,7 @@ def test_post_call_hmac_signature(app_client, monkeypatch):
 def test_call_page_and_signed_url_without_agent(app_client, monkeypatch):
     monkeypatch.delenv("ELEVENLABS_AGENT_ID", raising=False)
     r = app_client.get("/call")
-    assert r.status_code == 200 and "Debye anrufen" in r.text
+    assert r.status_code == 200 and "Call Debye" in r.text
     assert app_client.get("/api/voice/signed_url").status_code == 503
 
 

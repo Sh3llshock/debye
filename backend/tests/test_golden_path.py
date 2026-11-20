@@ -95,7 +95,6 @@ def test_golden_path(client):
     assert t_0810 in tom["free_slots"] and t_1012 not in tom["free_slots"]  # Tom busy tomorrow 10–12
     slots = [t_0810, tom["free_slots"][1]]
     url = f"/api/partner/heizung-schmidt/jobs/{cid}/slots"
-    assert client.post(url, json={"slots": slots}).status_code == 422  # tech_id required
     assert client.post(url, json={"tech_id": "tech_tom", "slots": [t_1012]}).status_code == 409  # busy
     assert client.post(url, json={"tech_id": "tech_wagner", "slots": slots}).status_code == 409  # other partner
     r = client.post(url, json={"tech_id": "tech_tom", "slots": slots})
@@ -136,6 +135,10 @@ def test_golden_path(client):
     staff = client.get(f"/api/staff/cases/{cid}").json()
     assert staff["status"] == "scheduled"
     assert staff["technician"] == {"tech_id": "tech_tom", "name": "Tom Schmidt"}
+    assigned = next(e for e in staff["events"] if e["kind"] == "technician.assigned")
+    assert assigned["summary"] == "Dispatcher assigned Tom Schmidt" and assigned["data"]["auto"] is False
+    assert client.get("/api/staff/cases").json()[0]["technician"] == {"tech_id": "tech_tom", "name": "Tom Schmidt"}
+    assert client.get("/api/tech/tech_tom").json()["partner_name"] == "Heizung Schmidt GmbH"
     ev = next(e for e in staff["events"] if e["kind"] == "technician.confirmed")
     assert ev["summary"].startswith("Technician Tom Schmidt confirmed ") and ev["summary"].endswith(" 08:00–10:00")
     assert ev["data"]["slot"]["label"] == "Tomorrow 8–10"  # same slot dict goes to notify_tenant
@@ -304,3 +307,63 @@ def test_set_case_error_code(client):
 
     with pytest.raises(rules.RuleViolation):
         services.set_case_error_code(case.id, " ")
+
+
+
+def _dispatched_case(client):
+    luka, boiler, case = _open_luka_case()
+    services.record_consent(luka.id, "heizung-schmidt", case.id, ["name", "address"], "repair", "whatsapp")
+    services.dispatch_job(case.id, "heizung-schmidt")
+    client.post(f"/api/partner/heizung-schmidt/jobs/{case.id}/accept")
+    return case.id
+
+
+def _slot(days: int, hour: int) -> dict:
+    t = (now() + timedelta(days=days)).replace(hour=hour, minute=0, second=0, microsecond=0)
+    return {"start": t.isoformat(timespec="seconds"),
+            "end": (t + timedelta(hours=2)).isoformat(timespec="seconds")}
+
+
+def test_auto_assign_technician_without_tech_id(client):
+    """Live partner page may not send tech_id yet: the dispatcher auto-assigns the best free technician."""
+    cid = _dispatched_case(client)
+    # tomorrow 08–10: Tom (Vaillant) is free, Ali and Jana are busy → Tom (brand skill wins)
+    r = client.post(f"/api/partner/heizung-schmidt/jobs/{cid}/slots", json={"slots": [_slot(1, 8)]})
+    assert r.status_code == 200, r.text
+    assert r.json()["technician"] == {"tech_id": "tech_tom", "name": "Tom Schmidt"}
+    ev = next(e for e in client.get(f"/api/staff/cases/{cid}").json()["events"]
+              if e["kind"] == "technician.assigned")
+    assert ev["summary"].startswith("Dispatcher auto-assigned Tom Schmidt") and ev["data"]["auto"] is True
+    # same flow afterwards: tenant picks → awaiting_technician → technician confirms → scheduled
+    assert services.confirm_slot(cid, 1)["status"] == "awaiting_technician"
+    assert client.post(f"/api/tech/tech_tom/jobs/{cid}/confirm").json()["status"] == "scheduled"
+
+
+def test_auto_assign_skips_busy_brand_technician(client):
+    cid = _dispatched_case(client)
+    # tomorrow 10–12: Tom and Jana busy → Ali (heating trade, free)
+    r = client.post(f"/api/partner/heizung-schmidt/jobs/{cid}/slots", json={"slots": [_slot(1, 10)]})
+    assert r.status_code == 200, r.text
+    assert r.json()["technician"]["tech_id"] == "tech_ali"
+
+
+def test_auto_assign_no_one_free_and_explicit_busy(client):
+    cid = _dispatched_case(client)
+    # tomorrow 08–10 AND 10–12: nobody is free in both → 409
+    r = client.post(f"/api/partner/heizung-schmidt/jobs/{cid}/slots",
+                    json={"slots": [_slot(1, 8), _slot(1, 10)]})
+    assert r.status_code == 409
+    # explicitly chosen busy technician stays 409
+    r = client.post(f"/api/partner/heizung-schmidt/jobs/{cid}/slots",
+                    json={"tech_id": "tech_tom", "slots": [_slot(1, 10)]})
+    assert r.status_code == 409
+
+
+def test_english_slot_labels(client):
+    lbl = services.case_label_slot
+    tomorrow = _slot(1, 8)
+    assert lbl(tomorrow["start"], tomorrow["end"], "en") == "Tomorrow 8–10"
+    later = _slot(3, 14)
+    from datetime import datetime
+    d = datetime.fromisoformat(later["start"])
+    assert lbl(later["start"], later["end"], "en") == f"{services.EN_DAYS[d.weekday()]} {d.day} {services.EN_MONTHS[d.month - 1]}, 14–16"
