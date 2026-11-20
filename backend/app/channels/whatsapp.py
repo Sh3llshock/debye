@@ -54,7 +54,14 @@ def _env(name: str, default: str = "") -> str:
 
 
 def fake_send_enabled() -> bool:
-    return _env("WA_FAKE_SEND") == "1" or not _env("WA_TOKEN")
+    """Fake send (outbox only) when WA_FAKE_SEND=1 or the selected provider has no credentials."""
+    from .twilio import twilio_ready, wa_provider
+
+    if _env("WA_FAKE_SEND") == "1":
+        return True
+    if wa_provider() == "twilio":
+        return not twilio_ready()
+    return not _env("WA_TOKEN")
 
 
 def _graph() -> str:
@@ -223,8 +230,44 @@ class WhatsAppChannel(Channel):
         return str(dest)
 
 
-channel = WhatsAppChannel()
-register(channel)
+channel = WhatsAppChannel()  # Meta Cloud API (also the fake-send outbox)
+
+
+class ProviderChannel(Channel):
+    """The one 'whatsapp' channel the router/agent use; picks Twilio or Meta per call.
+    Fake-send mode always uses the Meta-shaped outbox, so scripts/simulate.py keeps working."""
+
+    name = "whatsapp"
+
+    def _impl(self) -> Channel:
+        from . import twilio
+
+        if twilio.wa_provider() == "twilio" and not fake_send_enabled():
+            return twilio.channel
+        return channel
+
+    async def send_text(self, to, text):
+        return await self._impl().send_text(to, text)
+
+    async def send_buttons(self, to, text, options):
+        return await self._impl().send_buttons(to, text, options)
+
+    async def send_list(self, to, text, button_label, rows, section_title="Optionen"):
+        return await self._impl().send_list(to, text, button_label, rows, section_title)
+
+    async def send_media(self, to, kind, path, caption=None, mime=None):
+        return await self._impl().send_media(to, kind, path, caption, mime)
+
+    async def download_media(self, media: Media) -> str:
+        from . import twilio
+
+        if media.media_id.startswith("https://") and "twilio" in media.media_id:
+            return await twilio.channel.download_media(media)
+        return await channel.download_media(media)
+
+
+provider_channel = ProviderChannel()
+register(provider_channel)
 
 
 # ------------------------------------------------------------------ webhook parsing
@@ -236,7 +279,10 @@ def parse_webhook(body: dict) -> list[InboundMessage]:
             value = change.get("value", {})
             names = {c.get("wa_id"): (c.get("profile") or {}).get("name") for c in value.get("contacts", [])}
             for st in value.get("statuses", []):
-                log.debug("status %s for %s", st.get("status"), st.get("id"))
+                if st.get("status") == "failed" or st.get("errors"):
+                    log.warning("WhatsApp delivery FAILED for %s: %s", st.get("id"), st.get("errors"))
+                else:
+                    log.info("WhatsApp status %s for %s", st.get("status"), st.get("id"))
             for m in value.get("messages", []):
                 msg = InboundMessage(
                     channel="whatsapp",
@@ -323,6 +369,11 @@ async def webhook(request: Request, background: BackgroundTasks):
         remember(msg.from_phone, "whatsapp")
         background.add_task(process_inbound, msg)
     return {"ok": True}  # 200 immediately; processing runs after the response
+
+
+from .twilio import router as _twilio_router  # noqa: E402  (POST /webhooks/twilio, status, media)
+
+router.include_router(_twilio_router)
 
 
 @router.get("/webhooks/whatsapp/_outbox")
