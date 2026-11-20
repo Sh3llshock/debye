@@ -6,8 +6,9 @@ import { approvalProposal, MiniLine } from '../components/case/CasePanels'
 import { LiveDot, useCrumbs } from '../components/Layout'
 import { ErrorBox, Loading, Mascot, PriorityChip } from '../components/ui'
 import { errorText } from '../lib/errors'
-import { fmtRelative } from '../lib/format'
-import { lineState, needsApproval, STAFF_STATIONS } from '../lib/lifecycle'
+import { fmtEur, fmtRelative } from '../lib/format'
+import { lineState, needsApproval, NO_TECH_STATIONS, STAFF_STATIONS } from '../lib/lifecycle'
+import { isNoTechnicianSummary } from '../components/case/Diagnosis'
 import { useStream } from '../lib/stream'
 import { useNewKeys } from '../lib/useNewKeys'
 import { useDebounced, useResource } from '../lib/useResource'
@@ -145,7 +146,8 @@ export default function StaffCases() {
                 <DecisionRow key={c.case_id} c={c} onDone={reload} />
               ))}
               {rows.map((c) => {
-                const line = lineState(STAFF_STATIONS, c.status)
+                const noTech = isNoTechnicianSummary(c)
+                const line = lineState(noTech ? NO_TECH_STATIONS : STAFF_STATIONS, c.status)
                 return (
                   <tr
                     key={c.case_id}
@@ -165,13 +167,21 @@ export default function StaffCases() {
                       {(c.address ?? '').split(',')[0]}, {c.unit_id.replace('unit_', '')}
                     </td>
                     <td className="px-4 py-3">
-                      <MiniLine total={STAFF_STATIONS.length} reached={line.reached} status={c.status} />
+                      <MiniLine total={line.stations.length} reached={line.reached} status={c.status} />
                     </td>
                     <td className="px-4 py-3">
                       <PriorityChip priority={c.priority} />
                     </td>
                     <td className="px-4 py-3 text-body-sm">
-                      {c.partner?.name ?? <span className="text-muted">—</span>}
+                      {c.partner?.name ??
+                        (noTech ? (
+                          <span className="text-positive">
+                            {t('No technician')}
+                            {c.saving_eur ? ` · ${t('saved ~{eur}', { eur: fmtEur(c.saving_eur) })}` : ''}
+                          </span>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        ))}
                       {c.technician && <div className="text-meta text-muted">{c.technician.name}</div>}
                     </td>
                     <td className="px-4 py-3 text-body-sm text-secondary">{fmtRelative(c.updated_at)}</td>

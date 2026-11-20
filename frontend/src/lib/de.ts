@@ -371,4 +371,6 @@ export const DE: Record<string, string> = {
   Solar: 'Solar',
   Electrical: 'Elektro',
   Plumbing: 'Sanitär',
+  'No technician': 'Kein Techniker',
+  'saved ~{eur}': 'ca. {eur} gespart',
 }

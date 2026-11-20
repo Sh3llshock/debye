@@ -153,6 +153,8 @@ function initialState(): State {
     consents: [],
     documents: [],
     trade: null,
+    resolution: 'self_help',
+    saving_eur: 180,
     diagnosis: {
       cause_id: 'shower_knob_or_limiter',
       label: 'Shower knob or temperature limiter set too low',
@@ -436,7 +438,7 @@ const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 const summary = (c: CaseDetail): CaseSummary => ({
   case_id: c.case_id, type: c.type, title: c.title, status: c.status, priority: c.priority,
   unit_id: c.unit_id, address: c.address, partner: c.partner, updated_at: c.updated_at, created_at: c.created_at,
-  error_code: c.asset?.error_code ?? null, technician: c.technician ?? null,
+  error_code: c.asset?.error_code ?? null, technician: c.technician ?? null, resolution: c.resolution ?? null, saving_eur: c.saving_eur ?? null,
 })
 
 function jobFor(partnerId: string, c: CaseDetail): JobDetail {
@@ -673,7 +675,7 @@ export const mockApi = {
     mk('case_0004', 'Leak under the kitchen sink', 'approval_pending', 'unit_4b', null, 3, { priority: 'high', estimated_cost_eur: 180, approval: { required: true, rule: 'Every job needs staff approval', amount_eur: 180, partner: SCHMIDT, suggested_technician: { tech_id: 'tech_ali', name: 'Ali Yilmaz' }, suggested_slot: freeSlots('tech_ali')[0] ?? null } })
     mk('case_0005', 'Stairwell light broken', 'requested', 'unit_2a', { partner_id: 'elektro-klein', name: 'Elektro Klein' }, 25)
     mk('case_0006', 'Radiator ticking at night', 'slots_proposed', 'unit_4b', SCHMIDT, 50, { technician: { tech_id: 'tech_tom', name: 'Tom Schmidt' } })
-    mk('case_0007', 'Boiler pressure low (F.22)', 'closed', 'unit_2a', null, 120, { diagnosis: { cause_id: 'low_system_pressure', label: 'Low system pressure (F.22)', confidence: 0.8, outcome: 'caretaker' } })
+    mk('case_0007', 'Boiler pressure low (F.22)', 'closed', 'unit_2a', null, 120, { resolution: 'caretaker', saving_eur: 180, diagnosis: { cause_id: 'low_system_pressure', label: 'Low system pressure (F.22)', confidence: 0.8, outcome: 'caretaker' } })
     mk('case_0008', 'No hot water at 7 am', 'scheduled', 'unit_4b', SCHMIDT, 200, { technician: { tech_id: 'tech_tom', name: 'Tom Schmidt' }, priority: 'urgent' })
     mk('case_0009', 'Dripping tap in the bathroom', 'rejected', 'unit_2a', null, 300, { approval: { required: false, rule: '', rejected: true, reason: 'Tenant must pay this' } })
     emit({ type: 'demo.reset', case_id: null, event: null })

@@ -46,9 +46,12 @@ function qa(x: DiagnosisQA | string): { q: string; a: string } {
 export function diagnosisOutcome(c: CaseDetail): string | null {
   const d = c.diagnosis
   if (!d) return null
+  if (c.resolution && NO_TECHNICIAN.has(c.resolution)) return c.resolution
   return d.outcome ?? (c.events.some((e) => e.kind === 'caretaker.notified') ? 'caretaker' : KB_CAUSES[d.cause_id]?.outcome ?? null)
 }
-export const isNoTechnician = (c: CaseDetail) => NO_TECHNICIAN.has(diagnosisOutcome(c) ?? '')
+export const isNoTechnician = (c: CaseDetail) => NO_TECHNICIAN.has(c.resolution ?? '') || NO_TECHNICIAN.has(diagnosisOutcome(c) ?? '')
+/** For list rows (CaseSummary): closed without a partner. */
+export const isNoTechnicianSummary = (c: { resolution?: string | null }) => NO_TECHNICIAN.has(c.resolution ?? '')
 
 /** "Debye's diagnosis": likely cause, confidence, one-line reasoning, the questions asked, the trade it needs. */
 export function DiagnosisPanel({ c }: { c: CaseDetail }) {
@@ -61,7 +64,7 @@ export function DiagnosisPanel({ c }: { c: CaseDetail }) {
   const outcome = diagnosisOutcome(c)
   const trade = outcome && NO_TECHNICIAN.has(outcome) ? (outcome === 'caretaker' ? 'caretaker' : null) : (c.trade ?? d.trade ?? kb?.trade ?? null)
   const cost = d.estimated_cost_eur ?? kb?.cost ?? null
-  const saved = outcome && NO_TECHNICIAN.has(outcome) ? (d.estimated_saving_eur ?? KB_MIN_TECHNICIAN_EUR) : null
+  const saved = outcome && NO_TECHNICIAN.has(outcome) ? (c.saving_eur ?? d.estimated_saving_eur ?? KB_MIN_TECHNICIAN_EUR) : null
   const qs = (d.questions_asked ?? []).map(qa).filter((x) => x.q)
   return (
     <section className="panel overflow-hidden">
