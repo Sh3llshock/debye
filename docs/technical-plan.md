@@ -129,7 +129,7 @@ Keep the shapes close to reltix's example payloads so the output looks native to
 | `consent` | id, contact_id, partner_id, case_id, data_shared (JSON list), purpose, channel, given_at, revoked_at |
 | `conversation` | contact_id, case_id, claude_messages (JSON), updated_at |
 
-Seed (`data/seed.json`): Musterstraße 12, 52062 Aachen; units 4b (Lena Hoffmann) and 2a (Jonas Weber); owner Maria Becker; central Vaillant ecoTEC plus boiler; framework contract with Heizung Schmidt (auto-approve limit €500). The partners table is loaded from `partners/*.json`.
+Seed (`data/seed.json`): Musterstraße 12, 52062 Aachen; units 4b (Luka) and 2a (Jonas Weber); owner Maria Becker; central Vaillant ecoTEC plus boiler; framework contract with Heizung Schmidt (auto-approve limit €500). The partners table is loaded from `partners/*.json`.
 
 **Zero-forms counter:** for each case, store `prefilled_fields` (list of fields taken from centrix) and `tenant_inputs` (messages/taps) in `case.data`. The dashboard shows "14 pre-filled · 1 voice note, 2 taps".
 

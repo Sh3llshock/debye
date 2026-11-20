@@ -24,7 +24,7 @@ PNGs: `staff-case-detail.png`, `staff-cases-list.png`, `partner-job.png`, `whats
 - **Elevation declared once:** borders only, no shadows.
 - **Layout:** distinct work areas instead of card grids. On the case page: activity (the main path), the conversation beside it, an inspector with properties in sections divided by rules, and the partner choice as a table. The approval sits inside the table as a "needs decision" group, not a modal or a hero card.
 - **Type:** one family with a fixed role scale (30 / 18 / 16 / 15 / 14 / 13), weights 400–600, tracking no tighter than -0.01em, tabular figures.
-- **Copy (clarify):** controls name their action ("Offer visit times", "Send 2 times to Lena", "Daten weitergeben" / "Nicht weitergeben", "Termine ansehen"). Status text says what is happening ("Times offered to resident", "waiting for Lena").
+- **Copy (clarify):** controls name their action ("Offer visit times", "Send 2 times to Luka", "Daten weitergeben" / "Nicht weitergeben", "Termine ansehen"). Status text says what is happening ("Times offered to resident", "waiting for Luka").
 - **Standard controls only:** a segmented filter, a table, and a week grid with Free / Busy / Offered cells for picking visit times. No costume of a tool.
 
 ## What changed vs v1

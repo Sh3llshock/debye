@@ -169,7 +169,7 @@ export interface MockStep {
 
 export const mockSteps: MockStep[] = [
   {
-    label: 'Lena sends voice note + photo',
+    label: 'Luka sends voice note + photo',
     ready: () => !heating(),
     run: () => {
       const c: CaseDetail = {
@@ -183,7 +183,7 @@ export const mockSteps: MockStep[] = [
         partner: null,
         updated_at: now(),
         created_at: now(),
-        reporters: [{ contact_id: 'c_202', name: 'Lena Hoffmann', unit_id: 'unit_4b', relation: 'reporter' }],
+        reporters: [{ contact_id: 'c_202', name: 'Luka', unit_id: 'unit_4b', relation: 'reporter' }],
         asset: { asset_id: 'asset_boiler_1', type: 'gas_boiler', make: 'Vaillant', model: 'ecoTEC plus VC 206/5-5', error_code: 'F.28', error_meaning: 'Ignition failed at start-up (no flame detected)' },
         summary: 'Radiators cold in the whole building since this morning (unit 2a reports the same). Likely ignition fault at the central boiler.',
         cost_bearer: 'landlord',
@@ -200,17 +200,17 @@ export const mockSteps: MockStep[] = [
       }
       state.cases[c.case_id] = c
       const photo = newDoc(c, 'photo', 'boiler_display_F28.jpg')
-      addMessage(c, 'in', 'Lena Hoffmann', '„Hallo, die Heizung ist komplett kalt seit heute Morgen.“', [{ kind: 'audio' }, { document_id: photo.document_id, kind: 'photo', url: photo.url }])
-      addEvent(c, 'debye', 'case.created', "Case opened from Lena's voice note — photo shows error F.28 (ignition failed)")
-      addMessage(c, 'out', 'Lena Hoffmann', 'Oh nein, das tut mir leid Lena! Sind alle Heizkörper kalt oder nur einer?', [])
+      addMessage(c, 'in', 'Luka', '„Hallo, die Heizung ist komplett kalt seit heute Morgen.“', [{ kind: 'audio' }, { document_id: photo.document_id, kind: 'photo', url: photo.url }])
+      addEvent(c, 'debye', 'case.created', "Case opened from Luka's voice note — photo shows error F.28 (ignition failed)")
+      addMessage(c, 'out', 'Luka', 'Oh nein, das tut mir leid, Luka! Sind alle Heizkörper kalt oder nur einer?', [])
     },
   },
   {
-    label: 'Lena taps “Überall kalt”',
+    label: 'Luka taps “Überall kalt”',
     ready: () => heating()?.status === 'new' && !heating()!.zero_forms!.tenant_inputs.includes('tap: Überall kalt'),
     run: () => {
       const c = heating()!
-      addMessage(c, 'in', 'Lena Hoffmann', 'Überall kalt')
+      addMessage(c, 'in', 'Luka', 'Überall kalt')
       c.zero_forms!.tenant_inputs.push('tap: Überall kalt')
       addEvent(c, 'tenant', 'case.updated', 'All radiators cold — central boiler, priority urgent')
     },
@@ -235,18 +235,18 @@ export const mockSteps: MockStep[] = [
         { partner_id: 'heiztechnik-gruen', name: 'Heiztechnik Grün', score: 0.54, reasons: ['Cheapest', 'Not Vaillant-certified'] },
       ]
       addEvent(c, 'debye', 'partner.ranked', 'Top match: Heizung Schmidt (0.86) — Vaillant-certified, free tomorrow')
-      addMessage(c, 'out', 'Lena Hoffmann', 'Heizung Schmidt kann morgen kommen. Darf ich Name, Telefon, Adresse und Fotos teilen?')
+      addMessage(c, 'out', 'Luka', 'Heizung Schmidt kann morgen kommen. Darf ich Name, Telefon, Adresse und Fotos teilen?')
     },
   },
   {
-    label: 'Lena taps consent',
+    label: 'Luka taps consent',
     ready: () => !!heating() && heating()!.ranking.length > 0 && heating()!.consents.length === 0,
     run: () => {
       const c = heating()!
-      addMessage(c, 'in', 'Lena Hoffmann', 'Ja, teilen')
+      addMessage(c, 'in', 'Luka', 'Ja, teilen')
       c.zero_forms!.tenant_inputs.push('tap: consent')
       c.consents.push({ contact_id: 'c_202', partner_id: 'heizung-schmidt', data_shared: ['name', 'phone', 'address', 'unit_floor', 'photos'], given_at: now(), channel: 'whatsapp', purpose: 'heating repair visit' })
-      addEvent(c, 'tenant', 'consent.recorded', 'Lena shared name, phone, address, floor, photos with Heizung Schmidt')
+      addEvent(c, 'tenant', 'consent.recorded', 'Luka shared name, phone, address, floor, photos with Heizung Schmidt')
       addEvent(c, 'system', 'approval.granted', 'Auto-approved: estimate €250 is within the €500 framework limit')
       c.partner = SCHMIDT
       c.status = 'requested'
@@ -259,17 +259,17 @@ export const mockSteps: MockStep[] = [
     run: () => {},
   },
   {
-    label: 'Lena picks a slot',
+    label: 'Luka picks a slot',
     ready: () => !!heating() && heating()!.status === 'slots_proposed' && !!state.pendingSlots['case_0001']?.length,
     run: () => {
       const c = heating()!
       const s = state.pendingSlots['case_0001'][0]
-      addMessage(c, 'in', 'Lena Hoffmann', s.label ?? fmtSlot(s))
+      addMessage(c, 'in', 'Luka', s.label ?? fmtSlot(s))
       c.zero_forms!.tenant_inputs.push('tap: slot')
       c.slot = { start: s.start, end: s.end }
       c.status = 'scheduled'
       addEvent(c, 'tenant', 'slot.confirmed', `Visit confirmed: ${s.label ?? fmtSlot(s)}`)
-      addMessage(c, 'out', 'Lena Hoffmann', `Super, Heizung Schmidt kommt ${s.label ?? fmtSlot(s)}. Ich erinnere dich morgen früh.`)
+      addMessage(c, 'out', 'Luka', `Super, Heizung Schmidt kommt ${s.label ?? fmtSlot(s)}. Ich erinnere dich morgen früh.`)
     },
   },
   {
@@ -278,12 +278,12 @@ export const mockSteps: MockStep[] = [
     run: () => {},
   },
   {
-    label: 'Lena confirms: warm again',
+    label: 'Luka confirms: warm again',
     ready: () => !!heating() && (heating()!.status === 'completed' || heating()!.status === 'invoiced'),
     run: () => {
       const c = heating()!
-      addMessage(c, 'out', 'Lena Hoffmann', 'Heizung Schmidt ist fertig. Ist es wieder warm?')
-      addMessage(c, 'in', 'Lena Hoffmann', '👍 Ja, warm!')
+      addMessage(c, 'out', 'Luka', 'Heizung Schmidt ist fertig. Ist es wieder warm?')
+      addMessage(c, 'in', 'Luka', '👍 Ja, warm!')
       c.zero_forms!.tenant_inputs.push('tap: fixed')
       const inv = c.documents.find((d) => d.kind === 'invoice')
       c.status = 'closed'
@@ -304,7 +304,7 @@ export const mockSteps: MockStep[] = [
       }
       const report = newDoc(c, 'report', 'service_report_case_0001.json')
       state.unitDocs.push(...c.documents.filter((d) => d.kind !== 'photo'), report)
-      addEvent(c, 'debye', 'case.closed', 'Lena confirmed it is warm again — result written to unit 4b')
+      addEvent(c, 'debye', 'case.closed', 'Luka confirmed it is warm again — result written to unit 4b')
     },
   },
 ]
@@ -349,7 +349,7 @@ function jobFor(partnerId: string, c: CaseDetail): JobDetail {
     error_code: c.asset?.error_code ?? null,
     summary: c.summary,
     photos: c.documents.filter((d) => d.kind === 'photo' && (fields.includes('photos') || d.filename.startsWith('after_'))).map((d) => ({ document_id: d.document_id, url: d.url, filename: d.filename })),
-    tenant: fields.includes('name') ? { name: 'Lena Hoffmann', phone: fields.includes('phone') ? '+491510000001' : null } : null,
+    tenant: fields.includes('name') ? { name: 'Luka', phone: fields.includes('phone') ? '+491510000001' : null } : null,
     consented_fields: fields,
     proposed_slots: state.pendingSlots[c.case_id] ?? [],
     confirmed_slot: c.slot,
@@ -376,7 +376,7 @@ export const mockApi = {
   async staffUnits(): Promise<UnitSummary[]> {
     await delay()
     return [
-      { unit_id: 'unit_4b', address: ADDRESS, floor: 2, size_sqm: 68, rooms: 3, tenant: { contact_id: 'c_202', name: 'Lena Hoffmann' }, open_cases: Object.values(state.cases).filter((c) => c.unit_id === 'unit_4b' && c.status !== 'closed').length },
+      { unit_id: 'unit_4b', address: ADDRESS, floor: 2, size_sqm: 68, rooms: 3, tenant: { contact_id: 'c_202', name: 'Luka' }, open_cases: Object.values(state.cases).filter((c) => c.unit_id === 'unit_4b' && c.status !== 'closed').length },
       { unit_id: 'unit_2a', address: ADDRESS, floor: 1, size_sqm: 54, rooms: 2, tenant: { contact_id: 'c_203', name: 'Jonas Weber' }, open_cases: Object.values(state.cases).filter((c) => c.unit_id === 'unit_2a' && c.status !== 'closed').length },
     ]
   },
@@ -390,7 +390,7 @@ export const mockApi = {
         ? { id: 'unit_4b', floor: 2, size_sqm: 68, rooms: 3, meters: [{ type: 'electricity', number: '1ESY1160123456' }, { type: 'gas', number: '7GMT0042001234' }] }
         : { id: 'unit_2a', floor: 1, size_sqm: 54, rooms: 2, meters: [{ type: 'electricity', number: '1ESY1160123401' }] },
       assets: [{ asset_id: 'asset_boiler_1', type: 'gas_boiler', make: 'Vaillant', model: 'ecoTEC plus VC 206/5-5', installed: '2014-09-15', last_service: '2025-10-08' }],
-      tenant: is4b ? { contact_id: 'c_202', name: 'Lena Hoffmann', email: 'lena@example.com', move_in: '2026-12-01' } : { contact_id: 'c_203', name: 'Jonas Weber', email: 'jonas@example.com', move_in: '2021-04-01' },
+      tenant: is4b ? { contact_id: 'c_202', name: 'Luka', email: 'luka@example.com', move_in: '2026-12-01' } : { contact_id: 'c_203', name: 'Jonas Weber', email: 'jonas@example.com', move_in: '2021-04-01' },
       lease: { id: `ct_lease_${unitId}`, type: 'lease', data: is4b ? { rent_cold_eur: 780, start: '2026-12-01' } : { rent_cold_eur: 610, start: '2021-04-01' } },
       documents: [
         ...(is4b ? [...state.unitDocs].reverse() : []),

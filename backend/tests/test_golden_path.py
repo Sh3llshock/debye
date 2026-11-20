@@ -12,16 +12,16 @@ PDF = (DEMO / "invoice_RE-2026-1187.pdf").read_bytes()
 JPG = (DEMO / "repair_done.jpg").read_bytes()
 
 
-def _open_lena_case():
-    lena = services.get_contact_by_phone("490000000001")  # WhatsApp sends no "+"
-    assert lena and lena.id == "c_202"
-    ctx = services.get_unit_context(lena.unit_id)
+def _open_luka_case():
+    luka = services.get_contact_by_phone("490000000001")  # WhatsApp sends no "+"
+    assert luka and luka.id == "c_202"
+    ctx = services.get_unit_context(luka.unit_id)
     assert ctx["property"]["address"].startswith("Musterstraße 12")
     boiler = ctx["assets"][0]
     assert services.find_open_case_for_asset(boiler["id"]) is None
-    case = services.open_case(lena.id, "repair.heating", "urgent", "Heizung kalt", "alles kalt",
+    case = services.open_case(luka.id, "repair.heating", "urgent", "Heizung kalt", "alles kalt",
                               "F.28", boiler["id"])
-    return lena, boiler, case
+    return luka, boiler, case
 
 
 DEMO_INVOICE = {  # numbers of data/demo/invoice_RE-2026-1187.pdf
@@ -48,7 +48,7 @@ def _demo_invoice(monkeypatch):
 
 
 def test_golden_path(client):
-    lena, boiler, case = _open_lena_case()
+    luka, boiler, case = _open_luka_case()
     cid = case.id
     assert case.status == "new" and case.unit_id == "unit_4b"
 
@@ -59,7 +59,7 @@ def test_golden_path(client):
     services.link_contact_to_case(cid, jonas.id, "affected")
     assert [c.id for c in services.get_case_contacts(cid)] == ["c_202", "c_203"]
     assert services.get_case(cid).partner_id is None
-    m = services.log_message(lena.id, cid, "whatsapp", "in", "Heizung kalt", "wamid.T1", [])
+    m = services.log_message(luka.id, cid, "whatsapp", "in", "Heizung kalt", "wamid.T1", [])
     assert m.direction == "in" and services.message_seen("wamid.T1")
 
     ranking = services.rank_partners(cid)
@@ -72,7 +72,7 @@ def test_golden_path(client):
         services.dispatch_job(cid, "heizung-schmidt")
     assert e.value.code == "consent_missing"
 
-    services.record_consent(lena.id, "heizung-schmidt", cid,
+    services.record_consent(luka.id, "heizung-schmidt", cid,
                             ["name", "phone", "address", "photos"], "heating repair visit", "whatsapp")
     out = services.dispatch_job(cid, "heizung-schmidt")
     assert out["status"] == "requested"
@@ -92,7 +92,7 @@ def test_golden_path(client):
     job = r.json()
     assert job["status"] == "slots_proposed"
     assert job["proposed_slots"][0]["label"] == "Morgen 8–10"
-    assert job["tenant"] == {"name": "Lena Hoffmann", "phone": "+490000000001"}
+    assert job["tenant"] == {"name": "Luka", "phone": "+490000000001"}
 
     # tenant picks slot 1 on WhatsApp
     with pytest.raises(rules.RuleViolation):
@@ -146,8 +146,8 @@ def test_golden_path(client):
 
 
 def test_partner_sees_only_consented_fields(client):
-    lena, boiler, case = _open_lena_case()
-    services.record_consent(lena.id, "heizung-schmidt", case.id, ["address"], "repair", "whatsapp")
+    luka, boiler, case = _open_luka_case()
+    services.record_consent(luka.id, "heizung-schmidt", case.id, ["address"], "repair", "whatsapp")
     services.dispatch_job(case.id, "heizung-schmidt")
     job = client.get(f"/api/partner/heizung-schmidt/jobs/{case.id}").json()
     assert job["address"].startswith("Musterstraße")
@@ -157,9 +157,9 @@ def test_partner_sees_only_consented_fields(client):
 
 
 def test_approval_flow(client):
-    lena, boiler, case = _open_lena_case()
+    luka, boiler, case = _open_luka_case()
     client.post("/demo/trigger/expensive_repair", json={"case_id": case.id})
-    services.record_consent(lena.id, "heizung-schmidt", case.id, ["name", "address"], "repair", "whatsapp")
+    services.record_consent(luka.id, "heizung-schmidt", case.id, ["name", "address"], "repair", "whatsapp")
     with pytest.raises(rules.RuleViolation) as e:
         services.dispatch_job(case.id, "heizung-schmidt")
     assert e.value.code == "approval_required"
@@ -171,9 +171,9 @@ def test_approval_flow(client):
 
 
 def test_decline_reranks(client):
-    lena, boiler, case = _open_lena_case()
+    luka, boiler, case = _open_luka_case()
     services.rank_partners(case.id)
-    services.record_consent(lena.id, "heizung-schmidt", case.id, ["address"], "repair", "whatsapp")
+    services.record_consent(luka.id, "heizung-schmidt", case.id, ["address"], "repair", "whatsapp")
     services.dispatch_job(case.id, "heizung-schmidt")
     r = client.post(f"/api/partner/heizung-schmidt/jobs/{case.id}/decline", json={"reason": "krank"})
     assert r.json()["status"] == "declined"
@@ -222,17 +222,17 @@ def test_error_labels_everywhere(client):
     assert services.error_label(None) is None
     assert services.error_phrase("F.28") == "Boiler error: ignition failed (F.28)"
 
-    lena, boiler, case = _open_lena_case()
+    luka, boiler, case = _open_luka_case()
     label = "Ignition failed: no flame at start-up"
     summary = client.get("/api/staff/cases").json()[0]
     assert summary["error_code"] == "F.28" and summary["error_label"] == label
     detail = client.get(f"/api/staff/cases/{case.id}").json()
     assert detail["asset"]["error_label"] == label
     created = next(e for e in detail["events"] if e["kind"] == "case.created")
-    assert created["summary"] == "Case opened from Lena's report. Boiler error: ignition failed (F.28)"
+    assert created["summary"] == "Case opened from Luka's report. Boiler error: ignition failed (F.28)"
     assert services.get_unit_context("unit_4b")["open_cases"][0]["error_label"] == label
 
-    services.record_consent(lena.id, "heizung-schmidt", case.id, ["address"], "repair", "whatsapp")
+    services.record_consent(luka.id, "heizung-schmidt", case.id, ["address"], "repair", "whatsapp")
     services.dispatch_job(case.id, "heizung-schmidt")
     jobs = client.get("/api/partner/heizung-schmidt/jobs").json()
     assert jobs[0]["error_label"] == label
@@ -243,9 +243,9 @@ def test_error_labels_everywhere(client):
 
 
 def test_set_case_error_code(client):
-    lena = services.get_contact_by_phone("+490000000001")
-    boiler = services.get_unit_context(lena.unit_id)["assets"][0]
-    case = services.open_case(lena.id, "repair.heating", "urgent", "kalt", "kalt", None, boiler["id"])
+    luka = services.get_contact_by_phone("+490000000001")
+    boiler = services.get_unit_context(luka.unit_id)["assets"][0]
+    case = services.open_case(luka.id, "repair.heating", "urgent", "kalt", "kalt", None, boiler["id"])
     assert case.error_code is None
     est_before = case.estimated_cost_eur
 

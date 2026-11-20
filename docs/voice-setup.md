@@ -1,7 +1,7 @@
 # Calling Debye (voice)
 
 Residents can phone Debye. The call lands in the same case as WhatsApp, shows on the staff timeline as
-"Call with Lena (0:47): heating cold, all radiators cold, ignition failed (F.28). Case opened, consent asked on WhatsApp.",
+"Call with Luka (0:47): heating cold, all radiators cold, ignition failed (F.28). Case opened, consent asked on WhatsApp.",
 and when the caller hangs up, Debye continues on WhatsApp with a short recap and the consent buttons. The resident
 is never asked the same thing twice.
 
@@ -45,24 +45,24 @@ Optional `.env` knobs: `ELEVENLABS_AGENT_VOICE_ID` (default: "Simona – German,
 
 ## Option A: web test page (no phone number needed)
 
-Open **`https://<public-url>/call`**, or `http://localhost:8000/call` on the laptop itself. The browser needs the microphone, and localhost or https both count as secure. Pick "Anrufen als Lena" and press **Anrufen**. The page gets a signed URL from `/api/voice/signed_url` (the API key never reaches the browser) and starts the session with the `@elevenlabs/client` SDK. The caller is identified through the `contact_id` dynamic variable. `?contact=c_203` calls as Jonas.
+Open **`https://<public-url>/call`**, or `http://localhost:8000/call` on the laptop itself. The browser needs the microphone, and localhost or https both count as secure. Pick "Anrufen als Luka" and press **Anrufen**. The page gets a signed URL from `/api/voice/signed_url` (the API key never reaches the browser) and starts the session with the `@elevenlabs/client` SDK. The caller is identified through the `contact_id` dynamic variable. `?contact=c_203` calls as Jonas.
 
 This is the demo fallback. It's the same agent, tools and case logic as a phone call.
 
 ## Option B: a real phone number
 
-Phone calls are identified by the caller's number (`system__caller_id`), which `services.get_contact_by_phone` matches against the contacts. So the calling phone must be in `data/seed.local.json` (Lena's demo phone already is).
+Phone calls are identified by the caller's number (`system__caller_id`), which `services.get_contact_by_phone` matches against the contacts. So the calling phone must be in `data/seed.local.json` (Luka's demo phone already is).
 
 ### B1: Twilio number imported into ElevenLabs (recommended, about 15 minutes)
 **The user must do this in their own accounts. Nobody on the team buys numbers or creates paid accounts for them.**
 1. Create a Twilio account at twilio.com. A trial account comes with credit.
 2. Twilio Console → Phone Numbers → Buy a number with **Voice** capability.
    - A US or UK number is available instantly. **German (+49) numbers need a regulatory bundle (ID + local address) that can take days, so it's too late for this hackathon.** An international call to a US number from a German mobile works fine for the demo.
-   - On a **trial** account, Twilio plays a short "trial account" message before the call connects, and only verified caller numbers may call. Verify Lena's demo phone under *Verified Caller IDs*, or upgrade the account (about $20) to remove both limits.
+   - On a **trial** account, Twilio plays a short "trial account" message before the call connects, and only verified caller numbers may call. Verify Luka's demo phone under *Verified Caller IDs*, or upgrade the account (about $20) to remove both limits.
 3. Copy the **Account SID** and **Auth Token** (Console home).
 4. ElevenLabs dashboard → **Agents → Phone Numbers → Import number → From Twilio**: label "Debye", the number in E.164, Account SID, Auth Token. ElevenLabs configures the Twilio webhooks itself.
 5. In the same screen, assign the agent **Debye** to the number.
-6. Call it from Lena's phone. Debye greets her by name, and the case and the WhatsApp follow-up appear as with the web page.
+6. Call it from Luka's phone. Debye greets Luka by name, and the case and the WhatsApp follow-up appear as with the web page.
    Calls use ElevenLabs agent minutes plus Twilio minutes, about €0.10–0.20 per demo call.
 
 The same thing via API (instead of steps 4–5): `POST https://api.elevenlabs.io/v1/convai/phone-numbers` with `{"provider":"twilio","phone_number":"+1...","label":"Debye","sid":"AC...","token":"..."}`, then `PATCH /v1/convai/phone-numbers/{id}` with `{"agent_id":"agent_..."}`.

@@ -27,7 +27,7 @@ def invoice():
     c.setFont("Helvetica", 10)
     y = h - 120
     for line in ["An: reltix Hausverwaltung (für Eigentümerin Maria Becker)", "Objekt: Musterstraße 12, 52062 Aachen – Zentralheizung",
-                 "Auftrag: Fall case_0001, gemeldet von Lena Hoffmann (Whg. 4b)"]:
+                 "Auftrag: Fall case_0001, gemeldet von Luka (Whg. 4b)"]:
         c.drawString(50, y, line); y -= 14
     c.setFont("Helvetica-Bold", 14); c.drawString(50, y - 20, "Rechnung RE-2026-1187")
     c.setFont("Helvetica", 10); c.drawString(50, y - 36, "Rechnungsdatum: 21.11.2026   Leistungsdatum: 21.11.2026")

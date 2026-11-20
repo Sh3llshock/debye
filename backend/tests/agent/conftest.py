@@ -33,7 +33,7 @@ class RuleViolation(Exception):
 class FakeServices:
     def __init__(self):
         self.contacts = {
-            "c_202": SimpleNamespace(id="c_202", role="tenant", name="Lena Hoffmann", phone_e164="+490000000001",
+            "c_202": SimpleNamespace(id="c_202", role="tenant", name="Luka", phone_e164="+490000000001",
                                      unit_id="unit_4b", language="de"),
             "c_203": SimpleNamespace(id="c_203", role="tenant", name="Jonas Weber", phone_e164="+490000000002",
                                      unit_id="unit_2a", language="de"),

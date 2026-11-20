@@ -1,7 +1,7 @@
 """Phone/web calls with Debye (ElevenLabs Conversational AI) landing in the same case as WhatsApp.
 
 ElevenLabs runs the voice conversation and calls our server tools (identify_caller, report_issue).
-When the call ends we put it on the case timeline ("Call with Lena (1:12): ...") and Debye continues
+When the call ends we put it on the case timeline ("Call with Luka (1:12): ...") and Debye continues
 on WhatsApp with a short summary plus the next button (consent / triage), so nothing is asked twice.
 
 The end of a call is detected three ways, whichever comes first (deduped by conversation id):

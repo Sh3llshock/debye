@@ -35,7 +35,7 @@ from pathlib import Path
 
 import httpx
 
-LENA = "490000000001"   # WhatsApp sends E.164 without "+"
+LUKA = "490000000001"   # WhatsApp sends E.164 without "+"
 JONAS = "490000000002"
 PARTNER = "heizung-schmidt"
 PHONE_NUMBER_ID = os.environ.get("WA_PHONE_NUMBER_ID", "123456789012345")
@@ -250,7 +250,7 @@ class Sim:
 
     # ---- steps
     def report(self) -> None:
-        self.log("Lena", "🎤 voice note + 📷 photo of the boiler (F.28)")
+        self.log("Luka", "🎤 voice note + 📷 photo of the boiler (F.28)")
         audio = self.media_id(voice_note_path(), "audio/ogg")
         photo = self.media_id(BOILER_PHOTO, "image/jpeg")
         if self.direct:
@@ -258,14 +258,14 @@ class Sim:
             self.log("debye", f"opened {r['case_id']}, ranked: "
                      + ", ".join(f"{p['name']} {p['score']}" for p in r.get("ranking", [])))
             return
-        self.webhook(LENA, "Lena Hoffmann", audio_msg(audio))
+        self.webhook(LUKA, "Luka", audio_msg(audio))
         # Debye may answer the voice note and stay quiet on the follow-up photo
-        self.webhook(LENA, "Lena Hoffmann", image_msg(photo, "Das zeigt der Kessel"), expect_reply=False)
+        self.webhook(LUKA, "Luka", image_msg(photo, "Das zeigt der Kessel"), expect_reply=False)
         cases = self._check(self.c.get("/api/staff/cases"))
         cid = cases[0]["case_id"] if cases else ""
-        oid = self.option_id(LENA, "cold_all", f"cold_all:{cid}")
-        self.log("Lena", "taps 'Überall kalt'")
-        self.webhook(LENA, "Lena Hoffmann", button_reply(oid, "Überall kalt"))
+        oid = self.option_id(LUKA, "cold_all", f"cold_all:{cid}")
+        self.log("Luka", "taps 'Überall kalt'")
+        self.webhook(LUKA, "Luka", button_reply(oid, "Überall kalt"))
 
     def neighbour(self) -> None:
         self.log("Jonas", "Bei uns im 1. Stock ist die Heizung auch kalt.")
@@ -277,13 +277,13 @@ class Sim:
 
     def consent(self) -> None:
         cid = self.latest_case()["case_id"]
-        self.log("Lena", f"taps consent for {cid}")
+        self.log("Luka", f"taps consent for {cid}")
         if self.direct:
             r = self.trigger("consent", {"case_id": cid})
             self.log("debye", f"dispatch: {r.get('dispatched') or r.get('blocked')}")
             return
-        oid = self.option_id(LENA, "consent_yes", f"consent_yes:{cid}")
-        self.webhook(LENA, "Lena Hoffmann", button_reply(oid, "Ja, teilen"))
+        oid = self.option_id(LUKA, "consent_yes", f"consent_yes:{cid}")
+        self.webhook(LUKA, "Luka", button_reply(oid, "Ja, teilen"))
 
     def accept(self) -> None:
         cid = self.latest_case()["case_id"]
@@ -310,19 +310,19 @@ class Sim:
     def pick(self, index: int = 1) -> None:
         """index is 1-based, like the list ids slot_1, slot_2 (interfaces §3.3)."""
         cid = self.latest_case()["case_id"]
-        self.log("Lena", f"picks slot #{index}")
+        self.log("Luka", f"picks slot #{index}")
         if self.direct:
             self.trigger("pick_slot", {"case_id": cid, "index": index})
             return
         # take the row id from Debye's list message; fall back to slot_<index>:<case_id>
         rows = []
         for item in reversed(self.outbox_all):
-            if _to(item) == LENA:
+            if _to(item) == LUKA:
                 rows = [o for o in _option_ids(item) if o.startswith("slot_") and not o.startswith("slot_none")]
                 if rows:
                     break
         oid = rows[index - 1] if 0 < index <= len(rows) else f"slot_{index}:{cid}"
-        self.webhook(LENA, "Lena Hoffmann", list_reply(oid, f"Slot {index}"))
+        self.webhook(LUKA, "Luka", list_reply(oid, f"Slot {index}"))
 
     def complete(self) -> None:
         cid = self.latest_case()["case_id"]
@@ -341,12 +341,12 @@ class Sim:
 
     def fixed(self) -> None:
         cid = self.latest_case()["case_id"]
-        self.log("Lena", "taps 'Ja, warm!'")
+        self.log("Luka", "taps 'Ja, warm!'")
         if self.direct:
             self.trigger("fixed", {"case_id": cid, "fixed": True})
             return
-        oid = self.option_id(LENA, "fixed_yes", f"fixed_yes:{cid}")
-        self.webhook(LENA, "Lena Hoffmann", button_reply(oid, "Ja, warm!"))
+        oid = self.option_id(LUKA, "fixed_yes", f"fixed_yes:{cid}")
+        self.webhook(LUKA, "Luka", button_reply(oid, "Ja, warm!"))
 
     def summary(self) -> bool:
         c = self.case(self.latest_case()["case_id"])

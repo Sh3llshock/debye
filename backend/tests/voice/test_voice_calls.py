@@ -6,7 +6,7 @@ import json
 import time
 
 H = {"X-Debye-Voice-Secret": "test-secret"}
-LENA_PHONE = "+490000000001"
+LUKA_PHONE = "+490000000001"
 
 
 def outbox(c):
@@ -17,7 +17,7 @@ def outbox_texts(c):
     return [json.dumps(m, ensure_ascii=False) for m in outbox(c)]
 
 
-def post_call_payload(conv_id, secs=72, summary="Lena reported her heating is cold; boiler shows F.28."):
+def post_call_payload(conv_id, secs=72, summary="Luka reported the heating is cold; boiler shows F.28."):
     return {"type": "post_call_transcription", "event_timestamp": int(time.time()), "data": {
         "agent_id": "agent_x", "conversation_id": conv_id, "status": "done",
         "transcript": [{"role": "agent", "message": "Hallo, hier ist Debye.", "time_in_call_secs": 0},
@@ -37,7 +37,7 @@ def report(c, conv_id, **kw):
 
 
 def test_tools_need_the_secret(app_client):
-    r = app_client.post("/api/voice/tools/identify_caller", json={"caller_id": LENA_PHONE})
+    r = app_client.post("/api/voice/tools/identify_caller", json={"caller_id": LUKA_PHONE})
     assert r.status_code == 401
     r = app_client.post("/api/voice/tools/identify_caller", json={}, headers={"X-Debye-Voice-Secret": "nope"})
     assert r.status_code == 401
@@ -47,8 +47,8 @@ def test_tools_need_the_secret(app_client):
 def test_identify_caller_by_phone_and_by_contact_id(app_client):
     c = app_client
     d = c.post("/api/voice/tools/identify_caller", headers=H,
-               json={"conversation_id": "conv_1", "caller_id": LENA_PHONE, "contact_id": "{{contact_id}}"}).json()
-    assert d["known"] and d["first_name"] == "Lena" and d["contact_id"] == "c_202"
+               json={"conversation_id": "conv_1", "caller_id": LUKA_PHONE, "contact_id": "{{contact_id}}"}).json()
+    assert d["known"] and d["first_name"] == "Luka" and d["contact_id"] == "c_202"
     assert d["heating"]["make"]
     d2 = c.post("/api/voice/tools/identify_caller", headers=H, json={"contact_id": "c_203", "caller_id": ""}).json()
     assert d2["first_name"] == "Jonas"
@@ -70,18 +70,18 @@ def test_call_opens_case_and_continues_on_whatsapp(app_client):
 
     done = c.post("/api/voice/post_call", headers=H, json=post_call_payload("conv_2")).json()
     assert done["case_id"] == case_id
-    assert done["line"].startswith("Call with Lena (1:12): ")
+    assert done["line"].startswith("Call with Luka (1:12): ")
 
     detail = case_detail(c, case_id)
     kinds = [e["kind"] for e in detail["events"]]
     assert "call.completed" in kinds and "triage.answer" in kinds
     call_ev = next(e for e in detail["events"] if e["kind"] == "call.completed")
-    assert call_ev["summary"] == ("Call with Lena (1:12): heating cold, all radiators cold, ignition failed (F.28). "
+    assert call_ev["summary"] == ("Call with Luka (1:12): heating cold, all radiators cold, ignition failed (F.28). "
                                   "Case opened, consent asked on WhatsApp.")
-    assert call_ev["data"]["summary"].startswith("Lena reported")  # ElevenLabs' own summary kept in the data
+    assert call_ev["data"]["summary"].startswith("Luka reported")  # ElevenLabs' own summary kept in the data
 
     texts = outbox_texts(c)
-    assert "Danke für deinen Anruf, Lena" in texts[0]
+    assert "Danke für deinen Anruf, Luka" in texts[0]
     assert "Der Kessel meldet, dass die Zündung fehlgeschlagen ist (Fehlercode F.28)" in texts[0]
     assert any(f"consent_yes:{case_id}" in t for t in texts)  # consent buttons; triage not asked again
     assert not any("cold_all" in t for t in texts)
@@ -146,7 +146,7 @@ def test_signed_url_stubbed(app_client, monkeypatch):
     monkeypatch.setenv("ELEVENLABS_AGENT_ID", "agent_test")
     monkeypatch.setattr(calls, "signed_url", fake)
     d = app_client.get("/api/voice/signed_url?contact=c_202").json()
-    assert d["signed_url"] == "wss://example/agent_test" and d["contact_name"] == "Lena"
+    assert d["signed_url"] == "wss://example/agent_test" and d["contact_name"] == "Luka"
 
 
 def test_finish_when_done_polls_elevenlabs(app_client, monkeypatch):
@@ -162,4 +162,4 @@ def test_finish_when_done_polls_elevenlabs(app_client, monkeypatch):
     monkeypatch.setattr(calls, "fetch_conversation", fake_fetch)
     monkeypatch.setattr(calls, "POLL_SECONDS", 0.01)
     res = asyncio.run(calls.finish_when_done("conv_7", 5))
-    assert res["line"].startswith("Call with Lena (1:12)")
+    assert res["line"].startswith("Call with Luka (1:12)")

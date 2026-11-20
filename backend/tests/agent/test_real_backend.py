@@ -7,7 +7,7 @@ from agent_stubs import text, tool_use
 REPO = Path(__file__).resolve().parents[3]
 PHOTO = REPO / "data" / "demo" / "boiler_display_F28.jpg"
 INVOICE = REPO / "data" / "demo" / "invoice_RE-2026-1187.pdf"
-LENA, JONAS = "490000000001", "490000000002"
+LUKA, JONAS = "490000000001", "490000000002"
 _n = 0
 
 
@@ -75,7 +75,7 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
     # simulator-style upload → sim-xxxx media ids
     up = real.post("/demo/sim-media", files={"file": ("display.jpg", PHOTO.read_bytes(), "image/jpeg")}).json()
     media_id = up.get("media_id") or up.get("id")
-    real.post("/webhooks/whatsapp", json=wa(LENA, type="image", image={"id": media_id, "mime_type": "image/jpeg",
+    real.post("/webhooks/whatsapp", json=wa(LUKA, type="image", image={"id": media_id, "mime_type": "image/jpeg",
                                                                         "caption": "Heizung kalt, siehe Display"}))
     p = last(real)
     case_id = ids(p)[0].split(":")[1]
@@ -85,9 +85,9 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
     assert any(d["kind"] == "photo" for d in detail["documents"])  # orphan photo claimed by the case
     assert any(m["direction"] == "in" for m in detail["messages"])
 
-    real.post("/webhooks/whatsapp", json=tap(LENA, f"cold_all:{case_id}", "Überall kalt"))
+    real.post("/webhooks/whatsapp", json=tap(LUKA, f"cold_all:{case_id}", "Überall kalt"))
     assert ids(last(real)) == [f"consent_yes:{case_id}", f"consent_no:{case_id}"]
-    real.post("/webhooks/whatsapp", json=tap(LENA, f"consent_yes:{case_id}", "Ja, gerne"))
+    real.post("/webhooks/whatsapp", json=tap(LUKA, f"consent_yes:{case_id}", "Ja, gerne"))
     detail = real.get(f"/api/staff/cases/{case_id}").json()
     assert detail["consents"] and detail["partner"]["partner_id"]
     partner = detail["partner"]["partner_id"]
@@ -103,11 +103,11 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
         {"start": "2026-11-21T08:00:00+01:00", "end": "2026-11-21T10:00:00+01:00"},
         {"start": "2026-11-26T14:00:00+01:00", "end": "2026-11-26T16:00:00+01:00"}]})
     assert r.status_code == 200, r.text
-    p = last(real, LENA)
+    p = last(real, LUKA)
     assert p["interactive"]["type"] == "list"
     assert ids(p)[:2] == [f"slot_1:{case_id}", f"slot_2:{case_id}"]
 
-    real.post("/webhooks/whatsapp", json=tap(LENA, f"slot_1:{case_id}", "Morgen", kind="list_reply"))
+    real.post("/webhooks/whatsapp", json=tap(LUKA, f"slot_1:{case_id}", "Morgen", kind="list_reply"))
     assert real.get(f"/api/staff/cases/{case_id}").json()["status"] == "scheduled"
     assert "Update" in last(real, JONAS)["text"]["body"]
 
@@ -115,8 +115,8 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
     r = real.post(f"/api/partner/{partner}/jobs/{case_id}/complete", data={"notes": "Zündelektrode getauscht"},
                   files={"invoice": ("RE-2026-1187.pdf", INVOICE.read_bytes(), "application/pdf")})
     assert r.status_code == 200, r.text
-    assert ids(last(real, LENA)) == [f"fixed_yes:{case_id}", f"fixed_no:{case_id}"]
-    real.post("/webhooks/whatsapp", json=tap(LENA, f"fixed_yes:{case_id}", "Ja, alles warm"))
+    assert ids(last(real, LUKA)) == [f"fixed_yes:{case_id}", f"fixed_no:{case_id}"]
+    real.post("/webhooks/whatsapp", json=tap(LUKA, f"fixed_yes:{case_id}", "Ja, alles warm"))
     detail = real.get(f"/api/staff/cases/{case_id}").json()
     assert detail["status"] == "closed"
     assert detail["zero_forms"]["tenant_inputs"]

@@ -29,9 +29,9 @@ Env flags (Vite, build-time):
 
 1. `/staff` → demo panel → press ▶ five times (voice note, tap, neighbour, ranking, consent). Case is sent to Heizung Schmidt.
 2. `/partner/heizung-schmidt` → open the job → Accept → tap 2 slots → Send.
-3. ▶ "Lena picks a slot" → job is scheduled.
+3. ▶ "Luka picks a slot" → job is scheduled.
 4. Partner: Mark as done with photo + PDF → invoice is extracted.
-5. ▶ "Lena confirms" → case closed, result payload and invoice land on unit 4b.
+5. ▶ "Luka confirms" → case closed, result payload and invoice land on unit 4b.
 
 `case_0002` waits for approval (€620 > €500) to demo the Approve button.
 

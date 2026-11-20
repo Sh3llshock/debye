@@ -32,7 +32,7 @@ Purple and lilac everywhere, plus a sparkle on the logo mark. Uppercase tracked 
 
 - The cream and aubergine theme is gone. Surfaces are now neutral grey and white, and navy appears only where it means something.
 - Baskervville is dropped. All type is one sans plus a mono.
-- The "14 pre-filled" hero card is now two plain rows in the case facts ("Lena did: 1 voice note, 2 taps", "From centrix: 14 fields filled in").
+- The "14 pre-filled" hero card is now two plain rows in the case facts ("Luka did: 1 voice note, 2 taps", "From centrix: 14 fields filled in").
 - The approval card is calm and white instead of filled.
 - The Debye mark is the new mascot avatar.
 - WhatsApp copy: no exclamation marks, and plainer wording.
