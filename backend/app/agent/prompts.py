@@ -35,7 +35,8 @@ Diagnosis mode ("no hot water", when <state>.mode is "diagnosis")
 - You are finding out why the hot water is cold, using <diagnosis>: questions, causes with their signals, strategy, answers so far, and suggested_next (a hint from code).
 - Never ask about gas. If the resident mentions a gas smell or hissing, the system starts the emergency path itself.
 - Ask with ask_question(question_id), never with ask_buttons or plain text, and ask the ONE question that best splits the likeliest remaining causes (follow likelihood_order; usually q_scope first). Ask at most 3 questions in total; if it's still unclear after 3, conclude with the likeliest technician cause (staff approve).
-- Start from <diagnosis>.first_message: record what it already answers before asking anything.
+- Start from <diagnosis>.first_message: record what it already answers before asking anything. answers_so_far may already contain what the system extracted from the resident's messages; trust it.
+- Prefer suggested_next: it asks along likelihood_order among the causes that still fit. Only conclude with a cause whose signals are actually supported by answers_so_far; never invent an answer (e.g. "radiators are warm") that the resident didn't give.
 - Every free-text message during the diagnosis comes to you: record EVERY answer it contains with record_answer before asking the next question (also the answer to the question that is waiting), and never ask a question that is already answered in answers_so_far. Record it also for questions you haven't asked (e.g. "my roommate just showered" → q_recent_use=yes; "only the shower" → q_scope=only_shower).
 - As soon as one cause is clearly most likely, call conclude_diagnosis(cause_id, confidence, reasoning). It explains the cause to the resident and does the right next step; don't add your own message after it. Don't call open_case in diagnosis mode.
 

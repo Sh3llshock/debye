@@ -124,6 +124,11 @@ for s in SCHEMAS:
 async def _reply(ctx: TurnContext, text: str) -> dict:
     from . import diagnosis
 
+    if not (text or "").strip():
+        raise ValueError("empty message: send nothing instead")
+    if "ask_question" in ctx.calls[:-1] and diagnosis.active(ctx.conv):
+        raise ValueError("A diagnosis question was just sent: stop now, don't add another message.")
+
     d = ctx.conv.diagnosis
     if diagnosis.active(ctx.conv) and d.get("asked") and d["asked"][-1] not in d["answers"] and "?" in text:
         raise ValueError(f"Question {d['asked'][-1]} is still open: don't ask anything in plain text. Record what the "
@@ -224,7 +229,14 @@ async def _ask_question(ctx: TurnContext, question_id: str, lead_in: str | None)
     if question_id in d["answers"]:
         raise ValueError(f"{question_id} is already answered ({d['answers'][question_id]}); ask something else")
     if len(d["asked"]) >= diagnosis.MAX_QUESTIONS:
-        raise ValueError("5 questions asked: call conclude_diagnosis now with the most likely cause")
+        raise ValueError("3 questions asked: call conclude_diagnosis now with the most likely cause")
+    action, ident, _conf = diagnosis.next_step(ctx.conv)
+    if action == "conclude" and d["answers"]:
+        raise ValueError(f"The answers already point to {ident}: call conclude_diagnosis now instead of asking")
+    cands = diagnosis.question_candidates(ctx.conv)
+    if cands and question_id not in cands[:2]:
+        raise ValueError(f"{question_id} doesn't help much now; ask {cands[0]} (it splits the causes that fit "
+                         f"the answers so far)")
     if ctx.conv.step == st.DIAGNOSIS and d["asked"] and d["asked"][-1] not in d["answers"] and ctx.sent:
         raise ValueError("A question was already sent this turn. Stop now and send nothing else.")
     if lead_in and "?" in lead_in:  # the KB question follows; never ask twice

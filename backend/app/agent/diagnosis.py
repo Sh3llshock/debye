@@ -134,6 +134,25 @@ def _next_question(d: dict, cause_id: str) -> str | None:
     return None
 
 
+def _likelihood(cause_id: str) -> int:
+    order = kb().get("likelihood_order") or []
+    return order.index(cause_id) if cause_id in order else 99
+
+
+def question_candidates(conv: st.Conversation) -> list[str]:
+    """Open questions in the order they help most: first those of causes that already have supporting
+    evidence (most matched signals), then along likelihood_order; contradicted causes are skipped."""
+    d = conv.diagnosis
+    ranked = score(d, conv.error_code)
+    possible = sorted((r for r in ranked if r["bad"] == 0), key=lambda r: (-r["ok"], _likelihood(r["id"])))
+    out: list[str] = []
+    for r in possible + [r for r in ranked if r["bad"]]:
+        qid = _next_question(d, r["id"])
+        if qid and qid not in out:
+            out.append(qid)
+    return out
+
+
 def contradictions(d: dict, cause_id: str, error_code: str | None = None) -> list[str]:
     out = []
     for s in causes()[cause_id].get("signals", []):
@@ -146,8 +165,6 @@ def contradictions(d: dict, cause_id: str, error_code: str | None = None) -> lis
 def next_step(conv: st.Conversation) -> tuple[str, str, float]:
     """Deterministic policy (fallback + guard): ("ask", qid, 0) or ("conclude", cause_id, confidence)."""
     d = conv.diagnosis
-    if not d["asked"] and "q_scope" not in d["answers"]:
-        return "ask", "q_scope", 0.0  # strategy: usually q_scope first
     ranked = score(d, conv.error_code)
     out_of_questions = len(d["asked"]) >= MAX_QUESTIONS
     if ranked:
@@ -162,21 +179,16 @@ def next_step(conv: st.Conversation) -> tuple[str, str, float]:
         if best["unknown"] == 0 and best["score"] > 0:
             # another cause that could still match MORE signals? ask its open question first
             for rival in ranked[1:]:
-                if rival["unknown"] and rival["ok"] + rival["unknown"] > best["ok"]                         and rival["potential"] >= best["score"]:
+                if rival["ok"] and rival["unknown"] and rival["ok"] + rival["unknown"] > best["ok"]                         and rival["potential"] >= best["score"]:  # only rivals with some evidence
                     qid = _next_question(d, rival["id"])
                     if qid:
                         return "ask", qid, 0.0
             return "conclude", best["id"], confidence
-        # KB: ask along likelihood_order among the causes that are still possible
-        order = {cid: i for i, cid in enumerate(kb().get("likelihood_order") or [])}
-        for cand in sorted((r for r in ranked if r["bad"] == 0), key=lambda r: order.get(r["id"], 99)):
-            qid = _next_question(d, cand["id"])
-            if qid:
-                return "ask", qid, 0.0
-        for cand in ranked:
-            qid = _next_question(d, cand["id"])
-            if qid:
-                return "ask", qid, 0.0
+        if not d["asked"] and "q_scope" not in d["answers"]:
+            return "ask", "q_scope", 0.0  # strategy: usually q_scope first (unless already clear)
+        cands = question_candidates(conv)
+        if cands:
+            return "ask", cands[0], 0.0
     for qid in ("q_scope", "q_radiators", "q_recent_use", "q_waited", "q_timing", "q_display"):
         if qid not in d["answers"] and qid not in d["asked"]:
             return "ask", qid, 0.0
@@ -260,6 +272,7 @@ async def begin(contact, conv: st.Conversation, complaint: str | None) -> None:
     if code:  # "the display shows F.28" in the first message answers q_display
         conv.error_code = conv.error_code or code
         conv.diagnosis["answers"]["q_display"] = "code"
+    await extract_answers(conv, complaint)
     if await apply_centrix_shortcuts(contact, conv):
         return
     await loop.run_tenant_turn(
@@ -277,6 +290,67 @@ def safety_from_text(text: str | None) -> str | None:
     if GAS_YES_RE.search(text):
         return "yes"
     return None
+
+
+# ------------------------------------------------------------------ evidence extraction (free text → answers)
+async def _classify_answers(text: str, open_qs: list[dict]) -> dict:
+    """One strict structured-output call: for each open question, the answer key the text clearly
+    states, or "unknown". Empty dict without an OpenAI key or on any error."""
+    if not os.getenv("OPENAI_API_KEY") or (os.getenv("LLM_PROVIDER") or "openai").lower() != "openai":
+        return {}
+    from openai import AsyncOpenAI
+
+    from app.media import openai_base_url
+
+    props = {q["id"]: {"type": "string", "enum": [*q["answers"].keys(), "unknown"],
+                       "description": q["text"] + " | " + "; ".join(f"{k} = {v}" for k, v in q["answers"].items())}
+             for q in open_qs}
+    schema = {"type": "object", "additionalProperties": False, "required": list(props), "properties": props}
+    extra = {}
+    effort = os.getenv("OPENAI_REASONING_EFFORT")
+    effort = "none" if effort is None else effort
+    if effort:
+        extra["reasoning_effort"] = effort
+    try:
+        client = AsyncOpenAI(base_url=openai_base_url(), timeout=8, max_retries=0)
+        r = await client.chat.completions.create(
+            model=os.getenv("OPENAI_CHAT_MODEL") or "gpt-6-luna",
+            messages=[
+                {"role": "system", "content": "A tenant describes a hot-water problem. For each question, give the "
+                 "answer key ONLY if the tenant's message clearly states it (paraphrases count: 'the display is dark' "
+                 "→ q_display=dark; 'my stove won't light' → q_gas_stove=no; 'stays cold no matter how long I wait' "
+                 "→ q_timing=stays_cold and q_waited=yes; 'the plumber was here yesterday' → q_recent_work=yes; "
+                 "'the kitchen is fine' → q_scope=only_shower). Otherwise 'unknown'. Never guess."},
+                {"role": "user", "content": text},
+            ],
+            response_format={"type": "json_schema", "json_schema": {"name": "answers", "strict": True,
+                                                                     "schema": schema}},
+            **extra,
+        )
+        msg = r.choices[0].message
+        if getattr(msg, "refusal", None) or not msg.content:
+            return {}
+        return {k: v for k, v in json.loads(msg.content).items() if v != "unknown"}
+    except Exception:
+        log.exception("answer extraction failed")
+        return {}
+
+
+async def extract_answers(conv: st.Conversation, text: str | None) -> dict:
+    """Records what a free-text message already answers (only questions not answered yet)."""
+    d = conv.diagnosis
+    if not text or not d:
+        return {}
+    open_qs = [q for q in kb()["questions"] if q["id"] not in d["answers"]]
+    if not open_qs:
+        return {}
+    found = await _classify_answers(text, open_qs)
+    valid = {qid: key for qid, key in found.items()
+             if qid in questions() and key in questions()[qid]["answers"] and qid not in d["answers"]}
+    d["answers"].update(valid)
+    if valid:
+        log.info("extracted from free text: %s", valid)
+    return valid
 
 
 # ------------------------------------------------------------------ answers (taps or mapped free text)
@@ -355,7 +429,8 @@ def diagnosis_record(conv: st.Conversation, cause_id: str, confidence: float, re
             "answers": d.get("answers", {}), "facts": d.get("facts", [])}
 
 
-async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: float, reasoning: str) -> dict:
+async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: float, reasoning: str,
+                   force: bool = False) -> dict:
     from . import flow
 
     d = conv.diagnosis or start(conv, None)
@@ -363,7 +438,17 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         return {"ok": True, "note": "already concluded"}
     if cause_id != "gas_smell" and cause_id not in causes():
         raise ValueError(f"unknown cause {cause_id}")
-    if cause_id != "gas_smell" and d.get("answers"):
+    if cause_id != "gas_smell" and d.get("answers") and not force:
+        ranked = score(d, conv.error_code)
+        mine = next((r for r in ranked if r["id"] == cause_id), None)
+        best = ranked[0] if ranked else None
+        likelier = best and mine and best["score"] >= mine["score"] and best["ok"] >= mine["ok"] \
+            and best["unknown"] <= mine["unknown"] and _likelihood(best["id"]) < _likelihood(cause_id)
+        if best and mine and best["id"] != cause_id and best["bad"] == 0 \
+                and (best["ok"] >= mine["ok"] + 2 or likelier):
+            raise ValueError(f"{best['id']} fits the answers at least as well ({best['ok']} vs {mine['ok']} "
+                             f"signals) and is likelier; conclude with {best['id']} or ask a question that "
+                             f"separates them")
         contra = contradictions(d, cause_id, conv.error_code)
         if contra and cause_id not in {r["id"] for r in score(d, conv.error_code)}:
             raise ValueError(f"{cause_id} contradicts the answers ({', '.join(contra)}); pick another cause "
@@ -521,4 +606,4 @@ async def on_follow_up(contact, cause_id: str, fixed: bool) -> None:
     conv.diagnosis["facts"].append("self_help_failed")
     await out.text(contact, conv.case_id, "Thanks for letting me know, then I'll get a technician to look at it.")
     await conclude(contact, conv, "tank_thermostat_or_scale", 0.6,
-                   f"Still cold after the self-help tip for '{_label(cause_id)}'.")
+                   f"Still cold after the self-help tip for '{_label(cause_id)}'.", force=True)
