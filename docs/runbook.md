@@ -1,0 +1,76 @@
+# Stage runbook
+
+Commands are PowerShell, run from the repo root. One server on `:8000` serves the API, the WhatsApp webhook and the built pages.
+
+## T-30 min: set up
+
+1. `.env` is filled in (copy of `.env.example`) and `data/seed.local.json` holds the real demo phones (Lena `c_202`, Jonas `c_203`). See [whatsapp-setup.md](whatsapp-setup.md).
+2. Build the pages with the demo panel switched on:
+   ```powershell
+   cd frontend; npm ci; $env:VITE_DEMO="1"; npm run build; cd ..
+   ```
+3. Start the server (leave this terminal open):
+   ```powershell
+   cd backend; pip install -r requirements.txt; uvicorn app.main:app --host 0.0.0.0 --port 8000
+   ```
+4. Start the tunnel in a second terminal, then paste `https://<tunnel>/webhooks/whatsapp` into Meta → WhatsApp → Configuration → Webhook:
+   ```powershell
+   cloudflared tunnel --url http://localhost:8000
+   ```
+   The deployed Render URL works the same way. There, `/healthz` must return `{"ok":true}`.
+5. Check the server:
+   ```powershell
+   Invoke-RestMethod http://localhost:8000/healthz
+   ```
+6. From **each demo phone**, send "hi" to the test number. That opens WhatsApp's 24-hour window for buttons and lists.
+7. Reset (this wipes the "hi" messages too):
+   ```powershell
+   .\scripts\demo_reset.ps1
+   ```
+
+## Screens
+
+| Screen | Open |
+|---|---|
+| Projector, left | Lena's phone, mirrored (`scrcpy`) |
+| Projector, right | http://localhost:8000/staff (case list → click the case once it appears) |
+| Laptop 2 (the installer) | http://localhost:8000/partner/heizung-schmidt |
+| Unit record for the finale | http://localhost:8000/staff/units/unit_4b |
+
+The demo panel sits behind the tiny dot at the bottom right of any page, or press `d`. It has **Skip to tomorrow** and **Reset**.
+
+## The run (who does what)
+
+| # | Who | Action | What appears |
+|---|---|---|---|
+| 1 | Lena (phone) | Voice note "Die Heizung ist kalt seit heute Morgen" + photo of the F.28 display | Case on the staff page, Debye asks "Sind alle Heizkörper kalt?" |
+| 2 | Lena | Tap **Überall kalt** | Ranking (Schmidt first), consent request |
+| 3 | Jonas (phone) | "Bei uns im 1. Stock ist die Heizung auch kalt." | "Schon gemeldet", Jonas linked to the case |
+| 4 | Lena | Tap **Ja, gerne** (consent) | Consent record, job on the partner page |
+| 5 | Installer (laptop 2) | Open the job → **Accept job** → tap 2 slots → **Send 2 slots to tenant** | Lena gets the slot list |
+| 6 | Lena | Pick **Morgen 8–10** | Slot on the case |
+| 7 | Presenter | Demo panel → **Skip to tomorrow** | |
+| 8 | Installer | Photo after repair `data/demo/repair_done.jpg`, Invoice (PDF) `data/demo/invoice_RE-2026-1187.pdf` → **Mark as done** | Invoice + price check, Lena asked "Wieder warm?" |
+| 9 | Lena | Tap **Ja, alles warm** | Case closed, invoice + report on unit 4b |
+
+## If something breaks
+
+| Problem | Do this |
+|---|---|
+| Debye doesn't answer on WhatsApp | Look at the server terminal. Webhooks arrive as `POST /webhooks/whatsapp`. No POST means the tunnel or webhook URL is wrong. Meanwhile, use the web chat below. |
+| WhatsApp / Meta / venue network down | Use the **web chat** (same backend, same case): http://localhost:8000/chat/c_202 for Lena, http://localhost:8000/chat/c_203 for Jonas. Mirror that tab instead of the phone. |
+| Claude slow or no API key | Nothing to do. Debye falls back to scripted replies for each step. |
+| A tenant step won't go through | Push that one step from a terminal (shows on the staff page live):<br>`python scripts\simulate.py --direct --step report` (then `neighbour`, `consent`, `pick`, `fixed`) |
+| Partner page won't load | Same idea for the installer side: `python scripts\simulate.py --step accept` (then `slots`, `complete`) |
+| Wrong state, start over | `.\scripts\demo_reset.ps1`, or the demo panel → **Reset** |
+| Server crashed | Restart it (step 3). Data is kept in `backend/debye.db`. Reset if the state looks wrong. |
+| Nothing works | Play the whole flow hands-off on the staff page: `python scripts\simulate.py --direct --reset --pause 4`. Last resort: the backup video. |
+
+Against the deployed server, add `--base https://<render-url>` to `simulate.py`, and pass the URL to `demo_reset.ps1` as the first argument.
+
+## Rehearsal check
+
+```powershell
+python scripts\simulate.py --reset
+```
+It must end with `GOLDEN PATH OK`. That run goes through the real webhook and checks every Debye reply in fake-send mode (empty `WA_TOKEN`). With a real `WA_TOKEN`, the messages actually go out to the phones, so run it with `--direct` instead. The simulator's voice note is a silent placeholder, so with a real `OPENAI_API_KEY` the transcription fails and Debye carries on with its scripted question. That is expected.

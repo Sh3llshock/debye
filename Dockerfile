@@ -2,6 +2,7 @@
 # Stage 1 builds frontend/dist if a frontend exists (otherwise produces an empty dir).
 FROM node:20-slim AS frontend
 WORKDIR /src
+ENV VITE_DEMO=1
 COPY . .
 RUN if [ -f frontend/package.json ]; then \
       cd frontend && (npm ci || npm install) && npm run build; \
