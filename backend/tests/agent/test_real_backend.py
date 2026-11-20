@@ -120,3 +120,12 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
     detail = real.get(f"/api/staff/cases/{case_id}").json()
     assert detail["status"] == "closed"
     assert detail["zero_forms"]["tenant_inputs"]
+
+    outbox = real.get("/webhooks/whatsapp/_outbox").json()["messages"]
+    texts = [m["payload"]["text"]["body"] for m in outbox if m["payload"]["type"] == "text"]
+    assert not any("kümmere mich darum" in t for t in texts), texts  # no filler after taps
+    bodies = [m["payload"]["interactive"]["body"]["text"] for m in outbox if m["payload"]["type"] == "interactive"]
+    assert all(len(b) <= 1024 for b in bodies)
+    consent = next(b for b in bodies if "weitergeben" in b)
+    for word in ("Namen", "Telefonnummer", "Adresse", "Etage", "Fotos"):
+        assert word in consent

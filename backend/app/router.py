@@ -26,29 +26,8 @@ _locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 _buffers: dict[str, list[tuple[str | None, list[str]]]] = defaultdict(list)
 _draining: set[str] = set()
 
-class _ResetListener:
-    """Sits on backend-core's event bus like an SSE queue; clears agent state on /demo/reset."""
 
-    def put_nowait(self, message: dict) -> None:
-        if message.get("type") == "demo.reset":
-            st.reset_all()
-            _buffers.clear()
-            log.info("agent state reset (demo.reset)")
-
-
-def _install_reset_listener() -> None:
-    try:
-        from app import events
-
-        if not any(isinstance(q, _ResetListener) for q in events._subscribers):
-            events._subscribers.add(_ResetListener())
-    except Exception:
-        log.debug("event bus not available; demo.reset will not clear agent state")
-
-
-_install_reset_listener()
-
-BUTTON_RE =re.compile(r"^(?P<kind>[a-z_]+?)(?:_(?P<n>\d+))?:(?P<case>[\w-]+)$")
+BUTTON_RE = re.compile(r"^(?P<kind>[a-z_]+?)(?:_(?P<n>\d+))?:(?P<case>[\w-]+)$")
 
 
 async def handle_inbound(msg: InboundMessage) -> None:
@@ -156,6 +135,9 @@ async def handle_button(contact, button_id: str) -> bool:
         return False
     kind, n, case_id = m.group("kind"), m.group("n"), m.group("case")
     conv = st.conversation(be.attr(contact, "id"))
+    from app.agent import outbound
+
+    sent_before = outbound.sent_count
     if case_id == "new" or not case_id:
         case_id = conv.case_id
     if case_id and not conv.case_id:
@@ -182,7 +164,6 @@ async def handle_button(contact, button_id: str) -> bool:
             return False
     except Exception:
         log.exception("button %s failed", button_id)
-        from app.agent import outbound
-
-        await outbound.text(contact, case_id, "Danke! Ich kümmere mich darum und melde mich gleich.")
+        if outbound.sent_count == sent_before:  # only if the resident got no reply yet
+            await outbound.text(contact, case_id, "Danke! Ich kümmere mich darum und melde mich gleich.")
     return True

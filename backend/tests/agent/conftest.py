@@ -8,7 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
+os.environ["DEBYE_NO_DOTENV"] = "1"  # never pick up real keys from .env in tests
 os.environ["WA_TOKEN"] = ""  # fake-send
+os.environ["WA_FAKE_SEND"] = "1"
 os.environ["WA_APP_SECRET"] = ""
 os.environ["WA_VERIFY_TOKEN"] = "verify-me"
 os.environ["DEMO_MODE"] = "1"
