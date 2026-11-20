@@ -5,6 +5,7 @@ Run from backend/:  uvicorn app.main:app --reload
 from __future__ import annotations
 
 import asyncio
+import os
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -28,7 +29,12 @@ log = logging.getLogger("debye")
 async def lifespan(app: FastAPI):
     events.bind_loop(asyncio.get_running_loop())
     seed(reset=settings.reseed_on_boot)
+    from . import local_llm
+
+    warm = asyncio.create_task(local_llm.warmup()) if local_llm.enabled() and os.getenv("OLLAMA_WARMUP", "1") == "1" else None
     yield
+    if warm:
+        warm.cancel()
 
 
 app = FastAPI(title="Debye (AI assistant)", lifespan=lifespan)

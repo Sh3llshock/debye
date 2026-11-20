@@ -13,13 +13,14 @@ import os
 from types import SimpleNamespace
 
 from .errors import NoCredentials, RefusalError
-from .prompts import TENANT_SYSTEM
+from .prompts import LOCAL_SYSTEM, TENANT_SYSTEM
 from .tools import SCHEMAS, TurnContext, execute
 
 log = logging.getLogger("debye.agent.openai")
 
 DEFAULT_MODEL = "gpt-6-luna"
 MAX_ITERATIONS = 6
+SENDING_TOOLS = {"reply", "ask_buttons", "ask_list", "record_triage_answer", "ask_question", "conclude_diagnosis"}
 
 TOOLS = [
     {
@@ -50,12 +51,31 @@ def reasoning_effort() -> str | None:
 def get_client(timeout: float):
     global _client
     if _client is None:
+        from app import local_llm
+
+        if local_llm.enabled():
+            _client = local_llm.client(timeout, max_retries=0)
+            return _client
         from openai import AsyncOpenAI
 
         from app.media import openai_base_url
 
         _client = AsyncOpenAI(base_url=openai_base_url(), timeout=timeout, max_retries=1)
     return _client
+
+
+# Local models have a small context window and slow CPU prefill: send only the latest messages.
+LOCAL_HISTORY_MESSAGES = 12
+
+
+def trim_history(messages: list, keep: int = LOCAL_HISTORY_MESSAGES) -> list:
+    """Last `keep` messages, starting at a user message (never at a dangling tool result)."""
+    if len(messages) <= keep:
+        return messages
+    tail = messages[-keep:]
+    while tail and tail[0].get("role") != "user":
+        tail = tail[1:]
+    return tail or messages[-1:]
 
 
 def set_client(client) -> None:
@@ -75,18 +95,89 @@ def to_openai_content(blocks: list[dict]) -> list[dict]:
     return out
 
 
+def _in_diagnosis(ctx: TurnContext) -> bool:
+    try:
+        from . import diagnosis
+
+        return bool(diagnosis.active(ctx.conv))
+    except Exception:
+        return False
+
+
+def repair_call(name: str, args: dict, ctx: TurnContext) -> tuple[str, dict]:
+    """qwen3.5:2b sometimes jumps straight to the triage buttons without opening the case. The intent is
+    clear (a heating fault), so open the case instead; local_follow_up then asks the triage question."""
+    opts = args.get("options") if isinstance(args, dict) else None
+    is_cold = name == "ask_buttons" and isinstance(opts, list) and any(
+        str((o or {}).get("id", "")).startswith(("cold_all:", "cold_some:")) for o in opts if isinstance(o, dict))
+    if is_cold and not getattr(ctx.conv, "case_id", None) and not _in_diagnosis(ctx):
+        said = " ".join((getattr(ctx.conv, "tenant_texts", None) or [])[-3:]).strip() or "Heating not working"
+        log.info("local model asked triage before open_case; opening the case first")
+        return "open_case", {"summary": "No heating / hot water", "symptoms": said[:500], "error_code": None,
+                             "priority": "urgent"}
+    return name, args
+
+
+async def local_follow_up(done: list[tuple[str, dict, str]], ctx: TurnContext) -> bool:
+    """Guardrails for small local models (LLM_PROVIDER=ollama), measured failure modes of qwen3.5:2b:
+    it asked a neighbour the triage buttons on a duplicate case, wrote unclear button texts and
+    retried a rejected ask_buttons until the turn timed out. The model still diagnoses (symptom,
+    error code from the photo, summary, priority); the message that follows open_case /
+    note_error_code is sent deterministically, exactly like the scripted flow. Returns True if sent."""
+    from . import flow
+
+    for name, args, content in done:
+        try:
+            res = json.loads(content)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if not isinstance(res, dict):
+            continue
+        if name == "open_case" and res.get("case_id") and args.get("priority") != "emergency":
+            cid = res["case_id"]
+            if res.get("duplicate"):
+                await flow.send_duplicate_notice(ctx.contact, cid)
+            elif res.get("note"):  # resident's own case was already open: let the model continue
+                return False
+            else:
+                from .tools import _clean_code
+
+                code = _clean_code(args.get("error_code"))
+                prefix = "Oh no, a cold flat is the worst 😕 I'm on it."
+                if code and res.get("explain_error_code"):
+                    said = " ".join(getattr(ctx.conv, "tenant_texts", []) or []).upper()
+                    sentence = res["explain_error_code"] if code.upper().replace(".", "") in said.replace(".", "")                         else res.get("explain_error_code_if_from_photo") or res["explain_error_code"]
+                    ctx.conv.error_code = code
+                    prefix = f"Oh no 😕 {sentence} I'm on it."
+                await flow.ask_cold(ctx.contact, cid, prefix=prefix)
+            ctx.sent += 1
+            return True
+        if name == "note_error_code" and res.get("explain_error_code"):
+            await flow.out.text(ctx.contact, ctx.conv.case_id, res["explain_error_code"])
+            ctx.sent += 1
+            return True
+    return False
+
+
 async def run_loop(messages: list, ctx: TurnContext, timeout: float) -> list:
-    if _client is None and not os.getenv("OPENAI_API_KEY"):
+    from app import local_llm
+
+    local = local_llm.enabled()
+    if _client is None and not local and not os.getenv("OPENAI_API_KEY"):
         raise NoCredentials("OPENAI_API_KEY not set")
     client = get_client(timeout)
-    extra = {}
-    effort = reasoning_effort()
-    if effort:
-        extra["reasoning_effort"] = effort
+    if local:
+        model, extra = local_llm.model(), local_llm.extra_params()
+        messages = trim_history(messages)
+    else:
+        model, extra = chat_model(), {}
+        effort = reasoning_effort()
+        if effort:
+            extra["reasoning_effort"] = effort
     for _ in range(MAX_ITERATIONS):
         response = await client.chat.completions.create(
-            model=chat_model(),
-            messages=[{"role": "system", "content": TENANT_SYSTEM}, *messages],
+            model=model,
+            messages=[{"role": "system", "content": LOCAL_SYSTEM if local else TENANT_SYSTEM}, *messages],
             tools=TOOLS,
             tool_choice="auto",
             **extra,
@@ -108,15 +199,33 @@ async def run_loop(messages: list, ctx: TurnContext, timeout: float) -> list:
             assistant["content"] = ""
         messages.append(assistant)
         if not tool_calls:
+            if local and ctx.sent == 0 and (msg.content or "").strip() and not _in_diagnosis(ctx):
+                # Small local models sometimes answer in plain text instead of calling reply:
+                # deliver that text instead of dropping it and falling back to the script.
+                log.info("local model answered without a tool; sending its text as a reply")
+                await execute(SimpleNamespace(id="plain", name="reply", input={"text": msg.content.strip()}), ctx)
             return messages
+        done = []
         for tc in tool_calls:
+            args, name = {}, tc.function.name
             try:
                 args = json.loads(tc.function.arguments or "{}")
             except json.JSONDecodeError:
                 content = "Error: arguments were not valid JSON"
             else:
-                result = await execute(SimpleNamespace(id=tc.id, name=tc.function.name, input=args), ctx)
+                if local:
+                    name, args = repair_call(name, args, ctx)
+                result = await execute(SimpleNamespace(id=tc.id, name=name, input=args), ctx)
                 content = result["content"]
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": content})
+            done.append((name, args, content))
+        if local and ctx.sent == 0 and await local_follow_up(done, ctx):
+            messages.append({"role": "assistant", "content": ""})
+            return messages
+        if local and ctx.sent and all(tc.function.name in SENDING_TOOLS for tc in tool_calls):
+            # The resident has their answer; on a CPU another round trip would only add ~10-20 s for
+            # the model to say "done". Close the turn here (history stays valid for the next turn).
+            messages.append({"role": "assistant", "content": ""})
+            return messages
     log.warning("agent hit MAX_ITERATIONS")
     return messages

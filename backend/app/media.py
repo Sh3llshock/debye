@@ -32,8 +32,28 @@ def _demo_mode() -> bool:
     return demo_mode()
 
 
+async def _transcribe_local(path: str, language: str | None = None) -> str:
+    """LLM_PROVIDER=ollama: faster-whisper on the CPU (WHISPER_MODEL, default base)."""
+    import asyncio
+
+    from app import local_llm
+
+    t0 = time.perf_counter()
+    try:
+        text = await asyncio.to_thread(local_llm.transcribe_sync, path, language)
+    except Exception:
+        log.exception("local transcription (faster-whisper) failed")
+        text = ""
+    log.info("transcribed %s locally in %.2fs", Path(path).name, time.perf_counter() - t0)
+    return text or (DEMO_TRANSCRIPT if _demo_mode() else "")
+
+
 async def transcribe(path: str, language: str | None = None) -> str:
     """Voice note → text. Without a key or on failure: a canned line in DEMO_MODE, else ""."""
+    from app import local_llm
+
+    if local_llm.enabled():
+        return await _transcribe_local(path, language)
     if not os.getenv("OPENAI_API_KEY"):
         log.warning("OPENAI_API_KEY not set; %s", "using demo transcript" if _demo_mode() else "no transcript")
         return DEMO_TRANSCRIPT if _demo_mode() else ""
@@ -164,9 +184,100 @@ INVOICE_PROMPT = (
 async def extract_invoice(path: str) -> dict:
     """Invoice PDF (or image) → fields, with the provider from LLM_PROVIDER (default openai).
     Falls back to the demo invoice (RE-2026-1187, gross 237.41) on any error or without a key."""
-    if (os.getenv("LLM_PROVIDER") or "openai").strip().lower() == "anthropic":
+    provider = (os.getenv("LLM_PROVIDER") or "openai").strip().lower()
+    if provider == "anthropic":
         return await _extract_invoice_anthropic(path)
+    if provider == "ollama":
+        return await _extract_invoice_local(path)
     return await _extract_invoice_openai(path)
+
+
+# JSON schema for Ollama's structured output (inlined, no $refs)
+INVOICE_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "invoice_number": {"type": "string"},
+        "date": {"type": "string", "description": "ISO date YYYY-MM-DD"},
+        "net_eur": {"type": "number"},
+        "vat_eur": {"type": "number"},
+        "gross_eur": {"type": "number"},
+        "line_items": {"type": "array", "items": {
+            "type": "object",
+            "properties": {"desc": {"type": "string"}, "qty": {"type": "number"}, "unit_price": {"type": "number"}},
+            "required": ["desc", "qty", "unit_price"]}},
+        "labour_hours": {"type": "number", "description": "Total labour hours billed; 0 if none"},
+    },
+    "required": ["invoice_number", "date", "net_eur", "vat_eur", "gross_eur", "line_items", "labour_hours"],
+}
+
+
+LOCAL_INVOICE_PROMPT = INVOICE_PROMPT + (
+    " date as YYYY-MM-DD. labour_hours is the quantity of the labour line (Arbeitszeit / Std. / hours), "
+    "not an amount of money; 0 if there is no labour line."
+)
+_LABOUR_WORDS = ("arbeitszeit", "arbeitsstunde", "std", "stunde", "labour", "labor", "hour")
+
+
+def tidy_invoice(d: dict) -> dict:
+    """Small models get the shape right but slip on details: German dates, money as labour hours."""
+    import re
+
+    m = re.fullmatch(r"\s*(\d{1,2})\.(\d{1,2})\.(\d{4})\s*", str(d.get("date") or ""))
+    if m:
+        d["date"] = f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}"
+    items = d.get("line_items") or []
+    labour = sum(float(li.get("qty") or 0) for li in items
+                 if any(w in str(li.get("desc", "")).lower() for w in _LABOUR_WORDS))
+    hours = d.get("labour_hours")
+    money = {d.get("net_eur"), d.get("vat_eur"), d.get("gross_eur")}
+    if hours is None or hours in money or (labour and abs(float(hours) - labour) > 0.01):
+        d["labour_hours"] = labour
+    return d
+
+
+def pdf_text(path: str) -> str:
+    from pypdf import PdfReader
+
+    return "\n".join((page.extract_text() or "") for page in PdfReader(path).pages).strip()
+
+
+async def _extract_invoice_local(path: str) -> dict:
+    """LLM_PROVIDER=ollama: PDF → text (pypdf) → local model with a JSON schema.
+    Photos of invoices go to the model as an image (qwen3.5 is vision-capable)."""
+    import json
+
+    from app import local_llm
+
+    try:
+        suffix = Path(path).suffix.lower()
+        if suffix == ".pdf":
+            text = pdf_text(path)
+            if not text:
+                log.warning("invoice PDF has no text layer; using fallback")
+                return dict(FALLBACK_INVOICE)
+            content: list | str = f"{INVOICE_PROMPT}\n\nInvoice text:\n{text[:6000]}"
+        else:
+            data = base64.standard_b64encode(Path(path).read_bytes()).decode()
+            mime = {".png": "image/png", ".webp": "image/webp"}.get(suffix, "image/jpeg")
+            content = [{"type": "image_url", "image_url": {"url": f"data:{mime};base64,{data}"}},
+                       {"type": "text", "text": LOCAL_INVOICE_PROMPT}]
+        extra = local_llm.extra_params()
+        extra["temperature"] = 0
+        client = local_llm.client(timeout=120)
+        t0 = time.perf_counter()
+        r = await client.chat.completions.create(
+            model=local_llm.model(),
+            messages=[{"role": "user", "content": content}],
+            response_format={"type": "json_schema",
+                             "json_schema": {"name": "invoice", "schema": INVOICE_JSON_SCHEMA}},
+            **extra,
+        )
+        inv = Invoice.model_validate(tidy_invoice(json.loads(r.choices[0].message.content or "{}")))
+        log.info("invoice extracted locally in %.2fs", time.perf_counter() - t0)
+        return inv.model_dump()
+    except Exception:
+        log.exception("local invoice extraction failed; using fallback")
+        return dict(FALLBACK_INVOICE)
 
 
 async def _extract_invoice_openai(path: str) -> dict:

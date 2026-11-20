@@ -1,0 +1,8 @@
+# Debye's local model: qwen3.5:2b (1.9B, Q8, tools + vision) with an 8k context.
+# Ollama's default 4096 tokens is too small for the system prompt + tools + a boiler photo.
+#   ollama pull qwen3.5:2b
+#   ollama create debye-local -f ollama/Modelfile
+FROM qwen3.5:2b
+PARAMETER num_ctx 8192
+PARAMETER temperature 0.2
+PARAMETER presence_penalty 0
