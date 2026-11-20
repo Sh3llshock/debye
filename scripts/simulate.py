@@ -50,7 +50,7 @@ INVOICE_PDF = DEMO / "invoice_RE-2026-1187.pdf"
 FAKE_OGG = b"OggS" + bytes(68)  # not playable; the transcription stub ignores it
 
 
-VOICE_NOTE = DEMO / "voice_note_heizung.ogg"  # real German voice note (OpenAI TTS), ~3 s
+VOICE_NOTE = DEMO / "voice_note_hot_water_en.ogg"  # English voice note (OpenAI TTS, scripts/make_voice_note.py), ~6 s
 
 
 def voice_note_path() -> Path:
