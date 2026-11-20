@@ -8,7 +8,7 @@ is never asked the same thing twice.
 ## How it works
 
 ```
-caller ──(browser /call  or  phone number)──► ElevenLabs agent "Debye" (German voice, gemini-2.5-flash)
+caller ──(browser /call  or  phone number)──► ElevenLabs agent "Debye" (English, voice "Sarah", gemini-2.5-flash)
                                                  │ server tools (webhooks, header X-Debye-Voice-Secret)
                                                  ├─► POST /api/voice/tools/identify_caller  → contact, unit, heating, open cases
                                                  └─► POST /api/voice/tools/report_issue     → flow.ensure_case (same case logic as WhatsApp)
@@ -41,7 +41,7 @@ ElevenLabs calls our tools over the internet, so the backend needs a public http
    The script is idempotent: it matches the tools (`debye_identify_caller`, `debye_report_issue`) and the agent (`Debye`) by name and updates them in place.
 3. **Each new `trycloudflare.com` URL means running step 2 again.** The tool URLs are stored in the agent. For the stage, prefer the Render URL, which doesn't change.
 
-Optional `.env` knobs: `ELEVENLABS_AGENT_VOICE_ID` (default: "Simona – German, Calm, Social" from the voice library, added to the workspace automatically), `ELEVENLABS_AGENT_LLM` (default `gemini-2.5-flash`).
+Optional `.env` knobs: `ELEVENLABS_AGENT_VOICE_ID` (default: "Sarah", an ElevenLabs default English voice. A voice-library id is added to the workspace automatically), `ELEVENLABS_AGENT_LLM` (default `gemini-2.5-flash`).
 
 ## Option A: web test page (no phone number needed)
 

@@ -3,7 +3,7 @@
     python scripts/elevenlabs_agent.py --base https://<tunnel-or-render-url>
 
 Needs in .env (or the environment): ELEVENLABS_API_KEY, VOICE_TOOL_SECRET.
-Optional: ELEVENLABS_AGENT_VOICE_ID (German voice), ELEVENLABS_AGENT_LLM, PUBLIC_BASE_URL (default for --base).
+Optional: ELEVENLABS_AGENT_VOICE_ID (English voice), ELEVENLABS_AGENT_LLM, PUBLIC_BASE_URL (default for --base).
 Tools are matched by name and the agent by name ("Debye"), so running it again updates them in place.
 Put the printed id into .env as ELEVENLABS_AGENT_ID. See docs/voice-setup.md.
 """
@@ -19,39 +19,40 @@ import httpx
 API = "https://api.elevenlabs.io/v1"
 AGENT_NAME = "Debye"
 TOOL_PREFIX = "debye_"  # tool names in the workspace: debye_identify_caller, debye_report_issue
-DEFAULT_VOICE = "60AkIxCFeI9yJsEdAuaf"  # "Simona – German, Calm, Social" (shared library, native German)
+DEFAULT_VOICE = "EXAVITQu4vr4xnSDxMaL"  # "Sarah": ElevenLabs default voice (English, warm, calm), in every workspace
+LANGUAGE = "en"
 DEFAULT_LLM = "gemini-2.5-flash"  # low latency on a phone line
 TTS_MODEL = "eleven_flash_v2_5"  # multilingual + lowest latency
 
 PROMPT = """\
-Du bist Debye, der AI assistant der Hausverwaltung reltix. Bewohner:innen rufen dich an, meist wegen einer \
-kaputten Heizung. Am Telefon bist du dieselbe Debye wie auf WhatsApp: der Fall läuft danach im Chat weiter.
+You are Debye, the AI assistant of the property manager reltix. Residents call you, usually because their \
+heating has stopped working. On the phone you are the same Debye as on WhatsApp: the case continues in the chat afterwards.
 
-So sprichst du
-- Deutsch, informelles "du", freundlich und ruhig wie eine nette Hausverwaltung. Sehr kurze Sätze, \
-das ist ein Telefonat. Höchstens eine Frage auf einmal. Keine Listen, kein Fachjargon.
+How you speak
+- English, friendly and calm, like a kind property manager. Very short sentences, this is a phone call. \
+At most one question at a time. No lists, no jargon.
 
-Ablauf
-1. Ruf zuerst identify_caller auf. Begrüße die Person mit Vornamen. Frag nie nach Adresse, Etage, \
-Name oder Kesselmodell: das weiß reltix schon (steht im Ergebnis von identify_caller).
-2. Wenn open_cases schon einen Heizungsfall hat, sag, dass er schon gemeldet ist und bearbeitet wird. \
-Öffne keinen neuen.
-3. Sonst: lass dir das Problem kurz schildern. Frag einmal, ob alle Heizkörper kalt sind oder nur einer. \
-Wenn die Person einen Fehlercode vom Display vorliest (z. B. "F 28"), frag nicht weiter danach.
-4. Ruf report_issue auf (summary: ein kurzer deutscher Satz, z. B. "Heizung seit heute Morgen kalt"; \
-all_radiators_cold: "yes"/"no"/"unknown"; error_code nur, wenn genannt).
-5. Lies danach den Satz "say" aus dem Ergebnis von report_issue wörtlich vor, ohne eigene Erklärung davor. Er erklärt einen Fehlercode schon richtig: erst die Bedeutung, dann der Code. Fang nie selbst mit dem Code an ("F.28 bedeutet ..." ist falsch). Nenne nie einen Code ohne seine Bedeutung.
-6. Die Einwilligung zur Datenweitergabe fragst du NICHT am Telefon ab, das passiert danach auf WhatsApp. Wiederhole "say" nicht. Verabschiede dich kurz mit Namen und beende das Gespräch mit end_call.
+Steps
+1. Call identify_caller first. Greet the person by first name. Never ask for address, floor, name or \
+boiler model: reltix already knows them (they are in the identify_caller result).
+2. If open_cases already contains a heating case, say it has already been reported and is being handled. \
+Do not open a new one.
+3. Otherwise: let them describe the problem briefly. Ask once whether all radiators are cold or only one. \
+If the person reads out an error code from the display (e.g. "F 28"), don't ask about it again.
+4. Call report_issue (summary: one short English sentence, e.g. "Heating cold since this morning"; \
+all_radiators_cold: "yes"/"no"/"unknown"; error_code only if mentioned).
+5. Then read out the "say" sentence from the report_issue result word for word, with no explanation of your own before it. It already explains an error code correctly: meaning first, then the code. Never start with the code yourself ("F.28 means ..." is wrong). Never mention a code without its meaning.
+6. Do NOT ask for consent to share data on the phone; that happens afterwards on WhatsApp. Don't repeat "say". Say a short goodbye using their name and end the conversation with end_call.
 
-Regeln
-- Versprich keine Kosten und keine Termine. Der Betrieb schlägt Termine vor.
-- Bitte nie, den Kessel zu öffnen, an Gasteilen zu arbeiten oder etwas im Gerät zurückzusetzen.
-- Gasgeruch, Rauch, Wasser läuft aus oder jemandem geht es schlecht: sofort raus aus der Wohnung bzw. \
-Haupthahn zu, 112 anrufen (bei Gas den Notdienst des Gasversorgers), dann report_issue mit priority "emergency".
-- Andere Themen (Miete, Vertrag): kurz beantworten, wenn du es weißt, sonst meldet sich die Hausverwaltung.
+Rules
+- Never promise costs or appointments. The heating company proposes times.
+- Never ask anyone to open the boiler, work on gas parts or reset anything inside the device.
+- Gas smell, smoke, water leaking, or someone feels unwell: leave the apartment right away or close the \
+main water valve, call 112 (for gas, the gas supplier's emergency line), then report_issue with priority "emergency".
+- Other topics (rent, contract): answer briefly if you know, otherwise the property manager will get back to them.
 """
 
-FIRST_MESSAGE = "Hallo, hier ist Debye von reltix. Einen Moment, ich schau kurz, wer anruft."
+FIRST_MESSAGE = "Hi, this is Debye from reltix. One moment, let me check who's calling."
 
 CALLER_PROPS = {
     "conversation_id": {"type": "string", "dynamic_variable": "system__conversation_id"},
@@ -97,8 +98,8 @@ def tool_configs(base: str, secret: str) -> list[dict]:
                     "description": "The reported problem",
                     "properties": {
                         **CALLER_PROPS,
-                        "summary": {"type": "string", "description": "One short German sentence without the error code, e.g. 'Heizung seit heute Morgen kalt'"},
-                        "symptoms": {"type": "string", "description": "What the caller said, in German"},
+                        "summary": {"type": "string", "description": "One short English sentence without the error code, e.g. 'Heating cold since this morning'"},
+                        "symptoms": {"type": "string", "description": "What the caller said, in English"},
                         "error_code": {"type": "string", "description": "Boiler display code if the caller read one out, e.g. 'F.28'. Empty if none."},
                         "all_radiators_cold": {"type": "string", "description": "'yes', 'no' (only one room) or 'unknown'"},
                         "priority": {"type": "string", "description": "'urgent' normally, 'emergency' for gas smell, smoke, flooding"},
@@ -157,12 +158,12 @@ def ensure_voice(http: httpx.Client, voice_id: str) -> str:
     """Library (shared) voices must be added to the workspace before an agent can use them."""
     if http.get(f"{API}/voices/{voice_id}").status_code == 200:
         return voice_id
-    shared = check(http.get(f"{API}/shared-voices", params={"language": "de", "page_size": 100}), "shared voices")
+    shared = check(http.get(f"{API}/shared-voices", params={"language": LANGUAGE, "page_size": 100}), "shared voices")
     match = next((v for v in shared.get("voices", []) if v.get("voice_id") == voice_id), None)
     if not match:
-        fail(f"voice {voice_id} is neither in the workspace nor in the German voice library")
+        fail(f"voice {voice_id} is neither in the workspace nor in the English voice library")
     added = check(http.post(f"{API}/voices/add/{match['public_owner_id']}/{voice_id}",
-                            json={"new_name": f"Debye – {match.get('name', 'German')}"[:60]}), "add voice")
+                            json={"new_name": f"Debye – {match.get('name', 'English')}"[:60]}), "add voice")
     return added.get("voice_id") or voice_id
 
 
@@ -172,7 +173,7 @@ def agent_body(tool_ids: list[str], voice_id: str) -> dict:
         "tags": ["debye", "hackathon"],
         "conversation_config": {
             "agent": {
-                "language": "de",
+                "language": LANGUAGE,
                 "first_message": FIRST_MESSAGE,
                 "prompt": {
                     "prompt": PROMPT,
