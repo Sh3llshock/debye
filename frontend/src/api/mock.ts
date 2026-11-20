@@ -342,7 +342,7 @@ export const mockSteps: MockStep[] = [
       c.partner = SCHMIDT
       c.status = 'approval_pending'
       const slot = freeSlots('tech_tom')[0]
-      c.approval = { required: true, rule: 'Every job needs staff approval', amount_eur: c.estimated_cost_eur, suggested_technician: { tech_id: 'tech_tom', name: 'Tom Schmidt' }, suggested_slot: slot ?? null }
+      c.approval = { required: true, rule: 'Every job needs staff approval', amount_eur: c.estimated_cost_eur, partner: SCHMIDT, suggested_technician: { tech_id: 'tech_tom', name: 'Tom Schmidt' }, suggested_slot: slot ?? null }
       addEvent(c, 'debye', 'approval.requested', `Waiting for staff approval: Heizung Schmidt GmbH, est. €${c.estimated_cost_eur}, Tom Schmidt available`)
     },
   },
@@ -530,7 +530,7 @@ export const mockApi = {
   async reject(caseId: string, reason: string): Promise<CaseDetail> {
     await delay()
     const c = state.cases[caseId]
-    c.approval = { ...(c.approval ?? { rule: '' }), required: false, granted: false, rejected_reason: reason }
+    c.approval = { ...(c.approval ?? { rule: '' }), required: false, granted: false, rejected: true, reason }
     c.status = 'rejected'
     addEvent(c, 'staff', 'approval.rejected', `Anna Becker rejected: ${reason}`, { reason })
     addMessage(c, 'out', c.reporters[0].name, 'Die Hausverwaltung hat den Auftrag noch nicht freigegeben. Ich melde mich, sobald es weitergeht.')
