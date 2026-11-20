@@ -5,6 +5,7 @@ import type { CaseSummary } from '../api/types'
 import { MiniLine } from '../components/case/CasePanels'
 import { LiveDot, useCrumbs } from '../components/Layout'
 import { ErrorBox, Loading, Mascot, PriorityChip } from '../components/ui'
+import { errorText } from '../lib/errors'
 import { fmtEur, fmtRelative } from '../lib/format'
 import { lineState, STAFF_STATIONS } from '../lib/lifecycle'
 import { useStream } from '../lib/stream'
@@ -147,7 +148,10 @@ export default function StaffCases() {
                       <Link to={`/staff/cases/${c.case_id}`} className="font-semibold text-ink hover:underline" onClick={(e) => e.stopPropagation()}>
                         {c.title}
                       </Link>
-                      <div className="text-meta text-muted">{c.case_id}</div>
+                      <div className="text-meta text-muted">
+                        {c.error_code ? `${errorText(c.error_code, c.error_label, null, true)} · ` : ''}
+                        {c.case_id}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-body-sm">
                       {(c.address ?? '').split(',')[0]}, {c.unit_id.replace('unit_', '')}
