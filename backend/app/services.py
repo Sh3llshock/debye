@@ -224,14 +224,64 @@ PREFILLED_FROM_CENTRIX = [
 ]
 
 
-DIAGNOSIS_KEYS = ("cause_id", "label", "confidence", "reasoning", "questions_asked", "outcome")
+# Saving shown for cases solved without a technician ("No technician sent, saved ~€180"):
+# the KB cause's estimated_saving_eur if it has one, else a typical plumber visit.
+DEFAULT_SAVING_EUR = 180
+OUTCOMES = ("self_help", "caretaker", "technician", "utility", "emergency")
+_KB_CACHE: dict | None = None
 
 
-def _clean_diagnosis(diagnosis: dict | None) -> dict | None:
+def diagnosis_kb() -> dict:
+    """{"causes": {id: cause}, "questions": {id: question}} from data/diagnosis/*.json."""
+    global _KB_CACHE
+    if _KB_CACHE is None:
+        causes, questions = {}, {}
+        for f in sorted((Path(settings.data_dir) / "diagnosis").glob("*.json")):
+            try:
+                kb = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            causes.update({c["id"]: c for c in kb.get("causes", []) if "id" in c})
+            questions.update({q["id"]: q for q in kb.get("questions", []) if "id" in q})
+        _KB_CACHE = {"causes": causes, "questions": questions}
+    return _KB_CACHE
+
+
+def _question_item(q) -> dict:
+    kb_q = diagnosis_kb()["questions"]
+    if isinstance(q, dict):
+        text = q.get("question") or q.get("text") or q.get("id") or ""
+        ans = q.get("answer")
+    else:
+        text, ans = str(q), None
+    if text in kb_q:  # question id from the KB → its wording
+        text = kb_q[text].get("text") or text
+    return {"question": text, "answer": ans}
+
+
+def _clean_diagnosis(diagnosis: dict | None, trade: str | None = None) -> dict | None:
+    """Normalise to {cause_id, label, confidence (0–1), reasoning, questions_asked:[{question, answer}],
+    outcome, trade, estimated_cost_eur, estimated_saving_eur}; missing fields come from the KB cause."""
     if not diagnosis:
         return None
-    d = {k: diagnosis.get(k) for k in DIAGNOSIS_KEYS if k in diagnosis}
-    d["questions_asked"] = list(d.get("questions_asked") or [])
+    cause = diagnosis_kb()["causes"].get(diagnosis.get("cause_id") or "", {})
+    conf = diagnosis.get("confidence")
+    if isinstance(conf, (int, float)) and conf > 1:
+        conf = conf / 100.0  # 85 → 0.85
+    outcome = diagnosis.get("outcome") or cause.get("outcome")
+    d = {
+        "cause_id": diagnosis.get("cause_id"),
+        "label": diagnosis.get("label") or cause.get("label") or diagnosis.get("cause_id"),
+        "confidence": round(float(conf), 2) if isinstance(conf, (int, float)) else None,
+        "reasoning": diagnosis.get("reasoning") or "",
+        "questions_asked": [_question_item(q) for q in diagnosis.get("questions_asked") or []],
+        "outcome": outcome if outcome in OUTCOMES else outcome,
+        "trade": diagnosis.get("trade") or trade or cause.get("trade"),
+        "estimated_cost_eur": diagnosis.get("estimated_cost_eur", cause.get("estimated_cost_eur")),
+        "estimated_saving_eur": diagnosis.get("estimated_saving_eur"),
+    }
+    if d["estimated_saving_eur"] is None and outcome in ("self_help", "caretaker"):
+        d["estimated_saving_eur"] = cause.get("estimated_saving_eur", DEFAULT_SAVING_EUR)
     return d
 
 
@@ -248,7 +298,9 @@ def open_case(reporter_contact_id: str, type: str, priority: str, summary: str,
               trade: str | None = None, diagnosis: dict | None = None) -> Case:
     """trade: which trade the job needs (heating | plumbing | electrical), from the diagnosis.
     diagnosis: {cause_id, label, confidence, reasoning, questions_asked[]} (see docs/diagnosis.md)."""
-    diagnosis = _clean_diagnosis(diagnosis)
+    diagnosis = _clean_diagnosis(diagnosis, trade)
+    if diagnosis and not trade and diagnosis.get("trade"):
+        trade = diagnosis["trade"]
     with get_session() as s:
         reporter = _get(s, Contact, reporter_contact_id)
         unit = s.get(Unit, reporter.unit_id) if reporter.unit_id else None
@@ -267,7 +319,8 @@ def open_case(reporter_contact_id: str, type: str, priority: str, summary: str,
             symptoms=symptoms or "", error_code=error_code, property_id=property_id,
             unit_id=reporter.unit_id, asset_id=asset.id if asset else None,
             reporter_contact_id=reporter.id, cost_bearer="landlord",
-            estimated_cost_eur=estimate, created_at=ts, updated_at=ts,
+            estimated_cost_eur=(diagnosis or {}).get("estimated_cost_eur") or estimate,
+            created_at=ts, updated_at=ts,
             data={"prefilled_fields": PREFILLED_FROM_CENTRIX, "tenant_inputs": [],
                   **({"trade": trade} if trade else {}),
                   **({"diagnosis": diagnosis} if diagnosis else {})},
@@ -320,24 +373,53 @@ def set_case_error_code(case_id: str, code: str) -> Case:
 
 def _record_diagnosis_event(case_id: str, diagnosis: dict, trade: str | None) -> None:
     conf = diagnosis.get("confidence")
-    conf_txt = f", {conf:.0%} sure" if isinstance(conf, (int, float)) and conf <= 1 else \
-        (f", {conf}" if conf else "")
-    who = f" → {trade}" if trade else ""
+    conf_txt = f" ({conf:.0%})" if isinstance(conf, (int, float)) else ""
     record_event(case_id, "debye", "diagnosis.recorded",
-                 f"Likely cause: {diagnosis.get('label') or diagnosis.get('cause_id')}{conf_txt}{who}",
-                 {**diagnosis, "trade": trade})
+                 f"Debye diagnosed: {diagnosis.get('label') or diagnosis.get('cause_id')}{conf_txt}",
+                 {**diagnosis, "trade": trade or diagnosis.get("trade")})
 
 
 def set_case_diagnosis(case_id: str, diagnosis: dict, trade: str | None = None) -> Case:
     """Record (or update) the diagnosis after the case was opened; optionally set the trade."""
-    diagnosis = _clean_diagnosis(diagnosis) or {}
+    diagnosis = _clean_diagnosis(diagnosis, trade) or {}
+    trade = trade or diagnosis.get("trade")
     with get_session() as s:
         case = _get(s, Case, case_id)
         _patch_data(case, diagnosis=diagnosis, **({"trade": trade} if trade else {}))
+        if diagnosis.get("estimated_cost_eur") and not case.partner_id:
+            case.estimated_cost_eur = float(diagnosis["estimated_cost_eur"])
         _save_case(s, case)
         trade = trade or (case.data or {}).get("trade")
     _record_diagnosis_event(case_id, diagnosis, trade)
     return get_case(case_id)
+
+
+def close_without_partner(case_id: str, resolution: str = "self_help", note: str = "") -> dict:
+    """Close a case that needed no technician (resolution self_help | caretaker | utility):
+    status closed, no partner. The staff page shows "No technician sent, saved ~€180"."""
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        if case.partner_id:
+            raise rules.RuleViolation("has_partner", "a partner is already on this job; use close_case")
+        diag = (case.data or {}).get("diagnosis") or {}
+        saving = diag.get("estimated_saving_eur")
+        if saving is None and resolution in ("self_help", "caretaker"):
+            saving = DEFAULT_SAVING_EUR
+        result = {"unit_id": case.unit_id, "contact_id": case.reporter_contact_id,
+                  "service_job": None,
+                  "resolution": resolution, "note": note,
+                  "diagnosis": {"cause_id": diag.get("cause_id"), "label": diag.get("label")} if diag else None,
+                  "estimated_saving_eur": saving}
+        case.status = "closed"
+        case.closed_at = now_iso()
+        _patch_data(case, resolution=resolution, result=result, saving_eur=saving)
+        _save_case(s, case)
+    how = {"self_help": "self-help", "caretaker": "caretaker", "utility": "utility"}.get(resolution, resolution)
+    summary = f"Closed without a technician ({how})" + (f", saved ~€{saving:.0f}" if saving else "")
+    if note:
+        summary += f": {note}"
+    record_event(case_id, "debye", "case.closed", summary, {"result": result})
+    return result
 
 
 def notify_caretaker(case_id: str, reason: str) -> dict:

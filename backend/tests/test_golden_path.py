@@ -484,9 +484,15 @@ def test_diagnosis_stored_and_shown(client):
     assert d["trade"] == "plumbing"
     assert d["diagnosis"]["cause_id"] == "shower_mixer_faulty"
     assert d["diagnosis"]["label"] == CAUSES["shower_mixer_faulty"]["label"]
-    assert d["diagnosis"]["questions_asked"] == ["q_scope", "q_radiators"]
+    qs = {q["id"]: q["text"] for q in KB["questions"]}
+    assert d["diagnosis"]["questions_asked"] == [{"question": qs["q_scope"], "answer": None},
+                                                 {"question": qs["q_radiators"], "answer": None}]
+    assert d["diagnosis"]["outcome"] == "technician" and d["diagnosis"]["trade"] == "plumbing"
+    assert d["diagnosis"]["estimated_cost_eur"] == CAUSES["shower_mixer_faulty"]["estimated_cost_eur"]
+    assert d["diagnosis"]["estimated_saving_eur"] is None
+    assert d["estimated_cost_eur"] == CAUSES["shower_mixer_faulty"]["estimated_cost_eur"]  # KB estimate wins
     ev = next(e for e in d["events"] if e["kind"] == "diagnosis.recorded")
-    assert ev["summary"] == f"Likely cause: {CAUSES['shower_mixer_faulty']['label']}, 80% sure → plumbing"
+    assert ev["summary"] == f"Debye diagnosed: {CAUSES['shower_mixer_faulty']['label']} (80%)"
     assert client.get("/api/staff/cases").json()[0]["trade"] == "plumbing"
 
 
@@ -548,3 +554,49 @@ def test_set_case_diagnosis_later(client):
     services.set_case_diagnosis(case.id, _diag("circulation_pump_faulty", 0.6), trade="heating")
     d = client.get(f"/api/staff/cases/{case.id}").json()
     assert d["diagnosis"]["cause_id"] == "circulation_pump_faulty" and d["trade"] == "heating"
+
+
+
+def test_diagnosis_shape_from_agent(client):
+    """Agent-style input: question/answer pairs, confidence in percent, trade taken from the KB."""
+    luka = services.get_contact_by_phone("+490000000001")
+    case = services.open_case(
+        luka.id, "repair.hot_water", "normal", "No hot water in the shower", "cold shower", None, None,
+        diagnosis={"cause_id": "shower_mixer_faulty", "confidence": 85, "reasoning": "only the shower",
+                   "questions_asked": [{"question": "Only the shower?", "answer": "yes, sinks are hot"}]})
+    d = client.get(f"/api/staff/cases/{case.id}").json()
+    assert d["trade"] == "plumbing"  # from the KB cause
+    assert d["diagnosis"]["confidence"] == 0.85
+    assert d["diagnosis"]["questions_asked"] == [{"question": "Only the shower?", "answer": "yes, sinks are hot"}]
+    ev = next(e for e in d["events"] if e["kind"] == "diagnosis.recorded")
+    assert ev["summary"].endswith("(85%)")
+
+
+def test_self_help_case_closes_without_partner(client):
+    luka = services.get_contact_by_phone("+490000000001")
+    case = services.open_case(luka.id, "repair.hot_water", "normal", "Shower lukewarm", "others showered",
+                              None, None, diagnosis={"cause_id": "hot_water_used_up", "confidence": 0.9,
+                                                     "reasoning": "two people showered just before"})
+    assert client.get(f"/api/staff/cases/{case.id}").json()["diagnosis"]["estimated_saving_eur"] == 180
+    res = services.close_without_partner(case.id, "self_help", "tank reheated")
+    assert res["resolution"] == "self_help" and res["estimated_saving_eur"] == 180
+    d = client.get(f"/api/staff/cases/{case.id}").json()
+    assert d["status"] == "closed" and d["partner"] is None
+    assert d["resolution"] == "self_help" and d["saving_eur"] == 180
+    ev = next(e for e in d["events"] if e["kind"] == "case.closed")
+    assert ev["summary"] == "Closed without a technician (self-help), saved ~€180: tank reheated"
+    row = client.get("/api/staff/cases").json()[0]
+    assert row["status"] == "closed" and row["resolution"] == "self_help" and row["saving_eur"] == 180
+
+
+def test_caretaker_case_closes_without_partner(client):
+    luka, case = _open_with("low_system_pressure")
+    services.notify_caretaker(case.id, "top up system pressure")
+    res = services.close_without_partner(case.id, "caretaker", "pressure topped up")
+    assert res["estimated_saving_eur"] == 180
+    # a case with a partner can't be closed this way
+    luka2, boiler, c2 = _open_luka_case()
+    services.record_consent(luka2.id, "heizung-schmidt", c2.id, ["address"], "repair", "whatsapp")
+    _dispatch(c2.id)
+    with pytest.raises(rules.RuleViolation):
+        services.close_without_partner(c2.id, "self_help")
