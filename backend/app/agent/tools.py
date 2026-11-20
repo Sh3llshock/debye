@@ -67,9 +67,9 @@ SCHEMAS: list[dict] = [
         "duplicate=true.",
         "input_schema": _obj(
             {
-                "summary": {"type": "string", "description": "short German title; explain any code, "
-                            "e.g. 'Heizung kalt – Zündung fehlgeschlagen (F.28)'"},
-                "symptoms": {"type": "string", "description": "what the resident reported, in German"},
+                "summary": {"type": "string", "description": "short English title; explain any code, "
+                            "e.g. 'No heating – ignition failed (F.28)'"},
+                "symptoms": {"type": "string", "description": "what the resident reported, in their words"},
                 "error_code": {"type": ["string", "null"], "description": "display code like F.28, or null"},
                 "priority": {"type": "string", "enum": ["emergency", "urgent", "normal"]},
             }
@@ -155,7 +155,7 @@ async def _note_error_code(ctx: TurnContext, case_id: str, error_code: str) -> d
     from .error_codes import resident_sentence
 
     return {"ok": True, "case_id": case_id, "error_code": error_code,
-            "explain_error_code": resident_sentence(error_code, "photo") + " Danke für das Foto, das hilft dem Techniker sehr 👍"}
+            "explain_error_code": resident_sentence(error_code, "photo") + " Thanks for the photo, that really helps the technician 👍"}
 
 
 async def _record_triage(ctx: TurnContext, case_id: str, all_radiators_cold: bool) -> dict:

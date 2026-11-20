@@ -1,15 +1,15 @@
-"""Boiler error codes, always explained (meaning in plain words, the code alongside).
+"""Boiler error codes, always explained (meaning first in plain words, the code in brackets).
 
-German for the resident on WhatsApp, English for the staff timeline. Codes are the
-Vaillant ecoTEC ones from the seed (asset.known_error_codes).
+Resident texts are English (Debye's default language; the model mirrors other languages).
+Codes are the Vaillant ecoTEC ones from the seed (asset.known_error_codes).
 """
 from __future__ import annotations
 
-# code -> (German "dass ..." clause, German consequence for the resident)
-DE = {
-    "F.22": ("der Wasserdruck zu niedrig ist", "die Heizung schaltet sich deshalb zum Schutz ab"),
-    "F.28": ("die Zündung fehlgeschlagen ist", "die Heizung startet deshalb nicht"),
-    "F.29": ("die Flamme im Betrieb ausgegangen ist", "die Heizung geht deshalb immer wieder aus"),
+# code -> (what happened, what it means for the resident)
+RESIDENT = {
+    "F.22": ("the boiler's water pressure is too low", "so the heating switches itself off for safety"),
+    "F.28": ("the boiler's ignition failed", "so the heating won't start"),
+    "F.29": ("the boiler's flame went out while running", "so the heating keeps cutting out"),
 }
 
 EN = {
@@ -19,29 +19,29 @@ EN = {
 }
 
 
-TITLE_DE = {
-    "F.22": "Wasserdruck zu niedrig",
-    "F.28": "Zündung fehlgeschlagen",
-    "F.29": "Flamme im Betrieb ausgegangen",
+TITLE = {
+    "F.22": "water pressure too low",
+    "F.28": "ignition failed",
+    "F.29": "flame lost during operation",
 }
 
 
 def case_title(code: str | None) -> str:
-    """Case summary for the staff page: 'Heizung kalt – Zündung fehlgeschlagen (F.28)'."""
+    """Case summary for the staff page: 'No heating – ignition failed (F.28)'."""
     if not code:
-        return "Heizung kalt"
-    return f"Heizung kalt – {TITLE_DE.get(code, 'Kesselfehler')} ({code})"
+        return "No heating"
+    return f"No heating – {TITLE.get(code, 'boiler error')} ({code})"
 
 
 def resident_sentence(code: str, source: str = "photo") -> str:
     """Meaning first, code in brackets:
-    'Auf dem Foto sehe ich, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht.'"""
-    lead = "Auf dem Foto sehe ich" if source == "photo" else "Der Kessel meldet"
-    meaning = DE.get(code)
+    'On the photo I can see the boiler's ignition failed (error code F.28), so the heating won't start.'"""
+    lead = "On the photo I can see" if source == "photo" else "That error means"
+    meaning = RESIDENT.get(code)
     if not meaning:
-        return f"{lead} eine Störung (Fehlercode {code}). Was genau dahintersteckt, klärt der Techniker vor Ort."
+        return f"{lead} there's a boiler fault (error code {code}). The technician will check what's behind it."
     what, effect = meaning
-    return f"{lead}, dass {what} (Fehlercode {code}) – {effect}."
+    return f"{lead} {what} (error code {code}), {effect}."
 
 
 def timeline_summary(code: str) -> str:

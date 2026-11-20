@@ -12,7 +12,8 @@ log = logging.getLogger("debye.notify")
 
 
 async def notify_tenant(case_id: str, event: str, data: dict) -> None:
-    """event ∈ job_accepted | slots_proposed | job_completed | approval_granted | partner_declined."""
+    """event ∈ job_accepted | slots_proposed (data.slots, data.technician_name) | technician_confirmed
+    (data.technician_name, data.slot) | job_completed | approval_granted | partner_declined."""
     data = data or {}
     cs = st.case_state(case_id)
     if data.get("partner_name"):
@@ -21,7 +22,9 @@ async def notify_tenant(case_id: str, event: str, data: dict) -> None:
         cs.partner_id = data["partner_id"]
     try:
         if event == "slots_proposed":
-            await flow.send_slots(case_id, data.get("slots") or [])
+            await flow.send_slots(case_id, data.get("slots") or [], data.get("technician_name"))
+        elif event == "technician_confirmed":
+            await flow.on_technician_confirmed(case_id, data.get("technician_name"), data.get("slot"))
         elif event == "job_completed":
             await flow.ask_fixed(case_id, data.get("notes"))
         elif event == "job_accepted":
@@ -29,7 +32,7 @@ async def notify_tenant(case_id: str, event: str, data: dict) -> None:
                 await out.text(
                     c,
                     case_id,
-                    f"Gute Nachricht: {flow.partner_label(case_id)} hat zugesagt 🙌 Terminvorschläge kommen gleich.",
+                    f"Good news: {flow.partner_label(case_id)} has taken the job 🙌 They'll suggest times shortly.",
                 )
         elif event == "approval_granted":
             for c in flow.tenant_contacts(case_id, reporter_only=True):
@@ -37,7 +40,7 @@ async def notify_tenant(case_id: str, event: str, data: dict) -> None:
                 await out.text(
                     c,
                     case_id,
-                    f"Die Hausverwaltung hat grünes Licht gegeben 👍 {flow.partner_label(case_id)} meldet sich gleich mit Terminen.",
+                    f"The property management has given the green light 👍 {flow.partner_label(case_id)} will suggest times shortly.",
                 )
         elif event == "partner_declined":
             nxt = data.get("next_partner_name")
@@ -46,9 +49,9 @@ async def notify_tenant(case_id: str, event: str, data: dict) -> None:
                 cs.partner_id = data.get("next_partner_id", cs.partner_id)
             for c in flow.tenant_contacts(case_id, reporter_only=True):
                 msg = (
-                    f"Kleines Update: Der erste Betrieb hat keine Kapazität. Ich habe {nxt} angefragt."
+                    f"Quick update: the first company is fully booked, so I've asked {nxt}."
                     if nxt
-                    else "Kleines Update: Der Betrieb hat abgesagt. Ich suche gerade einen anderen."
+                    else "Quick update: the company can't take the job. I'm finding another one."
                 )
                 await out.text(c, case_id, msg)
         else:

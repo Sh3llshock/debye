@@ -63,7 +63,7 @@ def test_call_opens_case_and_continues_on_whatsapp(app_client):
                error_code="F 28", all_radiators_cold="yes")
     assert r["ok"] and not r["duplicate"]
     assert r["explain_error_code"].startswith(
-        "Der Kessel meldet, dass die Zündung fehlgeschlagen ist (Fehlercode F.28)")
+        "That error means the boiler's ignition failed (error code F.28)")
     case_id = r["case_id"]
     assert case_detail(c, case_id)["error_code"] == "F.28"
     assert outbox(c) == []  # nothing on WhatsApp while the call is running
@@ -82,7 +82,7 @@ def test_call_opens_case_and_continues_on_whatsapp(app_client):
 
     texts = outbox_texts(c)
     assert "Danke für deinen Anruf, Luka" in texts[0]
-    assert "Der Kessel meldet, dass die Zündung fehlgeschlagen ist (Fehlercode F.28)" in texts[0]
+    assert "That error means the boiler's ignition failed (error code F.28)" in texts[0]
     assert any(f"consent_yes:{case_id}" in t for t in texts)  # consent buttons; triage not asked again
     assert not any("cold_all" in t for t in texts)
 

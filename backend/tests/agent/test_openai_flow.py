@@ -31,9 +31,9 @@ def test_openai_triage_turn(client, svc, gpt):
     stub = gpt([
         [oa_call("open_case", summary="Heizung kalt, Fehler F.28", symptoms="komplett kalt", error_code="F.28",
                  priority="urgent")],
-        [oa_call("ask_buttons", text="Der Kessel meldet, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht. Sind alle Heizkörper kalt?",
-                 options=[{"id": "cold_all:case_0001", "title": "Überall kalt"},
-                          {"id": "cold_some:case_0001", "title": "Nur ein Raum"}])],
+        [oa_call("ask_buttons", text="That error means the boiler's ignition failed (error code F.28), so the heating won't start. Sind alle Heizkörper kalt?",
+                 options=[{"id": "cold_all:case_0001", "title": "All cold"},
+                          {"id": "cold_some:case_0001", "title": "Just one room"}])],
         "",
     ])
     client.post("/webhooks/whatsapp", json=wa_text("Heizung kalt, F.28"))
@@ -51,9 +51,9 @@ def test_openai_triage_turn(client, svc, gpt):
         "cold_all:case_0001", "cold_some:case_0001"]
     # taps stay deterministic: no model call
     n = len(stub.requests)
-    client.post("/webhooks/whatsapp", json=button("cold_all:case_0001", "Überall kalt"))
+    client.post("/webhooks/whatsapp", json=button("cold_all:case_0001", "All cold"))
     assert len(stub.requests) == n
-    assert "weitergeben" in outbox(client)[-1]["payload"]["interactive"]["body"]["text"]
+    assert "share your name" in outbox(client)[-1]["payload"]["interactive"]["body"]["text"]
 
 
 def test_openai_history_carries_over(client, svc, gpt):
@@ -68,13 +68,13 @@ def test_openai_history_carries_over(client, svc, gpt):
 def test_openai_errors_fall_back(client, svc, gpt):
     gpt([RuntimeError("OpenAI down")])
     client.post("/webhooks/whatsapp", json=wa_text("Heizung kalt"))
-    assert outbox(client)[-1]["payload"]["interactive"]["body"]["text"].endswith("kalt oder nur einer?")
+    assert outbox(client)[-1]["payload"]["interactive"]["body"]["text"].endswith("cold, or just one?")
 
 
 def test_openai_refusal_hands_off(client, svc, gpt):
     gpt(["refusal"])
     client.post("/webhooks/whatsapp", json=wa_text("hallo"))
-    assert "Hausverwaltung" in outbox(client)[-1]["payload"]["text"]["body"]
+    assert "property management" in outbox(client)[-1]["payload"]["text"]["body"]
 
 
 def test_openai_silent_turn_falls_back(client, svc, gpt):
@@ -88,11 +88,11 @@ def test_openai_bad_tool_args_reported(client, svc, gpt):
     from types import SimpleNamespace
 
     bad = SimpleNamespace(id="call_bad", type="function", function=SimpleNamespace(name="reply", arguments="{not json"))
-    stub = gpt([[bad], [oa_call("reply", text="Wie kann ich helfen?")], ""])
+    stub = gpt([[bad], [oa_call("reply", text="How can I help?")], ""])
     client.post("/webhooks/whatsapp", json=wa_text("hi"))
     tool_msg = stub.requests[1]["messages"][-1]
     assert tool_msg["role"] == "tool" and tool_msg["content"].startswith("Error")
-    assert outbox(client)[-1]["payload"]["text"]["body"] == "Wie kann ich helfen?"
+    assert outbox(client)[-1]["payload"]["text"]["body"] == "How can I help?"
 
 
 def test_provider_switch_resets_history(client, svc, gpt, monkeypatch):
@@ -157,10 +157,10 @@ def test_note_error_code_tool(client, svc, gpt):
     gpt([
         [oa_call("open_case", summary="Heizung kalt", symptoms="kalt", error_code=None, priority="urgent")],
         [oa_call("ask_buttons", text="Sind alle Heizkörper kalt?", options=[
-            {"id": "cold_all:case_0001", "title": "Überall kalt"}, {"id": "cold_some:case_0001", "title": "Nur ein Raum"}])],
+            {"id": "cold_all:case_0001", "title": "All cold"}, {"id": "cold_some:case_0001", "title": "Just one room"}])],
         "",
         [oa_call("note_error_code", case_id="case_0001", error_code="F.28")],
-        [oa_call("reply", text="Auf dem Foto sehe ich, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht. Danke für das Foto, das hilft dem Techniker sehr 👍")],
+        [oa_call("reply", text="On the photo I can see the boiler's ignition failed (error code F.28), so the heating won't start. Thanks for the photo, that really helps the technician 👍")],
         "",
     ])
     client.post("/webhooks/whatsapp", json=wa_text("Heizung kalt"))
@@ -172,10 +172,10 @@ def test_note_error_code_tool(client, svc, gpt):
 def test_error_code_always_explained(client, svc, gpt):
     from app.agent import error_codes
 
-    assert error_codes.resident_sentence("F.28") == "Auf dem Foto sehe ich, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht."
-    assert error_codes.resident_sentence("F.28", "text") == "Der Kessel meldet, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht."
+    assert error_codes.resident_sentence("F.28") == "On the photo I can see the boiler's ignition failed (error code F.28), so the heating won't start."
+    assert error_codes.resident_sentence("F.28", "text") == "That error means the boiler's ignition failed (error code F.28), so the heating won't start."
     assert error_codes.timeline_summary("F.28") == "Boiler error: ignition failed (F.28)"
-    assert "Störung" in error_codes.resident_sentence("F.99")  # unknown code: still no bare code
+    assert "boiler fault" in error_codes.resident_sentence("F.99")  # unknown code: still no bare code
     stub = gpt([
         [oa_call("open_case", summary="Heizung kalt", symptoms="kalt", error_code="F.28", priority="urgent")],
         [oa_call("reply", text="ok")],
@@ -183,8 +183,8 @@ def test_error_code_always_explained(client, svc, gpt):
     ])
     client.post("/webhooks/whatsapp", json=wa_text("Heizung kalt, F.28"))
     tool_result = json.loads(stub.requests[1]["messages"][-1]["content"])
-    assert tool_result["explain_error_code"] == "Der Kessel meldet, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht."
-    assert tool_result["explain_error_code_if_from_photo"] == "Auf dem Foto sehe ich, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht."
+    assert tool_result["explain_error_code"] == "That error means the boiler's ignition failed (error code F.28), so the heating won't start."
+    assert tool_result["explain_error_code_if_from_photo"] == "On the photo I can see the boiler's ignition failed (error code F.28), so the heating won't start."
     assert any(c[0] == "open_case" and c[-1] == "F.28" for c in svc.calls)  # services' case.created states the meaning
     system = stub.requests[0]["messages"][0]["content"]
     assert "always say the meaning first" in system
@@ -194,13 +194,13 @@ def test_cold_question_not_repeated(client, svc, gpt):
     stub = gpt([
         [oa_call("open_case", summary="Heizung kalt", symptoms="kalt", error_code=None, priority="urgent")],
         [oa_call("ask_buttons", text="Sind alle Heizkörper kalt?", options=[
-            {"id": "cold_all:case_0001", "title": "Überall kalt"}, {"id": "cold_some:case_0001", "title": "Nur ein Raum"}])],
+            {"id": "cold_all:case_0001", "title": "All cold"}, {"id": "cold_some:case_0001", "title": "Just one room"}])],
         "",
         # photo turn: the model tries to ask again; the tool refuses, it acknowledges instead
         [oa_call("note_error_code", case_id="case_0001", error_code="F.28"),
          oa_call("ask_buttons", text="Sind alle Heizkörper kalt?", options=[
-             {"id": "cold_all:case_0001", "title": "Überall kalt"}, {"id": "cold_some:case_0001", "title": "Nur ein Raum"}])],
-        [oa_call("reply", text="Auf dem Foto sehe ich, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht. Danke für das Foto, das hilft dem Techniker sehr 👍")],
+             {"id": "cold_all:case_0001", "title": "All cold"}, {"id": "cold_some:case_0001", "title": "Just one room"}])],
+        [oa_call("reply", text="On the photo I can see the boiler's ignition failed (error code F.28), so the heating won't start. Thanks for the photo, that really helps the technician 👍")],
         "",
     ])
     client.post("/webhooks/whatsapp", json=wa_text("Heizung kalt"))
@@ -212,7 +212,7 @@ def test_cold_question_not_repeated(client, svc, gpt):
     assert "waiting_for" in photo_turn[-1]["content"][-1]["text"]  # <state> tells the model what is pending
     refused = stub.requests[4]["messages"][-1]
     assert refused["role"] == "tool" and "still open" in refused["content"]
-    assert msgs[-1]["payload"]["text"]["body"].startswith("Auf dem Foto sehe ich, dass die Zündung")
+    assert msgs[-1]["payload"]["text"]["body"].startswith("On the photo I can see the boiler's ignition failed")
 
 
 def test_neighbour_linked_even_if_model_skips_open_case(client, svc, gpt):

@@ -77,7 +77,7 @@ def build_user_content(contact, conv: st.Conversation, text: str | None, image_p
     }
     status = {"case_id": conv.case_id, "step": conv.step}
     if conv.step == st.TRIAGE and st.TRIAGE in conv.asked_at:
-        status["waiting_for"] = "resident's tap on 'Überall kalt' / 'Nur ein Raum' (already asked, do not repeat)"
+        status["waiting_for"] = "resident's tap on 'All cold' / 'Just one room' (already asked, do not repeat)"
     elif conv.step == st.CONSENT:
         status["waiting_for"] = "resident's consent tap (already asked, do not repeat)"
     if conv.error_code:

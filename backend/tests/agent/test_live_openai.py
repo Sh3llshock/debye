@@ -42,3 +42,23 @@ def test_real_openai_reads_f28_photo(client, svc, monkeypatch):
     assert "F.28" in last["interactive"]["body"]["text"]
     assert last["interactive"]["action"]["buttons"][0]["reply"]["id"].startswith("cold_all:case_")
     openai_loop.set_client(None)
+
+
+def test_real_openai_english_default(client, svc, monkeypatch):
+    from app.agent import loop, openai_loop
+
+    monkeypatch.setenv("OPENAI_API_KEY", _key())
+    monkeypatch.setenv("LLM_PROVIDER", "openai")
+    openai_loop.set_client(None)
+    body = {"entry": [{"changes": [{"value": {"messages": [{
+        "from": "490000000001", "id": "wamid.live.oa2", "type": "text",
+        "text": {"body": "Hi, my heating stopped working this morning and the shower is cold too"}}]}}]}]}
+    client.post("/webhooks/whatsapp", json=body)
+    assert loop.last_turn_fallback is False
+    last = client.get("/webhooks/whatsapp/_outbox").json()["messages"][-1]["payload"]
+    text = last["interactive"]["body"]["text"] if last["type"] == "interactive" else last["text"]["body"]
+    print("REPLY:", text)
+    assert any(w in text.lower() for w in ("radiator", "cold", "heating"))
+    assert not any(w in text for w in ("Heizkörper", "Heizung"))  # English, not German
+    assert svc.cases["case_0001"]["priority"] == "urgent"
+    openai_loop.set_client(None)

@@ -82,16 +82,16 @@ def test_numbered_buttons_roundtrip(client, svc, claude, tw):
     post_twilio(client, Body="Hallo, meine Heizung ist kalt")
     sent = tw.posts[-1]["data"]
     assert sent["From"] == "whatsapp:+4915888620339" and sent["To"] == LUKA
-    assert "1 = Überall kalt" in sent["Body"] and "2 = Nur ein Raum" in sent["Body"]
+    assert "1 = All cold" in sent["Body"] and "2 = Just one room" in sent["Body"]
     assert tw.posts[-1]["auth"] == ("ACtest", "test-token")
     assert sent["StatusCallback"] == "https://debye.example.test/webhooks/twilio/status"
 
     post_twilio(client, Body="1")  # → cold_all:case_0001 in code
     assert any(c[0] == "open_case" for c in svc.calls)
     consent = tw.posts[-1]["data"]["Body"]
-    assert "weitergeben" in consent and "1 = Ja, gerne" in consent
+    assert "share your name" in consent and "1 = Yes, go ahead" in consent
 
-    post_twilio(client, Body="ja, gerne")  # option text also works
+    post_twilio(client, Body="yes, go ahead")  # option text also works
     assert any(c[0] == "consent" for c in svc.calls)
     assert ("dispatch", "case_0001", "heizung-schmidt") in svc.calls
 
@@ -99,7 +99,7 @@ def test_numbered_buttons_roundtrip(client, svc, claude, tw):
 def test_unmatched_number_goes_to_agent_as_text(client, svc, claude, tw):
     from app.channels import twilio
 
-    twilio.remember_options("+490000000001", [twilio.Option("cold_all:c1", "Überall kalt")])
+    twilio.remember_options("+490000000001", [twilio.Option("cold_all:c1", "All cold")])
     assert twilio.match_numbered_reply("+490000000001", "7") is None  # out of range → plain text
     assert twilio.match_numbered_reply("+490000000001", "1.").id == "cold_all:c1"
     assert twilio.match_numbered_reply("+490000000001", "1") is None  # cleared after use

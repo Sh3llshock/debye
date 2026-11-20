@@ -67,8 +67,8 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
         [tool_use("open_case", summary="Heizung kalt, Fehler F.28", symptoms="komplett kalt seit heute Morgen",
                   error_code="F.28", priority="urgent")],
         [tool_use("ask_buttons", text="Der Kessel zeigt F.28. Sind alle Heizkörper kalt?",
-                  options=[{"id": "cold_all:case_0001", "title": "Überall kalt"},
-                           {"id": "cold_some:case_0001", "title": "Nur ein Raum"}])],
+                  options=[{"id": "cold_all:case_0001", "title": "All cold"},
+                           {"id": "cold_some:case_0001", "title": "Just one room"}])],
         [text("ok")],
         RuntimeError("Claude down for the neighbour"),
     ])
@@ -85,16 +85,16 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
     assert any(d["kind"] == "photo" for d in detail["documents"])  # orphan photo claimed by the case
     assert any(m["direction"] == "in" for m in detail["messages"])
 
-    real.post("/webhooks/whatsapp", json=tap(LUKA, f"cold_all:{case_id}", "Überall kalt"))
+    real.post("/webhooks/whatsapp", json=tap(LUKA, f"cold_all:{case_id}", "All cold"))
     assert ids(last(real)) == [f"consent_yes:{case_id}", f"consent_no:{case_id}"]
-    real.post("/webhooks/whatsapp", json=tap(LUKA, f"consent_yes:{case_id}", "Ja, gerne"))
+    real.post("/webhooks/whatsapp", json=tap(LUKA, f"consent_yes:{case_id}", "Yes, go ahead"))
     detail = real.get(f"/api/staff/cases/{case_id}").json()
     assert detail["consents"] and detail["partner"]["partner_id"]
     partner = detail["partner"]["partner_id"]
 
     # neighbour reports while Claude is down → linked, no second case
     real.post("/webhooks/whatsapp", json=wa(JONAS, type="text", text={"body": "Bei uns ist es auch kalt"}))
-    assert "schon gemeldet" in last(real, JONAS)["text"]["body"]
+    assert "already been reported" in last(real, JONAS)["text"]["body"]
     assert len(real.get("/api/staff/cases").json()) == 1
 
     # partner page: accept, propose slots → resident gets a list
@@ -109,23 +109,23 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
 
     real.post("/webhooks/whatsapp", json=tap(LUKA, f"slot_1:{case_id}", "Morgen", kind="list_reply"))
     assert real.get(f"/api/staff/cases/{case_id}").json()["status"] == "scheduled"
-    assert "Update" in last(real, JONAS)["text"]["body"]
+    assert "update" in last(real, JONAS)["text"]["body"]
 
     # partner completes with photo + invoice → "warm again?" → yes → closed
     r = real.post(f"/api/partner/{partner}/jobs/{case_id}/complete", data={"notes": "Zündelektrode getauscht"},
                   files={"invoice": ("RE-2026-1187.pdf", INVOICE.read_bytes(), "application/pdf")})
     assert r.status_code == 200, r.text
     assert ids(last(real, LUKA)) == [f"fixed_yes:{case_id}", f"fixed_no:{case_id}"]
-    real.post("/webhooks/whatsapp", json=tap(LUKA, f"fixed_yes:{case_id}", "Ja, alles warm"))
+    real.post("/webhooks/whatsapp", json=tap(LUKA, f"fixed_yes:{case_id}", "Yes, all warm"))
     detail = real.get(f"/api/staff/cases/{case_id}").json()
     assert detail["status"] == "closed"
     assert detail["zero_forms"]["tenant_inputs"]
 
     outbox = real.get("/webhooks/whatsapp/_outbox").json()["messages"]
     texts = [m["payload"]["text"]["body"] for m in outbox if m["payload"]["type"] == "text"]
-    assert not any("kümmere mich darum" in t for t in texts), texts  # no filler after taps
+    assert not any("on it and I'll get back to you shortly" in t for t in texts), texts  # no filler after taps
     bodies = [m["payload"]["interactive"]["body"]["text"] for m in outbox if m["payload"]["type"] == "interactive"]
     assert all(len(b) <= 1024 for b in bodies)
-    consent = next(b for b in bodies if "weitergeben" in b)
-    for word in ("Namen", "Telefonnummer", "Adresse", "Etage", "Fotos"):
+    consent = next(b for b in bodies if "share your name" in b)
+    for word in ("name", "phone number", "address", "floor", "photos"):
         assert word in consent
