@@ -29,7 +29,7 @@ async def notify_tenant(case_id: str, event: str, data: dict) -> None:
                 await out.text(
                     c,
                     case_id,
-                    f"{flow.partner_label(case_id)} hat den Auftrag angenommen und schickt dir gleich Terminvorschläge.",
+                    f"Gute Nachricht: {flow.partner_label(case_id)} hat zugesagt 🙌 Terminvorschläge kommen gleich.",
                 )
         elif event == "approval_granted":
             for c in flow.tenant_contacts(case_id, reporter_only=True):
@@ -37,7 +37,7 @@ async def notify_tenant(case_id: str, event: str, data: dict) -> None:
                 await out.text(
                     c,
                     case_id,
-                    f"Die Hausverwaltung hat den Auftrag freigegeben. {flow.partner_label(case_id)} meldet sich mit Terminen.",
+                    f"Die Hausverwaltung hat grünes Licht gegeben 👍 {flow.partner_label(case_id)} meldet sich gleich mit Terminen.",
                 )
         elif event == "partner_declined":
             nxt = data.get("next_partner_name")
