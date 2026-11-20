@@ -160,7 +160,7 @@ def test_note_error_code_tool(client, svc, gpt):
             {"id": "cold_all:case_0001", "title": "Überall kalt"}, {"id": "cold_some:case_0001", "title": "Nur ein Raum"}])],
         "",
         [oa_call("note_error_code", case_id="case_0001", error_code="F.28")],
-        [oa_call("reply", text="Auf dem Foto sehe ich, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht. Ich habe das im Fall notiert.")],
+        [oa_call("reply", text="Auf dem Foto sehe ich, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht. Danke für das Foto, das hilft dem Techniker sehr 👍")],
         "",
     ])
     client.post("/webhooks/whatsapp", json=wa_text("Heizung kalt"))
@@ -200,7 +200,7 @@ def test_cold_question_not_repeated(client, svc, gpt):
         [oa_call("note_error_code", case_id="case_0001", error_code="F.28"),
          oa_call("ask_buttons", text="Sind alle Heizkörper kalt?", options=[
              {"id": "cold_all:case_0001", "title": "Überall kalt"}, {"id": "cold_some:case_0001", "title": "Nur ein Raum"}])],
-        [oa_call("reply", text="Auf dem Foto sehe ich, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht. Ich habe das im Fall notiert.")],
+        [oa_call("reply", text="Auf dem Foto sehe ich, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht. Danke für das Foto, das hilft dem Techniker sehr 👍")],
         "",
     ])
     client.post("/webhooks/whatsapp", json=wa_text("Heizung kalt"))
