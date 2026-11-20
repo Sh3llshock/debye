@@ -3,8 +3,8 @@
 POST /demo/reset                 drop + re-seed DB, clear storage, reset clock
 POST /demo/skip-to-tomorrow      move the demo clock one day forward
 POST /demo/trigger/{name}        scripted steps (body: optional JSON), see TRIGGERS
-POST /demo/sim-media             upload a file for the simulator → {"media_id": "sim-..."};
-                                 the WhatsApp adapter can read it from storage/sim/<media_id>
+POST /demo/sim-media             upload a file → {"media_id": "sim-..."} (for a remote server where
+                                 the simulator's local:<path> media ids can't be read)
 """
 from __future__ import annotations
 
@@ -36,15 +36,29 @@ def sim_media_path(media_id: str) -> Path:
     return Path(settings.storage_dir) / SIM_DIR_NAME / media_id
 
 
+def _reset_agent_state() -> None:
+    """Clear agent-whatsapp's in-memory conversation state and fake-send outbox, if present.
+    Without this, conversations keep pointing at case ids from before the reset."""
+    import importlib
+    import logging
+    for mod_name, fn_name in (("app.agent.state", "reset_all"),
+                              ("app.channels.whatsapp", "clear_outbox")):
+        try:
+            fn = getattr(importlib.import_module(mod_name), fn_name, None)
+        except ImportError:
+            continue
+        if callable(fn):
+            try:
+                fn()
+            except Exception:
+                logging.getLogger("debye.demo").exception("%s.%s failed", mod_name, fn_name)
+
+
 @router.post("/reset")
 async def reset() -> dict:
     _require_demo()
     seed(reset=True)
-    try:  # agent conversation state lives in memory (agent-whatsapp)
-        from app.agent import state as agent_state
-        agent_state.reset_all()
-    except ImportError:
-        pass
+    _reset_agent_state()  # agent conversation state + fake-send outbox (agent-whatsapp)
     await publish("demo.reset", None, {"ts": now_iso()})
     return {"ok": True}
 
@@ -93,9 +107,18 @@ def _case_id(body: dict) -> str:
 
 def _store_sim_media(media_ids: list[str], contact: Contact, kind_hint: str | None = None) -> list[str]:
     """Turn uploaded sim media into document rows (what the real router does for WA media)."""
+    import shutil
     docs = []
     for mid in media_ids:
-        p = sim_media_path(mid)
+        if mid.startswith("local:"):  # simulator convention (interfaces §3.3b): read from disk
+            src = Path(mid[len("local:"):])
+            if not src.exists():
+                continue
+            p = sim_media_path(f"local-{uuid.uuid4().hex[:8]}-{src.name}")
+            p.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, p)
+        else:
+            p = sim_media_path(mid)
         if not p.exists():
             continue
         suffix = p.suffix.lower()
@@ -123,7 +146,7 @@ async def t_tenant_report(body: dict) -> dict:
     media_ids = body.get("media_ids") or []
     doc_ids = _store_sim_media(media_ids, contact)
     text = body.get("text") or await media.transcribe("voice.ogg")
-    services.log_message(contact.id, None, "in", f"🎤 {text}", media_ids=doc_ids)
+    services.log_message(contact.id, None, "whatsapp", "in", f"🎤 {text}", None, doc_ids)
     ctx = services.get_unit_context(contact.unit_id)
     asset = next((a for a in ctx["assets"] if a["type"] == "gas_boiler"), None)
     existing = services.find_open_case_for_asset(asset["id"]) if asset else None
@@ -136,9 +159,9 @@ async def t_tenant_report(body: dict) -> dict:
     services.add_tenant_input(case.id, "voice note")
     if doc_ids:
         services.add_tenant_input(case.id, "photo")
-    services.log_message(contact.id, case.id, "out", "Danke! Sind alle Heizkörper kalt?")
+    services.log_message(contact.id, case.id, "whatsapp", "out", "Danke! Sind alle Heizkörper kalt?")
     services.add_tenant_input(case.id, "tap: Überall kalt")
-    services.log_message(contact.id, case.id, "in", "Überall kalt")
+    services.log_message(contact.id, case.id, "whatsapp", "in", "Überall kalt")
     ranking = services.rank_partners(case.id)
     return {"case_id": case.id, "ranking": ranking}
 
@@ -163,7 +186,7 @@ async def t_consent(body: dict) -> dict:
     services.record_consent(case.reporter_contact_id, partner_id, case_id, fields,
                             body.get("purpose", "heating repair visit"), "whatsapp")
     services.add_tenant_input(case_id, "tap: consent")
-    services.log_message(case.reporter_contact_id, case_id, "in", "✅ Ja, teilen")
+    services.log_message(case.reporter_contact_id, case_id, "whatsapp", "in", "✅ Ja, teilen")
     try:
         return {"dispatched": services.dispatch_job(case_id, partner_id)}
     except rules.RuleViolation as rv:
@@ -173,10 +196,10 @@ async def t_consent(body: dict) -> dict:
 async def t_pick_slot(body: dict) -> dict:
     case_id = _case_id(body)
     case = services.get_case(case_id)
-    idx = int(body.get("index", 1))
+    idx = int(body.get("index", 1))  # 1-based
     slots = (case.data or {}).get("proposed_slots") or []
     if 1 <= idx <= len(slots):
-        services.log_message(case.reporter_contact_id, case_id, "in", slots[idx - 1]["label"])
+        services.log_message(case.reporter_contact_id, case_id, "whatsapp", "in", slots[idx - 1]["label"])
     try:
         return services.confirm_slot(case_id, idx)
     except rules.RuleViolation as rv:
@@ -187,7 +210,7 @@ async def t_fixed(body: dict) -> dict:
     case_id = _case_id(body)
     case = services.get_case(case_id)
     fixed = bool(body.get("fixed", True))
-    services.log_message(case.reporter_contact_id, case_id, "in", "👍 Ja, warm!" if fixed else "Nein, noch kalt")
+    services.log_message(case.reporter_contact_id, case_id, "whatsapp", "in", "👍 Ja, warm!" if fixed else "Nein, noch kalt")
     return services.tenant_confirms_fixed(case_id, fixed)
 
 
