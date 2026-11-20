@@ -59,6 +59,15 @@ The demo panel sits behind the tiny dot at the bottom right of any page, or pres
 | 8 | Installer | Photo after repair `data/demo/repair_done.jpg`, Invoice (PDF) `data/demo/invoice_RE-2026-1187.pdf` → **Mark as done** | Invoice + price check, Luka asked "Wieder warm?" |
 | 9 | Luka | Tap **Ja, alles warm** | Case closed, invoice + report on unit 4b |
 
+### Extra beat: plug in a new partner live (about 1 minute, after step 9 or in Q&A)
+Pitch line: "The next partner plugs in without a line of code."
+1. Staff page → **Partners** → **+ Onboard a partner** (or open http://localhost:8000/partners/join).
+2. Click **Fill demo partner** (Heizung Müller GmbH, heating + plumbing, Vaillant + Buderus, 15 km around 52062, two technicians). Click through the three steps; point at the manifest JSON building on the right and the spec checklist turning green (17/17), especially the consent flags.
+3. **Go live** → "Heizung Müller is live" with **Open partner portal** and **Open as Jonas / Eva**. Back on **Partners**, the new card is there.
+4. The next matching case ranks Heizung Müller with no code change: #2 for a plumbing case, #3 for Luka's heating case (Schmidt stays first because of its framework agreement and rating).
+
+The onboarded manifest is saved as `partners/heizung-mueller.json` and survives **Reset**. To remove it after the demo: delete that file, then reset.
+
 ### Variant: Luka calls instead of sending a voice note (step 1)
 Luka **calls** Debye (phone number, or the `/call` page as "Luka"): "Meine Heizung ist seit heute Morgen kalt … alle Heizkörper … auf dem Display steht F 28." Debye greets Luka by name and doesn't ask for address or boiler. It explains "die Zündung ist fehlgeschlagen (Fehlercode F.28)", opens the case and hangs up. Within about 10 s:
 - staff page: case opened, timeline line **"Call with Luka (0:47): heating cold, all radiators cold, ignition failed (F.28). Case opened, consent asked on WhatsApp."**

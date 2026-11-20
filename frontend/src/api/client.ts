@@ -1,4 +1,4 @@
-import type { CaseDetail, CaseSummary, JobDetail, JobSummary, PartnerProfile, Slot, TechProfile, Technician, UnitDetail, UnitSummary } from './types'
+import type { CaseDetail, CaseSummary, JobDetail, JobSummary, OnboardCheck, OnboardResult, PartnerProfile, Slot, TechProfile, Technician, UnitDetail, UnitSummary } from './types'
 
 export const USE_FIXTURES = import.meta.env.VITE_USE_FIXTURES === '1'
 export const DEMO = import.meta.env.VITE_DEMO === '1'
@@ -65,6 +65,9 @@ const http = {
       return got.filter((p): p is PartnerProfile => !!p)
     }
   },
+  onboardValidate: (manifest: Record<string, unknown>) => req<{ valid: boolean; checks: OnboardCheck[] }>('POST', '/api/partners/onboard/validate', { manifest }),
+  onboard: (manifest: Record<string, unknown>, technicians: { name: string; skills: string[] }[]) =>
+    req<OnboardResult>('POST', '/api/partners/onboard', { manifest, technicians }),
   demoScenarios: () => req<unknown>('POST', '/demo/scenarios'),
   demoReset: () => req<void>('POST', '/demo/reset'),
   demoSkip: () => req<void>('POST', '/demo/skip-to-tomorrow'),

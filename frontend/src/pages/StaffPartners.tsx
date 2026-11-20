@@ -49,7 +49,13 @@ function PartnerCard({ p }: { p: PartnerProfile }) {
       </header>
       <dl className="grid grid-cols-[112px_minmax(0,1fr)] gap-x-3 gap-y-1.5 px-5 py-3 text-body-sm">
         <dt className="text-muted">{t('Service area')}</dt>
-        <dd>{postcodes.length ? postcodes.join(', ') : '—'}</dd>
+        <dd>
+          {postcodes.length
+            ? postcodes.join(', ')
+            : p.service_area?.radius_km
+              ? t('{km} km around {pc}', { km: p.service_area.radius_km, pc: p.service_area.base_postcode })
+              : '—'}
+        </dd>
         {brands.length > 0 && (
           <>
             <dt className="text-muted">{t('Certified')}</dt>
@@ -99,9 +105,14 @@ export default function StaffPartners() {
   const { data, error, reload } = useResource(() => api.partners(), [])
   return (
     <div className="flex flex-col gap-work">
-      <div>
-        <h1 className="text-page">{t('Partners')}</h1>
-        <p className="mt-1 text-body text-secondary">{t('Framework partners Debye can send jobs to. Open their portal or a technician view to see what they see.')}</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-page">{t('Partners')}</h1>
+          <p className="mt-1 text-body text-secondary">{t('Framework partners Debye can send jobs to. Open their portal or a technician view to see what they see.')}</p>
+        </div>
+        <Link to="/partners/join" className="btn-primary">
+          + {t('Onboard a partner')}
+        </Link>
       </div>
       {error && !data && <ErrorBox error={error} onRetry={reload} />}
       {!data && !error && <Loading what={t('Loading partners')} />}

@@ -17,6 +17,22 @@ def flatten(ctx: dict, prefix: str = "") -> dict[str, Any]:
     return out
 
 
+def in_service_area(area: dict, postcode: Any) -> bool:
+    """postcodes[] wins; else radius_km around base_postcode. Without geodata the radius is
+    approximated by German postcode prefixes (see below)."""
+    pc = str(postcode or "")
+    codes = [str(p) for p in area.get("postcodes") or []]
+    if codes:
+        return pc in codes
+    base, radius = str(area.get("base_postcode") or ""), area.get("radius_km")
+    if not (base and radius and pc):
+        return False
+    # Demo approximation (no geocoder offline): <=10 km → same first 4 digits,
+    # <=30 km → same first 3 digits, larger → same leading region digits.
+    digits = 4 if radius <= 10 else 3 if radius <= 30 else 2
+    return pc[:digits] == base[:digits]
+
+
 def evaluate(manifest: Manifest, flat: dict[str, Any]) -> tuple[bool, list[str]]:
     """Returns (eligible, reasons). Reasons explain failures (or passes when eligible)."""
     reasons: list[str] = []
@@ -28,7 +44,7 @@ def evaluate(manifest: Manifest, flat: dict[str, Any]) -> tuple[bool, list[str]]
         elif rule.op == "in":
             passed = actual in (rule.value or [])
         elif rule.op == "in_service_area":
-            passed = str(actual) in [str(p) for p in manifest.service_area.get("postcodes", [])]
+            passed = in_service_area(manifest.service_area, actual)
         elif rule.op == "gte":
             passed = actual is not None and actual >= rule.value
         elif rule.op == "lte":

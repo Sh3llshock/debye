@@ -103,7 +103,14 @@ def seed(reset: bool = False) -> None:
             s.merge(Notice(id=n["id"], property_id=n["property_id"], title=n["title"],
                            body=n.get("body", ""), kind=n.get("kind", "maintenance"),
                            active=bool(n.get("active")), starts=n.get("starts"), ends=n.get("ends")))
+        seeded_techs = {t["id"] for t in data.get("technicians", [])}
         for m in load_manifests():
+            # onboarded partners (POST /api/partners/onboard) carry their technician roster
+            for t in m.pop("technicians", None) or []:
+                if t.get("id") and t["id"] not in seeded_techs:
+                    s.merge(Technician(id=t["id"], partner_id=m["partner_id"], name=t["name"],
+                                       phone_e164=t.get("phone_e164"), skills=t.get("skills", []),
+                                       busy=seed_busy(t.get("busy", []))))
             s.merge(Partner(id=m["partner_id"], manifest=m, active=True))
         s.commit()
     log.info("seeded database")
