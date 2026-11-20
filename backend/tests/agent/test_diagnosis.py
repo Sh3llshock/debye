@@ -221,3 +221,51 @@ def test_new_backend_api_used_when_present(client, svc, claude, monkeypatch):
     client.post("/webhooks/whatsapp", json=tap("diagfu_yes:hot_water_used_up"))
     assert any(c[0] == "close_self_help" and c[1] == case_id for c in calls)
     assert not any(c[0] == "dispatch" for c in svc.calls)
+
+
+def test_heater_type_known_from_centrix_not_asked(client, svc, claude):
+    from app.agent import state
+
+    start(client, claude)  # fake unit: central gas boiler → hot water source known
+    conv = state.conversation("c_202")
+    assert conv.diagnosis["answers"]["q_heater_type"] == "no"
+    asked = run_with_truth(client, {"q_safety": "no", "q_scope": "only_shower", "q_knob": "correct",
+                                    "q_waited": "yes", "q_recent_work": "no", "q_handle_feel": "normal",
+                                    "q_weather_pipe": "no"})
+    assert "q_heater_type" not in asked
+
+
+def test_applies_if_in_context():
+    from app.agent import diagnosis, state
+
+    conv = state.Conversation(contact_id="x")
+    diagnosis.start(conv, "cold")
+    causes = {c["id"]: c for c in diagnosis.context_block(conv)["causes"]}
+    assert "applies_if" in causes["electric_instant_heater"]
+
+
+def test_approval_rejected_text(client, svc, claude):
+    import asyncio
+
+    from app import notify
+
+    claude([RuntimeError("down")])
+    client.post("/webhooks/whatsapp", json=wa("My heating is cold"))
+    asyncio.run(notify.notify_tenant("case_0001", "approval_rejected", {"reason": "the landlord's own caretaker will check first"}))
+    assert texts(client)[-1] == ("Your property manager has decided not to send a technician for now: the landlord's "
+                                 "own caretaker will check first. They'll be in touch.")
+
+
+def test_no_duplicate_question_via_ask_buttons(client, svc, gpt):
+    stub = gpt([
+        [oa_call("ask_question", question_id="q_scope", lead_in=None),
+         oa_call("ask_buttons", text="Are the radiators cold?", options=[{"id": "yes", "title": "Yes"},
+                                                                          {"id": "no", "title": "No"}])],
+        "",
+    ])
+    client.post("/webhooks/whatsapp", json=wa("no hot water in the shower"))
+    client.post("/webhooks/whatsapp", json=tap("diag:q_safety:no"))
+    sent = [m for m in outbox(client) if m["payload"]["type"] == "interactive"]
+    assert len(sent) == 2  # safety question + q_scope only
+    refused = stub.requests[1]["messages"][-1]
+    assert refused["role"] == "tool" and "ask_question" in refused["content"]
