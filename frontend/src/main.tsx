@@ -11,6 +11,7 @@ import StaffCase from './pages/StaffCase'
 import StaffUnit, { StaffUnits } from './pages/StaffUnit'
 import PartnerPage from './pages/PartnerInbox'
 import TechPage from './pages/TechPage'
+import StaffPartners from './pages/StaffPartners'
 import { t, useLang } from './lib/i18n'
 
 function Staff() {
@@ -43,7 +44,9 @@ function App() {
           <Route path="cases/:caseId" element={<StaffCase />} />
           <Route path="units" element={<StaffUnits />} />
           <Route path="units/:unitId" element={<StaffUnit />} />
+          <Route path="partners" element={<StaffPartners />} />
         </Route>
+        <Route path="/partners" element={<Navigate to="/staff/partners" replace />} />
         <Route path="/partner" element={<Navigate to="/partner/heizung-schmidt" replace />} />
         <Route path="/partner/:partnerId" element={<PartnerPage />} />
         <Route path="/partner/:partnerId/jobs/:caseId" element={<PartnerPage />} />
