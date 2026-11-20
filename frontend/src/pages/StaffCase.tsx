@@ -9,25 +9,28 @@ import { lineState, STAFF_STATIONS } from '../lib/lifecycle'
 import { patchCase } from '../lib/liveCase'
 import { useStream } from '../lib/stream'
 import { useDebounced, useResource } from '../lib/useResource'
+import { t } from '../lib/i18n'
 
 /** What the next station is waiting for, in words. */
-function waitingText(status: string, who: string) {
+function waitingText(status: string, who: string, tech?: string) {
   switch (status) {
     case 'new':
-      return `waiting for ${who}'s consent`
+      return t("waiting for {who}'s consent", { who })
     case 'awaiting_approval':
-      return 'waiting for your decision'
+      return t('waiting for your decision')
     case 'requested':
     case 'accepted':
-      return 'waiting for partner times'
+      return t('waiting for partner times')
     case 'slots_proposed':
-      return `waiting for ${who} to pick`
+      return t('waiting for {who} to pick', { who })
+    case 'awaiting_technician':
+      return t('waiting for {tech} to confirm', { tech: tech ?? t('the technician') })
     case 'scheduled':
-      return 'after the visit'
+      return t('after the visit')
     case 'completed':
-      return 'checking invoice'
+      return t('checking invoice')
     case 'invoiced':
-      return `waiting for ${who}`
+      return t('waiting for {who}', { who })
     default:
       return null
   }
@@ -51,13 +54,13 @@ export default function StaffCase() {
   })
 
   const street = (c?.address ?? '').split(',')[0]
-  useCrumbs([{ label: 'Cases', to: '/staff' }, { label: c ? `${street} · ${c.unit_id.replace('unit_', '')}` : caseId }])
+  useCrumbs([{ label: t('Cases'), to: '/staff' }, { label: c ? `${street} · ${c.unit_id.replace('unit_', '')}` : caseId }])
 
   if (error && !c) return <ErrorBox error={error} onRetry={reload} />
-  if (!c) return <Loading what="Loading case" />
+  if (!c) return <Loading what={t('Loading case')} />
 
   const partnerName = (id: string) => c.ranking.find((r) => r.partner_id === id)?.name ?? (c.partner?.partner_id === id ? c.partner.name : id)
-  const who = c.reporters[0]?.name.split(' ')[0] ?? 'the resident'
+  const who = c.reporters[0]?.name.split(' ')[0] ?? t('the resident')
   const line = lineState(STAFF_STATIONS, c.status, c.events)
 
   // Case documents first (newest first), then the unit's other records (lease, certificates).
@@ -78,12 +81,12 @@ export default function StaffCase() {
             <PriorityChip priority={c.priority} />
           </div>
           <div className="text-body-sm text-secondary">
-            {c.case_id} · opened {fmtDateTime(c.created_at)}
+            {c.case_id} · {t('opened {date}', { date: fmtDateTime(c.created_at) })}
           </div>
         </div>
         <div className="mt-8 overflow-x-auto">
           <div className="sm:min-w-[720px]">
-            <ServiceLine line={line} waiting={waitingText(c.status, who)} />
+            <ServiceLine line={line} waiting={waitingText(c.status, who, c.technician?.name.split(' ')[0])} />
           </div>
         </div>
         <div className="mt-6">

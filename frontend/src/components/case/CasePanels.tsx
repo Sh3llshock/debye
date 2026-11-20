@@ -3,7 +3,8 @@ import type { CaseDetail, CaseEvent, DocumentItem, RankingEntry, ThreadMessage, 
 import { errorText, explainCodes } from '../../lib/errors'
 import { fmtDateTime, fmtEur, fmtSlot, fmtTime, humanize } from '../../lib/format'
 import { eventKey, messageKey } from '../../lib/keys'
-import { STATUS_TEXT, type LineState } from '../../lib/lifecycle'
+import { statusText, type LineState } from '../../lib/lifecycle'
+import { locale, t } from '../../lib/i18n'
 import { useNewKeys } from '../../lib/useNewKeys'
 import { Icon } from '../icons'
 import { ActorIcon, Empty, JsonView, Mascot, Panel, Prop } from '../ui'
@@ -12,7 +13,7 @@ import { ActorIcon, Empty, JsonView, Mascot, Panel, Prop } from '../ui'
 function shortTs(iso?: string) {
   if (!iso) return ''
   const d = new Date(iso)
-  return `${d.toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'Europe/Berlin' })} ${fmtTime(iso)}`
+  return `${d.toLocaleDateString(locale(), { weekday: 'short', timeZone: 'Europe/Berlin' })} ${fmtTime(iso)}`
 }
 
 /** Full service line with a label and timestamp under each station. `waiting` is shown under the next station. */
@@ -84,7 +85,7 @@ export function MiniLine({ total, reached, status }: { total: number; reached: n
           )
         })}
       </div>
-      <div className="mt-1 text-meta text-secondary">{STATUS_TEXT[status] ?? humanize(status)}</div>
+      <div className="mt-1 text-meta text-secondary">{statusText(status)}</div>
     </div>
   )
 }
@@ -93,24 +94,24 @@ export function MiniLine({ total, reached, status }: { total: number; reached: n
 export function zeroForms(c: CaseDetail) {
   const zf = c.zero_forms
   if (!zf) return null
-  const inputs = zf.tenant_inputs.map((t) => t.toLowerCase())
+  const inputs = zf.tenant_inputs.map((x) => x.toLowerCase())
   const taps = inputs.filter((t) => t.startsWith('tap')).length
   const voice = inputs.filter((t) => t.includes('voice')).length
   const photos = inputs.filter((t) => !t.startsWith('tap') && t.includes('photo')).length
   const texts = inputs.length - taps - voice - photos
   const parts = [
-    voice && `${voice} voice note${voice > 1 ? 's' : ''}`,
-    photos && `${photos} photo${photos > 1 ? 's' : ''}`,
-    texts > 0 && `${texts} message${texts > 1 ? 's' : ''}`,
-    taps && `${taps} tap${taps > 1 ? 's' : ''}`,
+    voice && t(voice > 1 ? '{n} voice notes' : '{n} voice note', { n: voice }),
+    photos && t(photos > 1 ? '{n} photos' : '{n} photo', { n: photos }),
+    texts > 0 && t(texts > 1 ? '{n} messages' : '{n} message', { n: texts }),
+    taps && t(taps > 1 ? '{n} taps' : '{n} tap', { n: taps }),
   ].filter(Boolean) as string[]
-  return { prefilled: zf.prefilled.length, inputs: parts.join(', ') || 'nothing yet' }
+  return { prefilled: zf.prefilled.length, inputs: parts.join(', ') || t('nothing yet') }
 }
 
 export function ZeroFormsStrip({ c }: { c: CaseDetail }) {
   const z = zeroForms(c)
   if (!z) return null
-  const name = c.reporters[0]?.name.split(' ')[0] ?? 'the resident'
+  const name = c.reporters[0]?.name.split(' ')[0] ?? t('the resident')
   return (
     <div
       className="relative grid grid-cols-1 gap-3 rounded-panel border border-line bg-sub px-5 py-4 sm:grid-cols-[auto_auto_minmax(0,1fr)] sm:items-center sm:gap-10"
@@ -118,17 +119,17 @@ export function ZeroFormsStrip({ c }: { c: CaseDetail }) {
     >
       <div className="flex items-baseline gap-3">
         <span className="text-stat font-semibold text-ink">0</span>
-        <span className="text-secondary">fields typed by {name}</span>
+        <span className="text-secondary">{t('fields typed by {name}', { name })}</span>
       </div>
       <div className="flex items-baseline gap-3">
         <span className="text-stat font-semibold text-ink">{z.prefilled}</span>
-        <span className="text-secondary">filled from centrix</span>
+        <span className="text-secondary">{t('filled from centrix')}</span>
       </div>
       <div className="flex items-baseline gap-3 lg:pr-28">
-        <span className="shrink-0 text-secondary">{name} did:</span>
+        <span className="shrink-0 text-secondary">{t('{name} did:', { name })}</span>
         <span className="text-panel font-semibold text-ink">{z.inputs}</span>
       </div>
-      {c.status === 'closed' && <Mascot pose="thumbs-up" alt="Debye: repair done" className="animate-rise pointer-events-none absolute -top-8 right-3 hidden h-24 w-24 lg:block" />}
+      {c.status === 'closed' && <Mascot pose="thumbs-up" alt={t('Debye: repair done')} className="animate-rise pointer-events-none absolute -top-8 right-3 hidden h-24 w-24 lg:block" />}
     </div>
   )
 }
@@ -140,14 +141,15 @@ export function actorName(c: CaseDetail, e: CaseEvent) {
     case 'debye':
       return 'Debye'
     case 'tenant':
-      return (d.contact_name as string) ?? c.reporters[0]?.name ?? 'Resident'
+      return (d.contact_name as string) ?? c.reporters[0]?.name ?? t('Resident')
     case 'partner':
+      if (e.kind.startsWith('technician.confirmed') && c.technician) return c.technician.name
       return c.partner?.name.replace(/ GmbH$/, '') ?? 'Partner'
     case 'staff':
     case 'pm':
-      return 'Property manager'
+      return t('Property manager')
     default:
-      return 'System'
+      return t('System')
   }
 }
 
@@ -160,15 +162,15 @@ export function Activity({ c }: { c: CaseDetail }) {
   }, [shown.length])
   return (
     <Panel
-      title="Activity"
+      title={t('Activity')}
       meta={
         <span className="inline-flex items-center gap-2">
-          <span className="animate-pulse-dot h-2 w-2 rounded-full bg-positive" /> Live
+          <span className="animate-pulse-dot h-2 w-2 rounded-full bg-positive" /> {t('Live')}
         </span>
       }
     >
       {shown.length === 0 ? (
-        <Empty>Waiting for the first WhatsApp message…</Empty>
+        <Empty>{t('Waiting for the first WhatsApp message…')}</Empty>
       ) : (
         <ol ref={list} className="max-h-[560px] overflow-y-auto">
           {shown.map((e, i) => {
@@ -213,13 +215,13 @@ function MessageMedia({ m, docs }: { m: ThreadMessage; docs: DocumentItem[] }) {
         if (kind === 'audio' || kind === 'voice_note')
           return (
             <div key={i} className="mb-1 flex items-center gap-2 text-label text-secondary">
-              <Icon name="mic" className="h-4 w-4" /> Voice note
+              <Icon name="mic" className="h-4 w-4" /> {t('Voice note')}
             </div>
           )
         if ((kind === 'photo' || kind === 'image') && url) return <img key={i} src={url} alt={doc?.filename ?? 'photo'} className="mb-1 max-h-40 w-full rounded object-cover" />
         return (
           <div key={i} className="mb-1 flex items-center gap-2 text-label text-secondary">
-            <Icon name={kind === 'photo' ? 'camera' : 'file'} className="h-4 w-4" /> {kind === 'photo' ? 'Photo' : doc?.filename ?? 'Document'}
+            <Icon name={kind === 'photo' ? 'camera' : 'file'} className="h-4 w-4" /> {kind === 'photo' ? t('Photo') : doc?.filename ?? t('Document')}
           </div>
         )
       })}
@@ -234,18 +236,18 @@ export function Conversation({ c }: { c: CaseDetail }) {
   useEffect(() => {
     box.current?.scrollTo({ top: box.current.scrollHeight, behavior: 'smooth' })
   }, [messages.length])
-  const who = c.reporters[0]?.name.split(' ')[0] ?? 'Resident'
+  const who = c.reporters[0]?.name.split(' ')[0] ?? t('Resident')
   return (
     <Panel
       title={
         <span className="flex items-center gap-2">
-          <ActorIcon actor="debye" size={28} /> Conversation
+          <ActorIcon actor="debye" size={28} /> {t('Conversation')}
         </span>
       }
       meta={`WhatsApp · ${who}`}
     >
       <div ref={box} className="flex max-h-[560px] flex-col gap-2 overflow-y-auto p-4">
-        {messages.length === 0 && <Empty>No messages yet</Empty>}
+        {messages.length === 0 && <Empty>{t('No messages yet')}</Empty>}
         {messages.map((m) => {
           const out = m.direction === 'out'
           const { body, buttons } = out && m.text ? splitButtons(m.text) : { body: m.text ?? '', buttons: [] as string[] }
@@ -305,7 +307,7 @@ export function InvoiceFields({ x }: { x: Record<string, unknown> }) {
           ))}
           <tr>
             <td className="pt-1 text-muted">
-              Net {num('net_eur')} · VAT {num('vat_eur')}
+              {t('Net')} {num('net_eur')} · {t('VAT')} {num('vat_eur')}
             </td>
             <td />
             <td className="pt-1 text-right font-semibold">{num('gross_eur')}</td>
@@ -338,13 +340,13 @@ function docSubtitle(d: DocumentItem, pc: unknown) {
   if (d.kind === 'invoice') {
     const gross = typeof x.gross_eur === 'number' ? fmtEur(x.gross_eur as number, true) : null
     const st = priceCheckInfo(x.price_check ?? pc).status
-    return ['Invoice', gross, st === 'ok' ? 'price check passed' : st === 'flagged' ? 'price check flagged' : null].filter(Boolean).join(' · ')
+    return [t('Invoice'), gross, st === 'ok' ? t('price check passed') : st === 'flagged' ? t('price check flagged') : null].filter(Boolean).join(' · ')
   }
-  const date = d.created_at ? new Date(d.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''
-  if (d.kind === 'photo') return ['Photo', date].filter(Boolean).join(' · ')
-  if (d.kind === 'voice_note') return ['Voice note', date].filter(Boolean).join(' · ')
-  if (d.kind === 'report') return 'Visit report'
-  if (d.kind === 'contract') return 'Lease'
+  const date = d.created_at ? new Date(d.created_at).toLocaleDateString(locale(), { day: 'numeric', month: 'short' }) : ''
+  if (d.kind === 'photo') return [t('Photo'), date].filter(Boolean).join(' · ')
+  if (d.kind === 'voice_note') return [t('Voice note'), date].filter(Boolean).join(' · ')
+  if (d.kind === 'report') return t('Visit report')
+  if (d.kind === 'contract') return t('Lease')
   return humanize(d.kind)
 }
 
@@ -354,7 +356,7 @@ export function Documents({ docs, priceCheck }: { docs: DocumentItem[]; priceChe
     8000,
   )
   const [open, setOpen] = useState<string | null>(null)
-  if (docs.length === 0) return <div className="text-body-sm text-muted">No documents yet</div>
+  if (docs.length === 0) return <div className="text-body-sm text-muted">{t('No documents yet')}</div>
   return (
     <ul className="-mx-2 flex flex-col">
       {docs.map((d) => {
@@ -369,11 +371,11 @@ export function Documents({ docs, priceCheck }: { docs: DocumentItem[]; priceChe
                 <div className={`text-meta ${st === 'ok' ? 'text-positive' : st === 'flagged' ? 'text-warning' : 'text-muted'}`}>{docSubtitle(d, priceCheck)}</div>
                 {hasFields && (
                   <button className="text-meta font-semibold text-action hover:underline" onClick={() => setOpen(open === d.document_id ? null : d.document_id)}>
-                    {open === d.document_id ? 'Hide fields' : 'Show extracted fields'}
+                    {open === d.document_id ? t('Hide fields') : t('Show extracted fields')}
                   </button>
                 )}
               </div>
-              <a href={d.url} target="_blank" rel="noreferrer" className="text-secondary hover:text-action" aria-label={`Download ${d.filename}`}>
+              <a href={d.url} target="_blank" rel="noreferrer" className="text-secondary hover:text-action" aria-label={t('Download {file}', { file: d.filename })}>
                 <Icon name="download" className="h-5 w-5" />
               </a>
             </div>
@@ -388,7 +390,7 @@ export function Documents({ docs, priceCheck }: { docs: DocumentItem[]; priceChe
 export function Inspector({ c, unit, docs, partnerName }: { c: CaseDetail; unit: UnitDetail | null; docs: DocumentItem[]; partnerName: (id: string) => string }) {
   const [json, setJson] = useState(false)
   const z = zeroForms(c)
-  const name = c.reporters[0]?.name.split(' ')[0] ?? 'Resident'
+  const name = c.reporters[0]?.name.split(' ')[0] ?? t('Resident')
   const inv = c.documents.find((d) => d.kind === 'invoice')
   const gross = (inv?.extracted as Record<string, unknown> | undefined)?.gross_eur as number | undefined
   const err = errorText(c.asset?.error_code, c.asset?.error_label, c.asset?.error_meaning)
@@ -397,67 +399,77 @@ export function Inspector({ c, unit, docs, partnerName }: { c: CaseDetail; unit:
   const k = c.consents[0]
   return (
     <aside className="panel self-start">
-      <Section title="Case">
-        <Prop label="Priority">{humanize(c.priority)}</Prop>
-        {err && <Prop label="Boiler error">{err}</Prop>}
-        <Prop label="Cost bearer">{humanize(c.cost_bearer)}</Prop>
-        <Prop label="Partner">{c.partner?.name ?? 'not assigned yet'}</Prop>
-        <Prop label="Visit">{c.slot ? fmtSlot(c.slot) : c.proposed_slots?.length ? `${c.proposed_slots.length} times offered` : 'not booked'}</Prop>
-        <Prop label="Cost">
-          {gross != null ? `${fmtEur(gross, true)} invoiced, ` : ''}
-          {c.estimated_cost_eur != null ? `${fmtEur(c.estimated_cost_eur)} estimated` : '—'}
+      <Section title={t('Case')}>
+        <Prop label={t('Priority')}>{humanize(c.priority)}</Prop>
+        {err && <Prop label={t('Boiler error')}>{err}</Prop>}
+        <Prop label={t('Cost bearer')}>{humanize(c.cost_bearer)}</Prop>
+        <Prop label={t('Partner')}>{c.partner?.name ?? t('not assigned yet')}</Prop>
+        <Prop label={t('Technician')}>
+          {c.technician ? (
+            <>
+              {c.technician.name}
+              <span className="text-muted"> · {c.status === 'awaiting_technician' ? t('to confirm') : ['scheduled', 'in_progress', 'completed', 'invoiced', 'closed'].includes(c.status) ? t('confirmed') : t('assigned')}</span>
+            </>
+          ) : (
+            <span className="text-muted">{t('not assigned yet')}</span>
+          )}
         </Prop>
-        <Prop label="Approval">{c.approval?.required ? 'Needs your decision' : c.approval?.rule && c.approval.rule !== 'not evaluated yet' ? humanize(c.approval.rule) : '—'}</Prop>
+        <Prop label={t('Visit')}>{c.slot ? fmtSlot(c.slot) : c.proposed_slots?.length ? t('{n} times offered', { n: c.proposed_slots.length }) : t('not booked')}</Prop>
+        <Prop label={t('Cost')}>
+          {gross != null ? `${t('{eur} invoiced', { eur: fmtEur(gross, true) })}, ` : ''}
+          {c.estimated_cost_eur != null ? t('{eur} estimated', { eur: fmtEur(c.estimated_cost_eur) }) : '—'}
+        </Prop>
+        <Prop label={t('Approval')}>{c.approval?.required ? t('Needs your decision') : c.approval?.rule && c.approval.rule !== 'not evaluated yet' ? humanize(c.approval.rule) : '—'}</Prop>
         {z && (
-          <Prop label={`${name}'s input`}>
-            {z.inputs}. Debye filled the other {z.prefilled} fields from centrix
+          <Prop label={t("{name}'s input", { name })}>
+            {t('{inputs}. Debye filled the other {n} fields from centrix', { inputs: z.inputs, n: z.prefilled })}
           </Prop>
         )}
       </Section>
       <Section title={`Unit ${c.unit_id.replace('unit_', '')}`}>
         {unit ? (
           <>
-            <Prop label="Address">{p?.address}</Prop>
-            <Prop label="Floor">{[unit.unit.floor, unit.unit.size_sqm ? `${unit.unit.size_sqm} m²` : null, unit.unit.rooms ? `${unit.unit.rooms} rooms` : null].filter((x) => x != null).join(' · ')}</Prop>
-            <Prop label="Building">{[p?.building_year, p?.heating_type, p?.energy_class ? `energy class ${p.energy_class}` : null].filter(Boolean).join(' · ')}</Prop>
+            <Prop label={t('Address')}>{p?.address}</Prop>
+            <Prop label={t('Floor')}>{[unit.unit.floor, unit.unit.size_sqm ? `${unit.unit.size_sqm} m²` : null, unit.unit.rooms ? t('{n} rooms', { n: unit.unit.rooms }) : null].filter((x) => x != null).join(' · ')}</Prop>
+            <Prop label={t('Building')}>{[p?.building_year, p?.heating_type ? humanize(p.heating_type) : null, p?.energy_class ? t('energy class {c}', { c: p.energy_class }) : null].filter(Boolean).join(' · ')}</Prop>
             {boiler && (
-              <Prop label="Boiler">
+              <Prop label={t('Boiler')}>
                 {boiler.make} {boiler.model}
                 {boiler.installed ? ` (${boiler.installed.slice(0, 4)})` : ''}
-                {boiler.last_service ? `, serviced ${new Date(boiler.last_service).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}` : ''}
+                {boiler.last_service ? `, ${t('serviced {date}', { date: new Date(boiler.last_service).toLocaleDateString(locale(), { month: 'short', year: 'numeric' }) })}` : ''}
               </Prop>
             )}
-            <Prop label="Tenant">{unit.tenant?.name}</Prop>
+            <Prop label={t('Tenant')}>{unit.tenant?.name}</Prop>
           </>
         ) : (
-          <div className="text-muted">Loading…</div>
+          <div className="text-muted">{t('Loading')}…</div>
         )}
       </Section>
-      <Section title="Consent">
+      <Section title={t('Consent')}>
         {k ? (
           <>
-            <Prop label="Shared with">{partnerName(k.partner_id)}</Prop>
-            <Prop label="Data">{humanize(k.data_shared.map((f) => f.replace('unit_floor', 'floor').replace('photos', 'photo')).join(', '))}</Prop>
-            <Prop label="When">
+            <Prop label={t('Shared with')}>{partnerName(k.partner_id)}</Prop>
+            <Prop label={t('Data')}>{k.data_shared.map((f) => t(f.replace('unit_floor', 'floor').replace('photos', 'photo'))).join(', ')}</Prop>
+            <Prop label={t('When')}>
               {fmtDateTime(k.given_at)}, {k.channel === 'whatsapp' ? 'WhatsApp' : humanize(k.channel)}
             </Prop>
-            <Prop label="Purpose">{humanize(k.purpose)}</Prop>
-            {k.revoked_at && <Prop label="Revoked">{fmtDateTime(k.revoked_at)}</Prop>}
+            <Prop label={t('Purpose')}>{humanize(k.purpose)}</Prop>
+            {k.revoked_at && <Prop label={t('Revoked')}>{fmtDateTime(k.revoked_at)}</Prop>}
           </>
         ) : (
-          <div className="text-body-sm text-muted">Nothing shared yet. No data leaves centrix without {name}'s tap.</div>
+          <div className="text-body-sm text-muted">{t("Nothing shared yet. No data leaves centrix without {name}'s tap.", { name })}</div>
         )}
       </Section>
       <section className="border-b border-line px-5 py-4 last:border-b-0">
-        <h3 className="mb-2 text-panel">Documents</h3>
+        <h3 className="mb-2 text-panel">{t('Documents')}</h3>
         <Documents docs={docs} priceCheck={c.price_check} />
       </section>
       {c.result && (
         <section className="px-5 py-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-panel">Written back to centrix</h3>
+            <h3 className="text-panel">{t('Written back to centrix')}</h3>
             <button className="text-label font-semibold text-action hover:underline" onClick={() => setJson(!json)}>
-              {json ? 'Hide' : 'Show'} JSON
+              {json ? t('Hide JSON') : t('Show JSON')}
             </button>
           </div>
           {json && (
@@ -478,13 +490,13 @@ export function PartnerChoice({ c, ranking, chosen, onApprove }: { c: CaseDetail
   const needs = c.approval?.required || c.status === 'awaiting_approval'
   const amount = c.approval?.amount_eur ?? c.estimated_cost_eur
   return (
-    <Panel title="Partner choice" meta="Ranked by Debye from the framework list">
+    <Panel title={t('Partner choice')} meta={t('Ranked by Debye from the framework list')}>
       {needs && (
         <div className="flex flex-wrap items-center gap-4 border-b border-line bg-warning-soft px-5 py-4">
           <div className="min-w-0 flex-1">
-            <div className="font-semibold">Needs your decision</div>
+            <div className="font-semibold">{t('Needs your decision')}</div>
             <div className="text-body-sm text-secondary">
-              {c.partner?.name ?? 'The partner'} estimates {fmtEur(amount)}. {c.approval?.rule ?? 'That is over your auto-approval limit'}, so the job waits for you.
+              {t('{partner} estimates {eur}. That is over your auto-approval limit, so the job waits for you.', { partner: c.partner?.name ?? t('The partner'), eur: fmtEur(amount) })}
             </div>
             {err && <div className="mt-1 text-negative">{err}</div>}
           </div>
@@ -503,19 +515,19 @@ export function PartnerChoice({ c, ranking, chosen, onApprove }: { c: CaseDetail
               }
             }}
           >
-            {busy ? 'Approving…' : `Approve ${fmtEur(amount)}`}
+            {busy ? t('Approving…') : t('Approve {eur}', { eur: fmtEur(amount) })}
           </button>
         </div>
       )}
       {ranking.length === 0 ? (
-        <Empty>Debye ranks partners once the case is triaged.</Empty>
+        <Empty>{t('Debye ranks partners once the case is triaged.')}</Empty>
       ) : (
         <table className="w-full text-left">
           <thead>
             <tr className="border-b border-line text-label text-muted">
-              <th className="px-5 py-3 font-medium">Partner</th>
-              <th className="px-3 py-3 font-medium">Score</th>
-              <th className="px-5 py-3 font-medium">Why</th>
+              <th className="px-5 py-3 font-medium">{t('Partner')}</th>
+              <th className="px-3 py-3 font-medium">{t('Score')}</th>
+              <th className="px-5 py-3 font-medium">{t('Why')}</th>
             </tr>
           </thead>
           <tbody>

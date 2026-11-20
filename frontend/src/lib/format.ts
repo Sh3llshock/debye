@@ -1,3 +1,4 @@
+import { getLang, locale, t } from './i18n'
 import type { ChipTone } from '../theme'
 import type { Slot } from '../api/types'
 
@@ -7,37 +8,37 @@ export function fmtTime(iso?: string | null) {
   if (!iso) return '—'
   const d = new Date(iso)
   if (isNaN(+d)) return iso
-  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: TZ })
+  return d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit', timeZone: TZ })
 }
 export function fmtDate(iso?: string | null) {
   if (!iso) return '—'
   const d = new Date(iso)
   if (isNaN(+d)) return iso
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: TZ })
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric', timeZone: TZ })
 }
 export function fmtDateTime(iso?: string | null) {
   if (!iso) return '—'
   const d = new Date(iso)
   if (isNaN(+d)) return iso
-  return d.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: TZ })
+  return d.toLocaleString(locale(), { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: TZ })
 }
 export function fmtSlot(s?: Slot | null) {
   if (!s) return '—'
-  if (s.label) return s.label
+  // Always formatted from start/end so it follows the UI language (API labels are German).
   const a = new Date(s.start)
   const b = new Date(s.end)
-  const day = a.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: TZ })
-  const t = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: TZ })
-  return `${day}, ${t(a)}–${t(b)}`
+  const day = a.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short', timeZone: TZ })
+  const tm = (d: Date) => d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit', timeZone: TZ })
+  return `${day}, ${tm(a)}–${tm(b)}`
 }
 export function fmtEur(n?: number | null, cents = false) {
   if (n === null || n === undefined || isNaN(Number(n))) return '—'
   const v = Number(n)
-  return new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', minimumFractionDigits: cents || !Number.isInteger(v) ? 2 : 0 }).format(v)
+  return new Intl.NumberFormat(locale() === 'de-DE' ? 'de-DE' : 'en-IE', { style: 'currency', currency: 'EUR', minimumFractionDigits: cents || !Number.isInteger(v) ? 2 : 0 }).format(v)
 }
 export function humanize(s?: string | null) {
   if (!s) return '—'
-  return s.replace(/[._]/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
+  return t(s.replace(/[._]/g, ' ').replace(/^\w/, (c) => c.toUpperCase()))
 }
 
 export const STATUS: Record<string, { label: string; tone: ChipTone }> = {
@@ -54,9 +55,11 @@ export const STATUS: Record<string, { label: string; tone: ChipTone }> = {
   declined: { label: 'Declined', tone: 'negative' },
   partner_declined: { label: 'Partner declined', tone: 'negative' },
   reopened: { label: 'Reopened', tone: 'warning' },
+  awaiting_technician: { label: 'Technician to confirm', tone: 'warning' },
 }
 export function statusInfo(s: string) {
-  return STATUS[s] ?? { label: humanize(s), tone: 'neutral' as ChipTone }
+  const x = STATUS[s]
+  return x ? { label: t(x.label), tone: x.tone } : { label: humanize(s), tone: 'neutral' as ChipTone }
 }
 
 /** Lifecycle segments shown on the case card (design: Requested → Accepted → Scheduled → Done → Invoiced → Closed). */
@@ -83,12 +86,12 @@ export function fmtRelative(iso?: string | null) {
   const d = new Date(iso)
   if (isNaN(+d)) return iso
   const diff = (Date.now() - d.getTime()) / 1000
-  if (diff >= 0 && diff < 60) return 'just now'
-  if (diff >= 0 && diff < 3600) return `${Math.round(diff / 60)} min ago`
+  if (diff >= 0 && diff < 60) return t('just now')
+  if (diff >= 0 && diff < 3600) return t('{n} min ago', { n: Math.round(diff / 60) })
   const day = (x: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(x)
   if (day(d) === day(new Date())) return fmtTime(iso)
-  if (day(d) === day(new Date(Date.now() - 86400_000))) return 'Yesterday'
-  return d.toLocaleDateString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit', timeZone: TZ })
+  if (day(d) === day(new Date(Date.now() - 86400_000))) return t('Yesterday')
+  return d.toLocaleDateString(locale(), { weekday: 'short', hour: '2-digit', minute: '2-digit', timeZone: TZ })
 }
 
 export function initials(name?: string | null) {
@@ -111,7 +114,8 @@ export function maskPhone(p?: string | null) {
 
 export function floorLabel(f?: number | null) {
   if (f === null || f === undefined) return '—'
-  if (f === 0) return 'Ground floor'
+  if (f === 0) return t('Ground floor')
+  if (getLang() === 'de') return `${f}. Stock`
   const suf = f === 1 ? 'st' : f === 2 ? 'nd' : f === 3 ? 'rd' : 'th'
   return `${f}${suf} floor`
 }

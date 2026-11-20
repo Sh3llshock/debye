@@ -11,6 +11,7 @@ import { lineState, STAFF_STATIONS } from '../lib/lifecycle'
 import { useStream } from '../lib/stream'
 import { useNewKeys } from '../lib/useNewKeys'
 import { useDebounced, useResource } from '../lib/useResource'
+import { t } from '../lib/i18n'
 
 type Filter = 'all' | 'open' | 'decision' | 'closed'
 const FILTERS: { key: Filter; label: string; test: (c: CaseSummary) => boolean }[] = [
@@ -35,12 +36,12 @@ function DecisionRow({ c, onDone }: { c: CaseSummary; onDone: () => void }) {
               {c.title} · {(c.address ?? '').split(',')[0]}, {c.unit_id.replace('unit_', '')} · {c.case_id}
             </div>
             <div className="text-body-sm text-secondary">
-              {c.partner?.name ?? 'The partner'} estimates {fmtEur(amount)}. That is over your auto-approval limit, so the job waits for you.
+              {t('{partner} estimates {eur}. That is over your auto-approval limit, so the job waits for you.', { partner: c.partner?.name ?? t('The partner'), eur: fmtEur(amount) })}
             </div>
             {err && <div className="mt-1 text-negative">{err}</div>}
           </div>
           <Link to={`/staff/cases/${c.case_id}`} className="btn-secondary">
-            Open case
+            {t('Open case')}
           </Link>
           <button
             className="btn-primary"
@@ -58,7 +59,7 @@ function DecisionRow({ c, onDone }: { c: CaseSummary; onDone: () => void }) {
               }
             }}
           >
-            {busy ? 'Approving…' : `Approve ${fmtEur(amount)}`}
+            {busy ? t('Approving…') : t('Approve {eur}', { eur: fmtEur(amount) })}
           </button>
         </div>
       </td>
@@ -67,7 +68,7 @@ function DecisionRow({ c, onDone }: { c: CaseSummary; onDone: () => void }) {
 }
 
 export default function StaffCases() {
-  useCrumbs([{ label: 'Cases' }])
+  useCrumbs([{ label: t('Cases') }])
   const { data, error, reload } = useResource(() => api.staffCases(), [])
   const refetch = useDebounced(reload, 250)
   useStream(() => refetch())
@@ -85,10 +86,10 @@ export default function StaffCases() {
     <div className="flex flex-col gap-work">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-page">Cases</h1>
+          <h1 className="text-page">{t('Cases')}</h1>
           {data && (
             <p className="mt-1 text-body text-secondary">
-              {data.length} case{data.length === 1 ? '' : 's'} · {open} open · {need} need{need === 1 ? 's' : ''} your decision
+              {t(data.length === 1 ? '{n} case' : '{n} cases', { n: data.length })} · {t('{n} open', { n: open })} · {t(need === 1 ? '{n} needs your decision' : '{n} need your decision', { n: need })}
             </p>
           )}
         </div>
@@ -101,20 +102,20 @@ export default function StaffCases() {
               onClick={() => setFilter(f.key)}
               className={`rounded px-4 py-2 text-body transition-colors ${filter === f.key ? 'bg-ink font-semibold text-on-action' : 'text-ink hover:bg-sub'}`}
             >
-              {f.label}
+              {t(f.label)}
             </button>
           ))}
         </div>
       </div>
 
       {error && !data && <ErrorBox error={error} onRetry={reload} />}
-      {!data && !error && <Loading what="Loading cases" />}
+      {!data && !error && <Loading what={t('Loading cases')} />}
 
       {data && data.length === 0 && (
         <section className="panel flex flex-col items-center gap-3 px-6 py-12 text-center">
-          <Mascot pose="waving" alt="Debye waving" className="h-40 w-40" />
-          <h2 className="text-page">No open cases. Debye is listening on WhatsApp.</h2>
-          <p className="max-w-xl text-body text-secondary">When a resident sends a message, a voice note or a photo, the case opens here live, with the unit already filled in.</p>
+          <Mascot pose="waving" alt={t('Debye waving')} className="h-40 w-40" />
+          <h2 className="text-page">{t('No open cases. Debye is listening on WhatsApp.')}</h2>
+          <p className="max-w-xl text-body text-secondary">{t('When a resident sends a message, a voice note or a photo, the case opens here live, with the unit already filled in.')}</p>
           <LiveDot />
         </section>
       )}
@@ -124,12 +125,12 @@ export default function StaffCases() {
           <table className="w-full min-w-[900px] text-left">
             <thead className="bg-sub">
               <tr className="border-b border-line text-label text-muted">
-                <th className="px-5 py-3 font-medium">Case</th>
-                <th className="px-4 py-3 font-medium">Unit</th>
-                <th className="px-4 py-3 font-medium">Progress</th>
-                <th className="px-4 py-3 font-medium">Priority</th>
-                <th className="px-4 py-3 font-medium">Partner</th>
-                <th className="px-4 py-3 font-medium">Updated</th>
+                <th className="px-5 py-3 font-medium">{t('Case')}</th>
+                <th className="px-4 py-3 font-medium">{t('Unit')}</th>
+                <th className="px-4 py-3 font-medium">{t('Progress')}</th>
+                <th className="px-4 py-3 font-medium">{t('Priority')}</th>
+                <th className="px-4 py-3 font-medium">{t('Partner')}</th>
+                <th className="px-4 py-3 font-medium">{t('Updated')}</th>
               </tr>
             </thead>
             <tbody>
@@ -162,7 +163,10 @@ export default function StaffCases() {
                     <td className="px-4 py-3">
                       <PriorityChip priority={c.priority} />
                     </td>
-                    <td className="px-4 py-3 text-body-sm">{c.partner?.name ?? <span className="text-muted">—</span>}</td>
+                    <td className="px-4 py-3 text-body-sm">
+                      {c.partner?.name ?? <span className="text-muted">—</span>}
+                      {c.technician && <div className="text-meta text-muted">{c.technician.name}</div>}
+                    </td>
                     <td className="px-4 py-3 text-body-sm text-secondary">{fmtRelative(c.updated_at)}</td>
                   </tr>
                 )
@@ -170,7 +174,7 @@ export default function StaffCases() {
               {shown.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-5 py-8 text-center text-muted">
-                    No cases in this filter.
+                    {t('No cases in this filter.')}
                   </td>
                 </tr>
               )}
