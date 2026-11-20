@@ -26,6 +26,7 @@ def case_summary(s, c: Case) -> dict:
     return {
         "case_id": c.id, "type": c.type, "title": c.title, "status": c.status,
         "priority": c.priority, "unit_id": c.unit_id,
+        "error_code": c.error_code, "error_label": services.error_label(c.error_code),
         "address": prop.address if prop else None,
         "partner": {"partner_id": partner.id, "name": partner.manifest.get("name")} if partner else None,
         "created_at": c.created_at, "updated_at": c.updated_at,
@@ -63,8 +64,10 @@ def case_detail(s, c: Case) -> dict:
         "reporters": reporters,
         "asset": {"asset_id": asset.id, "type": asset.type, "make": asset.make, "model": asset.model,
                   "error_code": c.error_code,
-                  "error_meaning": (asset.known_error_codes or {}).get(c.error_code or "")} if asset
-        else {"error_code": c.error_code},
+                  "error_label": services.error_label(c.error_code, asset.known_error_codes),
+                  # kept for older frontend code; same text as error_label
+                  "error_meaning": services.error_label(c.error_code, asset.known_error_codes)} if asset
+        else {"error_code": c.error_code, "error_label": services.error_label(c.error_code)},
         "cost_bearer": c.cost_bearer,
         "estimated_cost_eur": c.estimated_cost_eur,
         "approval": {"required": approval.get("required", False), "rule": approval.get("rule"),
