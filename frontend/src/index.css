@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-bg text-ink font-sans text-body antialiased; }
+  h1, h2, h3 { @apply font-serif text-plum; font-weight: 600; }
+}
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-pill px-6 py-3 text-body font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed; min-height: 48px; }
+  .btn-primary { @apply btn bg-plum text-on-plum hover:bg-plum-dark; }
+  .btn-secondary { @apply btn bg-surface text-plum border-2 border-plum hover:bg-plum-soft; }
+  .btn-ghost { @apply btn text-muted hover:bg-surface-alt; }
+  .btn-success { @apply btn bg-success text-on-plum hover:opacity-90; }
+  .label { @apply text-xs uppercase tracking-wider text-muted font-semibold; }
+}
+
+@keyframes enter {
+  0% { opacity: 0; transform: translateY(12px); background-color: theme('colors.plum-soft'); }
+  60% { opacity: 1; transform: none; background-color: theme('colors.plum-soft'); }
+  100% { background-color: transparent; }
+}
+.animate-enter { animation: enter 2.4s ease-out both; }
+
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.animate-pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
