@@ -1,6 +1,6 @@
-# Debye
+# Debye (AI assistant)
 
-**reltix's assistant in the resident's WhatsApp, plugged into centrix.** A tenant sends one voice note about a broken heater; Debye opens the case, gets consent, books the right heating installer (also on WhatsApp), and files the invoice on the unit. Zero calls, zero forms.
+**reltix's AI assistant in the resident's WhatsApp, plugged into centrix.** A resident sends one voice note about a broken heater; Debye opens the case, gets consent, sends the job to the right heating installer's partner page, books a slot with the resident on WhatsApp, and files the invoice on the unit. Staff follow everything live on their own page. Zero calls, zero forms.
 
 Built for the reltix track "Plug a Partner into centrix" at MAIN Maastricht 2026.
 
@@ -8,6 +8,7 @@ Built for the reltix track "Plug a Partner into centrix" at MAIN Maastricht 2026
 
 | File | What it is |
 |---|---|
+| [docs/interfaces.md](docs/interfaces.md) | Team contracts: who owns which files, Python and REST interfaces, v2 product decisions |
 | [docs/technical-plan.md](docs/technical-plan.md) | Architecture, data model, channels, agent, partner layer, work packages |
 | [docs/connector-spec.md](docs/connector-spec.md) | The partner connector spec (deliverable): manifest, lifecycle, transports, consent |
 | [docs/pitch-plan.md](docs/pitch-plan.md) | Flow choice, demo story, 3-minute pitch, Q&A prep |

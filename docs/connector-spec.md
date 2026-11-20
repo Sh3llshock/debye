@@ -6,8 +6,9 @@ What any ecosystem partner provides to plug into centrix, so Debye can detect th
 
 1. **One manifest per partner** describes what they offer, where, for whom, what data they need and how to reach them.
 2. **One lifecycle for everyone.** Every order or job moves through the same states, whatever the partner's tech.
-3. **Two transports, same lifecycle.**
+3. **Three transports, same lifecycle.**
    - `api`: for partners with systems (internet, energy, insurance).
+   - `portal`: partners without their own system get a centrix partner page (job inbox, accept, slots, upload invoice). Used in the demo.
    - `conversational`: for partners without an API (most craftsmen). Debye talks to them on WhatsApp or email and turns their replies into the same lifecycle events.
 4. **Consent before context.** A partner receives only the `required_context` fields the resident agreed to share, for a stated purpose. Every handover is recorded.
 
@@ -27,7 +28,7 @@ What any ecosystem partner provides to plug into centrix, so Debye can detect th
 | `pricing` | object | `deliver` partners: `model` (`framework_agreement` \| `quote`), fees and rates |
 | `required_context` | object[] | `{key, source, pii, consent_required}`: what the partner needs and where centrix gets it |
 | `availability` | object | `mode`: `api` (`availability_endpoint`), `conversational` (asked per job) or `static` (`hours`) |
-| `transport` | object | `{type: "api", base_url, auth}` or `{type: "conversational", channel: "whatsapp" \| "email", address}` |
+| `transport` | object | `{type: "api", base_url, auth}`, `{type: "portal", url, notify}` (partner works in the centrix partner page) or `{type: "conversational", channel: "whatsapp" \| "email", address}` |
 | `status_events` | string[] | Lifecycle states the partner reports (subset of section 3) |
 | `documents_returned` | string[] | `contract`, `invoice`, `visit_report`, `meter_reading`, `confirmation` |
 | `sla` | object | `{urgent_response_hours, standard_response_hours}`; Debye re-dispatches on breach |

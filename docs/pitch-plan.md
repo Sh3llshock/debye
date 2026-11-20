@@ -1,3 +1,5 @@
+> **v2 decisions (see [interfaces.md](interfaces.md) §0):** the product is **Debye (AI assistant)**. Residents use WhatsApp only. Partners work in their own web page (`/partner`), staff in their own page (`/staff`). Wherever this doc says the installer uses WhatsApp, read: the installer uses the partner page.
+
 # Debye: build plan and 3-minute pitch (reltix track)
 
 **Track:** reltix, "Plug a Partner into centrix" · 24 h build · 3-minute pitch
