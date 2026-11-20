@@ -75,6 +75,25 @@ def numbered_text(body: str, options: list[Option], intro: str = "Reply with the
     return f"{body}\n\n{intro}\n" + "\n".join(lines)
 
 
+def _join_or(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " or " + items[-1]
+
+
+def natural_text(body: str, options: list[Option], is_list: bool = False) -> str:
+    """Text-only channels: ask naturally, no numbers. Buttons are phrased as questions already;
+    lists (time slots) get their options in one soft line. Numbers still work as input."""
+    if not is_list:
+        return body
+    real = [o.title for o in options if not o.id.startswith("slot_none:")]
+    none = next((o for o in options if o.id.startswith("slot_none:")), None)
+    if not real:
+        return body
+    line = _join_or(real) + "?"
+    if none:
+        line += " Or just tell me if none of these work."
+    return f"{body}\n{line}"
+
+
 def remember_options(phone: str, options: list[Option]) -> None:
     _pending[normalize_phone(phone)] = (time.time(), list(options))
 
@@ -207,11 +226,11 @@ class TwilioChannel(Channel):
 
     async def send_buttons(self, to: str, text: str, options: list[Option]) -> str | None:
         remember_options(to, options)
-        return await self._send(to, numbered_text(text, options))
+        return await self._send(to, natural_text(text, options))
 
     async def send_list(self, to, text, button_label, rows, section_title="Optionen") -> str | None:
         remember_options(to, rows)
-        return await self._send(to, numbered_text(text, rows))
+        return await self._send(to, natural_text(text, rows, is_list=True))
 
     async def send_media(self, to, kind, path, caption=None, mime=None) -> str | None:
         return await self._send(to, caption or "", media_url=public_media_url(path, mime))

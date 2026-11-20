@@ -57,7 +57,8 @@ def test_numbered_flow_through_bridge(client, svc, claude, bridge):
     assert post_wweb(client, text="My heating is cold").status_code == 200
     sent = bridge.calls[-1]
     assert sent["url"] == "http://127.0.0.1:3010/send" and sent["body"]["to_e164"] == LUKA
-    assert "1 = All cold" in sent["body"]["text"] and "2 = Just one room" in sent["body"]["text"]
+    assert sent["body"]["text"].endswith("Are all your radiators cold, or just one?")
+    assert "1 =" not in sent["body"]["text"]  # natural question, numbers still accepted as input
     raw = json.dumps(sent["body"], ensure_ascii=False).encode()
     assert sent["sig"] == wweb.sign(raw)  # outbound is signed for the bridge
 

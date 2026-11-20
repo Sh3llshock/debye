@@ -222,12 +222,7 @@ async def on_consent(contact, case_id: str, yes: bool) -> None:
         code = be.rule_violation_code(exc)
         if code == "approval_required":
             conv.step = st.WAITING_APPROVAL
-            await out.text(
-                contact,
-                case_id,
-                "Thanks! The property management just needs to approve the job, then it goes straight to "
-                f"{partner_label(case_id)}.",
-            )
+            await tell_approval_pending(case_id, [contact])
             return
         log.exception("dispatch_job failed")
         await out.text(contact, case_id, "Thanks! I'm on it and I'll get back to you shortly.")
@@ -239,6 +234,20 @@ async def on_consent(contact, case_id: str, yes: bool) -> None:
         f"Great, thanks! I've booked {partner_label(case_id)} 🙌 As soon as they suggest times, "
         "you can pick one right here.",
     )
+
+
+APPROVAL_PENDING_TEXT = "Thanks! Your property manager is confirming the repair, I'll update you in a moment."
+
+
+async def tell_approval_pending(case_id: str, contacts: list | None = None) -> None:
+    """Once per case: consent is recorded, the property manager still has to approve."""
+    cs = st.case_state(case_id)
+    if cs.approval_notice_sent:
+        return
+    cs.approval_notice_sent = True
+    for c in contacts if contacts is not None else tenant_contacts(case_id, reporter_only=True):
+        st.conversation(be.attr(c, "id")).step = st.WAITING_APPROVAL
+        await out.text(c, case_id, APPROVAL_PENDING_TEXT)
 
 
 # ---------------------------------------------------------------- scheduling

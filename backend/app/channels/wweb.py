@@ -118,11 +118,11 @@ class WWebChannel(Channel):
 
     async def send_buttons(self, to: str, text: str, options: list[Option]) -> str | None:
         tw.remember_options(to, options)
-        return await self.send_text(to, tw.numbered_text(text, options))
+        return await self.send_text(to, tw.natural_text(text, options))
 
     async def send_list(self, to, text, button_label, rows, section_title="Optionen") -> str | None:
         tw.remember_options(to, rows)
-        return await self.send_text(to, tw.numbered_text(text, rows))
+        return await self.send_text(to, tw.natural_text(text, rows, is_list=True))
 
     async def send_media(self, to, kind, path, caption=None, mime=None) -> str | None:
         mime = mime or mimetypes.guess_type(path)[0] or "application/octet-stream"
