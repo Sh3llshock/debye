@@ -1,0 +1,50 @@
+{
+  "properties": [
+    {
+      "id": "prop_12",
+      "address": "Musterstraße 12, 52062 Aachen",
+      "postcode": "52062",
+      "city": "Aachen",
+      "building_year": 1972,
+      "heating_type": "gas central heating",
+      "heating_central": true,
+      "fibre_available": true,
+      "energy_certificate": { "class": "E", "valid_until": "2029-03-31" }
+    }
+  ],
+  "units": [
+    {
+      "id": "unit_4b", "property_id": "prop_12", "floor": 2, "size_sqm": 68, "rooms": 3,
+      "meters": [{ "type": "electricity", "number": "1ESY1160123456" }, { "type": "gas", "number": "7GMT0042001234" }]
+    },
+    {
+      "id": "unit_2a", "property_id": "prop_12", "floor": 1, "size_sqm": 54, "rooms": 2,
+      "meters": [{ "type": "electricity", "number": "1ESY1160123401" }]
+    }
+  ],
+  "assets": [
+    {
+      "id": "asset_boiler_1", "property_id": "prop_12", "unit_id": null,
+      "type": "gas_boiler", "make": "Vaillant", "model": "ecoTEC plus VC 206/5-5",
+      "installed": "2014-09-15", "last_service": "2025-10-08",
+      "known_error_codes": {
+        "F.22": "Water pressure too low",
+        "F.28": "Ignition failed at start-up (no flame detected)",
+        "F.29": "Flame lost during operation"
+      }
+    }
+  ],
+  "contacts": [
+    { "id": "c_101", "role": "owner", "name": "Maria Becker", "phone_e164": "+490000000010", "email": "owner@example.com", "language": "de" },
+    { "id": "c_202", "role": "tenant", "name": "Lena Hoffmann", "phone_e164": "+490000000001", "email": "lena@example.com", "language": "de", "unit_id": "unit_4b", "move_in": "2026-12-01", "whatsapp_opt_in": true },
+    { "id": "c_203", "role": "tenant", "name": "Jonas Weber", "phone_e164": "+490000000002", "email": "jonas@example.com", "language": "de", "unit_id": "unit_2a", "move_in": "2021-04-01", "whatsapp_opt_in": true },
+    { "id": "c_301", "role": "partner_staff", "name": "Tom Schmidt", "phone_e164": "+490000000003", "partner_id": "heizung-schmidt", "language": "de" },
+    { "id": "c_401", "role": "pm", "name": "reltix property manager", "email": "pm@example.com", "language": "de" }
+  ],
+  "contracts": [
+    { "id": "ct_lease_4b", "type": "lease", "unit_id": "unit_4b", "contact_id": "c_202", "data": { "rent_cold_eur": 780, "start": "2026-12-01" } },
+    { "id": "ct_lease_2a", "type": "lease", "unit_id": "unit_2a", "contact_id": "c_203", "data": { "rent_cold_eur": 610, "start": "2021-04-01" } },
+    { "id": "ct_fw_schmidt", "type": "framework", "partner_id": "heizung-schmidt", "data": { "auto_approve_limit_eur": 500, "callout_fee_eur": 89, "hourly_eur": 72, "valid_until": "2027-12-31" } }
+  ],
+  "_notes": "Replace the +4900000000xx placeholders with the team's real demo phone numbers in a local, uncommitted override (data/seed.local.json)."
+}

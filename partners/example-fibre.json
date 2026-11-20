@@ -1,0 +1,29 @@
+{
+  "partner_id": "example-fibre",
+  "name": "Example Fibre GmbH",
+  "category": "telecom.internet",
+  "kind": "sell",
+  "triggers": ["tenant.move_in"],
+  "service_area": { "postcodes": ["52062", "52064", "52066"] },
+  "capabilities": { "technologies": ["ftth"] },
+  "eligibility": [
+    { "field": "property.postcode", "op": "in_service_area" },
+    { "field": "property.fibre_available", "op": "eq", "value": true }
+  ],
+  "offers": [
+    { "offer_id": "fibre-250", "title": "Fibre 250", "monthly_price_eur": 29.99, "min_term_months": 12 },
+    { "offer_id": "fibre-500", "title": "Fibre 500", "monthly_price_eur": 34.99, "min_term_months": 12 }
+  ],
+  "required_context": [
+    { "key": "name", "source": "tenant.name", "pii": true, "consent_required": true },
+    { "key": "address", "source": "property.address", "pii": true, "consent_required": true },
+    { "key": "unit_floor", "source": "unit.floor", "pii": false, "consent_required": false },
+    { "key": "move_in_date", "source": "tenant.move_in", "pii": true, "consent_required": true }
+  ],
+  "availability": { "mode": "static", "hours": "activation on any working day" },
+  "transport": { "type": "api", "base_url": "http://localhost:8100", "auth": { "type": "hmac", "secret_env": "FIBRE_SECRET" } },
+  "status_events": ["accepted", "signed", "active", "declined"],
+  "documents_returned": ["contract", "confirmation"],
+  "sla": { "urgent_response_hours": 24, "standard_response_hours": 72 },
+  "rating": 4.3
+}

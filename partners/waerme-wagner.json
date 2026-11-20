@@ -1,0 +1,25 @@
+{
+  "partner_id": "waerme-wagner",
+  "name": "Wärme Wagner KG",
+  "category": "repair.heating",
+  "kind": "deliver",
+  "triggers": ["case.repair.heating"],
+  "service_area": { "postcodes": ["52062", "52066", "52074"] },
+  "capabilities": { "trades": ["heating", "solar"], "brands_certified": ["Vaillant"] },
+  "eligibility": [
+    { "field": "asset.type", "op": "in", "value": ["gas_boiler", "heat_pump"] },
+    { "field": "property.postcode", "op": "in_service_area" }
+  ],
+  "pricing": { "model": "framework_agreement", "callout_fee_eur": 95, "hourly_eur": 78 },
+  "required_context": [
+    { "key": "address", "source": "property.address", "pii": true, "consent_required": true },
+    { "key": "asset", "source": "asset", "pii": false, "consent_required": false },
+    { "key": "tenant_phone", "source": "tenant.phone", "pii": true, "consent_required": true }
+  ],
+  "availability": { "mode": "static", "hours": "next free slot in 6 days (seeded as fully booked)" },
+  "transport": { "type": "conversational", "channel": "whatsapp", "address": "+490000000004" },
+  "status_events": ["accepted", "declined", "scheduled", "completed", "invoiced"],
+  "documents_returned": ["visit_report", "invoice"],
+  "sla": { "urgent_response_hours": 4, "standard_response_hours": 48 },
+  "rating": 4.9
+}
