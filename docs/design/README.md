@@ -3,7 +3,31 @@
 Visual language for the staff page (`/staff`), the partner page (`/partner/:id`) and the resident's WhatsApp thread. It follows [reltix.de](https://www.reltix.de/), scaled up so it reads from the back of a large hall.
 
 - Tokens: [`tokens.json`](tokens.json). Frontend maps them into `frontend/src/theme.ts`; components never hard-code colours.
-- Figma: _link added once the file exists_.
+- Figma: **[Debye (AI assistant)](https://www.figma.com/design/vW4cyvW7lLOjYGOg7Ul1iJ)** (one page "Debye", four sections).
+- Language: staff and partner UI in English (for the judges), resident WhatsApp copy in German.
+
+## Frames and exports
+
+| Figma section → frame | PNG | What it shows |
+|---|---|---|
+| 00 Foundations | [foundations.png](foundations.png) | Debye mark, buttons, status pill set, colours, type scale |
+| 01 Staff → Staff / Case detail | [staff-case-detail.png](staff-case-detail.png) | `/staff/cases/case_0001` in the "invoiced" moment: unit card, case card (lifecycle bar, priority, cost bearer, partner, visit, approval rule), zero-forms counter, live timeline with actor icons (newest item highlighted), WhatsApp thread preview, "why this partner" top 3, consent record, documents with the new invoice |
+| 01 Staff → Staff / Cases list | [staff-cases-list.png](staff-cases-list.png) | `/staff` cases table, approval card for a €620 case above the €500 limit, weekly stats |
+| 02 Partner → Partner / 1 · New job | [partner-1-new.png](partner-1-new.png) | Job inbox + job detail with only consented context, Accept / Decline |
+| 02 Partner → Partner / 2 · Accepted → pick slots | [partner-2-accepted-slot-picker.png](partner-2-accepted-slot-picker.png) | 3×3 tap-to-select slot grid, "Send 2 slots to tenant" |
+| 02 Partner → Partner / 3 · Slots proposed | [partner-3-slots-proposed.png](partner-3-slots-proposed.png) | Proposed slots, waiting for the tenant on WhatsApp |
+| 02 Partner → Partner / 4 · Scheduled → mark as done | [partner-4-scheduled-mark-done.png](partner-4-scheduled-mark-done.png) | Confirmed slot, photo + invoice PDF upload tiles, notes, "Mark as done" |
+| 02 Partner → Partner / 5 · Completed | [partner-5-completed.png](partner-5-completed.png) | Success state, filed documents, tenant confirmation |
+| 03 Resident WhatsApp → 1–6 | [whatsapp-flow.png](whatsapp-flow.png) | Voice note + photo → one question with reply buttons → consent buttons → slot list message (sheet open) → booked + "Ist es wieder warm?" → closed; Debye profile page |
+| Debye mark | [debye-avatar.svg](debye-avatar.svg), [debye-avatar-256.png](debye-avatar-256.png) | Use the PNG as the WhatsApp Business profile picture, the SVG in the web UI |
+
+### Notes for the frontend
+
+- Page backgrounds `#FAF6F2`, top bar on `/staff` is aubergine with white text; on `/partner` it is white with a bottom border and the partner's own initials badge, plus a small "via Debye · for reltix" pill.
+- Staff case detail grid at 1440: three columns 400 / 480 / 400 with 32 gaps, then a second row of three equal cards.
+- Timeline item: 48 px actor icon, name in the actor colour (16 px semibold), time in mono, text 18 px. The newest item gets the `violetSoft` background and a "New" pill.
+- Slot picker chips: 20–21 px text, 16 px radius, selected = aubergine fill with a white check.
+- WhatsApp screens are reference mockups for the agent coder's message copy and button labels (button ids per `interfaces.md §3.6`).
 
 ## The look in one paragraph
 
@@ -50,7 +74,7 @@ Projector scale: body text 20 px, never below 15 px. Page title 48 px, card titl
 
 ## Debye mark
 
-Aubergine circle, white serif lowercase **d**, small violet spark at the top right. Used as the WhatsApp profile picture, the actor icon for Debye in the timeline and in the top bar next to "Debye · AI assistant". The top bar may carry a small "for reltix · centrix" text reference; we never use the reltix logo as our own.
+Aubergine circle, white serif lowercase **d**, small lilac (`#C9A3E0`) spark at the top right. Used as the WhatsApp profile picture, the actor icon for Debye in the timeline and in the top bar next to "Debye · AI assistant". The top bar may carry a small "for reltix · centrix" text reference; we never use the reltix logo as our own.
 
 ## Layout
 
