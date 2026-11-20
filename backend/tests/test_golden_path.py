@@ -652,6 +652,8 @@ def test_demo_scenarios(client):
         assert client.get(f"/api/partner/{pid}/jobs/{cid}").json()["approval"]["text"] ==             "Approved by reltix staff (Anna Becker)"
     s7 = client.get(f"/api/staff/cases/{by['s7_caretaker']['case_id']}").json()
     assert s7["caretaker"]["name"] == "Peter Wolf"
+    assert s7["diagnosis"]["label"] == "Heating water pressure too low (0A)"
+    assert "F.22" not in str(s7["diagnosis"]) + " ".join(e["summary"] for e in s7["events"])
     # timelines look realistic: the closed case is days old
     assert s5["created_at"] < s1["created_at"]
 
