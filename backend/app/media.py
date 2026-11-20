@@ -63,9 +63,9 @@ FALLBACK_INVOICE = {
     "vat_eur": 39.9,
     "gross_eur": 249.9,
     "line_items": [
-        {"desc": "Zündelektrode Vaillant ecoTEC plus", "qty": 1, "unit_price": 48.5},
-        {"desc": "Arbeitszeit Monteur", "qty": 1.5, "unit_price": 74.0},
-        {"desc": "Anfahrtspauschale", "qty": 1, "unit_price": 50.5},
+        {"desc": "Anfahrtspauschale", "qty": 1, "unit_price": 89.0},
+        {"desc": "Arbeitszeit Techniker", "qty": 1.5, "unit_price": 72.0},
+        {"desc": "Zündelektrode Vaillant", "qty": 1, "unit_price": 13.0},
     ],
     "labour_hours": 1.5,
     "_source": "fallback",

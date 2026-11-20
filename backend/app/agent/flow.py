@@ -7,9 +7,7 @@ here calls the LLM, so the critical taps are instant and unbreakable.
 from __future__ import annotations
 
 import logging
-import mimetypes
-from pathlib import Path
-
+import time
 from app.channels.base import Option
 
 from . import _backend as be
@@ -58,14 +56,19 @@ def partner_label(case_id: str) -> str:
     return st.case_state(case_id).partner_name or DEFAULT_PARTNER_NAME
 
 
-def attach_photos(conv: st.Conversation, case_id: str) -> None:
-    for path in conv.photos:
-        try:
-            mime = mimetypes.guess_type(path)[0] or "image/jpeg"
-            be.attach_document(case_id, "photo", Path(path).name, mime, path, None)
-        except Exception:
-            log.exception("attach photo failed")
-    conv.photos.clear()
+def tenant_input(contact, label: str) -> None:
+    """Counts a resident input (voice note, photo, tap) for the zero-forms counter."""
+    conv = st.conversation(be.attr(contact, "id"))
+    if conv.case_id:
+        be.add_tenant_input(conv.case_id, label)
+    else:
+        conv.pending_inputs.append(label)
+
+
+def _flush_inputs(conv: st.Conversation) -> None:
+    for label in conv.pending_inputs:
+        be.add_tenant_input(conv.case_id, label)
+    conv.pending_inputs.clear()
 
 
 # ---------------------------------------------------------------- case opening / triage
@@ -97,7 +100,7 @@ async def ensure_case(
         cid = case_id_of(existing)
         be.link_contact_to_case(cid, be.attr(contact, "id"), "affected")
         conv.case_id, conv.step = cid, st.DISPATCHED
-        attach_photos(conv, cid)
+        _flush_inputs(conv)
         return {"case_id": cid, "duplicate": True}
     case = be.open_case(
         reporter_contact_id=be.attr(contact, "id"),
@@ -111,7 +114,7 @@ async def ensure_case(
     cid = case_id_of(case)
     st.case_state(cid).reporter_contact_id = be.attr(contact, "id")
     conv.case_id, conv.step = cid, st.TRIAGE
-    attach_photos(conv, cid)
+    _flush_inputs(conv)
     return {"case_id": cid, "duplicate": False}
 
 
@@ -125,8 +128,15 @@ async def send_duplicate_notice(contact, case_id: str) -> None:
     )
 
 
+def _asked_recently(conv: st.Conversation, step: str, seconds: float = 20) -> bool:
+    t = conv.asked_at.get(step)
+    return t is not None and time.monotonic() - t < seconds
+
+
 async def ask_cold(contact, case_id: str, prefix: str = "") -> None:
-    st.conversation(be.attr(contact, "id")).step = st.TRIAGE
+    conv = st.conversation(be.attr(contact, "id"))
+    conv.step = st.TRIAGE
+    conv.asked_at[st.TRIAGE] = time.monotonic()
     await out.buttons(
         contact,
         case_id,
@@ -138,6 +148,7 @@ async def ask_cold(contact, case_id: str, prefix: str = "") -> None:
 async def on_cold(contact, case_id: str, all_cold: bool) -> None:
     cs = st.case_state(case_id)
     cs.triage_answer = "all" if all_cold else "some"
+    be.add_tenant_input(case_id, "tap: Überall kalt" if all_cold else "tap: Nur ein Raum")
     be.record_event(
         case_id,
         "tenant",
@@ -158,7 +169,9 @@ async def on_cold(contact, case_id: str, all_cold: bool) -> None:
 
 async def request_consent(contact, case_id: str) -> None:
     cs = st.case_state(case_id)
-    st.conversation(be.attr(contact, "id")).step = st.CONSENT
+    conv = st.conversation(be.attr(contact, "id"))
+    conv.step = st.CONSENT
+    conv.asked_at[st.CONSENT] = time.monotonic()
     who = cs.partner_name or "dem Heizungsbetrieb"
     await out.buttons(
         contact,
@@ -189,6 +202,7 @@ async def on_consent(contact, case_id: str, yes: bool) -> None:
     if not cs.partner_id:
         await out.text(contact, case_id, "Danke! Ich suche gerade einen passenden Betrieb und melde mich gleich.")
         return
+    be.add_tenant_input(case_id, "tap: consent")
     be.record_consent(
         be.attr(contact, "id"), cs.partner_id, case_id, cs.consent_fields, cs.consent_purpose, "whatsapp"
     )
@@ -242,7 +256,7 @@ async def send_slots(case_id: str, slots: list[dict]) -> None:
 async def on_slot(contact, case_id: str, n: int) -> None:
     """n is 1-based as in the list row id slot_<n>."""
     cs = st.case_state(case_id)
-    be.confirm_slot(case_id, n)  # services.confirm_slot is 1-based
+    be.confirm_slot(case_id, n)  # 1-based (interfaces §3.3); services counts the tap
     label = slot_label(cs.slots[n - 1]) if 0 < n <= len(cs.slots) else f"Termin {n}"
     st.conversation(be.attr(contact, "id")).step = st.SCHEDULED
     await out.text(
@@ -302,9 +316,11 @@ async def scripted_fallback(contact, conv: st.Conversation) -> None:
         else:
             await ask_cold(contact, res["case_id"], prefix="Danke, ich habe das aufgenommen.")
     elif conv.step == st.TRIAGE:
-        await ask_cold(contact, cid)
+        if not _asked_recently(conv, st.TRIAGE):  # e.g. the photo arrived just after the voice note
+            await ask_cold(contact, cid)
     elif conv.step == st.CONSENT:
-        await request_consent(contact, cid)
+        if not _asked_recently(conv, st.CONSENT):
+            await request_consent(contact, cid)
     elif conv.step == st.SCHEDULING and st.case_state(cid).slots:
         await send_slots(cid, st.case_state(cid).slots)
     elif conv.step == st.CONFIRM_FIXED:
