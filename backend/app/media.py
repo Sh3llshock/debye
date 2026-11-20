@@ -16,7 +16,12 @@ MODEL = "claude-opus-5-5"
 
 # ---------------------------------------------------------------- transcription (OpenAI, event sponsor)
 EU_OPENAI_BASE_URL = "https://eu.api.openai.com/v1"
-_openai_base_url: str | None = os.getenv("OPENAI_BASE_URL") or None  # None = SDK default
+TRANSCRIBE_MODELS = ("gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1")  # all offered on the EU host
+
+
+def openai_base_url() -> str:
+    """OPENAI_BASE_URL from env/.env; default EU, because our OpenAI project is EU-region only."""
+    return os.getenv("OPENAI_BASE_URL") or EU_OPENAI_BASE_URL
 
 DEMO_TRANSCRIPT = "Hi, die Heizung ist kalt seit heute Morgen."
 
@@ -32,13 +37,13 @@ async def transcribe(path: str, language: str = "de") -> str:
     if not os.getenv("OPENAI_API_KEY"):
         log.warning("OPENAI_API_KEY not set; %s", "using demo transcript" if _demo_mode() else "no transcript")
         return DEMO_TRANSCRIPT if _demo_mode() else ""
-    global _openai_base_url
     from openai import AsyncOpenAI
 
     audio = Path(path).read_bytes()
-    for model in ("gpt-4o-transcribe", "whisper-1"):
+    base_url = openai_base_url()
+    for model in TRANSCRIBE_MODELS:
         for _attempt in range(2):
-            client = AsyncOpenAI(timeout=20, base_url=_openai_base_url)
+            client = AsyncOpenAI(timeout=20, base_url=base_url)
             t0 = time.perf_counter()
             try:
                 result = await client.audio.transcriptions.create(
@@ -49,9 +54,9 @@ async def transcribe(path: str, language: str = "de") -> str:
                 )
             except Exception as exc:
                 # EU-resident OpenAI projects must use the EU endpoint; switch once and remember.
-                if "geography" in str(exc).lower() and _openai_base_url != EU_OPENAI_BASE_URL:
-                    log.warning("OpenAI project is region-bound; switching to %s", EU_OPENAI_BASE_URL)
-                    _openai_base_url = EU_OPENAI_BASE_URL
+                if "geography" in str(exc).lower() and base_url != EU_OPENAI_BASE_URL:
+                    log.warning("OpenAI project is EU-region only; retrying on %s", EU_OPENAI_BASE_URL)
+                    base_url = EU_OPENAI_BASE_URL
                     continue
                 log.exception("transcription with %s failed", model)
                 break

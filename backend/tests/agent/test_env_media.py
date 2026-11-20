@@ -30,7 +30,7 @@ def test_demo_transcript_without_key(monkeypatch, tmp_path):
     assert asyncio.run(media.transcribe(str(tmp_path / "x.ogg"))) == ""
 
 
-def test_transcribe_switches_to_eu_endpoint(monkeypatch, tmp_path):
+def test_transcribe_eu_default_and_model_fallback(monkeypatch, tmp_path):
     import openai
 
     from app import media
@@ -45,6 +45,8 @@ def test_transcribe_switches_to_eu_endpoint(monkeypatch, tmp_path):
             calls.append((self.base_url, kw["model"]))
             if self.base_url != media.EU_OPENAI_BASE_URL:
                 raise RuntimeError("401 - Attempted to access resource from outside project geography EU")
+            if kw["model"] == "gpt-4o-transcribe":
+                raise RuntimeError("404 model not found")
             return type("R", (), {"text": "Die Heizung ist kalt."})()
 
     class FakeClient:
@@ -52,13 +54,19 @@ def test_transcribe_switches_to_eu_endpoint(monkeypatch, tmp_path):
             self.audio = type("A", (), {"transcriptions": FakeTranscriptions(base_url)})()
 
     monkeypatch.setattr(openai, "AsyncOpenAI", FakeClient)
-    monkeypatch.setattr(media, "_openai_base_url", None)
     monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-key")
     f = tmp_path / "v.ogg"
     f.write_bytes(b"OggS")
+
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)  # default: EU host, next model on failure
     assert asyncio.run(media.transcribe(str(f))) == "Die Heizung ist kalt."
-    assert calls == [(None, "gpt-4o-transcribe"), (media.EU_OPENAI_BASE_URL, "gpt-4o-transcribe")]
-    assert media._openai_base_url == media.EU_OPENAI_BASE_URL  # remembered for the next call
+    assert calls == [(media.EU_OPENAI_BASE_URL, "gpt-4o-transcribe"), (media.EU_OPENAI_BASE_URL, "gpt-4o-mini-transcribe")]
+
+    calls.clear()  # a non-EU base URL that is rejected for geography switches to EU
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    assert asyncio.run(media.transcribe(str(f))) == "Die Heizung ist kalt."
+    assert calls[0] == ("https://api.openai.com/v1", "gpt-4o-transcribe")
+    assert calls[1][0] == media.EU_OPENAI_BASE_URL
 
 
 def test_no_anthropic_key_falls_back_immediately(client, svc, monkeypatch):

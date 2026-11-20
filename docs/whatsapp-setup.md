@@ -20,6 +20,11 @@ About 30–45 minutes. You need a Facebook account and the 3 demo phones: the re
 2. Under "From", Meta has created a **test phone number**. Copy the **Phone number ID** (a long number, not the phone number itself) → `WA_PHONE_NUMBER_ID`.
 3. Write down the test number itself (`+1 555 …`). This is the number the demo phones will message.
 
+### Profile picture (Debye mascot)
+1. WhatsApp → **API Setup** → under "From", click the test number → **Profile** (or WhatsApp Manager → **Phone numbers** → the number → **Profile**).
+2. Upload `docs/design/mascot/debye-mascot-whatsapp-1024.png` as the profile photo. Set the display name to "Debye" and the "About" text to "AI assistant · reltix".
+3. It can take a few minutes before the phones show the new picture.
+
 ## 3. Verify the demo phones (max 5 recipients)
 1. Still on **API Setup**, field "To" → **Manage phone number list** → **Add phone number**.
 2. Enter each demo phone in international format (`+49 151 …`), then type in the code that arrives on WhatsApp.
