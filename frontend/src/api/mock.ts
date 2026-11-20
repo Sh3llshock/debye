@@ -13,6 +13,8 @@ import type {
   PartnerProfile,
   Slot,
   StreamMessage,
+  TechProfile,
+  Technician,
   ThreadMessage,
   UnitDetail,
   UnitSummary,
@@ -25,6 +27,31 @@ const partners: Record<string, PartnerProfile> = {
   'heizung-schmidt': { partner_id: 'heizung-schmidt', name: 'Heizung Schmidt GmbH', category: 'repair.heating', rating: 4.8, staff: [{ contact_id: 'c_301', name: 'Tom Schmidt' }] },
   'waerme-wagner': { partner_id: 'waerme-wagner', name: 'Wärme Wagner', category: 'repair.heating', rating: 4.6 },
   'heiztechnik-gruen': { partner_id: 'heiztechnik-gruen', name: 'Heiztechnik Grün', category: 'repair.heating', rating: 4.1 },
+}
+
+// ---------- technicians (dispatcher + technician pages) ----------
+const TECHS: Record<string, { tech_id: string; name: string; partner_id: string; skills: string[]; busy: string[] }> = {
+  t_tom: { tech_id: 't_tom', name: 'Tom Schmidt', partner_id: 'heizung-schmidt', skills: ['Vaillant', 'gas boilers', 'heat pumps'], busy: ['1-14:00', '2-08:00', '3-10:00'] },
+  t_ayse: { tech_id: 't_ayse', name: 'Ayşe Demir', partner_id: 'heizung-schmidt', skills: ['Buderus', 'gas boilers'], busy: ['1-08:00', '1-10:00', '2-14:00'] },
+}
+const WINDOWS: [string, string][] = [['08:00', '10:00'], ['10:00', '12:00'], ['14:00', '16:00']]
+function berlinDay(i: number) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(new Date(Date.now() + i * 86400_000))
+}
+/** Free slots for the next working days, relative to today, minus each technician's busy windows. */
+function freeSlots(techId: string) {
+  const t = TECHS[techId]
+  const out: Slot[] = []
+  for (let i = 1, n = 0; n < 4 && i < 10; i++) {
+    const d = new Date(Date.now() + i * 86400_000)
+    if (new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', weekday: 'short' }).format(d) === 'Sun') continue
+    n++
+    for (const [a, b] of WINDOWS) {
+      if (t.busy.includes(`${n}-${a}`)) continue
+      out.push({ start: `${berlinDay(i)}T${a}:00+01:00`, end: `${berlinDay(i)}T${b}:00+01:00` })
+    }
+  }
+  return out
 }
 
 // ---------- clock ----------
@@ -46,10 +73,11 @@ type State = {
   docSeq: number
   unitDocs: DocumentItem[]
   pendingSlots: Record<string, Slot[]>
+  techOf?: Record<string, string>
   dayOffset: number
   minute: number
 }
-const STORE_KEY = 'debye-fixtures-v2'
+const STORE_KEY = 'debye-fixtures-v3'
 let state: State = loadState() ?? initialState()
 
 function loadState(): State | null {
@@ -267,10 +295,15 @@ export const mockSteps: MockStep[] = [
       addMessage(c, 'in', 'Luka', s.label ?? fmtSlot(s))
       c.zero_forms!.tenant_inputs.push('tap: slot')
       c.slot = { start: s.start, end: s.end }
-      c.status = 'scheduled'
-      addEvent(c, 'tenant', 'slot.confirmed', `Visit confirmed: ${s.label ?? fmtSlot(s)}`)
-      addMessage(c, 'out', 'Luka', `Super, Heizung Schmidt kommt ${s.label ?? fmtSlot(s)}. Ich erinnere dich morgen früh.`)
+      c.status = 'awaiting_technician'
+      addEvent(c, 'tenant', 'slot.confirmed', `Luka picked ${s.label ?? fmtSlot(s)}, waiting for ${c.technician?.name ?? 'the technician'} to confirm`)
+      addMessage(c, 'out', 'Luka', `Danke! Ich frage kurz bei ${c.technician?.name ?? 'Heizung Schmidt'} nach und bestätige dir den Termin gleich.`)
     },
+  },
+  {
+    label: '(technician page) Confirm the visit',
+    ready: () => false,
+    run: () => {},
   },
   {
     label: '(partner page) Mark as done',
@@ -331,6 +364,7 @@ const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 const summary = (c: CaseDetail): CaseSummary => ({
   case_id: c.case_id, type: c.type, title: c.title, status: c.status, priority: c.priority,
   unit_id: c.unit_id, address: c.address, partner: c.partner, updated_at: c.updated_at, created_at: c.created_at,
+  error_code: c.asset?.error_code ?? null, technician: c.technician ?? null,
 })
 
 function jobFor(partnerId: string, c: CaseDetail): JobDetail {
@@ -359,10 +393,14 @@ function jobFor(partnerId: string, c: CaseDetail): JobDetail {
     estimated_cost_eur: c.estimated_cost_eur,
     updated_at: c.updated_at,
     created_at: c.created_at,
-    events: c.events.filter((e) => /^(job|slot|invoice|case\.closed)/.test(e.kind)),
+    events: c.events.filter((e) => /^(job|slot|technician|invoice|case\.closed)/.test(e.kind)),
+    technician: c.technician ?? null,
   }
 }
-const jobSummary = (j: JobDetail): JobSummary => ({ case_id: j.case_id, title: j.title, status: j.status, priority: j.priority, address: j.address, updated_at: j.updated_at, slot: j.slot })
+const jobSummary = (j: JobDetail): JobSummary => ({
+  case_id: j.case_id, title: j.title, status: j.status, priority: j.priority, address: j.address, floor: j.floor,
+  error_code: j.error_code, updated_at: j.updated_at, slot: j.slot, technician: j.technician,
+})
 
 function partnerCase(partnerId: string, caseId: string): CaseDetail {
   const c = state.cases[caseId]
@@ -451,15 +489,53 @@ export const mockApi = {
     addEvent(c, 'partner', 'job.declined', `${c.partner?.name} declined${reason ? `: ${reason}` : ''}`)
     return clone(jobFor(partnerId, c))
   },
-  async slots(partnerId: string, caseId: string, slots: Slot[]): Promise<JobDetail> {
+  async technicians(partnerId: string): Promise<Technician[]> {
+    await delay()
+    return Object.values(TECHS)
+      .filter((t) => t.partner_id === partnerId)
+      .map((t) => ({ tech_id: t.tech_id, name: t.name, skills: t.skills, free_slots: freeSlots(t.tech_id) }))
+  },
+  async slots(partnerId: string, caseId: string, slots: Slot[], techId?: string): Promise<JobDetail> {
     await delay()
     const c = partnerCase(partnerId, caseId)
+    if (techId && TECHS[techId]) {
+      c.technician = { tech_id: techId, name: TECHS[techId].name }
+      addEvent(c, 'partner', 'technician.assigned', `${c.partner?.name} assigned ${TECHS[techId].name}`)
+    }
     state.pendingSlots[caseId] = slots.map((s) => ({ ...s, label: s.label ?? SLOTS.find((x) => x.start === s.start)?.label ?? fmtSlot(s) }))
     c.status = 'slots_proposed'
     c.proposed_slots = state.pendingSlots[caseId]
     addEvent(c, 'partner', 'slot.proposed', `${c.partner?.name} proposed ${slots.length} time slot${slots.length > 1 ? 's' : ''}`)
     addMessage(c, 'out', c.reporters[0].name, `Wann passt es dir? ${state.pendingSlots[caseId].map((s) => s.label).join(' · ')}`)
     return clone(jobFor(partnerId, c))
+  },
+  async tech(techId: string): Promise<TechProfile> {
+    await delay()
+    const t = TECHS[techId]
+    if (!t) throw new Error('Technician not found')
+    return { tech_id: t.tech_id, name: t.name, partner_id: t.partner_id, partner_name: partners[t.partner_id]?.name }
+  },
+  async techJobs(techId: string): Promise<JobSummary[]> {
+    await delay()
+    return Object.values(state.cases)
+      .filter((c) => c.technician?.tech_id === techId)
+      .map((c) => jobSummary(jobFor(c.partner!.partner_id, c)))
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+  },
+  async techJob(techId: string, caseId: string): Promise<JobDetail> {
+    await delay()
+    const c = state.cases[caseId]
+    if (!c || c.technician?.tech_id !== techId) throw new Error('Job not found')
+    return clone(jobFor(c.partner!.partner_id, c))
+  },
+  async techConfirm(techId: string, caseId: string): Promise<JobDetail> {
+    await delay()
+    const c = state.cases[caseId]
+    if (!c || c.technician?.tech_id !== techId) throw new Error('Job not found')
+    c.status = 'scheduled'
+    addEvent(c, 'partner', 'technician.confirmed', `${c.technician.name} confirmed the visit: ${fmtSlot(c.slot!)}`)
+    addMessage(c, 'out', c.reporters[0].name, `Super, ${c.technician.name} kommt ${fmtSlot(c.slot!)}. Ich erinnere dich vorher.`)
+    return clone(jobFor(c.partner!.partner_id, c))
   },
   async complete(partnerId: string, caseId: string, form: FormData): Promise<JobDetail> {
     await delay(500)

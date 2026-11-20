@@ -15,6 +15,7 @@ export type CaseStatus =
   | 'slots_proposed'
   | 'partner_declined'
   | 'reopened'
+  | 'awaiting_technician'
   | (string & {})
 
 export type Priority = 'urgent' | 'high' | 'normal' | 'low' | (string & {})
@@ -38,6 +39,12 @@ export interface CaseSummary {
   created_at?: string
   error_code?: string | null
   error_label?: string | null
+  technician?: TechnicianRef | null
+}
+
+export interface TechnicianRef {
+  tech_id: string
+  name: string
 }
 
 export interface Reporter {
@@ -205,6 +212,19 @@ export interface JobSummary {
   updated_at: string
   created_at?: string
   slot?: Slot | null
+  technician?: TechnicianRef | null
+}
+
+/** GET /api/partner/{pid}/technicians */
+export interface Technician extends TechnicianRef {
+  skills: string[]
+  free_slots: Slot[]
+}
+
+/** GET /api/tech/{tech_id} */
+export interface TechProfile extends TechnicianRef {
+  partner_id?: string
+  partner_name?: string
 }
 
 export interface JobDetail extends JobSummary {

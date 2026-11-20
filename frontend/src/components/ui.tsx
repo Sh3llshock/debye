@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { chipColors, type ChipTone } from '../theme'
 import { statusInfo } from '../lib/format'
 import { Icon } from './icons'
+import { t } from '../lib/i18n'
 
 /** A work area: white with a 1px border; optional header row with a bottom rule. */
 export function Panel({ title, meta, children, className = '', bodyClass = '' }: { title?: ReactNode; meta?: ReactNode; children: ReactNode; className?: string; bodyClass?: string }) {
@@ -34,9 +35,9 @@ export function StatusChip({ status }: { status: string }) {
 
 /** Only urgent gets a chip; everything else is plain text (colour only where it means something). */
 export function PriorityChip({ priority }: { priority: string }) {
-  if (priority === 'urgent') return <Chip tone="negative">Urgent</Chip>
-  if (priority === 'high') return <Chip tone="warning">High</Chip>
-  return <span className="text-secondary">{priority.charAt(0).toUpperCase() + priority.slice(1)}</span>
+  if (priority === 'urgent') return <Chip tone="negative">{t('Urgent')}</Chip>
+  if (priority === 'high') return <Chip tone="warning">{t('High')}</Chip>
+  return <span className="text-secondary">{t(priority.charAt(0).toUpperCase() + priority.slice(1))}</span>
 }
 
 /** Inspector property row: label column + value. */
@@ -49,18 +50,18 @@ export function Prop({ label, children }: { label: string; children: ReactNode }
   )
 }
 
-export function Loading({ what = 'Loading' }: { what?: string }) {
-  return <div className="p-8 text-center text-muted">{what}…</div>
+export function Loading({ what }: { what?: string }) {
+  return <div className="p-8 text-center text-muted">{what ?? t('Loading')}…</div>
 }
 
 export function ErrorBox({ error, onRetry }: { error: string; onRetry?: () => void }) {
   return (
     <div className="rounded-panel border border-negative bg-negative-soft p-5 text-negative">
-      <div className="font-semibold">Something went wrong</div>
+      <div className="font-semibold">{t('Something went wrong')}</div>
       <div className="mt-1 text-secondary">{error}</div>
       {onRetry && (
         <button className="btn-secondary mt-4" onClick={onRetry}>
-          Try again
+          {t('Try again')}
         </button>
       )}
     </div>
@@ -84,7 +85,7 @@ export function Mascot({ pose, className = '', alt = 'Debye' }: { pose: keyof ty
 
 const ACTOR_LABEL: Record<string, string> = { debye: 'Debye', tenant: 'Resident', partner: 'Installer', staff: 'Property manager', pm: 'Property manager', system: 'System' }
 export function actorInfo(a: string) {
-  return { label: ACTOR_LABEL[a] ?? 'System' }
+  return { label: t(ACTOR_LABEL[a] ?? 'System') }
 }
 const ACTOR_ICON: Record<string, string> = { tenant: 'user', partner: 'wrench', staff: 'briefcase', pm: 'briefcase', system: 'gear' }
 

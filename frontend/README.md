@@ -5,7 +5,8 @@ Vite + React + TypeScript + Tailwind. Two web pages (residents only use WhatsApp
 | Route | Who |
 |---|---|
 | `/staff`, `/staff/cases/:caseId`, `/staff/units/:unitId` | reltix staff (centrix stand-in) |
-| `/partner/:partnerId`, `/partner/:partnerId/jobs/:caseId` | heating installer (phone-friendly) |
+| `/partner/:partnerId`, `/partner/:partnerId/jobs/:caseId` | partner dispatcher: accept, pick a technician and his free slots |
+| `/tech/:techId`, `/tech/:techId/jobs/:caseId` | technician phone page: his jobs, big Confirm button |
 
 `/` redirects to `/staff`; `/partner` redirects to `/partner/heizung-schmidt`.
 
@@ -48,3 +49,7 @@ Env flags (Vite, build-time):
 ## Stage text size
 
 Add `?stage=1` to any URL to make all text 10 % bigger for the projector (`?stage=1.2` = 120 %, `?stage=0` = back to 100 %). The setting is remembered in the browser. With `VITE_DEMO=1` the demo panel also has A− / A+ buttons (90–140 %). Only text scales; layout spacing stays the same.
+
+## Language
+
+EN / DE toggle at the top right of every page (English by default, remembered in localStorage; `?lang=de` also works). UI copy lives in `src/lib/de.ts`, keyed by the English text; wrap new copy in `t('…')`. API data and WhatsApp messages are shown as sent.

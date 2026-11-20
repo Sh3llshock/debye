@@ -10,6 +10,7 @@ import { useStream } from '../lib/stream'
 import { useNewKeys } from '../lib/useNewKeys'
 import { useDebounced, useResource } from '../lib/useResource'
 import { JobPanel } from './PartnerJob'
+import { t } from '../lib/i18n'
 
 const DONE = new Set(['completed', 'invoiced', 'closed', 'declined', 'partner_declined'])
 
@@ -17,22 +18,24 @@ const DONE = new Set(['completed', 'invoiced', 'closed', 'declined', 'partner_de
 function nextStep(j: JobSummary): { text: string; mine: boolean } {
   switch (j.status) {
     case 'requested':
-      return { text: 'New, needs your answer', mine: true }
+      return { text: t('New, needs your answer'), mine: true }
     case 'accepted':
     case 'reopened':
-      return { text: 'Pick visit times', mine: true }
+      return { text: t('Pick a technician and times'), mine: true }
     case 'slots_proposed':
-      return { text: 'Times sent, waiting for resident', mine: false }
+      return { text: t('Times sent, waiting for resident'), mine: false }
     case 'scheduled':
     case 'in_progress':
-      return { text: j.slot ? `Booked ${fmtSlot(j.slot)}` : 'Booked', mine: false }
+      return { text: j.slot ? `${t('Booked')} ${fmtSlot(j.slot)}${j.technician ? ` · ${j.technician.name}` : ''}` : t('Booked'), mine: false }
+    case 'awaiting_technician':
+      return { text: t('Resident picked, {tech} to confirm', { tech: j.technician?.name.split(' ')[0] ?? t('technician') }), mine: false }
     case 'completed':
     case 'invoiced':
-      return { text: 'Done, invoice sent', mine: false }
+      return { text: t('Done, invoice sent'), mine: false }
     case 'closed':
-      return { text: 'Closed', mine: false }
+      return { text: t('Closed'), mine: false }
     default:
-      return { text: 'Declined', mine: false }
+      return { text: t('Declined'), mine: false }
   }
 }
 
@@ -72,16 +75,16 @@ export default function PartnerPage() {
   const list = (
     <section className="panel overflow-hidden">
       <header className="panel-head">
-        <h2 className="text-panel">Jobs</h2>
-        <span className="text-label text-muted">{openCount} open</span>
+        <h2 className="text-panel">{t('Jobs')}</h2>
+        <span className="text-label text-muted">{t('{n} open', { n: openCount })}</span>
       </header>
       {error && !jobs && (
         <div className="p-4">
           <ErrorBox error={error} onRetry={reload} />
         </div>
       )}
-      {!jobs && !error && <Loading what="Loading jobs" />}
-      {jobs && jobs.length === 0 && <div className="px-5 py-8 text-center text-muted">No jobs yet. New jobs from Debye show up here instantly.</div>}
+      {!jobs && !error && <Loading what={t('Loading jobs')} />}
+      {jobs && jobs.length === 0 && <div className="px-5 py-8 text-center text-muted">{t('No jobs yet. New jobs from Debye show up here instantly.')}</div>}
       <ul>
         {jobs?.map((j) => {
           const step = nextStep(j)
@@ -91,7 +94,7 @@ export default function PartnerPage() {
               <Link to={`/partner/${partnerId}/jobs/${j.case_id}`} className={`block px-5 py-4 transition-colors ${sel ? 'bg-action-soft' : 'hover:bg-sub'} ${isNew(j.case_id + j.status) ? 'animate-enter' : ''}`}>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold">{jobTitle(j.title, j.error_code, j.error_label)}</span>
-                  {j.priority === 'urgent' && <Chip tone="negative">Urgent</Chip>}
+                  {j.priority === 'urgent' && <Chip tone="negative">{t('Urgent')}</Chip>}
                 </div>
                 <div className="text-body-sm text-secondary">{[(j.address ?? j.postcode ?? '').split(',')[0], j.floor != null ? floorLabel(j.floor) : null].filter(Boolean).join(' · ')}</div>
                 <div className={`mt-1 text-label ${step.mine ? 'font-semibold text-action' : 'text-muted'}`}>{step.text}</div>
@@ -108,12 +111,12 @@ export default function PartnerPage() {
       {desktop ? (
         <div className="grid grid-cols-[340px_minmax(0,1fr)] items-start gap-work">
           {list}
-          {caseId ? <JobPanel key={caseId} partnerId={partnerId} caseId={caseId} staffName={staffName} jobs={jobs ?? []} /> : <div className="panel px-5 py-8 text-center text-muted">Select a job</div>}
+          {caseId ? <JobPanel key={caseId} partnerId={partnerId} caseId={caseId} staffName={staffName} jobs={jobs ?? []} /> : <div className="panel px-5 py-8 text-center text-muted">{t('Select a job')}</div>}
         </div>
       ) : caseId ? (
         <div>
           <Link to={`/partner/${partnerId}`} className="mb-3 inline-block font-semibold text-action">
-            ← All jobs
+            ← {t('All jobs')}
           </Link>
           <JobPanel key={caseId} partnerId={partnerId} caseId={caseId} staffName={staffName} jobs={jobs ?? []} />
         </div>

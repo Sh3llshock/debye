@@ -1,4 +1,4 @@
-import type { CaseDetail, CaseSummary, JobDetail, JobSummary, PartnerProfile, Slot, UnitDetail, UnitSummary } from './types'
+import type { CaseDetail, CaseSummary, JobDetail, JobSummary, PartnerProfile, Slot, TechProfile, Technician, UnitDetail, UnitSummary } from './types'
 
 export const USE_FIXTURES = import.meta.env.VITE_USE_FIXTURES === '1'
 export const DEMO = import.meta.env.VITE_DEMO === '1'
@@ -44,8 +44,13 @@ const http = {
   job: (pid: string, cid: string) => req<JobDetail>('GET', `/api/partner/${enc(pid)}/jobs/${enc(cid)}`),
   accept: (pid: string, cid: string) => req<JobDetail>('POST', `/api/partner/${enc(pid)}/jobs/${enc(cid)}/accept`),
   decline: (pid: string, cid: string, reason: string) => req<JobDetail>('POST', `/api/partner/${enc(pid)}/jobs/${enc(cid)}/decline`, { reason }),
-  slots: (pid: string, cid: string, slots: Slot[]) =>
-    req<JobDetail>('POST', `/api/partner/${enc(pid)}/jobs/${enc(cid)}/slots`, { slots: slots.map(({ start, end }) => ({ start, end })) }),
+  technicians: (pid: string) => req<Technician[]>('GET', `/api/partner/${enc(pid)}/technicians`),
+  slots: (pid: string, cid: string, slots: Slot[], techId?: string) =>
+    req<JobDetail>('POST', `/api/partner/${enc(pid)}/jobs/${enc(cid)}/slots`, { ...(techId ? { tech_id: techId } : {}), slots: slots.map(({ start, end }) => ({ start, end })) }),
+  tech: (tid: string) => req<TechProfile>('GET', `/api/tech/${enc(tid)}`),
+  techJobs: (tid: string) => req<JobSummary[]>('GET', `/api/tech/${enc(tid)}/jobs`),
+  techJob: (tid: string, cid: string) => req<JobDetail>('GET', `/api/tech/${enc(tid)}/jobs/${enc(cid)}`),
+  techConfirm: (tid: string, cid: string) => req<JobDetail>('POST', `/api/tech/${enc(tid)}/jobs/${enc(cid)}/confirm`),
   complete: (pid: string, cid: string, form: FormData) => req<JobDetail>('POST', `/api/partner/${enc(pid)}/jobs/${enc(cid)}/complete`, form),
   demoReset: () => req<void>('POST', '/demo/reset'),
   demoSkip: () => req<void>('POST', '/demo/skip-to-tomorrow'),

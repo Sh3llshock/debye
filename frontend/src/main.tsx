@@ -10,6 +10,8 @@ import StaffCases from './pages/StaffCases'
 import StaffCase from './pages/StaffCase'
 import StaffUnit, { StaffUnits } from './pages/StaffUnit'
 import PartnerPage from './pages/PartnerInbox'
+import TechPage from './pages/TechPage'
+import { t, useLang } from './lib/i18n'
 
 function Staff() {
   return (
@@ -22,14 +24,17 @@ function Staff() {
 function NotFound() {
   return (
     <div className="p-8 text-center">
-      <h1 className="text-page">Page not found</h1>
-      <a className="mt-4 inline-block text-action underline" href="/staff">Go to cases</a>
+      <h1 className="text-page">{t('Page not found')}</h1>
+      <a className="mt-4 inline-block text-action underline" href="/staff">
+        {t('Go to cases')}
+      </a>
     </div>
   )
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+function App() {
+  useLang() // re-render everything when EN/DE changes
+  return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/staff" replace />} />
@@ -42,8 +47,16 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/partner" element={<Navigate to="/partner/heizung-schmidt" replace />} />
         <Route path="/partner/:partnerId" element={<PartnerPage />} />
         <Route path="/partner/:partnerId/jobs/:caseId" element={<PartnerPage />} />
+        <Route path="/tech/:techId" element={<TechPage />} />
+        <Route path="/tech/:techId/jobs/:caseId" element={<TechPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
+  )
+}
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
   </React.StrictMode>,
 )
