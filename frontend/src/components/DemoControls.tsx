@@ -1,8 +1,28 @@
 import { useEffect, useState } from 'react'
 import { api, USE_FIXTURES } from '../api/client'
 import { useStream } from '../lib/stream'
+import { getStageScale, setStageScale, STAGE_MAX, STAGE_MIN } from '../lib/stage'
 
 /** Hidden demo panel (VITE_DEMO=1). Toggle with the small dot bottom-right or the "d" key. */
+function TextSize() {
+  const [scale, setScale] = useState(getStageScale)
+  const step = (d: number) => setScale(setStageScale(scale + d))
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-muted">Text</span>
+      <button className="btn-ghost min-h-0 px-3 py-1" disabled={scale <= STAGE_MIN} onClick={() => step(-0.05)} aria-label="Smaller text">
+        A−
+      </button>
+      <button className="min-w-[3.5rem] text-sm font-semibold" onClick={() => setScale(setStageScale(1))} title="Reset to 100 %">
+        {Math.round(scale * 100)}%
+      </button>
+      <button className="btn-ghost min-h-0 px-3 py-1" disabled={scale >= STAGE_MAX} onClick={() => step(0.05)} aria-label="Bigger text">
+        A+
+      </button>
+    </div>
+  )
+}
+
 export function DemoControls() {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -55,6 +75,7 @@ export function DemoControls() {
           </button>
         )}
         <button className="btn-secondary" disabled={busy} onClick={() => run('Skipped to tomorrow', api.demoSkip)}>Skip to tomorrow</button>
+        <TextSize />
         <button className="btn-ghost" disabled={busy} onClick={() => confirm('Reset all demo data?') && run('Reset', async () => { await api.demoReset(); location.reload() })}>Reset</button>
       </div>
       {msg && <div className="mt-3 text-sm text-muted">{msg}</div>}

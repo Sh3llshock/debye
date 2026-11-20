@@ -42,3 +42,7 @@ Env flags (Vite, build-time):
 - `src/lib/stream.ts`: one shared `EventSource('/api/stream')`; pages patch the case in place and refetch (debounced).
 - `src/components/case/CasePanels.tsx`: staff case panels (case card, timeline, WhatsApp thread, ranking, consent, documents, result).
 - `src/pages/*`: route pages.
+
+## Stage text size
+
+Add `?stage=1` to any URL to make all text 10 % bigger for the projector (`?stage=1.2` = 120 %, `?stage=0` = back to 100 %). The setting is remembered in the browser. With `VITE_DEMO=1` the demo panel also has A− / A+ buttons (90–140 %). Only text scales; layout spacing stays the same.
