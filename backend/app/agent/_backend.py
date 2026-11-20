@@ -66,7 +66,77 @@ def find_open_case_for_asset(asset_id: str):
 
 
 def open_case(**kw):
-    return _call("open_case", **kw)
+    """trade / diagnosis are passed only if services.open_case accepts them (else stored via set_case_data)."""
+    import inspect
+
+    fn = getattr(_services(), "open_case")
+    try:
+        params = inspect.signature(fn).parameters
+        accepts_kw = any(p.kind == p.VAR_KEYWORD for p in params.values())
+    except (TypeError, ValueError):
+        params, accepts_kw = {}, True
+    for extra in ("trade", "diagnosis"):
+        if extra in kw and kw[extra] is None:
+            kw.pop(extra)
+        elif extra in kw and extra not in params and not accepts_kw:
+            kw.pop(extra)
+    return fn(**kw)
+
+
+def has(name: str) -> bool:
+    """Does services offer this function (newer backend-core APIs)?"""
+    try:
+        return callable(getattr(_services(), name, None))
+    except Exception:
+        return False
+
+
+def open_case_takes(param: str) -> bool:
+    import inspect
+
+    try:
+        return param in inspect.signature(getattr(_services(), "open_case")).parameters
+    except (TypeError, ValueError, AttributeError):
+        return False
+
+
+def set_case_diagnosis(case_id: str, diagnosis: dict, trade: str | None = None):
+    return _call("set_case_diagnosis", case_id, diagnosis, trade)
+
+
+def notify_caretaker(case_id: str, reason: str):
+    return _call("notify_caretaker", case_id, reason)
+
+
+def close_self_help(case_id: str, resolution_text: str):
+    return _call("close_self_help", case_id, resolution_text)
+
+
+def close_without_partner(case_id: str, outcome: str, note: str):
+    return _call("close_without_partner", case_id, outcome, note)
+
+
+def set_case_data(case_id: str, **kv) -> None:
+    """Merges keys into case.data (trade, diagnosis). services.set_case_data if it exists."""
+    kv = {k: v for k, v in kv.items() if v is not None}
+    if not kv:
+        return
+    fn = getattr(_services(), "set_case_data", None)
+    if fn is not None:
+        fn(case_id, **kv)
+        return
+    try:
+        from app import db, models
+
+        with db.get_session() as s:
+            case = s.get(models.Case, case_id)
+            if case is None:
+                return
+            case.data = {**(case.data or {}), **kv}  # reassign so the JSON column is saved
+            s.add(case)
+            s.commit()
+    except Exception:
+        log.exception("set_case_data fallback failed")
 
 
 def link_contact_to_case(case_id: str, contact_id: str, relation: str) -> None:

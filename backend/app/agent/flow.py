@@ -84,6 +84,8 @@ async def ensure_case(
     error_code: str | None = None,
     priority: str = "urgent",
     type_: str = "repair.heating",
+    trade: str | None = None,
+    diagnosis: dict | None = None,
 ) -> dict:
     """Opens a case or links the contact to the open one for the same central asset.
 
@@ -120,6 +122,8 @@ async def ensure_case(
         symptoms=symptoms,
         error_code=error_code,
         asset_id=asset_id,
+        trade=trade,
+        diagnosis=diagnosis,
     )
     cid = case_id_of(case)
     st.case_state(cid).reporter_contact_id = be.attr(contact, "id")
@@ -410,6 +414,27 @@ async def maybe_voice_reply(contact) -> None:
     await out.media(contact, conv.case_id, "audio", path)
 
 
+async def diagnosis_fallback(contact, conv: st.Conversation) -> None:
+    """Model down during a diagnosis: next question or conclusion by signal matching."""
+    from . import diagnosis
+
+    from . import choice
+
+    d = conv.diagnosis
+    last = d["asked"][-1] if d["asked"] else None
+    if last and last not in d["answers"] and conv.pending_options and conv.tenant_texts:
+        opt = choice.fast_match(conv.tenant_texts[-1], conv.pending_options)  # model down: map the plain answer
+        if opt is not None and opt.id.startswith("diag:"):
+            diagnosis.record(conv, last, opt.id.split(":")[2])
+    if last and last not in d["answers"] and _asked_recently(conv, st.DIAGNOSIS, 60):
+        return  # question still open; wait for the answer
+    action, ident, conf = diagnosis.next_step(conv)
+    if action == "ask":
+        await diagnosis.ask(contact, conv, ident)
+    else:
+        await diagnosis.conclude(contact, conv, ident, conf, "Scripted: best match of the answers to the signals.")
+
+
 # ---------------------------------------------------------------- error codes without the LLM
 _CODE_RE = re.compile(r"\bF\s?\.?\s?(\d{2})\b", re.IGNORECASE)
 # Photos we know: the demo boiler display (data/demo/boiler_display_F28.jpg) shows F.28.
@@ -453,6 +478,11 @@ def error_code_sentence(code: str, source: str = "photo") -> str:
 
 # ---------------------------------------------------------------- scripted fallback (Claude down / slow)
 async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[str] | None = None) -> None:
+    from . import diagnosis
+
+    if diagnosis.active(conv):
+        await diagnosis_fallback(contact, conv)
+        return
     cid = conv.case_id
     code, source = detect_error_code(conv.tenant_texts[-3:], image_paths or [])
     new_code = code if code and code != conv.error_code else None
