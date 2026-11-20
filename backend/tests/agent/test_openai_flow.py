@@ -185,6 +185,7 @@ def test_error_code_always_explained(client, svc, gpt):
     tool_result = json.loads(stub.requests[1]["messages"][-1]["content"])
     assert tool_result["explain_error_code"] == "Der Kessel meldet, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht."
     assert tool_result["explain_error_code_if_from_photo"] == "Auf dem Foto sehe ich, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht."
+    assert any(c[0] == "open_case" and c[-1] == "F.28" for c in svc.calls)  # services' case.created states the meaning
     system = stub.requests[0]["messages"][0]["content"]
     assert "always say the meaning first" in system
 
@@ -212,3 +213,31 @@ def test_cold_question_not_repeated(client, svc, gpt):
     refused = stub.requests[4]["messages"][-1]
     assert refused["role"] == "tool" and "still open" in refused["content"]
     assert msgs[-1]["payload"]["text"]["body"].startswith("Auf dem Foto sehe ich, dass die Zündung")
+
+
+def test_neighbour_linked_even_if_model_skips_open_case(client, svc, gpt):
+    gpt([
+        [oa_call("open_case", summary="Heizung kalt", symptoms="kalt", error_code=None, priority="urgent")],
+        [oa_call("reply", text="Ich kümmere mich.")],
+        "",
+        # Jonas: the model only replies (it saw the open case in centrix_context)
+        [oa_call("reply", text="Danke, die Heizung ist bereits gemeldet und wird bearbeitet.")],
+        "",
+    ])
+    client.post("/webhooks/whatsapp", json=wa_text("Heizung kalt"))
+    client.post("/webhooks/whatsapp", json=wa_text("Bei uns ist die Heizung auch kalt", from_="490000000002"))
+    assert ("link", "case_0001", "c_203", "affected") in svc.calls
+    assert sum(c[0] == "open_case" for c in svc.calls) == 1
+
+
+def test_unrelated_question_not_linked(client, svc, gpt):
+    gpt([
+        [oa_call("open_case", summary="Heizung kalt", symptoms="kalt", error_code=None, priority="urgent")],
+        [oa_call("reply", text="Ich kümmere mich.")],
+        "",
+        [oa_call("reply", text="Die Miete ist am Monatsanfang fällig.")],
+        "",
+    ])
+    client.post("/webhooks/whatsapp", json=wa_text("Heizung kalt"))
+    client.post("/webhooks/whatsapp", json=wa_text("Wann ist die Miete fällig?", from_="490000000002"))
+    assert not any(c[0] == "link" for c in svc.calls)

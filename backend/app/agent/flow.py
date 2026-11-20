@@ -309,6 +309,35 @@ async def on_fixed(contact, case_id: str, fixed: bool) -> None:
         await out.text(contact, case_id, f"Oh nein! Ich gebe das sofort an {partner_label(case_id)} weiter.")
 
 
+HEATING_WORDS = ("heiz", "kalt", "warm", "kessel", "therme", "warmwasser")
+
+
+async def link_if_building_case_open(contact, conv: st.Conversation) -> bool:
+    """Safety net after a model turn: a resident who reports a heating problem while the building's
+    central-heating case is open gets linked to it (quietly), even if the model forgot open_case."""
+    if conv.case_id:
+        return False
+    said = " ".join(conv.tenant_texts[-3:]).lower()
+    if not any(w in said for w in HEATING_WORDS):
+        return False
+    asset_id = heating_asset_id(unit_context_for(contact))
+    if not asset_id:
+        return False
+    try:
+        existing = be.find_open_case_for_asset(asset_id)
+    except Exception:
+        log.exception("find_open_case_for_asset failed")
+        return False
+    if existing is None:
+        return False
+    cid = case_id_of(existing)
+    be.link_contact_to_case(cid, be.attr(contact, "id"), "affected")
+    conv.case_id, conv.step = cid, st.DISPATCHED
+    _flush_inputs(conv)
+    log.info("linked %s to open building case %s (safety net)", be.attr(contact, "id"), cid)
+    return True
+
+
 # ---------------------------------------------------------------- voice reply (optional)
 async def maybe_voice_reply(contact) -> None:
     """Once per conversation, answer the resident's first voice note with a short voice note.
