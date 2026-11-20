@@ -453,3 +453,98 @@ def test_english_slot_labels(client):
     from datetime import datetime
     d = datetime.fromisoformat(later["start"])
     assert lbl(later["start"], later["end"], "en") == f"{services.EN_DAYS[d.weekday()]} {d.day} {services.EN_MONTHS[d.month - 1]}, 14–16"
+
+
+# ---------------------------------------------------------------- diagnosis (docs/diagnosis.md)
+import json as _json
+
+KB = _json.loads((Path(__file__).resolve().parents[2] / "data" / "diagnosis" / "no_hot_water.json")
+                 .read_text(encoding="utf-8"))
+CAUSES = {c["id"]: c for c in KB["causes"]}
+
+
+def _diag(cause_id: str, confidence: float = 0.8) -> dict:
+    c = CAUSES[cause_id]
+    return {"cause_id": cause_id, "label": c["label"], "confidence": confidence,
+            "reasoning": "Shower cold, radiators fine, other taps hot", "questions_asked": ["q_scope", "q_radiators"]}
+
+
+def _open_with(cause_id: str):
+    luka = services.get_contact_by_phone("+490000000001")
+    boiler = services.get_unit_context(luka.unit_id)["assets"][0]
+    trade = CAUSES[cause_id]["trade"]
+    case = services.open_case(luka.id, "repair.hot_water", "normal", "No hot water in the shower",
+                              "no hot water", None, boiler["id"], trade=trade, diagnosis=_diag(cause_id))
+    return luka, case
+
+
+def test_diagnosis_stored_and_shown(client):
+    luka, case = _open_with("shower_mixer_faulty")
+    d = client.get(f"/api/staff/cases/{case.id}").json()
+    assert d["trade"] == "plumbing"
+    assert d["diagnosis"]["cause_id"] == "shower_mixer_faulty"
+    assert d["diagnosis"]["label"] == CAUSES["shower_mixer_faulty"]["label"]
+    assert d["diagnosis"]["questions_asked"] == ["q_scope", "q_radiators"]
+    ev = next(e for e in d["events"] if e["kind"] == "diagnosis.recorded")
+    assert ev["summary"] == f"Likely cause: {CAUSES['shower_mixer_faulty']['label']}, 80% sure → plumbing"
+    assert client.get("/api/staff/cases").json()[0]["trade"] == "plumbing"
+
+
+def test_plumbing_ranks_by_trade_and_preselects_ali(client):
+    luka, case = _open_with("shower_mixer_faulty")
+    ranking = services.rank_partners(case.id)
+    assert [r["partner_id"] for r in ranking] == ["heizung-schmidt"]  # only partner with the plumbing trade
+    assert "plumbing trade" in ranking[0]["reasons"]
+    assert not any("certified" in r for r in ranking[0]["reasons"])  # no brand bonus for plumbing
+    services.record_consent(luka.id, "heizung-schmidt", case.id, ["name", "address"], "repair", "whatsapp")
+    with pytest.raises(rules.RuleViolation):
+        services.dispatch_job(case.id, "heizung-schmidt")
+    card = client.get(f"/api/staff/cases/{case.id}").json()["approval"]
+    assert card["suggested_technician"]["tech_id"] == "tech_ali"  # the plumber
+    assert card["trade"] == "plumbing"
+    assert card["diagnosis"]["label"] == CAUSES["shower_mixer_faulty"]["label"]
+    assert card["diagnosis"]["reasoning"].startswith("Shower cold")
+    services.approve_case(case.id)
+    client.post(f"/api/partner/heizung-schmidt/jobs/{case.id}/accept")
+    slots = [s for t in client.get("/api/partner/heizung-schmidt/technicians").json()
+             if t["tech_id"] == "tech_ali" for s in t["free_slots"]][:1]
+    job = client.post(f"/api/partner/heizung-schmidt/jobs/{case.id}/slots", json={"slots": slots}).json()
+    assert job["technician"]["tech_id"] == "tech_ali"  # auto-assign matches the trade skill
+
+
+def test_electrical_goes_to_elektro_klein(client):
+    luka = services.get_contact_by_phone("+490000000001")
+    case = services.open_case(luka.id, "repair.electrical", "urgent", "Boiler has no power", "dead display",
+                              None, None, trade="electrical",
+                              diagnosis={"cause_id": "no_power_to_boiler", "label": "Boiler has no power",
+                                         "confidence": 0.7, "reasoning": "display dark", "questions_asked": []})
+    ranking = services.rank_partners(case.id)
+    assert [r["partner_id"] for r in ranking] == ["elektro-klein"]
+    sug = services.suggest_technician(case.id, "elektro-klein")
+    assert sug["technician"]["tech_id"] == "tech_marco"
+
+
+def test_heating_keeps_brand_bonus(client):
+    luka, case = _open_with("boiler_fault")
+    ranking = services.rank_partners(case.id)
+    assert ranking[0]["partner_id"] == "heizung-schmidt"
+    assert "Vaillant-certified" in ranking[0]["reasons"]
+    assert len(ranking) == 3
+
+
+def test_notify_caretaker(client):
+    luka, case = _open_with("low_system_pressure")
+    out = services.notify_caretaker(case.id, "top up system pressure")
+    assert out["caretaker"]["name"] == "Peter Wolf"
+    d = client.get(f"/api/staff/cases/{case.id}").json()
+    ev = next(e for e in d["events"] if e["kind"] == "caretaker.notified")
+    assert ev["summary"] == "Caretaker Peter Wolf notified: top up system pressure"
+    assert d["caretaker"]["reason"] == "top up system pressure"
+    assert d["partner"] is None and "job.sent" not in [e["kind"] for e in d["events"]]
+
+
+def test_set_case_diagnosis_later(client):
+    luka, boiler, case = _open_luka_case()
+    services.set_case_diagnosis(case.id, _diag("circulation_pump_faulty", 0.6), trade="heating")
+    d = client.get(f"/api/staff/cases/{case.id}").json()
+    assert d["diagnosis"]["cause_id"] == "circulation_pump_faulty" and d["trade"] == "heating"
