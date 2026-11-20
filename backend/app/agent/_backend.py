@@ -98,30 +98,12 @@ def tenant_confirms_fixed(case_id: str, fixed: bool) -> dict:
 
 
 def set_case_error_code(case_id: str, error_code: str) -> None:
-    """Writes the display code onto an open case and records it on the timeline."""
-    svc = _services()
-    fn = getattr(svc, "set_case_error_code", None)
-    if fn is not None:  # services records the single "case.error_code" timeline event itself
-        fn(case_id, error_code)
-        return
-    _set_error_code_directly(case_id, error_code)
-    from .error_codes import timeline_summary
-
-    record_event(case_id, "debye", "triage.error_code", timeline_summary(error_code), {"error_code": error_code})
-
-
-def _set_error_code_directly(case_id: str, error_code: str) -> None:
-    try:  # until backend-core ships set_case_error_code
-        from app import db, models
-
-        with db.get_session() as s:
-            case = s.get(models.Case, case_id)
-            if case is not None and getattr(case, "error_code", None) != error_code:
-                case.error_code = error_code
-                s.add(case)
-                s.commit()
+    """services.set_case_error_code writes the code and records the one timeline event
+    ('Boiler error: ignition failed (F.28)'); same code again is a no-op."""
+    try:
+        _call("set_case_error_code", case_id, error_code)
     except Exception:
-        log.exception("set_case_error_code fallback failed")
+        log.exception("set_case_error_code failed")
 
 
 def add_tenant_input(case_id: str | None, label: str) -> None:

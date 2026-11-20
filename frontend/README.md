@@ -40,7 +40,9 @@ Env flags (Vite, build-time):
 - `src/theme.ts`: **every** colour, font, size, radius and spacing. Wired into `tailwind.config.ts`. Change design here only.
 - `src/api/types.ts`: shapes from `docs/interfaces.md` §4. `client.ts`: typed REST client. `mock.ts`: fixtures.
 - `src/lib/stream.ts`: one shared `EventSource('/api/stream')`; pages patch the case in place and refetch (debounced).
-- `src/components/case/CasePanels.tsx`: staff case panels (case card, timeline, WhatsApp thread, ranking, consent, documents, result).
+- `src/components/case/CasePanels.tsx`: service line, zero-forms strip, activity, conversation, inspector, partner choice table.
+- `src/lib/lifecycle.ts`: the service line stations (staff and partner) and status texts. `src/lib/errors.ts`: error codes explained meaning first (`error_label` from the API, else a local map).
+- Design: Version B (impeccable), `docs/design/v2/version-b-impeccable/`. Mascot: `docs/design/v2/mascot/` (downscaled copies in `public/mascot/`).
 - `src/pages/*`: route pages.
 
 ## Stage text size

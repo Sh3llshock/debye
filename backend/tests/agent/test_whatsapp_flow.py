@@ -240,4 +240,4 @@ def test_fallback_reads_demo_photo_after_voice_note(client, svc, claude, tmp_pat
     msgs = outbox(client)
     assert len(msgs) == n + 1
     assert msgs[-1]["payload"]["text"]["body"] == "Auf dem Foto sehe ich, dass die Zündung fehlgeschlagen ist (Fehlercode F.28) – die Heizung startet deshalb nicht. Ich habe das im Fall notiert."
-    assert any(e[2] == "case.error_code" and e[3] == "Boiler error: ignition failed (F.28)" for e in svc.events)
+    assert ("error_code", "case_0001", "F.28") in svc.calls  # services.set_case_error_code records the event

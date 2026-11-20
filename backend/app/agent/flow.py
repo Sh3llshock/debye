@@ -117,7 +117,6 @@ async def ensure_case(
     )
     cid = case_id_of(case)
     st.case_state(cid).reporter_contact_id = be.attr(contact, "id")
-    # open_case's own case.created summary already states the error meaning (services)
     conv.case_id, conv.step = cid, st.TRIAGE
     _flush_inputs(conv)
     return {"case_id": cid, "duplicate": False}
