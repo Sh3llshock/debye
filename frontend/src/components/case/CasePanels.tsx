@@ -4,7 +4,7 @@ import { actorColors } from '../../theme'
 import { fmtDateTime, fmtEur, fmtSlot, fmtTime, humanize, LIFECYCLE, lifecycleDone } from '../../lib/format'
 import { eventKey, messageKey } from '../../lib/keys'
 import { useNewKeys } from '../../lib/useNewKeys'
-import { ActorIcon, Card, Empty, Field, JsonView, StatusPill } from '../ui'
+import { ActorIcon, Card, Empty, Field, JsonView, Mascot, StatusPill } from '../ui'
 import { Icon } from '../icons'
 
 // ---------- small bits ----------
@@ -158,7 +158,8 @@ export function ZeroFormsCard({ c }: { c: CaseDetail }) {
   if (!z) return null
   const name = c.reporters[0]?.name.split(' ')[0] ?? 'The resident'
   return (
-    <section className="rounded-card bg-plum p-card-sm text-on-plum shadow-card" title={c.zero_forms?.prefilled.join(', ')}>
+    <section className="relative rounded-card bg-plum p-card-sm text-on-plum shadow-card" title={c.zero_forms?.prefilled.join(', ')}>
+      {c.status === 'closed' && <Mascot pose="thumbs-up" alt="Debye: case closed" className="animate-rise pointer-events-none absolute -top-10 right-2 h-32 w-32 drop-shadow-lg" />}
       <div className="text-eyebrow font-semibold uppercase text-on-plum-muted">Zero forms</div>
       <div className="mt-2 flex items-end gap-4">
         <span className="font-sans text-stat font-medium">{z.prefilled}</span>
@@ -334,7 +335,10 @@ export function WhatsAppThread({ c }: { c: CaseDetail }) {
   }, [messages.length])
   const who = c.reporters[0]?.name.split(' ')[0] ?? 'Resident'
   return (
-    <Card title="WhatsApp" action={<span className="rounded-pill bg-success-soft px-3 py-0.5 text-sm font-semibold text-wa-header">{who} ↔ Debye</span>}>
+    <Card title="WhatsApp" action={<span className="inline-flex items-center gap-2 rounded-pill bg-success-soft py-0.5 pl-3 pr-1 text-sm font-semibold text-wa-header">
+            {who} ↔ Debye
+            <Mascot pose="avatar" alt="" className="h-8 w-8 rounded-full border border-line bg-bg object-cover" />
+          </span>}>
       <div ref={box} className="flex h-[calc(100vh-350px)] min-h-[380px] flex-col gap-2 overflow-y-auto rounded-lg bg-wa-bg p-3">
         {messages.length === 0 && <div className="m-auto p-4 text-center text-muted">No messages yet</div>}
         {messages.map((m) => {

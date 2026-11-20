@@ -132,3 +132,13 @@ export function ActorIcon({ actor, size = 40 }: { actor: string; size?: number }
 export function JsonView({ value }: { value: unknown }) {
   return <pre className="max-h-[480px] overflow-auto rounded-lg bg-plum-dark p-4 font-mono text-sm text-on-plum">{JSON.stringify(value, null, 2)}</pre>
 }
+
+/** Designer's mascot (docs/design/mascot, downscaled copies in public/mascot). */
+const MASCOT = {
+  waving: '/mascot/debye-mascot-waving.png',
+  'thumbs-up': '/mascot/debye-mascot-thumbs-up.png',
+  avatar: '/mascot/debye-mascot-whatsapp.png',
+} as const
+export function Mascot({ pose, className = '', alt = 'Debye' }: { pose: keyof typeof MASCOT; className?: string; alt?: string }) {
+  return <img src={MASCOT[pose]} alt={alt} draggable={false} className={`select-none ${className}`} />
+}
