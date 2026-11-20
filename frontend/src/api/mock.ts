@@ -22,7 +22,7 @@ const ADDRESS = 'Musterstraße 12, 52062 Aachen'
 const SCHMIDT = { partner_id: 'heizung-schmidt', name: 'Heizung Schmidt GmbH' }
 
 const partners: Record<string, PartnerProfile> = {
-  'heizung-schmidt': { partner_id: 'heizung-schmidt', name: 'Heizung Schmidt GmbH', category: 'repair.heating', rating: 4.8 },
+  'heizung-schmidt': { partner_id: 'heizung-schmidt', name: 'Heizung Schmidt GmbH', category: 'repair.heating', rating: 4.8, staff: [{ contact_id: 'c_301', name: 'Tom Schmidt' }] },
   'waerme-wagner': { partner_id: 'waerme-wagner', name: 'Wärme Wagner', category: 'repair.heating', rating: 4.6 },
   'heiztechnik-gruen': { partner_id: 'heiztechnik-gruen', name: 'Heiztechnik Grün', category: 'repair.heating', rating: 4.1 },
 }
@@ -49,7 +49,7 @@ type State = {
   dayOffset: number
   minute: number
 }
-const STORE_KEY = 'debye-fixtures-v1'
+const STORE_KEY = 'debye-fixtures-v2'
 let state: State = loadState() ?? initialState()
 
 function loadState(): State | null {
@@ -137,9 +137,17 @@ function addMessage(c: CaseDetail, direction: 'in' | 'out', contact: string, tex
 }
 function newDoc(c: CaseDetail, kind: string, filename: string, extracted: Record<string, unknown> | null = null): DocumentItem {
   const id = `doc_${String(state.docSeq++).padStart(4, '0')}`
-  const doc: DocumentItem = { document_id: id, kind, filename, url: `/files/${id}`, extracted, case_id: c.case_id, created_at: now() }
+  const url = DEMO_FILES[filename] ?? `/files/${id}`
+  const doc: DocumentItem = { document_id: id, kind, filename, url, extracted, case_id: c.case_id, unit_id: c.unit_id, created_at: now() }
   c.documents.push(doc)
   return doc
+}
+
+// Demo media from data/demo (copied to public/demo).
+const DEMO_FILES: Record<string, string> = {
+  'boiler_display_F28.jpg': '/demo-media/boiler_display_F28.jpg',
+  'after_repair.jpg': '/demo-media/repair_done.jpg',
+  'RE-2026-1187.pdf': '/demo-media/invoice_RE-2026-1187.pdf',
 }
 
 // ---------- golden path, resident side ----------
@@ -176,7 +184,8 @@ export const mockSteps: MockStep[] = [
         updated_at: now(),
         created_at: now(),
         reporters: [{ contact_id: 'c_202', name: 'Lena Hoffmann', unit_id: 'unit_4b', relation: 'reporter' }],
-        asset: { asset_id: 'asset_boiler_1', type: 'gas_boiler', make: 'Vaillant', model: 'ecoTEC plus VC 206/5-5', error_code: 'F.28' },
+        asset: { asset_id: 'asset_boiler_1', type: 'gas_boiler', make: 'Vaillant', model: 'ecoTEC plus VC 206/5-5', error_code: 'F.28', error_meaning: 'Ignition failed at start-up (no flame detected)' },
+        summary: 'Radiators cold in the whole building since this morning (unit 2a reports the same). Likely ignition fault at the central boiler.',
         cost_bearer: 'landlord',
         estimated_cost_eur: 250,
         approval: { required: false, rule: 'auto-approved: €250 < €500 framework limit' },
@@ -190,8 +199,8 @@ export const mockSteps: MockStep[] = [
         result: null,
       }
       state.cases[c.case_id] = c
-      addMessage(c, 'in', 'Lena Hoffmann', '🎤 „Hallo, die Heizung ist komplett kalt und am Kessel blinkt F.28.“', [{ kind: 'audio' }, { kind: 'photo' }])
-      newDoc(c, 'photo', 'boiler_display.jpg')
+      const photo = newDoc(c, 'photo', 'boiler_display_F28.jpg')
+      addMessage(c, 'in', 'Lena Hoffmann', '„Hallo, die Heizung ist komplett kalt seit heute Morgen.“', [{ kind: 'audio' }, { document_id: photo.document_id, kind: 'photo', url: photo.url }])
       addEvent(c, 'debye', 'case.created', "Case opened from Lena's voice note — photo shows error F.28 (ignition failed)")
       addMessage(c, 'out', 'Lena Hoffmann', 'Oh nein, das tut mir leid Lena! Sind alle Heizkörper kalt oder nur einer?', [])
     },
@@ -236,7 +245,7 @@ export const mockSteps: MockStep[] = [
       const c = heating()!
       addMessage(c, 'in', 'Lena Hoffmann', 'Ja, teilen')
       c.zero_forms!.tenant_inputs.push('tap: consent')
-      c.consents.push({ partner_id: 'heizung-schmidt', data_shared: ['name', 'phone', 'address', 'unit_floor', 'photos'], given_at: now(), channel: 'whatsapp', purpose: 'heating repair visit' })
+      c.consents.push({ contact_id: 'c_202', partner_id: 'heizung-schmidt', data_shared: ['name', 'phone', 'address', 'unit_floor', 'photos'], given_at: now(), channel: 'whatsapp', purpose: 'heating repair visit' })
       addEvent(c, 'tenant', 'consent.recorded', 'Lena shared name, phone, address, floor, photos with Heizung Schmidt')
       addEvent(c, 'system', 'approval.granted', 'Auto-approved: estimate €250 is within the €500 framework limit')
       c.partner = SCHMIDT
@@ -251,7 +260,7 @@ export const mockSteps: MockStep[] = [
   },
   {
     label: 'Lena picks a slot',
-    ready: () => !!heating() && heating()!.status === 'accepted' && !!state.pendingSlots['case_0001']?.length,
+    ready: () => !!heating() && heating()!.status === 'slots_proposed' && !!state.pendingSlots['case_0001']?.length,
     run: () => {
       const c = heating()!
       const s = state.pendingSlots['case_0001'][0]
@@ -288,7 +297,7 @@ export const mockSteps: MockStep[] = [
           status: 'closed',
           visit: c.slot,
           resolution: 'Ignition electrode replaced, boiler restarted',
-          invoice: { number: 'RE-2026-1187', gross_eur: 249.9, document_id: inv?.document_id ?? null, price_check: 'ok' },
+          invoice: { number: 'RE-2026-1187', gross_eur: 237.41, document_id: inv?.document_id ?? null, price_check: 'ok' },
           affected_units: c.reporters.map((r) => r.unit_id),
           consent: { data_shared: c.consents[0]?.data_shared, given_at: c.consents[0]?.given_at, channel: 'whatsapp' },
         },
@@ -333,20 +342,24 @@ function jobFor(partnerId: string, c: CaseDetail): JobDetail {
     type: c.type,
     status: c.status,
     priority: c.priority,
-    address: fields.includes('address') ? c.address : '52062 Aachen',
-    floor: fields.includes('unit_floor') ? 2 : null,
-    asset: c.asset,
+    address: fields.includes('address') ? c.address.split(',')[0] : null,
+    postcode: '52062',
+    floor: 2,
+    asset: c.asset ? { ...c.asset, installed: '2014-09-15', last_service: '2025-10-08' } : null,
     error_code: c.asset?.error_code ?? null,
-    description: 'All radiators cold since this morning. Boiler display shows F.28. Tenant and neighbour (2a) affected.',
-    photos: fields.includes('photos') ? c.documents.filter((d) => d.kind === 'photo') : [],
-    tenant_contact: fields.includes('name') ? { name: 'Lena Hoffmann', phone: fields.includes('phone') ? '+49 151 0000 0001' : undefined } : null,
+    summary: c.summary,
+    photos: c.documents.filter((d) => d.kind === 'photo' && (fields.includes('photos') || d.filename.startsWith('after_'))).map((d) => ({ document_id: d.document_id, url: d.url, filename: d.filename })),
+    tenant: fields.includes('name') ? { name: 'Lena Hoffmann', phone: fields.includes('phone') ? '+491510000001' : null } : null,
     consented_fields: fields,
     proposed_slots: state.pendingSlots[c.case_id] ?? [],
     confirmed_slot: c.slot,
     slot: c.slot,
-    documents: c.documents.filter((d) => d.kind === 'invoice'),
+    documents: c.documents.filter((d) => d.kind === 'invoice' || d.kind === 'report'),
+    price_check: c.price_check ?? null,
     estimated_cost_eur: c.estimated_cost_eur,
     updated_at: c.updated_at,
+    created_at: c.created_at,
+    events: c.events.filter((e) => /^(job|slot|invoice|case\.closed)/.test(e.kind)),
   }
 }
 const jobSummary = (j: JobDetail): JobSummary => ({ case_id: j.case_id, title: j.title, status: j.status, priority: j.priority, address: j.address, updated_at: j.updated_at, slot: j.slot })
@@ -363,8 +376,8 @@ export const mockApi = {
   async staffUnits(): Promise<UnitSummary[]> {
     await delay()
     return [
-      { unit_id: 'unit_4b', address: ADDRESS, floor: 2, tenant: 'Lena Hoffmann', open_cases: Object.values(state.cases).filter((c) => c.unit_id === 'unit_4b' && c.status !== 'closed').length },
-      { unit_id: 'unit_2a', address: ADDRESS, floor: 1, tenant: 'Jonas Weber', open_cases: Object.values(state.cases).filter((c) => c.unit_id === 'unit_2a' && c.status !== 'closed').length },
+      { unit_id: 'unit_4b', address: ADDRESS, floor: 2, size_sqm: 68, rooms: 3, tenant: { contact_id: 'c_202', name: 'Lena Hoffmann' }, open_cases: Object.values(state.cases).filter((c) => c.unit_id === 'unit_4b' && c.status !== 'closed').length },
+      { unit_id: 'unit_2a', address: ADDRESS, floor: 1, size_sqm: 54, rooms: 2, tenant: { contact_id: 'c_203', name: 'Jonas Weber' }, open_cases: Object.values(state.cases).filter((c) => c.unit_id === 'unit_2a' && c.status !== 'closed').length },
     ]
   },
   async staffUnit(unitId: string): Promise<UnitDetail> {
@@ -372,16 +385,17 @@ export const mockApi = {
     const is4b = unitId === 'unit_4b'
     if (!is4b && unitId !== 'unit_2a') throw new Error('Unit not found')
     return clone({
-      property: { id: 'prop_12', address: ADDRESS, postcode: '52062', city: 'Aachen', building_year: 1972, heating_type: 'gas central heating', heating_central: true, energy_certificate: { class: 'E', valid_until: '2029-03-31' } },
+      property: { id: 'prop_12', address: ADDRESS, postcode: '52062', city: 'Aachen', building_year: 1972, heating_type: 'gas central heating', heating_central: true, energy_class: 'E', energy_valid_until: '2029-03-31' },
       unit: is4b
         ? { id: 'unit_4b', floor: 2, size_sqm: 68, rooms: 3, meters: [{ type: 'electricity', number: '1ESY1160123456' }, { type: 'gas', number: '7GMT0042001234' }] }
         : { id: 'unit_2a', floor: 1, size_sqm: 54, rooms: 2, meters: [{ type: 'electricity', number: '1ESY1160123401' }] },
       assets: [{ asset_id: 'asset_boiler_1', type: 'gas_boiler', make: 'Vaillant', model: 'ecoTEC plus VC 206/5-5', installed: '2014-09-15', last_service: '2025-10-08' }],
       tenant: is4b ? { contact_id: 'c_202', name: 'Lena Hoffmann', email: 'lena@example.com', move_in: '2026-12-01' } : { contact_id: 'c_203', name: 'Jonas Weber', email: 'jonas@example.com', move_in: '2021-04-01' },
-      lease: is4b ? { rent_cold_eur: 780, start: '2026-12-01' } : { rent_cold_eur: 610, start: '2021-04-01' },
+      lease: { id: `ct_lease_${unitId}`, type: 'lease', data: is4b ? { rent_cold_eur: 780, start: '2026-12-01' } : { rent_cold_eur: 610, start: '2021-04-01' } },
       documents: [
-        { document_id: 'doc_lease', kind: 'contract', filename: `lease_${unitId}.pdf`, url: '#' },
-        ...(is4b ? state.unitDocs : []),
+        ...(is4b ? [...state.unitDocs].reverse() : []),
+        { document_id: 'doc_lease', kind: 'contract', filename: `Lease ${unitId.replace('unit_', '')}.pdf`, url: '#', created_at: '2026-11-01T10:00:00+01:00' },
+        { document_id: 'doc_energy', kind: 'contract', filename: 'Energy certificate.pdf', url: '#', created_at: '2024-03-31T10:00:00+01:00' },
       ],
       cases: Object.values(state.cases).filter((c) => c.unit_id === unitId || c.reporters.some((r) => r.unit_id === unitId)).map(summary),
     })
@@ -399,7 +413,7 @@ export const mockApi = {
   async approve(caseId: string): Promise<CaseDetail> {
     await delay()
     const c = state.cases[caseId]
-    c.approval = { ...(c.approval ?? { rule: '' }), required: false, granted_at: now(), granted_by: 'staff', rule: `approved by property manager (€${c.estimated_cost_eur})` }
+    c.approval = { ...(c.approval ?? { rule: '' }), required: false, granted: true, granted_at: now(), granted_by: 'staff', rule: `approved by property manager (€${c.estimated_cost_eur})` }
     c.status = 'requested'
     addEvent(c, 'staff', 'approval.granted', `Property manager approved the €${c.estimated_cost_eur} repair`)
     addEvent(c, 'debye', 'job.sent', `Job sent to ${c.partner?.name}`)
@@ -414,7 +428,7 @@ export const mockApi = {
   async jobs(partnerId: string): Promise<JobSummary[]> {
     await delay()
     return Object.values(state.cases)
-      .filter((c) => c.partner?.partner_id === partnerId && c.status !== 'awaiting_approval')
+      .filter((c) => c.partner?.partner_id === partnerId && c.status !== 'awaiting_approval' && c.status !== 'new')
       .map((c) => jobSummary(jobFor(partnerId, c)))
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
   },
@@ -441,6 +455,8 @@ export const mockApi = {
     await delay()
     const c = partnerCase(partnerId, caseId)
     state.pendingSlots[caseId] = slots.map((s) => ({ ...s, label: s.label ?? SLOTS.find((x) => x.start === s.start)?.label ?? fmtSlot(s) }))
+    c.status = 'slots_proposed'
+    c.proposed_slots = state.pendingSlots[caseId]
     addEvent(c, 'partner', 'slot.proposed', `${c.partner?.name} proposed ${slots.length} time slot${slots.length > 1 ? 's' : ''}`)
     addMessage(c, 'out', c.reporters[0].name, `Wann passt es dir? ${state.pendingSlots[caseId].map((s) => s.label).join(' · ')}`)
     return clone(jobFor(partnerId, c))
@@ -454,27 +470,27 @@ export const mockApi = {
     c.status = 'completed'
     addEvent(c, 'partner', 'job.completed', `Work done: ${notes || 'Ignition electrode replaced, boiler restarted'}`)
     if (photo && photo.size) {
-      newDoc(c, 'photo', photo.name)
+      newDoc(c, 'photo', 'after_repair.jpg')
       addEvent(c, 'partner', 'document.attached', `Photo attached: ${photo.name}`)
     }
     const extracted = {
       invoice_number: 'RE-2026-1187',
       date: '2026-11-21',
-      net_eur: 210.0,
-      vat_eur: 39.9,
-      gross_eur: 249.9,
+      net_eur: 199.5,
+      vat_eur: 37.91,
+      gross_eur: 237.41,
       labour_hours: 1.0,
       line_items: [
-        { desc: 'Anfahrt / call-out', qty: 1, unit_price: 89.0 },
-        { desc: 'Arbeitszeit / labour', qty: 1, unit_price: 72.0 },
-        { desc: 'Zündelektrode Vaillant', qty: 1, unit_price: 49.0 },
+        { desc: 'Anfahrtspauschale (Rahmenvertrag)', qty: 1, unit_price: 89.0 },
+        { desc: 'Arbeitszeit Heizungstechniker, Std.', qty: 1, unit_price: 72.0 },
+        { desc: 'Zündelektrode Vaillant ecoTEC plus', qty: 1, unit_price: 38.5 },
       ],
-      price_check: 'ok — all lines within framework prices',
     }
-    newDoc(c, 'invoice', invoice?.name || 'RE-2026-1187.pdf', extracted)
+    newDoc(c, 'invoice', 'RE-2026-1187.pdf', extracted)
     addEvent(c, 'partner', 'document.attached', `Invoice attached: ${invoice?.name || 'RE-2026-1187.pdf'}`)
     c.status = 'invoiced'
-    addEvent(c, 'debye', 'invoice.checked', 'Invoice RE-2026-1187 read: €249.90 gross, all lines within framework prices')
+    c.price_check = { status: 'ok', note: 'all lines within framework prices' }
+    addEvent(c, 'debye', 'invoice.checked', 'Invoice RE-2026-1187 read: €237.41 gross, matches framework prices. Filed on unit 4b.')
     return clone(jobFor(partnerId, c))
   },
   async demoReset(): Promise<void> {
@@ -485,9 +501,7 @@ export const mockApi = {
     state.dayOffset += 1
     state.minute = 0
     const c = heating()
-    if (c?.status === 'scheduled') {
-      c.status = 'in_progress'
-      addEvent(c, 'system', 'visit.started', 'Next morning: Tom from Heizung Schmidt is on site')
-    } else emit({ type: 'demo.skip', case_id: null, event: null })
+    if (c?.status === 'scheduled') addEvent(c, 'system', 'demo.skip', 'Next morning: Tom from Heizung Schmidt is on site')
+    else emit({ type: 'demo.skip', case_id: null, event: null })
   },
 }

@@ -63,7 +63,7 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   return (
     <div className="min-w-0">
       <div className="label">{label}</div>
-      <div className="mt-0.5 break-words">{children ?? '—'}</div>
+      <div className="mt-0.5 [overflow-wrap:anywhere] hyphens-auto">{children ?? '—'}</div>
     </div>
   )
 }
@@ -92,17 +92,17 @@ export function actorInfo(a: string) {
   return { label: ACTOR_LABEL[a] ?? 'System' }
 }
 
-/** Debye mark: aubergine circle, white serif "d", violet spark top right. */
-export function DebyeMark({ size = 40, onDark }: { size?: number; onDark?: boolean }) {
+/** Debye mark (docs/design/debye-avatar.svg): aubergine circle, white serif "d", lilac spark.
+ *  `bare` drops the circle (for the aubergine top bar). */
+const MARK_D = 'M113.68 185.54C105.813 185.54 98.8133 183.54 92.68 179.54C86.5467 175.54 81.68 170.007 78.08 162.94C74.6133 155.74 72.88 147.673 72.88 138.74C72.88 129.673 74.6133 121.607 78.08 114.54C81.68 107.473 86.5467 101.94 92.68 97.94C98.8133 93.8067 105.813 91.74 113.68 91.74C120.08 91.74 126.147 93.14 131.88 95.94C137.613 98.74 142.813 102.873 147.48 108.34L145.48 114.34C141.613 109.807 137.413 106.34 132.88 103.94C128.48 101.407 124.013 100.14 119.48 100.14C112.013 100.14 106.213 103.54 102.08 110.34C97.9467 117.007 95.88 126.473 95.88 138.74C95.88 150.74 97.9467 160.14 102.08 166.94C106.213 173.74 112.08 177.14 119.68 177.14C123.813 177.14 127.947 176.073 132.08 173.94C136.347 171.673 140.747 168.273 145.28 163.74L147.88 167.94C142.813 173.807 137.413 178.207 131.68 181.14C126.08 184.073 120.08 185.540 113.68 185.54ZM146.28 185.34L143.68 170.54L141.88 167.14V63.14C141.88 57.2733 140.813 53.14 138.68 50.74C136.68 48.34 133.013 47.0733 127.68 46.94L125.88 46.74V41.14C133.613 41.14 140.28 41.0067 145.88 40.74C151.613 40.34 157.28 39.6733 162.88 38.74V160.54C162.88 166.94 163.947 171.34 166.08 173.74C168.213 176.007 172.213 177.273 178.08 177.54V183.14H172.08C167.28 183.14 162.813 183.273 158.68 183.54C154.68 183.940 150.547 184.54 146.28 185.34Z'
+const MARK_SPARK = 'M207.36 20.48L214.963 51.2772L245.76 58.88L214.963 66.4828L207.36 97.28L199.757 66.4828L168.96 58.88L199.757 51.2772L207.36 20.48Z'
+export function DebyeMark({ size = 40, bare }: { size?: number; bare?: boolean; onDark?: boolean }) {
   return (
-    <span
-      title="Debye"
-      className={`relative inline-flex shrink-0 items-center justify-center rounded-full bg-plum font-serif font-semibold leading-none text-on-plum ${onDark ? "ring-2 ring-line-on-plum" : ""}`}
-      style={{ width: size, height: size, fontSize: size * 0.62 }}
-    >
-      <span style={{ marginTop: -size * 0.08 }}>d</span>
-      <span className="absolute rounded-full bg-violet" style={{ width: size * 0.22, height: size * 0.22, top: size * 0.04, right: size * 0.04 }} />
-    </span>
+    <svg width={size} height={size} viewBox="0 0 256 256" role="img" aria-label="Debye" className="shrink-0">
+      {!bare && <circle cx="128" cy="128" r="128" className="fill-plum" />}
+      <path d={MARK_D} className="fill-on-plum" />
+      <path d={MARK_SPARK} className="fill-lilac" />
+    </svg>
   )
 }
 

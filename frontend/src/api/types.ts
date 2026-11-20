@@ -12,6 +12,9 @@ export type CaseStatus =
   | 'invoiced'
   | 'closed'
   | 'declined'
+  | 'slots_proposed'
+  | 'partner_declined'
+  | 'reopened'
   | (string & {})
 
 export type Priority = 'urgent' | 'high' | 'normal' | 'low' | (string & {})
@@ -49,8 +52,9 @@ export interface Asset {
   make: string
   model: string
   error_code?: string | null
-  installed?: string
-  last_service?: string
+  error_meaning?: string | null
+  installed?: string | null
+  last_service?: string | null
 }
 
 export interface Slot {
@@ -72,6 +76,8 @@ export interface RankingEntry {
 }
 
 export interface Consent {
+  consent_id?: string
+  contact_id?: string
   partner_id: string
   data_shared: string[]
   given_at: string
@@ -88,7 +94,8 @@ export interface DocumentItem {
   mime?: string
   extracted?: Record<string, unknown> | null
   case_id?: string | null
-  created_at?: string
+  unit_id?: string | null
+  created_at?: string | null
 }
 
 export interface CaseEvent {
@@ -103,14 +110,16 @@ export interface CaseEvent {
 export interface ThreadMessage {
   ts: string
   direction: 'in' | 'out'
-  contact: string
-  text: string
-  media: { kind?: string; url?: string; filename?: string }[] | string[]
+  contact: string | null
+  contact_id?: string | null
+  text: string | null
+  media: { document_id?: string; kind?: string; url?: string; filename?: string }[]
 }
 
 export interface Approval {
   required: boolean
   rule: string
+  granted?: boolean
   granted_at?: string | null
   granted_by?: string | null
   amount_eur?: number | null
@@ -130,14 +139,21 @@ export interface CaseDetail extends CaseSummary {
   events: CaseEvent[]
   messages: ThreadMessage[]
   result: Record<string, unknown> | null
+  summary?: string | null
+  symptoms?: string | null
+  proposed_slots?: Slot[]
+  price_check?: unknown
+  closed_at?: string | null
 }
 
 // ---- units ----
 export interface UnitSummary {
   unit_id: string
-  address: string
+  address: string | null
   floor?: number
-  tenant?: string | null
+  size_sqm?: number
+  rooms?: number
+  tenant?: { contact_id: string; name: string } | null
   open_cases?: number
 }
 
@@ -151,12 +167,13 @@ export interface UnitDetail {
     heating_type?: string
     heating_central?: boolean
     energy_certificate?: { class: string; valid_until: string }
-    energy_class?: string
-  }
+    energy_class?: string | null
+    energy_valid_until?: string | null
+  } | null
   unit: { id?: string; unit_id?: string; floor: number; size_sqm?: number; rooms?: number; meters?: { type: string; number: string }[] }
   assets: Asset[]
   tenant: { contact_id?: string; id?: string; name: string; phone_e164?: string; email?: string; move_in?: string } | null
-  lease: { rent_cold_eur?: number; start?: string; [k: string]: unknown } | null
+  lease: { data?: { rent_cold_eur?: number; start?: string }; rent_cold_eur?: number; start?: string; [k: string]: unknown } | null
   documents: DocumentItem[]
   cases: CaseSummary[]
 }
@@ -172,27 +189,34 @@ export interface PartnerProfile {
 
 export interface JobSummary {
   case_id: string
+  type?: string
   title: string
   status: CaseStatus
   priority: Priority
-  address: string
+  address: string | null
+  postcode?: string | null
+  floor?: number | null
+  asset?: Asset | null
+  error_code?: string | null
   updated_at: string
+  created_at?: string
   slot?: Slot | null
 }
 
 export interface JobDetail extends JobSummary {
-  type?: string
-  floor?: number | null
-  asset?: Asset | null
-  error_code?: string | null
+  summary?: string | null
+  symptoms?: string | null
   description?: string | null
-  photos: DocumentItem[]
-  tenant_contact?: { name?: string; phone?: string } | null
+  photos: { document_id: string; url: string; filename: string }[]
+  tenant?: { name?: string | null; phone?: string | null } | null
   consented_fields?: string[]
   proposed_slots: Slot[]
   confirmed_slot?: Slot | null
   documents: DocumentItem[]
   estimated_cost_eur?: number | null
+  completion?: Record<string, unknown> | null
+  price_check?: unknown
+  events?: CaseEvent[]
 }
 
 // ---- SSE ----
