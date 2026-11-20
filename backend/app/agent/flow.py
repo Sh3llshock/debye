@@ -310,6 +310,35 @@ async def on_fixed(contact, case_id: str, fixed: bool) -> None:
         await out.text(contact, case_id, f"Oh nein! Ich gebe das sofort an {partner_label(case_id)} weiter.")
 
 
+HEATING_WORDS = ("heiz", "kalt", "warm", "kessel", "therme", "warmwasser")
+
+
+async def link_if_building_case_open(contact, conv: st.Conversation) -> bool:
+    """Safety net after a model turn: a resident who reports a heating problem while the building's
+    central-heating case is open gets linked to it (quietly), even if the model forgot open_case."""
+    if conv.case_id:
+        return False
+    said = " ".join(conv.tenant_texts[-3:]).lower()
+    if not any(w in said for w in HEATING_WORDS):
+        return False
+    asset_id = heating_asset_id(unit_context_for(contact))
+    if not asset_id:
+        return False
+    try:
+        existing = be.find_open_case_for_asset(asset_id)
+    except Exception:
+        log.exception("find_open_case_for_asset failed")
+        return False
+    if existing is None:
+        return False
+    cid = case_id_of(existing)
+    be.link_contact_to_case(cid, be.attr(contact, "id"), "affected")
+    conv.case_id, conv.step = cid, st.DISPATCHED
+    _flush_inputs(conv)
+    log.info("linked %s to open building case %s (safety net)", be.attr(contact, "id"), cid)
+    return True
+
+
 # ---------------------------------------------------------------- voice reply (optional)
 async def maybe_voice_reply(contact) -> None:
     """Once per conversation, answer the resident's first voice note with a short voice note.
@@ -351,30 +380,31 @@ def _photo_hashes() -> dict[str, str]:
     return _known_hashes
 
 
-def detect_error_code(texts: list[str], image_paths: list[str]) -> str | None:
-    """Code the resident typed/said, or the code on a photo we can recognise exactly. No guessing."""
-    for t in reversed(texts):
-        m = _CODE_RE.search(t or "")
-        if m:
-            return f"F.{m.group(1)}"
+def detect_error_code(texts: list[str], image_paths: list[str]) -> tuple[str | None, str]:
+    """(code, source): a code the resident typed/said ("text"), or the code on a photo we can
+    recognise exactly ("photo"). No guessing."""
     for p in image_paths:
         try:
             code = _photo_hashes().get(hashlib.sha256(Path(p).read_bytes()).hexdigest())
         except OSError:
             code = None
         if code:
-            return code
-    return None
+            return code, "photo"
+    for t in reversed(texts):
+        m = _CODE_RE.search(t or "")
+        if m:
+            return f"F.{m.group(1)}", "text"
+    return None, "text"
 
 
-def error_code_sentence(code: str) -> str:
-    return error_codes.resident_sentence(code)
+def error_code_sentence(code: str, source: str = "photo") -> str:
+    return error_codes.resident_sentence(code, source)
 
 
 # ---------------------------------------------------------------- scripted fallback (Claude down / slow)
 async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[str] | None = None) -> None:
     cid = conv.case_id
-    code = detect_error_code(conv.tenant_texts[-3:], image_paths or [])
+    code, source = detect_error_code(conv.tenant_texts[-3:], image_paths or [])
     new_code = code if code and code != conv.error_code else None
     if conv.step == st.NEW or not cid:
         said = " ".join(conv.tenant_texts[-3:]).strip() or "Heizung ausgefallen"
@@ -385,17 +415,17 @@ async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[st
         else:
             prefix = "Danke, ich habe das aufgenommen."
             if new_code:
-                prefix = f"Danke! {error_code_sentence(new_code)} Ich habe einen Fall angelegt."
+                prefix = f"Danke! {error_code_sentence(new_code, source)} Ich habe einen Fall angelegt."
                 conv.error_code = new_code
             await ask_cold(contact, res["case_id"], prefix=prefix)
     elif conv.step == st.TRIAGE:
         if new_code:  # e.g. the photo arrived just after the voice note
             conv.error_code = new_code
             be.set_case_error_code(cid, new_code)
-            if _asked_recently(conv, st.TRIAGE):
-                await out.text(contact, cid, f"{error_code_sentence(new_code)} Das habe ich im Fall notiert.")
+            if st.TRIAGE in conv.asked_at:  # cold question still open: acknowledge only, don't ask again
+                await out.text(contact, cid, f"{error_code_sentence(new_code, source)} Ich habe das im Fall notiert.")
             else:
-                await ask_cold(contact, cid, prefix=error_code_sentence(new_code))
+                await ask_cold(contact, cid, prefix=error_code_sentence(new_code, source))
         elif not _asked_recently(conv, st.TRIAGE):
             await ask_cold(contact, cid)
     elif conv.step == st.CONSENT:
