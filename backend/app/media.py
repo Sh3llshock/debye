@@ -155,8 +155,59 @@ FALLBACK_INVOICE = {  # matches data/demo/invoice_RE-2026-1187.pdf
 }
 
 
+INVOICE_PROMPT = (
+    "Extract this German tradesman invoice. Amounts in EUR as numbers (net, VAT, gross). "
+    "One line item per invoice line."
+)
+
+
 async def extract_invoice(path: str) -> dict:
-    """Invoice PDF (or image) → fields. Falls back to the demo invoice on any error."""
+    """Invoice PDF (or image) → fields, with the provider from LLM_PROVIDER (default openai).
+    Falls back to the demo invoice (RE-2026-1187, gross 237.41) on any error or without a key."""
+    if (os.getenv("LLM_PROVIDER") or "openai").strip().lower() == "anthropic":
+        return await _extract_invoice_anthropic(path)
+    return await _extract_invoice_openai(path)
+
+
+async def _extract_invoice_openai(path: str) -> dict:
+    if not os.getenv("OPENAI_API_KEY"):
+        log.warning("OPENAI_API_KEY not set; returning fallback invoice")
+        return dict(FALLBACK_INVOICE)
+    try:
+        from openai import AsyncOpenAI
+
+        data = base64.standard_b64encode(Path(path).read_bytes()).decode()
+        suffix = Path(path).suffix.lower()
+        if suffix == ".pdf":  # gpt-6-luna reads PDFs directly (verified), no page rendering needed
+            part = {"type": "file", "file": {"filename": Path(path).name,
+                                             "file_data": f"data:application/pdf;base64,{data}"}}
+        else:
+            mime = {".png": "image/png", ".webp": "image/webp"}.get(suffix, "image/jpeg")
+            part = {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{data}"}}
+        extra = {}
+        effort = os.getenv("OPENAI_INVOICE_REASONING_EFFORT", "low")
+        if effort:
+            extra["reasoning_effort"] = effort
+        client = AsyncOpenAI(base_url=openai_base_url(), timeout=60, max_retries=1)
+        t0 = time.perf_counter()
+        response = await client.chat.completions.parse(
+            model=os.getenv("OPENAI_CHAT_MODEL") or "gpt-6-luna",
+            messages=[{"role": "user", "content": [part, {"type": "text", "text": INVOICE_PROMPT}]}],
+            response_format=Invoice,
+            **extra,
+        )
+        msg = response.choices[0].message
+        if getattr(msg, "refusal", None) or msg.parsed is None:
+            log.warning("invoice extraction gave no result (refusal=%r)", getattr(msg, "refusal", None))
+            return dict(FALLBACK_INVOICE)
+        log.info("invoice extracted in %.2fs", time.perf_counter() - t0)
+        return msg.parsed.model_dump()
+    except Exception:
+        log.exception("invoice extraction failed; using fallback")
+        return dict(FALLBACK_INVOICE)
+
+
+async def _extract_invoice_anthropic(path: str) -> dict:
     if not os.getenv("ANTHROPIC_API_KEY"):
         log.warning("ANTHROPIC_API_KEY not set; returning fallback invoice")
         return dict(FALLBACK_INVOICE)
@@ -180,11 +231,7 @@ async def extract_invoice(path: str) -> dict:
                     "role": "user",
                     "content": [
                         block,
-                        {
-                            "type": "text",
-                            "text": "Extract this German tradesman invoice. Amounts in EUR as numbers "
-                            "(net, VAT, gross). One line item per invoice line.",
-                        },
+                        {"type": "text", "text": INVOICE_PROMPT},
                     ],
                 }
             ],

@@ -227,6 +227,8 @@ Button and list ids carry intent (`consent_yes:<case_id>`, `job_accept:<case_id>
 
 ### 7.1 Model and API choices
 
+> **Update (Fri night): Debye now runs on OpenAI by default.** `LLM_PROVIDER=openai` uses `gpt-6-luna` on the EU host (`OPENAI_BASE_URL=https://eu.api.openai.com/v1`) through Chat Completions with function tools: same strict tool schemas, same "speak only through tools" rule, same German persona, same 20 s timeout with the scripted fallback (`agent/openai_loop.py`). gpt-6-luna accepts function tools on Chat Completions only with `reasoning_effort="none"`. We measured ~1.3 s per call that way vs ~4.3 s on the Responses API with effort `low`, and both read F.28 from the demo photo. The invoice PDF goes in as a `file` part to `chat.completions.parse(response_format=Invoice)`, no page rendering needed. The Claude setup below stays available behind `LLM_PROVIDER=anthropic`.
+
 - Claude through the official Python SDK (`pip install anthropic`), Messages API with a **manual tool-use loop** in our backend. Why not a hosted agent (Managed Agents): our tools read and write our own SQLite and the loop has to answer inside a webhook in a few seconds, so we keep the loop in-process.
 - Model `claude-opus-5-5` with `output_config={"effort": "low"}` for chat turns (snappy replies) and `"medium"` for triage and invoice checks. Thinking is adaptive and on by default on this model; don't send `thinking: {type: "disabled"}` (returns 400).
 - `tool_choice` stays `auto` (forced tool choice returns 400 on this model). Put `strict: True` on every tool so inputs always match the schema.

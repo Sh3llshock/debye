@@ -1,6 +1,8 @@
-"""Debye agent: manual Claude tool-use loop (technical-plan §7.2).
+"""Debye agent turn (technical-plan §7.2).
 
-The agent speaks only through tools. If Claude errors, refuses or takes longer
+LLM_PROVIDER picks the model: "openai" (default, agent/openai_loop.py,
+OPENAI_CHAT_MODEL, default gpt-6-luna) or "anthropic" (the Claude loop below).
+The agent speaks only through tools. If the model errors, refuses or takes longer
 than TURN_TIMEOUT, and nothing has been sent yet this turn, the scripted
 fallback for the current step runs instead (flow.scripted_fallback).
 """
@@ -11,11 +13,14 @@ import base64
 import json
 import logging
 import os
+import time
 from pathlib import Path
 
 from . import _backend as be
 from . import flow
+from . import openai_loop
 from . import state as st
+from .errors import NoCredentials, RefusalError
 from .prompts import FALLBACK_HANDOFF, TENANT_SYSTEM
 from .tools import SCHEMAS, TurnContext, execute
 
@@ -28,6 +33,10 @@ _KEEP_BLOCKS = {"text", "thinking", "redacted_thinking", "tool_use"}
 
 _client = None
 last_turn_fallback = False  # for tests / debugging: did the last turn use a scripted reply?
+
+
+def llm_provider() -> str:
+    return (os.getenv("LLM_PROVIDER") or "openai").strip().lower()
 
 
 def get_client():
@@ -83,10 +92,6 @@ def build_user_content(contact, conv: st.Conversation, text: str | None, image_p
     return content
 
 
-class NoCredentials(Exception):
-    pass
-
-
 async def _run_loop(messages: list, ctx: TurnContext) -> list:
     if _client is None and not (os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN")):
         # Without an explicit key the SDK probes other credential sources, which stalled a turn ~40 s.
@@ -117,10 +122,6 @@ async def _run_loop(messages: list, ctx: TurnContext) -> list:
     return messages
 
 
-class RefusalError(Exception):
-    pass
-
-
 async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | None = None) -> None:
     """One Debye turn for a tenant message (text/transcript and/or photos)."""
     global last_turn_fallback
@@ -128,13 +129,26 @@ async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | No
     conv = st.conversation(be.attr(contact, "id"))
     if text:
         conv.tenant_texts.append(text)
+    provider = llm_provider()
+    if conv.history_provider != provider:  # histories are provider-specific
+        conv.history, conv.history_provider = [], provider
     ctx = TurnContext(contact=contact, conv=conv, effort="low")
-    user_msg = {"role": "user", "content": build_user_content(contact, conv, text, image_paths or [])}
-    messages = list(conv.history) + [user_msg]
+    blocks = build_user_content(contact, conv, text, image_paths or [])
+    if provider == "openai":
+        user_msg = {"role": "user", "content": openai_loop.to_openai_content(blocks)}
+        runner = openai_loop.run_loop(list(conv.history) + [user_msg], ctx, TURN_TIMEOUT)
+    else:
+        user_msg = {"role": "user", "content": blocks}
+        runner = _run_loop(list(conv.history) + [user_msg], ctx)
+    t0 = time.perf_counter()
     try:
-        messages = await asyncio.wait_for(_run_loop(messages, ctx), timeout=TURN_TIMEOUT)
-        if messages[-1]["role"] == "user":  # ended on tool results (iteration cap): close the turn cleanly
-            messages.append({"role": "assistant", "content": [{"type": "text", "text": "(turn ended)"}]})
+        messages = await asyncio.wait_for(runner, timeout=TURN_TIMEOUT)
+        log.info("agent turn (%s) %.2fs, tools=%s", provider, time.perf_counter() - t0, ",".join(ctx.calls) or "-")
+        if messages[-1]["role"] in ("user", "tool"):  # ended on tool results (iteration cap): close cleanly
+            if provider == "openai":
+                messages.append({"role": "assistant", "content": "(turn ended)"})
+            else:
+                messages.append({"role": "assistant", "content": [{"type": "text", "text": "(turn ended)"}]})
         conv.history = messages
         if ctx.sent == 0:
             log.warning("agent turn sent nothing; using scripted fallback")
@@ -152,8 +166,15 @@ async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | No
         last_turn_fallback = True
         if ctx.sent == 0:
             await flow.scripted_fallback(contact, conv, image_paths)
-    # Keep history valid (alternating, no dangling tool_use) after a failed turn.
-    conv.history = list(conv.history) + [
-        {"role": "user", "content": [b for b in user_msg["content"] if b["type"] == "text"]},
-        {"role": "assistant", "content": [{"type": "text", "text": "(scripted reply sent)"}]},
-    ]
+    # Keep history valid (alternating, no dangling tool calls) after a failed turn.
+    only_text = [b for b in user_msg["content"] if b["type"] == "text"]
+    if provider == "openai":
+        conv.history = list(conv.history) + [
+            {"role": "user", "content": only_text},
+            {"role": "assistant", "content": "(scripted reply sent)"},
+        ]
+    else:
+        conv.history = list(conv.history) + [
+            {"role": "user", "content": only_text},
+            {"role": "assistant", "content": [{"type": "text", "text": "(scripted reply sent)"}]},
+        ]

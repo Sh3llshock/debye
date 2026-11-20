@@ -59,7 +59,7 @@ The demo panel sits behind the tiny dot at the bottom right of any page, or pres
 |---|---|
 | Debye doesn't answer on WhatsApp | Look at the server terminal. Webhooks arrive as `POST /webhooks/whatsapp`. No POST means the tunnel or webhook URL is wrong. Meanwhile, use the web chat below. |
 | WhatsApp / Meta / venue network down | Use the **web chat** (same backend, same case): http://localhost:8000/chat/c_202 for Lena, http://localhost:8000/chat/c_203 for Jonas. Mirror that tab instead of the phone. |
-| Claude slow or no API key | Nothing to do. Debye falls back to scripted replies for each step. |
+| Model slow, down or no API key | Nothing to do. Debye falls back to scripted replies for each step (after 20 s at most, immediately without a key). |
 | A tenant step won't go through | Push that one step from a terminal (shows on the staff page live):<br>`python scripts\simulate.py --direct --step report` (then `neighbour`, `consent`, `pick`, `fixed`) |
 | Partner page won't load | Same idea for the installer side: `python scripts\simulate.py --step accept` (then `slots`, `complete`) |
 | Wrong state, start over | `.\scripts\demo_reset.ps1`, or the demo panel → **Reset** |
@@ -73,4 +73,10 @@ Against the deployed server, add `--base https://<render-url>` to `simulate.py`,
 ```powershell
 python scripts\simulate.py --reset
 ```
-It must end with `GOLDEN PATH OK`. That run goes through the real webhook and checks every Debye reply in fake-send mode (empty `WA_TOKEN`). With a real `WA_TOKEN`, the messages actually go out to the phones, so run it with `--direct` instead. The simulator's voice note is a silent placeholder, so with a real `OPENAI_API_KEY` the transcription fails and Debye carries on with its scripted question. That is expected.
+It must end with `GOLDEN PATH OK`. That run goes through the real webhook and checks every Debye reply in fake-send mode (empty `WA_TOKEN`). With a real `WA_TOKEN`, the messages actually go out to the phones, so run it with `--direct` instead. The simulator sends the real German voice note `data/demo/voice_note_heizung.ogg` and the boiler photo, so with `OPENAI_API_KEY` set you see the real transcript and the real model reading F.28.
+
+### Model settings (`.env`)
+- `LLM_PROVIDER=openai` (default): Debye's chat turns, photo reading and invoice extraction run on `OPENAI_CHAT_MODEL` (default `gpt-6-luna`) with `OPENAI_REASONING_EFFORT=none`. `LLM_PROVIDER=anthropic` switches to Claude (`claude-opus-5-5`, needs `ANTHROPIC_API_KEY`).
+- `OPENAI_BASE_URL=https://eu.api.openai.com/v1` is required: our OpenAI project is EU-region only. That is also the default when the variable is missing.
+- One key does everything on the OpenAI side: chat model and transcription (`gpt-4o-transcribe`, falling back to `gpt-4o-mini-transcribe`, then `whisper-1`).
+- Measured on the webhook rehearsal: a Debye turn with gpt-6-luna takes 2.5–3.5 s (1–2 model calls), transcription about 1 s, invoice extraction 1.4–2.2 s.

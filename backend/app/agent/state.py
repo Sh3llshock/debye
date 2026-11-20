@@ -24,7 +24,8 @@ class Conversation:
     contact_id: str
     case_id: str | None = None
     step: str = NEW
-    history: list = field(default_factory=list)  # Claude messages (dicts)
+    history: list = field(default_factory=list)  # LLM messages (dicts), format of history_provider
+    history_provider: str = ""
     tenant_texts: list[str] = field(default_factory=list)
     voice_replied: bool = False  # Debye's one-time voice note (ElevenLabs) was sent
     error_code: str | None = None  # display code already told to the resident

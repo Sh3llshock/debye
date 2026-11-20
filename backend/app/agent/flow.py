@@ -395,7 +395,7 @@ async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[st
     elif conv.step == st.TRIAGE:
         if new_code:  # e.g. the photo arrived just after the voice note
             conv.error_code = new_code
-            be.record_event(cid, "debye", "triage.error_code", f"Display zeigt {new_code}", {"error_code": new_code})
+            be.set_case_error_code(cid, new_code)
             if _asked_recently(conv, st.TRIAGE):
                 await out.text(contact, cid, f"{error_code_sentence(new_code)} Das habe ich im Fall notiert.")
             else:
