@@ -272,7 +272,7 @@ def s6_self_help() -> str:
                                            {"question": "Are the radiators warm?", "answer": "Yes"}]})
         _chat("c_208", c.id, [
             ("in", "My shower went cold after 5 minutes this morning 🥶"),
-            ("out", "Oh no, Yusuf! Did someone shower just before you?"),
+            ("out", "Did someone shower just before you, Yusuf?"),
             ("in", "Yes my two flatmates"),
             ("out", "Then the hot water tank is probably just empty. It reheats in about 30–45 minutes. "
                     "I'll check back in an hour, and if it's still cold I'll send someone."),

@@ -381,7 +381,7 @@ async def on_fixed(contact, case_id: str, fixed: bool) -> None:
             st.reset_conversation(conv.contact_id)
     else:
         st.conversation(be.attr(contact, "id")).step = st.DISPATCHED
-        await out.text(contact, case_id, f"Oh no, I'm sorry 😕 I'll let {partner_label(case_id)} know right away.")
+        await out.text(contact, case_id, f"Understood. I'll let {partner_label(case_id)} know right away.")
 
 
 HEATING_WORDS = ("heat", "radiator", "boiler", "cold", "warm", "hot water", "heiz", "kalt", "kessel", "therme",
@@ -514,9 +514,9 @@ async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[st
         if res["duplicate"]:
             await send_duplicate_notice(contact, res["case_id"])
         else:
-            prefix = "Oh no, a cold flat is the worst 😕 I'm on it."
+            prefix = "Got it, I'm on it."
             if new_code:
-                prefix = f"Oh no 😕 {error_code_sentence(new_code, source)} I'm on it."
+                prefix = f"{error_code_sentence(new_code, source)} I'm on it."
                 conv.error_code = new_code
             await ask_cold(contact, res["case_id"], prefix=prefix)
     elif conv.step == st.TRIAGE:
