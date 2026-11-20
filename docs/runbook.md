@@ -87,7 +87,7 @@ Against the deployed server, add `--base https://<render-url>` to `simulate.py`,
 ```powershell
 python scripts\simulate.py --reset
 ```
-It must end with `GOLDEN PATH OK`. That run goes through the real webhook and checks every Debye reply in fake-send mode (empty `WA_TOKEN`). With a real `WA_TOKEN`, the messages actually go out to the phones, so run it with `--direct` instead. The simulator sends the real German voice note `data/demo/voice_note_heizung.ogg` and the boiler photo, so with `OPENAI_API_KEY` set you see the real transcript and the real model reading F.28.
+It must end with `GOLDEN PATH OK`. That run goes through the real webhook and checks every Debye reply in fake-send mode (empty `WA_TOKEN`). With a real `WA_TOKEN`, the messages actually go out to the phones, so run it with `--direct` instead. The simulator sends the English voice note `data/demo/voice_note_hot_water_en.ogg` ("Hi, there's no hot water in the shower since this morning, and something is blinking on the boiler.") and the boiler photo, so with `OPENAI_API_KEY` set you see the real transcript and the real model reading F.28.
 
 ### WhatsApp route (`.env`)
 - **Twilio sandbox** is the live route: `WA_PROVIDER=twilio`, `TWILIO_*`, `PUBLIC_BASE_URL=<tunnel>`, and Twilio's "When a message comes in" set to `<tunnel>/webhooks/twilio`. Every phone must have sent `join <code>` once, and should send "hi" shortly before the pitch to open the 24 h window. Buttons show up as numbered choices; residents answer with the number. See [whatsapp-setup.md](whatsapp-setup.md#twilio-whatsapp-sandbox-current-route-meta-locked-the-business-account).
