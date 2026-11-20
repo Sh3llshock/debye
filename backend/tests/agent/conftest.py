@@ -104,8 +104,12 @@ class FakeServices:
 
     # asked-for extras
     def set_case_error_code(self, case_id, code):
+        # mirrors services.set_case_error_code: writes the field AND records the one timeline event
+        from app.agent.error_codes import timeline_summary
+
         self.cases[case_id]["error_code"] = code
         self.calls.append(("error_code", case_id, code))
+        getattr(self, "events", []).append((case_id, "debye", "case.error_code", timeline_summary(code), {"error_code": code}))
 
     def add_tenant_input(self, case_id, label):
         self.calls.append(("input", case_id, label))

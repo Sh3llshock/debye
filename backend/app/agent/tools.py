@@ -67,7 +67,8 @@ SCHEMAS: list[dict] = [
         "duplicate=true.",
         "input_schema": _obj(
             {
-                "summary": {"type": "string", "description": "short German title, e.g. 'Heizung kalt, Fehler F.28'"},
+                "summary": {"type": "string", "description": "short German title; explain any code, "
+                            "e.g. 'Heizung kalt – Zündung fehlgeschlagen (F.28)'"},
                 "symptoms": {"type": "string", "description": "what the resident reported, in German"},
                 "error_code": {"type": ["string", "null"], "description": "display code like F.28, or null"},
                 "priority": {"type": "string", "enum": ["emergency", "urgent", "normal"]},
@@ -124,8 +125,13 @@ async def _open_case(ctx: TurnContext, summary: str, symptoms: str, error_code: 
                 "next": "Tell the resident it is already reported and being handled. Ask nothing else."}
     if res.get("already_open"):
         return {"case_id": res["case_id"], "duplicate": False, "note": "case was already open for this resident"}
-    return {"case_id": res["case_id"], "duplicate": False,
-            "next": f"Ask with ask_buttons: ids cold_all:{res['case_id']} / cold_some:{res['case_id']}."}
+    out = {"case_id": res["case_id"], "duplicate": False,
+           "next": f"Ask with ask_buttons: ids cold_all:{res['case_id']} / cold_some:{res['case_id']}."}
+    if error_code:
+        from .error_codes import resident_sentence
+
+        out["explain_error_code"] = resident_sentence(error_code)
+    return out
 
 
 async def _note_error_code(ctx: TurnContext, case_id: str, error_code: str) -> dict:
@@ -136,7 +142,10 @@ async def _note_error_code(ctx: TurnContext, case_id: str, error_code: str) -> d
         raise ValueError("no open case; call open_case with error_code instead")
     be.set_case_error_code(case_id, error_code)
     ctx.conv.error_code = error_code
-    return {"ok": True, "case_id": case_id, "error_code": error_code}
+    from .error_codes import resident_sentence
+
+    return {"ok": True, "case_id": case_id, "error_code": error_code,
+            "explain_error_code": resident_sentence(error_code)}
 
 
 async def _record_triage(ctx: TurnContext, case_id: str, all_radiators_cold: bool) -> dict:

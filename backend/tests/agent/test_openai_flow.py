@@ -31,7 +31,7 @@ def test_openai_triage_turn(client, svc, gpt):
     stub = gpt([
         [oa_call("open_case", summary="Heizung kalt, Fehler F.28", symptoms="komplett kalt", error_code="F.28",
                  priority="urgent")],
-        [oa_call("ask_buttons", text="Am Display sehe ich F.28. Sind alle Heizkörper kalt?",
+        [oa_call("ask_buttons", text="Am Display sehe ich den Fehler F.28 – das heißt, die Zündung ist fehlgeschlagen (die Heizung startet nicht). Sind alle Heizkörper kalt?",
                  options=[{"id": "cold_all:case_0001", "title": "Überall kalt"},
                           {"id": "cold_some:case_0001", "title": "Nur ein Raum"}])],
         "",
@@ -160,10 +160,29 @@ def test_note_error_code_tool(client, svc, gpt):
             {"id": "cold_all:case_0001", "title": "Überall kalt"}, {"id": "cold_some:case_0001", "title": "Nur ein Raum"}])],
         "",
         [oa_call("note_error_code", case_id="case_0001", error_code="F.28")],
-        [oa_call("reply", text="Am Display sehe ich F.28 – das habe ich im Fall notiert.")],
+        [oa_call("reply", text="Am Display sehe ich den Fehler F.28 – das heißt, die Zündung ist fehlgeschlagen (die Heizung startet nicht). Das habe ich im Fall notiert.")],
         "",
     ])
     client.post("/webhooks/whatsapp", json=wa_text("Heizung kalt"))
     client.post("/webhooks/whatsapp", json=wa_text("Foto vom Kessel"))
     assert ("error_code", "case_0001", "F.28") in svc.calls
     assert svc.cases["case_0001"]["error_code"] == "F.28"
+
+
+def test_error_code_always_explained(client, svc, gpt):
+    from app.agent import error_codes
+
+    assert error_codes.resident_sentence("F.28") == "Am Display sehe ich den Fehler F.28 – das heißt, die Zündung ist fehlgeschlagen (die Heizung startet nicht)."
+    assert error_codes.timeline_summary("F.28") == "Boiler error: ignition failed (F.28)"
+    assert "bedeutet" in error_codes.resident_sentence("F.99")  # unknown code: still no bare code
+    stub = gpt([
+        [oa_call("open_case", summary="Heizung kalt", symptoms="kalt", error_code="F.28", priority="urgent")],
+        [oa_call("reply", text="ok")],
+        "",
+    ])
+    client.post("/webhooks/whatsapp", json=wa_text("Heizung kalt, F.28"))
+    tool_result = json.loads(stub.requests[1]["messages"][-1]["content"])
+    assert tool_result["explain_error_code"] == "Am Display sehe ich den Fehler F.28 – das heißt, die Zündung ist fehlgeschlagen (die Heizung startet nicht)."
+    assert any(c[0] == "open_case" and c[-1] == "F.28" for c in svc.calls)  # services' case.created states the meaning
+    system = stub.requests[0]["messages"][0]["content"]
+    assert "Never mention an error code without saying what it means" in system

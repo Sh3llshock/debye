@@ -220,7 +220,7 @@ def test_fallback_names_error_code_from_text(client, svc, claude):
     client.post("/webhooks/whatsapp", json=wa_body(LENA, type="text", text={"body": "Heizung kalt, am Kessel steht F28"}))
     body = last_payload(client)["interactive"]["body"]["text"]
     assert "F.28" in body and "Zündung" in body
-    assert ("open_case", "case_0001", "Heizung kalt, Fehler F.28", "F.28") in svc.calls
+    assert ("open_case", "case_0001", "Heizung kalt – Zündung fehlgeschlagen (F.28)", "F.28") in svc.calls
 
 
 def test_fallback_reads_demo_photo_after_voice_note(client, svc, claude, tmp_path):
@@ -239,4 +239,5 @@ def test_fallback_reads_demo_photo_after_voice_note(client, svc, claude, tmp_pat
     client.post("/webhooks/whatsapp", json=wa_body(LENA, type="image", image={"id": f"local:{demo_photo}", "mime_type": "image/jpeg"}))
     msgs = outbox(client)
     assert len(msgs) == n + 1
-    assert msgs[-1]["payload"]["text"]["body"].startswith("Am Display sehe ich F.28 – die Zündung ist fehlgeschlagen.")
+    assert msgs[-1]["payload"]["text"]["body"].startswith("Am Display sehe ich den Fehler F.28 – das heißt, die Zündung ist fehlgeschlagen (die Heizung startet nicht).")
+    assert any(e[2] == "case.error_code" and e[3] == "Boiler error: ignition failed (F.28)" for e in svc.events)
