@@ -139,7 +139,7 @@ def test_neighbour_open_case_shortcut(client, svc, claude):
     client.post("/webhooks/whatsapp", json=wa("My heating is cold"))  # Luka: classic heating flow, case open
     client.post("/webhooks/whatsapp", json=wa("our shower is cold", from_=JONAS))
     assert ("link", "case_0001", "c_203", "affected") in svc.calls  # boiler_fault without asking
-    assert "already been reported" in texts(client, "+490000000002")[-1]
+    assert "already reported" in texts(client, "+490000000002")[-1]
 
 
 def test_max_three_questions_then_likeliest_technician():
