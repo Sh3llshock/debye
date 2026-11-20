@@ -101,10 +101,19 @@ async def _reply(ctx: TurnContext, text: str) -> dict:
 
 
 async def _ask_buttons(ctx: TurnContext, text: str, options: list[dict]) -> dict:
+    import time
+
     if not options:
         raise ValueError("options must not be empty")
+    is_cold = any(o["id"].startswith(("cold_all:", "cold_some:")) for o in options)
+    if is_cold and ctx.conv.step == st.TRIAGE and st.TRIAGE in ctx.conv.asked_at:
+        raise ValueError("The 'all radiators cold?' question is still open (buttons already sent). Do not ask it "
+                         "again; use reply to acknowledge in one sentence without repeating the question.")
     await out.buttons(ctx.contact, ctx.conv.case_id, text, [Option(o["id"], o["title"]) for o in options])
     ctx.sent += 1
+    if is_cold:
+        ctx.conv.step = st.TRIAGE
+        ctx.conv.asked_at[st.TRIAGE] = time.monotonic()
     return {"ok": True, "delivered": True}
 
 
@@ -130,7 +139,8 @@ async def _open_case(ctx: TurnContext, summary: str, symptoms: str, error_code: 
     if error_code:
         from .error_codes import resident_sentence
 
-        out["explain_error_code"] = resident_sentence(error_code)
+        out["explain_error_code"] = resident_sentence(error_code, "text")
+        out["explain_error_code_if_from_photo"] = resident_sentence(error_code, "photo")
     return out
 
 
@@ -145,7 +155,7 @@ async def _note_error_code(ctx: TurnContext, case_id: str, error_code: str) -> d
     from .error_codes import resident_sentence
 
     return {"ok": True, "case_id": case_id, "error_code": error_code,
-            "explain_error_code": resident_sentence(error_code)}
+            "explain_error_code": resident_sentence(error_code, "photo") + " Ich habe das im Fall notiert."}
 
 
 async def _record_triage(ctx: TurnContext, case_id: str, all_radiators_cold: bool) -> dict:
