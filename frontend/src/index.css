@@ -5,24 +5,30 @@
 @layer base {
   html { -webkit-text-size-adjust: 100%; }
   body { @apply bg-bg text-ink font-sans text-body antialiased; }
-  h1, h2, h3 { @apply font-serif text-plum; font-weight: 600; }
+  h1, h2, h3 { @apply font-serif text-heading; font-weight: 600; }
+  a:focus-visible, button:focus-visible, textarea:focus-visible, label:focus-within { @apply shadow-focus outline-none; }
 }
 
 @layer components {
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-pill px-6 py-3 text-body font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed; min-height: 48px; }
-  .btn-primary { @apply btn bg-plum text-on-plum hover:bg-plum-dark; }
-  .btn-secondary { @apply btn bg-surface text-plum border-2 border-plum hover:bg-plum-soft; }
-  .btn-ghost { @apply btn text-muted hover:bg-surface-alt; }
-  .btn-success { @apply btn bg-success text-on-plum hover:opacity-90; }
-  .label { @apply text-xs uppercase tracking-wider text-muted font-semibold; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-button px-7 py-4 text-body-sm font-medium transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50; min-height: 56px; }
+  .btn-primary { @apply btn bg-plum text-on-plum shadow-button hover:bg-plum-dark; }
+  .btn-secondary { @apply btn border-[1.5px] border-plum bg-surface text-plum hover:bg-plum-faint; }
+  .btn-ghost { @apply btn px-5 text-plum hover:bg-plum-faint; }
+  .btn-danger { @apply btn border-[1.5px] border-danger bg-surface text-danger hover:bg-danger-soft; }
+  .btn-success { @apply btn bg-success text-on-plum shadow-button hover:opacity-90; }
+  .btn-inverse { @apply btn bg-surface text-plum shadow-button hover:bg-plum-faint; }
+  .label { @apply text-eyebrow font-semibold uppercase text-muted; }
+  .tag { @apply inline-flex items-center rounded-pill border border-plum px-3 py-0.5 text-eyebrow text-plum; }
 }
 
+/* tokens.motion.timelineEnter: slide up 12px + fade in (320ms), then flash violet-soft for 1.2s */
 @keyframes enter {
-  0% { opacity: 0; transform: translateY(12px); background-color: theme('colors.plum-soft'); }
-  60% { opacity: 1; transform: none; background-color: theme('colors.plum-soft'); }
+  0% { opacity: 0; transform: translateY(12px); background-color: theme('colors.violet-soft'); }
+  20% { opacity: 1; transform: none; background-color: theme('colors.violet-soft'); }
+  70% { background-color: theme('colors.violet-soft'); }
   100% { background-color: transparent; }
 }
-.animate-enter { animation: enter 2.4s ease-out both; }
+.animate-enter { animation: enter 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
 @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .animate-pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }

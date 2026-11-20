@@ -235,7 +235,7 @@ function SlotPicker({ job, partnerId, onChange }: { job: JobDetail; partnerId: s
                   <button
                     key={s.start}
                     onClick={() => toggle(s)}
-                    className={`rounded-pill border-2 px-2 py-3 text-lg font-semibold transition-colors ${on ? 'border-plum bg-plum text-on-plum' : 'border-line bg-surface text-ink hover:border-plum'}`}
+                    className={`rounded-button border-[1.5px] px-2 py-4 text-body font-semibold transition-colors ${on ? "border-plum bg-plum text-on-plum" : "border-line bg-surface text-ink hover:border-plum"}`}
                   >
                     {s.label!.split(' ').pop()}
                   </button>
