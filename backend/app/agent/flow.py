@@ -451,7 +451,8 @@ async def diagnosis_fallback(contact, conv: st.Conversation) -> None:
     if action == "ask":
         await diagnosis.ask(contact, conv, ident)
     else:
-        await diagnosis.conclude(contact, conv, ident, conf, "Scripted: best match of the answers to the signals.")
+        await diagnosis.conclude(contact, conv, ident, conf, "Scripted: best match of the answers to the signals.",
+                                 force=True)
 
 
 # ---------------------------------------------------------------- error codes without the LLM

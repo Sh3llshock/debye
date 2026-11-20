@@ -122,6 +122,8 @@ async def handle_inbound(msg: InboundMessage) -> None:
     # A free-text answer to the open question ("sure", "just the shower", "Saturday works") is handled
     # exactly like the tap, so consent/slots are really recorded before anything is confirmed.
     in_diagnosis = diagnosis.active(conv)
+    if in_diagnosis and text:
+        await diagnosis.extract_answers(conv, text)  # evidence first; the agent then asks/concludes
     if text and not images and conv.pending_options and not in_diagnosis:
         # (during a diagnosis the model reads the whole message and records every answer in it;
         #  only the safety question is mapped here, by code)

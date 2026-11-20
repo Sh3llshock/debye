@@ -166,6 +166,15 @@ async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | No
                 messages.append({"role": "assistant", "content": [{"type": "text", "text": "(turn ended)"}]})
         conv.history = messages
         await flow.link_if_building_case_open(contact, conv)
+        from . import diagnosis
+
+        if diagnosis.active(conv):
+            d = conv.diagnosis
+            open_q = d["asked"] and d["asked"][-1] not in d["answers"]
+            if not open_q:  # the model only chatted: keep the diagnosis moving (next question or conclusion)
+                log.info("diagnosis: no open question after the turn; code continues")
+                await flow.diagnosis_fallback(contact, conv)
+                return
         if ctx.sent == 0:
             log.warning("agent turn sent nothing; using scripted fallback")
             last_turn_fallback = True

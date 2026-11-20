@@ -288,3 +288,39 @@ def test_no_plain_text_repeat_of_open_question(client, svc, gpt):
     client.post("/webhooks/whatsapp", json=wa("here is a photo of it"))
     t = texts(client)
     assert sum("only the shower" in x for x in t) == 1 and t[-1] == "Thanks for the photo."
+
+
+def test_extraction_merges_only_unanswered(monkeypatch):
+    from app.agent import diagnosis, state
+
+    async def fake(text, open_qs):
+        return {"q_display": "dark", "q_scope": "only_shower", "q_bogus": "x", "q_power": "maybe"}
+
+    monkeypatch.setattr(diagnosis, "_classify_answers", fake)
+    conv = state.Conversation(contact_id="x")
+    diagnosis.start(conv, "dark display")
+    conv.diagnosis["answers"]["q_scope"] = "everywhere"
+    got = asyncio.run(diagnosis.extract_answers(conv, "the boiler display is dark"))
+    assert got == {"q_display": "dark"}  # unknown ids/keys dropped, existing answers kept
+    assert conv.diagnosis["answers"]["q_scope"] == "everywhere"
+
+
+def test_ask_refused_when_answers_point_to_a_cause():
+    from app.agent import diagnosis, state, tools
+
+    conv = state.Conversation(contact_id="x")
+    diagnosis.start(conv, "dark")
+    conv.diagnosis["answers"].update({"q_display": "dark", "q_power": "no"})
+    ctx = tools.TurnContext(contact=None, conv=conv)
+    with pytest.raises(ValueError, match="conclude_diagnosis now"):
+        asyncio.run(tools._ask_question(ctx, "q_scope", None))
+
+
+def test_likelier_equal_cause_preferred_on_conclude():
+    from app.agent import diagnosis, state
+
+    conv = state.Conversation(contact_id="x")
+    diagnosis.start(conv, "cold")
+    conv.diagnosis["answers"].update({"q_waited": "no", "q_radiators": "no", "q_scope": "everywhere"})
+    with pytest.raises(ValueError, match="not_run_long_enough|likelier"):
+        asyncio.run(diagnosis.conclude(None, conv, "diverter_valve_stuck", 0.8, "x"))
