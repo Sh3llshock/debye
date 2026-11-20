@@ -14,6 +14,7 @@ from pathlib import Path
 from app.channels.base import Option
 
 from . import _backend as be
+from . import error_codes
 from . import outbound as out
 from . import state as st
 
@@ -116,6 +117,9 @@ async def ensure_case(
     )
     cid = case_id_of(case)
     st.case_state(cid).reporter_contact_id = be.attr(contact, "id")
+    if error_code:
+        be.record_event(cid, "debye", "triage.error_code", error_codes.timeline_summary(error_code),
+                        {"error_code": error_code})
     conv.case_id, conv.step = cid, st.TRIAGE
     _flush_inputs(conv)
     return {"case_id": cid, "duplicate": False}
@@ -330,11 +334,6 @@ async def maybe_voice_reply(contact) -> None:
 
 
 # ---------------------------------------------------------------- error codes without the LLM
-ERROR_CODES_DE = {
-    "F.22": "der Wasserdruck ist zu niedrig",
-    "F.28": "die Zündung ist fehlgeschlagen",
-    "F.29": "die Flamme ist im Betrieb ausgegangen",
-}
 _CODE_RE = re.compile(r"\bF\s?\.?\s?(\d{2})\b", re.IGNORECASE)
 # Photos we know: the demo boiler display (data/demo/boiler_display_F28.jpg) shows F.28.
 _KNOWN_PHOTOS = {"boiler_display_F28.jpg": "F.28"}
@@ -371,8 +370,7 @@ def detect_error_code(texts: list[str], image_paths: list[str]) -> str | None:
 
 
 def error_code_sentence(code: str) -> str:
-    meaning = ERROR_CODES_DE.get(code)
-    return f"Am Display sehe ich {code}" + (f" – {meaning}." if meaning else ".")
+    return error_codes.resident_sentence(code)
 
 
 # ---------------------------------------------------------------- scripted fallback (Claude down / slow)
@@ -382,7 +380,7 @@ async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[st
     new_code = code if code and code != conv.error_code else None
     if conv.step == st.NEW or not cid:
         said = " ".join(conv.tenant_texts[-3:]).strip() or "Heizung ausgefallen"
-        summary = f"Heizung kalt, Fehler {code}" if code else "Heizung kalt"
+        summary = error_codes.case_title(code)
         res = await ensure_case(contact, summary=summary, symptoms=said[:500], error_code=code)
         if res["duplicate"]:
             await send_duplicate_notice(contact, res["case_id"])
