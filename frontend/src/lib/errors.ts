@@ -5,19 +5,23 @@ const LOCAL: Record<string, string> = {
   'F.28': 'Ignition failed',
   'F.22': 'Water pressure too low',
   'F.29': 'Flame lost',
+  '0A': 'Low system pressure',
 }
 // German labels for the known codes (the API label is English).
 const LOCAL_DE: Record<string, string> = {
   'F.28': 'Zündung fehlgeschlagen: keine Flamme beim Start',
   'F.22': 'Wasserdruck zu niedrig',
   'F.29': 'Flamme während des Betriebs erloschen',
+  '0A': 'Anlagendruck zu niedrig',
 }
 
 /** The API's error_label ("Ignition failed: no flame at start-up"), else the local map, else error_meaning.
  *  `short` keeps only the part before the colon, for titles and captions. */
 export function errorLabel(code?: string | null, label?: string | null, meaning?: string | null, short = false): string | null {
   if (!code) return null
-  const l = (getLang() === 'de' && LOCAL_DE[code]) || label?.trim() || LOCAL[code] || meaning?.split(/[(,]/)[0].trim()
+  // A generic label that only repeats the code ("Error code 0A") tells nothing: treat it as missing.
+  const useful = label?.trim() && !label.includes(code) ? label.trim() : null
+  const l = (getLang() === 'de' && LOCAL_DE[code]) || useful || LOCAL[code] || meaning?.split(/[(,]/)[0].trim()
   if (!l) return null
   return short ? l.split(':')[0].trim() : l
 }

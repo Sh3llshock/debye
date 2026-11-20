@@ -11,6 +11,7 @@ import { patchCase } from '../lib/liveCase'
 import { useStream } from '../lib/stream'
 import { useDebounced, useResource } from '../lib/useResource'
 import { t } from '../lib/i18n'
+import { placeLabel } from '../lib/format'
 
 /** What the next station is waiting for, in words. */
 function waitingText(status: string, who: string, tech?: string) {
@@ -55,8 +56,7 @@ export default function StaffCase() {
     refetch()
   })
 
-  const street = (c?.address ?? '').split(',')[0]
-  useCrumbs([{ label: t('Cases'), to: '/staff' }, { label: c ? `${street} · ${c.unit_id.replace('unit_', '')}` : caseId }])
+  useCrumbs([{ label: t('Cases'), to: '/staff' }, { label: c ? placeLabel(c.address, c.unit_id) : caseId }])
 
   if (error && !c) return <ErrorBox error={error} onRetry={reload} />
   if (!c) return <Loading what={t('Loading case')} />
