@@ -3,20 +3,38 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { JobSummary } from '../api/types'
 import { PartnerLayout } from '../components/Layout'
-import { Empty, ErrorBox, Loading, StatusPill } from '../components/ui'
+import { Chip, ErrorBox, Loading } from '../components/ui'
+import { jobTitle } from '../lib/errors'
 import { floorLabel, fmtSlot } from '../lib/format'
 import { useStream } from '../lib/stream'
 import { useNewKeys } from '../lib/useNewKeys'
 import { useDebounced, useResource } from '../lib/useResource'
 import { JobPanel } from './PartnerJob'
 
-type Tab = 'new' | 'active' | 'done'
-const TAB_OF = (s: string): Tab => (s === 'requested' ? 'new' : ['completed', 'invoiced', 'closed', 'declined', 'partner_declined'].includes(s) ? 'done' : 'active')
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'new', label: 'New' },
-  { key: 'active', label: 'Active' },
-  { key: 'done', label: 'Done' },
-]
+const DONE = new Set(['completed', 'invoiced', 'closed', 'declined', 'partner_declined'])
+
+/** What the partner has to do next, in words (blue when it is their move). */
+function nextStep(j: JobSummary): { text: string; mine: boolean } {
+  switch (j.status) {
+    case 'requested':
+      return { text: 'New, needs your answer', mine: true }
+    case 'accepted':
+    case 'reopened':
+      return { text: 'Pick visit times', mine: true }
+    case 'slots_proposed':
+      return { text: 'Times sent, waiting for resident', mine: false }
+    case 'scheduled':
+    case 'in_progress':
+      return { text: j.slot ? `Booked ${fmtSlot(j.slot)}` : 'Booked', mine: false }
+    case 'completed':
+    case 'invoiced':
+      return { text: 'Done, invoice sent', mine: false }
+    case 'closed':
+      return { text: 'Closed', mine: false }
+    default:
+      return { text: 'Declined', mine: false }
+  }
+}
 
 function useIsDesktop() {
   const q = '(min-width: 1024px)'
@@ -30,32 +48,7 @@ function useIsDesktop() {
   return m
 }
 
-function JobCard({ j, partnerId, selected, fresh }: { j: JobSummary; partnerId: string; selected: boolean; fresh: boolean }) {
-  return (
-    <Link
-      to={`/partner/${partnerId}/jobs/${j.case_id}`}
-      className={`block rounded-card bg-surface p-5 shadow-card transition-colors ${selected ? 'border-2 border-plum' : 'border border-line hover:border-plum'} ${fresh ? 'animate-enter' : ''}`}
-    >
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1 text-lg font-semibold leading-snug">
-          {j.title.split(' – ')[0]}
-          {j.error_code ? ` · ${j.error_code}` : ''}
-        </div>
-        {j.status === 'requested' && <span className="mt-2 h-3 w-3 shrink-0 rounded-full bg-violet" title="New" />}
-      </div>
-      <div className="mt-1 text-body-sm text-muted">
-        {[j.address ?? j.postcode, j.floor != null ? floorLabel(j.floor) : null].filter(Boolean).join(' · ')}
-      </div>
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <StatusPill status={j.status} />
-        {j.priority === 'urgent' && <span className="text-sm font-semibold text-danger">Urgent</span>}
-        {j.slot && <span className="text-sm text-muted">{fmtSlot(j.slot)}</span>}
-      </div>
-    </Link>
-  )
-}
-
-/** /partner/:partnerId and /partner/:partnerId/jobs/:caseId. Desktop: list + detail side by side. Phone: one at a time. */
+/** /partner/:partnerId and /partner/:partnerId/jobs/:caseId. Desktop: jobs list + job side by side. Phone: one at a time. */
 export default function PartnerPage() {
   const { partnerId = '', caseId } = useParams()
   const navigate = useNavigate()
@@ -66,66 +59,63 @@ export default function PartnerPage() {
   useStream(() => refetch())
   const isNew = useNewKeys(jobs ? jobs.map((j) => j.case_id + j.status) : null)
 
-  const selectedJob = jobs?.find((j) => j.case_id === caseId)
-  const [tab, setTab] = useState<Tab | null>(null)
-  const effectiveTab: Tab = tab ?? (selectedJob ? TAB_OF(selectedJob.status) : jobs?.some((j) => j.status === 'requested') ? 'new' : 'active')
-
-  // Desktop: open the first job of the tab automatically so the detail panel is never empty.
+  // Desktop: open the most urgent job automatically so the work area is never empty.
   useEffect(() => {
     if (!desktop || caseId || !jobs?.length) return
-    const first = jobs.find((j) => TAB_OF(j.status) === effectiveTab) ?? jobs[0]
+    const first = jobs.find((j) => nextStep(j).mine) ?? jobs.find((j) => !DONE.has(j.status)) ?? jobs[0]
     navigate(`/partner/${partnerId}/jobs/${first.case_id}`, { replace: true })
-  }, [desktop, caseId, jobs, effectiveTab, navigate, partnerId])
-
-  // When the selected job moves to another tab (e.g. accepted), follow it.
-  useEffect(() => {
-    if (selectedJob) setTab(TAB_OF(selectedJob.status))
-  }, [selectedJob?.status]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [desktop, caseId, jobs, navigate, partnerId])
 
   const staffName = (partner?.staff as { name: string }[] | undefined)?.[0]?.name
+  const openCount = jobs?.filter((j) => !DONE.has(j.status)).length ?? 0
+
   const list = (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-3xl">Jobs</h1>
-      <div className="flex gap-2">
-        {TABS.map((t) => {
-          const n = jobs?.filter((j) => TAB_OF(j.status) === t.key).length ?? 0
-          const on = effectiveTab === t.key
+    <section className="panel overflow-hidden">
+      <header className="panel-head">
+        <h2 className="text-panel">Jobs</h2>
+        <span className="text-label text-muted">{openCount} open</span>
+      </header>
+      {error && !jobs && (
+        <div className="p-4">
+          <ErrorBox error={error} onRetry={reload} />
+        </div>
+      )}
+      {!jobs && !error && <Loading what="Loading jobs" />}
+      {jobs && jobs.length === 0 && <div className="px-5 py-8 text-center text-muted">No jobs yet. New jobs from Debye show up here instantly.</div>}
+      <ul>
+        {jobs?.map((j) => {
+          const step = nextStep(j)
+          const sel = j.case_id === caseId
           return (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`rounded-pill border px-4 py-1.5 text-body-sm font-medium ${on ? 'border-plum bg-plum text-on-plum' : 'border-line bg-surface hover:border-plum'}`}
-            >
-              {t.label}
-              {t.key !== 'done' ? ` ${n}` : ''}
-            </button>
+            <li key={j.case_id} className="border-b border-line last:border-b-0">
+              <Link to={`/partner/${partnerId}/jobs/${j.case_id}`} className={`block px-5 py-4 transition-colors ${sel ? 'bg-action-soft' : 'hover:bg-sub'} ${isNew(j.case_id + j.status) ? 'animate-enter' : ''}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold">{jobTitle(j.title, j.error_code, j.error_label)}</span>
+                  {j.priority === 'urgent' && <Chip tone="negative">Urgent</Chip>}
+                </div>
+                <div className="text-body-sm text-secondary">{[(j.address ?? j.postcode ?? '').split(',')[0], j.floor != null ? floorLabel(j.floor) : null].filter(Boolean).join(' · ')}</div>
+                <div className={`mt-1 text-label ${step.mine ? 'font-semibold text-action' : 'text-muted'}`}>{step.text}</div>
+              </Link>
+            </li>
           )
         })}
-      </div>
-      {error && !jobs && <ErrorBox error={error} onRetry={reload} />}
-      {!jobs && !error && <Loading what="Loading jobs" />}
-      {jobs && jobs.filter((j) => TAB_OF(j.status) === effectiveTab).length === 0 && <Empty>Nothing here. New jobs from Debye show up instantly.</Empty>}
-      {jobs
-        ?.filter((j) => TAB_OF(j.status) === effectiveTab)
-        .map((j) => (
-          <JobCard key={j.case_id} j={j} partnerId={partnerId} selected={j.case_id === caseId} fresh={isNew(j.case_id + j.status)} />
-        ))}
-    </div>
+      </ul>
+    </section>
   )
 
   return (
     <PartnerLayout partnerId={partnerId} partnerName={partner?.name} staffName={staffName}>
       {desktop ? (
-        <div className="grid grid-cols-[400px_minmax(0,1fr)] items-start gap-gap">
+        <div className="grid grid-cols-[340px_minmax(0,1fr)] items-start gap-work">
           {list}
-          {caseId ? <JobPanel key={caseId} partnerId={partnerId} caseId={caseId} staffName={staffName} /> : <Empty>Select a job</Empty>}
+          {caseId ? <JobPanel key={caseId} partnerId={partnerId} caseId={caseId} staffName={staffName} jobs={jobs ?? []} /> : <div className="panel px-5 py-8 text-center text-muted">Select a job</div>}
         </div>
       ) : caseId ? (
         <div>
-          <Link to={`/partner/${partnerId}`} className="mb-3 inline-block font-semibold text-plum">
+          <Link to={`/partner/${partnerId}`} className="mb-3 inline-block font-semibold text-action">
             ← All jobs
           </Link>
-          <JobPanel key={caseId} partnerId={partnerId} caseId={caseId} staffName={staffName} />
+          <JobPanel key={caseId} partnerId={partnerId} caseId={caseId} staffName={staffName} jobs={jobs ?? []} />
         </div>
       ) : (
         list

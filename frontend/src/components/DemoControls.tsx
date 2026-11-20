@@ -9,14 +9,14 @@ function TextSize() {
   const step = (d: number) => setScale(setStageScale(scale + d))
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-muted">Text</span>
-      <button className="btn-ghost min-h-0 px-3 py-1" disabled={scale <= STAGE_MIN} onClick={() => step(-0.05)} aria-label="Smaller text">
+      <span className="text-label text-muted">Text</span>
+      <button className="btn-ghost h-8 px-3" disabled={scale <= STAGE_MIN} onClick={() => step(-0.05)} aria-label="Smaller text">
         A−
       </button>
-      <button className="min-w-[3.5rem] text-sm font-semibold" onClick={() => setScale(setStageScale(1))} title="Reset to 100 %">
+      <button className="min-w-[3.5rem] text-label font-semibold" onClick={() => setScale(setStageScale(1))} title="Reset to 100 %">
         {Math.round(scale * 100)}%
       </button>
-      <button className="btn-ghost min-h-0 px-3 py-1" disabled={scale >= STAGE_MAX} onClick={() => step(0.05)} aria-label="Bigger text">
+      <button className="btn-ghost h-8 px-3" disabled={scale >= STAGE_MAX} onClick={() => step(0.05)} aria-label="Bigger text">
         A+
       </button>
     </div>
@@ -60,10 +60,10 @@ export function DemoControls() {
   }
 
   if (!open)
-    return <button aria-label="Demo controls" onClick={() => setOpen(true)} className="fixed bottom-3 right-3 z-50 h-4 w-4 rounded-full bg-line opacity-40 hover:opacity-100" />
+    return <button aria-label="Demo controls" onClick={() => setOpen(true)} className="fixed bottom-20 md:bottom-3 right-3 z-50 h-4 w-4 rounded-full bg-line opacity-40 hover:opacity-100" />
 
   return (
-    <div className="fixed bottom-3 right-3 z-50 w-80 rounded-card border border-line bg-surface p-4 shadow-pop">
+    <div className="fixed bottom-20 right-3 z-50 w-80 rounded-panel border border-line bg-surface p-4 shadow-pop md:bottom-3">
       <div className="mb-3 flex items-center justify-between">
         <span className="label">Demo controls</span>
         <button className="text-muted" onClick={() => setOpen(false)}>✕</button>
@@ -78,7 +78,7 @@ export function DemoControls() {
         <TextSize />
         <button className="btn-ghost" disabled={busy} onClick={() => confirm('Reset all demo data?') && run('Reset', async () => { await api.demoReset(); location.reload() })}>Reset</button>
       </div>
-      {msg && <div className="mt-3 text-sm text-muted">{msg}</div>}
+      {msg && <div className="mt-3 text-label text-muted">{msg}</div>}
     </div>
   )
 }

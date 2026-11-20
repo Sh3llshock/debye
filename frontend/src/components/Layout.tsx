@@ -1,83 +1,131 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { onStreamStatus } from '../lib/stream'
 import { DEMO, USE_FIXTURES } from '../api/client'
 import { initials } from '../lib/format'
 import { DemoControls } from './DemoControls'
-import { DebyeMark } from './ui'
+import { Icon } from './icons'
+import { Mascot } from './ui'
 
-export function LiveDot({ dark }: { dark?: boolean }) {
+// ---------- breadcrumb: pages set it, the shell header shows it ----------
+export type Crumb = { label: string; to?: string }
+const CrumbCtx = createContext<(c: Crumb[]) => void>(() => {})
+export function useCrumbs(crumbs: Crumb[]) {
+  const set = useContext(CrumbCtx)
+  const key = JSON.stringify(crumbs)
+  useEffect(() => set(crumbs), [key]) // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+export function LiveDot() {
   const [on, setOn] = useState(false)
   useEffect(() => onStreamStatus(setOn), [])
   return (
-    <span className={`inline-flex items-center gap-2 text-sm font-semibold ${dark ? 'text-on-plum-muted' : 'text-muted'}`} title={on ? 'Live updates connected' : 'Reconnecting…'}>
-      <span className={`h-2.5 w-2.5 rounded-full ${on ? 'animate-pulse-dot bg-success' : 'bg-danger'}`} />
+    <span className="inline-flex items-center gap-2 text-label text-secondary" title={on ? 'Live updates connected' : 'Reconnecting…'}>
+      <span className={`h-2 w-2 rounded-full ${on ? 'animate-pulse-dot bg-positive' : 'bg-negative'}`} />
       {on ? 'Live' : 'Offline'}
     </span>
   )
 }
 
-export function StaffLayout({ children }: { children: ReactNode }) {
-  const nav = ({ isActive }: { isActive: boolean }) =>
-    `relative py-2 text-body font-medium transition-colors ${isActive ? 'text-on-plum after:absolute after:-bottom-1 after:left-1/4 after:h-[3px] after:w-1/2 after:rounded-full after:bg-lilac' : 'text-on-plum-muted hover:text-on-plum'}`
+type RailItem = { to: string; label: string; icon: string; end?: boolean }
+
+function Shell({ logo, items, crumbs, right, children, phoneCrumb }: { logo: ReactNode; items: RailItem[]; crumbs: Crumb[]; right: ReactNode; children: ReactNode; phoneCrumb?: number }) {
+  const keep = phoneCrumb ?? crumbs.length - 1
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-20 bg-plum text-on-plum">
-        <div className="mx-auto flex h-topbar max-w-[1600px] items-center gap-10 px-gutter lg:px-page">
-          <Link to="/staff" className="flex shrink-0 items-center gap-2">
-            <DebyeMark size={52} bare />
-            <span className="leading-tight">
-              <span className="block font-serif text-xl font-semibold">Debye</span>
-              <span className="block text-sm text-on-plum-muted">AI assistant</span>
+    <div className="min-h-screen md:pl-rail">
+      <aside className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around bg-rail md:inset-y-0 md:left-0 md:right-auto md:h-auto md:w-rail md:flex-col md:justify-start md:gap-2 md:py-4">
+        <div className="hidden md:mb-4 md:block">{logo}</div>
+        {items.map((it) => (
+          <NavLink
+            key={it.to}
+            to={it.to}
+            end={it.end}
+            className={({ isActive }) =>
+              `flex w-14 flex-col items-center gap-1 rounded py-2 text-tiny transition-colors ${isActive ? 'bg-rail-active text-rail-text-active' : 'text-rail-text hover:text-rail-text-active'}`
+            }
+          >
+            <Icon name={it.icon} className="h-5 w-5" />
+            {it.label}
+          </NavLink>
+        ))}
+      </aside>
+      <header className="sticky top-0 z-20 flex h-header items-center gap-4 border-b border-line bg-surface px-4 md:px-work">
+        <div className="md:hidden">{logo}</div>
+        <nav className="flex min-w-0 items-center gap-2 text-body">
+          {crumbs.map((c, i) => (
+            <span key={i} className={`min-w-0 items-center gap-2 ${i === keep ? 'flex' : 'hidden sm:flex'}`}>
+              {i > 0 && <Icon name="chevron" className={`h-4 w-4 shrink-0 text-muted ${i === keep ? 'hidden sm:block' : ''}`} />}
+              {c.to ? (
+                <Link to={c.to} className={`truncate ${i === 0 ? 'font-semibold text-ink' : 'text-action'} hover:underline`}>
+                  {c.label}
+                </Link>
+              ) : (
+                <span className={`truncate ${i === 0 ? 'font-semibold text-ink' : 'text-secondary'}`}>{c.label}</span>
+              )}
             </span>
-          </Link>
-          <nav className="mx-auto hidden gap-10 md:flex">
-            <NavLink to="/staff" end className={nav}>
-              Cases
-            </NavLink>
-            <NavLink to="/staff/units" className={nav}>
-              Units
-            </NavLink>
-          </nav>
-          <div className="ml-auto flex items-center gap-4">
-            {USE_FIXTURES && <span className="rounded-pill bg-plum-dark px-3 py-0.5 text-xs text-on-plum-muted">fixtures</span>}
-            <LiveDot dark />
-            <span className="hidden rounded-pill border border-line-on-plum px-3 py-1 text-sm text-on-plum-muted lg:inline">for reltix · centrix</span>
-            <span className="hidden items-center gap-2 lg:flex">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-info text-sm font-semibold">AB</span>
-              <span className="text-body-sm">Anna Becker</span>
-            </span>
-          </div>
-        </div>
+          ))}
+        </nav>
+        <div className="ml-auto flex shrink-0 items-center gap-4">{right}</div>
       </header>
-      <main className="mx-auto max-w-[1600px] px-gutter py-section lg:px-page">{children}</main>
+      <main className="px-4 pb-24 pt-work md:px-work md:pb-work">{children}</main>
       {DEMO && <DemoControls />}
     </div>
   )
 }
 
-export function PartnerLayout({ partnerName, partnerId, staffName, children }: { partnerName?: string; partnerId: string; staffName?: string; children: ReactNode }) {
+function MascotLogo() {
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-20 border-b border-line bg-surface">
-        <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-gutter py-3 lg:h-topbar lg:px-page lg:py-0">
-          <Link to={`/partner/${partnerId}`} className="flex min-w-0 items-center gap-3">
-            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-warning text-body-sm font-semibold text-on-plum">{initials(partnerName ?? partnerId)}</span>
-            <span className="min-w-0 leading-tight">
-              <span className="block truncate font-serif text-xl font-semibold text-heading lg:text-2xl">{partnerName ?? partnerId}</span>
-              <span className="block text-sm text-muted">Partner jobs</span>
-            </span>
-          </Link>
-          <div className="ml-auto flex items-center gap-4">
-            <span className="hidden items-center gap-2 rounded-pill bg-plum-faint py-1 pl-1 pr-4 text-sm font-medium text-plum sm:inline-flex">
-              <DebyeMark size={32} /> via Debye · for reltix
-            </span>
-            {staffName && <span className="hidden text-body-sm lg:inline">{staffName}</span>}
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-[1600px] px-gutter py-6 lg:px-page lg:py-section">{children}</main>
-      {DEMO && <DemoControls />}
-    </div>
+    <Link to="/staff" className="block h-11 w-11 overflow-hidden rounded-full bg-surface" title="Debye · AI assistant">
+      <Mascot pose="avatar" alt="Debye" className="h-full w-full object-cover" />
+    </Link>
+  )
+}
+
+export function StaffLayout({ children }: { children: ReactNode }) {
+  const [crumbs, setCrumbs] = useState<Crumb[]>([{ label: 'Cases' }])
+  return (
+    <CrumbCtx.Provider value={setCrumbs}>
+      <Shell
+        logo={<MascotLogo />}
+        items={[
+          { to: '/staff', label: 'Cases', icon: 'cases', end: true },
+          { to: '/staff/units', label: 'Units', icon: 'building' },
+        ]}
+        crumbs={crumbs}
+        right={
+          <>
+            {USE_FIXTURES && <span className="rounded-chip bg-warning-soft px-2 py-0.5 text-meta font-semibold text-warning">fixtures</span>}
+            <LiveDot />
+            <span className="hidden text-body text-secondary sm:inline">Anna Becker · reltix</span>
+          </>
+        }
+      >
+        {children}
+      </Shell>
+    </CrumbCtx.Provider>
+  )
+}
+
+export function PartnerLayout({ partnerName, partnerId, staffName, children }: { partnerName?: string; partnerId: string; staffName?: string; children: ReactNode }) {
+  const logo = (
+    <Link to={`/partner/${partnerId}`} className="flex h-11 w-11 items-center justify-center rounded bg-surface text-label font-semibold text-ink" title={partnerName}>
+      {initials(partnerName ?? partnerId)}
+    </Link>
+  )
+  return (
+    <Shell
+      logo={logo}
+      items={[{ to: `/partner/${partnerId}`, label: 'Jobs', icon: 'jobs' }]}
+      crumbs={[{ label: partnerName ?? partnerId, to: `/partner/${partnerId}` }, { label: 'Jobs from reltix, sent by Debye' }]}
+      phoneCrumb={0}
+      right={
+        <>
+          <LiveDot />
+          {staffName && <span className="hidden text-body text-secondary sm:inline">{staffName}</span>}
+        </>
+      }
+    >
+      {children}
+    </Shell>
   )
 }

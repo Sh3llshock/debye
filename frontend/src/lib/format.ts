@@ -1,4 +1,4 @@
-import type { StatusTone } from '../theme'
+import type { ChipTone } from '../theme'
 import type { Slot } from '../api/types'
 
 const TZ = 'Europe/Berlin'
@@ -40,23 +40,23 @@ export function humanize(s?: string | null) {
   return s.replace(/[._]/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
 }
 
-export const STATUS: Record<string, { label: string; tone: StatusTone }> = {
-  new: { label: 'New', tone: 'info' },
+export const STATUS: Record<string, { label: string; tone: ChipTone }> = {
+  new: { label: 'New', tone: 'action' },
   awaiting_approval: { label: 'Needs approval', tone: 'warning' },
-  requested: { label: 'Requested', tone: 'plum' },
-  accepted: { label: 'Accepted', tone: 'info' },
+  requested: { label: 'Requested', tone: 'action' },
+  accepted: { label: 'Accepted', tone: 'action' },
   slots_proposed: { label: 'Slots proposed', tone: 'warning' },
-  scheduled: { label: 'Scheduled', tone: 'info' },
+  scheduled: { label: 'Scheduled', tone: 'action' },
   in_progress: { label: 'In progress', tone: 'warning' },
-  completed: { label: 'Completed', tone: 'success' },
-  invoiced: { label: 'Invoiced', tone: 'success' },
+  completed: { label: 'Completed', tone: 'positive' },
+  invoiced: { label: 'Invoiced', tone: 'positive' },
   closed: { label: 'Closed', tone: 'neutral' },
-  declined: { label: 'Declined', tone: 'danger' },
-  partner_declined: { label: 'Partner declined', tone: 'danger' },
+  declined: { label: 'Declined', tone: 'negative' },
+  partner_declined: { label: 'Partner declined', tone: 'negative' },
   reopened: { label: 'Reopened', tone: 'warning' },
 }
 export function statusInfo(s: string) {
-  return STATUS[s] ?? { label: humanize(s), tone: 'neutral' as StatusTone }
+  return STATUS[s] ?? { label: humanize(s), tone: 'neutral' as ChipTone }
 }
 
 /** Lifecycle segments shown on the case card (design: Requested → Accepted → Scheduled → Done → Invoiced → Closed). */
