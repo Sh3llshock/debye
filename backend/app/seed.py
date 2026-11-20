@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .config import reset_clock, settings
 from .db import create_all, drop_all, get_session
-from .models import Asset, Contact, Contract, Partner, Property, Unit
+from .models import Asset, Contact, Contract, Partner, Property, Technician, Unit
 
 log = logging.getLogger("debye.seed")
 
@@ -94,6 +94,11 @@ def seed(reset: bool = False) -> None:
             s.merge(Contract(id=k["id"], type=k["type"], unit_id=k.get("unit_id"),
                              contact_id=k.get("contact_id"), partner_id=k.get("partner_id"),
                              data=k.get("data", {})))
+        from .partners.technicians import seed_busy
+        for t in data.get("technicians", []):
+            s.merge(Technician(id=t["id"], partner_id=t["partner_id"], name=t["name"],
+                               phone_e164=t.get("phone_e164"), skills=t.get("skills", []),
+                               busy=seed_busy(t.get("busy", []))))
         for m in load_manifests():
             s.merge(Partner(id=m["partner_id"], manifest=m, active=True))
         s.commit()

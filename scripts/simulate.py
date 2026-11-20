@@ -15,7 +15,7 @@ Partner side: drives the partner page API (accept, slots, complete with photo + 
   python scripts/simulate.py                       # full golden path via webhooks
   python scripts/simulate.py --direct              # tenant steps via /demo/trigger (no router needed)
   python scripts/simulate.py --step report         # one step only (report|neighbour|consent|
-                                                   #   accept|slots|pick|complete|fixed)
+                                                   #   accept|slots|pick|tech_confirm|complete|fixed)
   python scripts/simulate.py --base http://localhost:8000 --reset
 
 Only stdlib + httpx. Exit code 1 if a step fails.
@@ -38,6 +38,7 @@ import httpx
 LUKA = "490000000001"   # WhatsApp sends E.164 without "+"
 JONAS = "490000000002"
 PARTNER = "heizung-schmidt"
+TECH = "tech_tom"  # Tom Schmidt, Vaillant-certified
 PHONE_NUMBER_ID = os.environ.get("WA_PHONE_NUMBER_ID", "123456789012345")
 APP_SECRET = os.environ.get("WA_APP_SECRET", "")
 
@@ -294,14 +295,15 @@ class Sim:
                 self.log("debye", f"→ {_to(item)}: {_describe(item)}")
 
     def slots(self) -> None:
+        """Dispatcher picks a technician (Tom by default) and proposes 2 of their free slots."""
         cid = self.latest_case()["case_id"]
-        tz = timezone(timedelta(hours=1))
-        t = (datetime.now(tz) + timedelta(days=1)).replace(hour=8, minute=0, second=0, microsecond=0)
-        slots = [{"start": t.isoformat(), "end": (t + timedelta(hours=2)).isoformat()},
-                 {"start": (t + timedelta(days=1, hours=6)).isoformat(),
-                  "end": (t + timedelta(days=1, hours=8)).isoformat()}]
-        job = self._check(self.c.post(f"/api/partner/{PARTNER}/jobs/{cid}/slots", json={"slots": slots}))
-        self.log("partner", "proposes " + " / ".join(s["label"] for s in job["proposed_slots"]))
+        techs = self._check(self.c.get(f"/api/partner/{PARTNER}/technicians"))
+        tech = next((t for t in techs if t["tech_id"] == TECH), techs[0])
+        slots = tech["free_slots"][:2]
+        job = self._check(self.c.post(f"/api/partner/{PARTNER}/jobs/{cid}/slots",
+                                      json={"tech_id": tech["tech_id"], "slots": slots}))
+        self.log("partner", f"assigns {tech['name']}, proposes "
+                 + " / ".join(s["label"] for s in job["proposed_slots"]))
         if not self.direct:
             time.sleep(1)
             for item in self.read_outbox():
@@ -323,6 +325,17 @@ class Sim:
                     break
         oid = rows[index - 1] if 0 < index <= len(rows) else f"slot_{index}:{cid}"
         self.webhook(LUKA, "Luka", list_reply(oid, f"Slot {index}"))
+
+    def tech_confirm(self) -> None:
+        """The technician confirms the slot the tenant picked on their phone page."""
+        cid = self.latest_case()["case_id"]
+        tech = (self.case(cid).get("technician") or {}).get("tech_id") or TECH
+        job = self._check(self.c.post(f"/api/tech/{tech}/jobs/{cid}/confirm"))
+        self.log("tech", f"{tech} confirms → {job['status']}")
+        if not self.direct:
+            time.sleep(1)
+            for item in self.read_outbox():
+                self.log("debye", f"→ {_to(item)}: {_describe(item)}")
 
     def complete(self) -> None:
         cid = self.latest_case()["case_id"]
@@ -358,7 +371,7 @@ class Sim:
         return c["status"] == "closed"
 
 
-STEPS = ["report", "neighbour", "consent", "accept", "slots", "pick", "complete", "fixed"]
+STEPS = ["report", "neighbour", "consent", "accept", "slots", "pick", "tech_confirm", "complete", "fixed"]
 
 
 def main() -> int:

@@ -1,7 +1,8 @@
 """What the agent (and the APIs) call. Signatures per interfaces §3.3; everything is sync.
 
 Case status lifecycle:
-  new → [awaiting_approval] → requested → accepted → slots_proposed → scheduled
+  new → [awaiting_approval] → requested → accepted → slots_proposed → awaiting_technician
+      → scheduled
       → completed → invoiced → closed
   side states: partner_declined (back to ranking), reopened (tenant says not fixed)
 
@@ -24,7 +25,7 @@ from .config import TZ, now, now_iso, settings
 from .db import get_session, next_id
 from .events import publish_sync, record_event
 from .models import (Asset, Case, CaseContact, Consent, Contact, Contract, Document, Message,
-                     Partner, Property, Unit)
+                     Partner, Property, Technician, Unit)
 from .partners.manifest import Manifest
 from .partners.ranking import rank
 
@@ -133,14 +134,33 @@ def error_phrase(code: str | None, known: dict | None = None) -> str | None:
 GERMAN_DAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 
 
-def case_label_slot(start: str, end: str) -> str:
-    """'Morgen 8–10' / 'Heute 14–16' / 'Do 26.11. 8–10'."""
+EN_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def slot_clock(start: str, end: str) -> str:
+    """'Sat 08:00–10:00' (for staff/technician event summaries)."""
+    s = datetime.fromisoformat(start).astimezone(TZ)
+    e = datetime.fromisoformat(end).astimezone(TZ)
+    return f"{EN_DAYS[s.weekday()]} {s:%H:%M}–{e:%H:%M}"
+
+
+def case_label_slot(start: str, end: str, language: str = "de") -> str:
+    """de: 'Morgen 8–10' / 'Heute 14–16' / 'Do 26.11. 8–10'.
+    en: 'Tomorrow 8–10' / 'Today 14–16' / 'Thu 26 Nov 8–10'."""
     s = datetime.fromisoformat(start).astimezone(TZ)
     e = datetime.fromisoformat(end).astimezone(TZ)
     today = now().date()
     hours = f"{s.hour}" + (f":{s.minute:02d}" if s.minute else "") + "–" + \
             f"{e.hour}" + (f":{e.minute:02d}" if e.minute else "")
     delta = (s.date() - today).days
+    if language == "en":
+        if delta == 0:
+            day = "Today"
+        elif delta == 1:
+            day = "Tomorrow"
+        else:
+            day = f"{EN_DAYS[s.weekday()]} {s.day} {s:%b}"
+        return f"{day} {hours}"
     if delta == 0:
         day = "Heute"
     elif delta == 1:
@@ -460,8 +480,33 @@ def partner_decline(case_id: str, partner_id: str, reason: str) -> Case:
     return get_case(case_id)
 
 
-def propose_slots(case_id: str, partner_id: str, slots: list[dict]) -> list[dict]:
-    """slots: [{start, end}] ISO → stored with labels; returns [{start, end, label}]."""
+def get_technicians(partner_id: str) -> list[dict]:
+    """[{tech_id, name, skills, free_slots:[{start,end}]}] – free = next 3 days,
+    08–10 / 10–12 / 14–16 minus busy."""
+    from .partners.technicians import free_slots
+    with get_session() as s:
+        techs = s.exec(select(Technician).where(Technician.partner_id == partner_id)
+                       .order_by(Technician.id)).all()
+        return [{"tech_id": t.id, "name": t.name, "skills": t.skills, "phone_e164": t.phone_e164,
+                 "free_slots": free_slots(t.busy)} for t in techs]
+
+
+def get_technician(tech_id: str) -> Technician | None:
+    with get_session() as s:
+        return s.get(Technician, tech_id)
+
+
+def _tenant_language(s, case: Case) -> str:
+    c = s.get(Contact, case.reporter_contact_id) if case.reporter_contact_id else None
+    return (c.language if c else None) or "en"
+
+
+def propose_slots(case_id: str, partner_id: str, slots: list[dict],
+                  tech_id: str | None = None) -> list[dict]:
+    """slots: [{start, end}] ISO → stored with labels; returns [{start, end, label}].
+    With tech_id (technician flow) the technician must belong to the partner and be free
+    in every slot; it is stored on the case as data.technician."""
+    from .partners.technicians import is_free
     labelled = []
     for sl in slots:
         start = datetime.fromisoformat(sl["start"])
@@ -471,17 +516,34 @@ def propose_slots(case_id: str, partner_id: str, slots: list[dict]) -> list[dict
         if end.tzinfo is None:
             end = end.replace(tzinfo=TZ)
         st, en = start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds")
-        labelled.append({"start": st, "end": en, "label": case_label_slot(st, en)})
+        labelled.append({"start": st, "end": en})
+    tech_view = None
     with get_session() as s:
         case = _get(s, Case, case_id)
         if case.partner_id != partner_id:
             raise rules.RuleViolation("not_assigned", "this job is not assigned to you")
-        _patch_data(case, proposed_slots=labelled)
+        if tech_id:
+            tech = s.get(Technician, tech_id)
+            if not tech or tech.partner_id != partner_id:
+                raise rules.RuleViolation("unknown_technician",
+                                          f"technician {tech_id} not found for {partner_id}")
+            busy = [sl for sl in labelled if not is_free(tech.busy, sl)]
+            if busy:
+                raise rules.RuleViolation(
+                    "technician_busy",
+                    f"{tech.name} is busy at {slot_clock(busy[0]['start'], busy[0]['end'])}")
+            tech_view = {"tech_id": tech.id, "name": tech.name}
+        lang = _tenant_language(s, case)
+        for sl in labelled:
+            sl["label"] = case_label_slot(sl["start"], sl["end"], lang)
+        extra = {"technician": tech_view} if tech_view else {}
+        _patch_data(case, proposed_slots=labelled, **extra)
         case.status = "slots_proposed"
         _save_case(s, case)
+    who = f" with {tech_view['name']}" if tech_view else ""
     record_event(case_id, "partner", "slot.proposed",
-                 "Proposed " + " or ".join(sl["label"] for sl in labelled),
-                 {"slots": labelled})
+                 "Proposed " + " or ".join(sl["label"] for sl in labelled) + who,
+                 {"slots": labelled, "technician": tech_view})
     return labelled
 
 
@@ -494,14 +556,47 @@ def confirm_slot(case_id: str, slot_index: int) -> dict:
             raise rules.RuleViolation("invalid_slot", f"slot {slot_index} does not exist")
         slot = slots[slot_index - 1]
         case.slot_start, case.slot_end = slot["start"], slot["end"]
-        case.status = "scheduled"
+        tech = (case.data or {}).get("technician")
+        # technician flow: the technician still has to confirm on the phone page
+        case.status = "awaiting_technician" if tech else "scheduled"
         _save_case(s, case)
         partner_name = None
         if case.partner_id:
             partner_name = s.get(Partner, case.partner_id).manifest.get("name")
+        status = case.status
     add_tenant_input(case_id, f"tap: {slot['label']}")
-    record_event(case_id, "tenant", "slot.confirmed", f"Visit booked: {slot['label']}", {"slot": slot})
-    return {"case_id": case_id, "slot": slot, "partner_name": partner_name, "status": "scheduled"}
+    summary = f"Tenant picked {slot['label']}"
+    if tech:
+        summary += f" – waiting for {tech['name']} to confirm"
+    record_event(case_id, "tenant", "slot.confirmed", summary, {"slot": slot, "technician": tech})
+    return {"case_id": case_id, "slot": slot, "partner_name": partner_name, "status": status,
+            "technician": tech}
+
+
+def technician_confirm(case_id: str, tech_id: str) -> dict:
+    """Technician confirms the slot the tenant picked: books it on the calendar → scheduled."""
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        tech = _get(s, Technician, tech_id)
+        assigned = ((case.data or {}).get("technician") or {}).get("tech_id")
+        if assigned != tech_id:
+            raise rules.RuleViolation("not_assigned", "this job is not assigned to you")
+        if case.status != "awaiting_technician" or not case.slot_start:
+            raise rules.RuleViolation("not_awaiting_technician",
+                                      f"job is {case.status}; the tenant has to pick a slot first")
+        slot = {"start": case.slot_start, "end": case.slot_end}
+        tech.busy = [*tech.busy, {**slot, "reason": f"job {case_id}"}]
+        s.add(tech)
+        case.status = "scheduled"
+        _patch_data(case, technician={"tech_id": tech.id, "name": tech.name,
+                                      "confirmed_at": now_iso()})
+        _save_case(s, case)
+        name = tech.name
+    when = slot_clock(slot["start"], slot["end"])
+    record_event(case_id, "partner", "technician.confirmed", f"Technician {name} confirmed {when}",
+                 {"tech_id": tech_id, "technician_name": name, "slot": slot})
+    return {"case_id": case_id, "status": "scheduled", "slot": slot,
+            "technician": {"tech_id": tech_id, "name": name}}
 
 
 async def record_completion(case_id: str, partner_id: str, notes: str,
@@ -593,6 +688,7 @@ def close_case(case_id: str, resolution: str) -> dict:
             "contact_id": case.reporter_contact_id,
             "service_job": {
                 "partner": partner.manifest.get("name") if partner else None,
+                "technician": ((case.data or {}).get("technician") or {}).get("name"),
                 "category": case.type,
                 "case_id": case.id,
                 "status": "closed",

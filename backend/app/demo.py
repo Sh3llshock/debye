@@ -135,6 +135,23 @@ def _store_sim_media(media_ids: list[str], contact: Contact, kind_hint: str | No
     return docs
 
 
+DEFAULT_REPORT = "Hi, my heating has been cold since this morning. The boiler display shows F.28."
+
+
+async def _transcribe_first_audio(doc_ids: list[str]) -> str:
+    """Transcribe the uploaded voice note if there is one; otherwise (or on any error) a fixed line."""
+    from . import media
+    with get_session() as s:
+        audio = next((d for d in (s.get(Document, i) for i in doc_ids)
+                      if d and d.kind == "audio" and Path(d.path).exists()), None)
+    if audio is None:
+        return DEFAULT_REPORT
+    try:
+        return (await media.transcribe(audio.path, "en")) or DEFAULT_REPORT
+    except Exception:
+        return DEFAULT_REPORT
+
+
 async def t_tenant_report(body: dict) -> dict:
     """Luka: voice note + photo → case (F.28) → ranking. Body: contact_id, text, media_ids."""
     from . import media
@@ -145,7 +162,7 @@ async def t_tenant_report(body: dict) -> dict:
         raise HTTPException(404, f"contact {contact_id} not found")
     media_ids = body.get("media_ids") or []
     doc_ids = _store_sim_media(media_ids, contact)
-    text = body.get("text") or await media.transcribe("voice.ogg")
+    text = body.get("text") or await _transcribe_first_audio(doc_ids)
     services.log_message(contact.id, None, "whatsapp", "in", f"🎤 {text}", None, doc_ids)
     ctx = services.get_unit_context(contact.unit_id)
     asset = next((a for a in ctx["assets"] if a["type"] == "gas_boiler"), None)

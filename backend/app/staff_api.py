@@ -73,6 +73,8 @@ def case_detail(s, c: Case) -> dict:
         "approval": {"required": approval.get("required", False), "rule": approval.get("rule"),
                      "granted": approval.get("granted", False)},
         "slot": {"start": c.slot_start, "end": c.slot_end} if c.slot_start else None,
+        "technician": ({"tech_id": data["technician"]["tech_id"], "name": data["technician"]["name"]}
+                       if data.get("technician") else None),
         "proposed_slots": data.get("proposed_slots") or [],
         "zero_forms": {"prefilled": data.get("prefilled_fields", []),
                        "tenant_inputs": data.get("tenant_inputs", [])},

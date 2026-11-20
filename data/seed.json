@@ -35,16 +35,29 @@
     }
   ],
   "contacts": [
-    { "id": "c_101", "role": "owner", "name": "Maria Becker", "phone_e164": "+490000000010", "email": "owner@example.com", "language": "de" },
-    { "id": "c_202", "role": "tenant", "name": "Luka", "phone_e164": "+490000000001", "email": "luka@example.com", "language": "de", "unit_id": "unit_4b", "move_in": "2026-12-01", "whatsapp_opt_in": true },
-    { "id": "c_203", "role": "tenant", "name": "Jonas Weber", "phone_e164": "+490000000002", "email": "jonas@example.com", "language": "de", "unit_id": "unit_2a", "move_in": "2021-04-01", "whatsapp_opt_in": true },
-    { "id": "c_301", "role": "partner_staff", "name": "Tom Schmidt", "phone_e164": "+490000000003", "partner_id": "heizung-schmidt", "language": "de" },
-    { "id": "c_401", "role": "pm", "name": "reltix property manager", "email": "pm@example.com", "language": "de" }
+    { "id": "c_101", "role": "owner", "name": "Maria Becker", "phone_e164": "+490000000010", "email": "owner@example.com", "language": "en" },
+    { "id": "c_202", "role": "tenant", "name": "Luka", "phone_e164": "+490000000001", "email": "luka@example.com", "language": "en", "unit_id": "unit_4b", "move_in": "2026-12-01", "whatsapp_opt_in": true },
+    { "id": "c_203", "role": "tenant", "name": "Jonas Weber", "phone_e164": "+490000000002", "email": "jonas@example.com", "language": "en", "unit_id": "unit_2a", "move_in": "2021-04-01", "whatsapp_opt_in": true },
+    { "id": "c_301", "role": "partner_staff", "name": "Tom Schmidt", "phone_e164": "+490000000003", "partner_id": "heizung-schmidt", "language": "en" },
+    { "id": "c_401", "role": "pm", "name": "reltix property manager", "email": "pm@example.com", "language": "en" }
   ],
   "contracts": [
     { "id": "ct_lease_4b", "type": "lease", "unit_id": "unit_4b", "contact_id": "c_202", "data": { "rent_cold_eur": 780, "start": "2026-12-01" } },
     { "id": "ct_lease_2a", "type": "lease", "unit_id": "unit_2a", "contact_id": "c_203", "data": { "rent_cold_eur": 610, "start": "2021-04-01" } },
     { "id": "ct_fw_schmidt", "type": "framework", "partner_id": "heizung-schmidt", "data": { "auto_approve_limit_eur": 500, "callout_fee_eur": 89, "hourly_eur": 72, "valid_until": "2027-12-31" } }
   ],
+  "technicians": [
+    { "id": "tech_tom", "partner_id": "heizung-schmidt", "name": "Tom Schmidt", "phone_e164": "+490000000003", "skills": ["heating", "Vaillant"],
+      "busy": [{ "day": 1, "window": "10-12" }, { "day": 2, "window": "08-10" }, { "day": 2, "window": "14-16" }, { "day": 3, "window": "10-12" }] },
+    { "id": "tech_ali", "partner_id": "heizung-schmidt", "name": "Ali Yilmaz", "phone_e164": "+490000000005", "skills": ["heating", "plumbing"],
+      "busy": [{ "day": 1, "window": "08-10" }, { "day": 1, "window": "14-16" }, { "day": 3, "window": "08-10" }] },
+    { "id": "tech_jana", "partner_id": "heizung-schmidt", "name": "Jana Krüger", "phone_e164": "+490000000006", "skills": ["heating"],
+      "busy": [{ "day": 1, "window": "08-10" }, { "day": 1, "window": "10-12" }, { "day": 2, "window": "10-12" }] },
+    { "id": "tech_wagner", "partner_id": "waerme-wagner", "name": "Max Wagner", "skills": ["heating", "Vaillant", "solar"],
+      "busy": [{ "day": 1, "window": "all" }, { "day": 2, "window": "all" }, { "day": 3, "window": "all" }] },
+    { "id": "tech_gruen", "partner_id": "heiztechnik-gruen", "name": "Sven Grün", "skills": ["heating", "Buderus"],
+      "busy": [{ "day": 1, "window": "08-10" }] }
+  ],
+  "_technicians_notes": "busy windows are relative to the demo day: day 1 = tomorrow; window 08-10 | 10-12 | 14-16 | all.",
   "_notes": "Replace the +4900000000xx placeholders with the team's real demo phone numbers in a local, uncommitted override (data/seed.local.json)."
 }

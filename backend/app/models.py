@@ -76,6 +76,16 @@ class Partner(SQLModel, table=True):
     active: bool = True
 
 
+class Technician(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    partner_id: str = Field(index=True)
+    name: str
+    phone_e164: Optional[str] = None
+    skills: list = _json(list)
+    # absolute [{start, end, reason}] – seeded busy windows + confirmed jobs
+    busy: list = _json(list)
+
+
 class Case(SQLModel, table=True):
     __tablename__ = "cases"
 
