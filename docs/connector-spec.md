@@ -91,3 +91,28 @@ When the lifecycle reaches `closed` (deliver) or `active` (sell), centrix links 
 1. Write the manifest (15 minutes).
 2. API partner: implement 3 endpoints + the events webhook. Conversational partner: provide a WhatsApp number or email address.
 3. Drop the file into `partners/`. Debye picks it up for every matching trigger.
+
+## 9. Onboarding a partner in 2 minutes
+
+A partner doesn't have to write the manifest by hand. The **Become a partner** page (`/partners/join`, linked from the staff Partners page as "+ Onboard a partner") asks three short steps and builds the manifest live next to the form:
+
+| Step | Asks | Becomes |
+|---|---|---|
+| Company | name, trades (chips), certified brands (chips per trade) | `partner_id` (slug of the name), `category` (`repair.<first trade>`), `triggers` (`case.repair.<trade>` per trade), `capabilities.trades`, `capabilities.brands_certified` |
+| Area & prices | radius around a postcode or a postcode list; fixed rates (call-out + hourly) or quote; urgent response time | `service_area`, `eligibility` (`property.postcode in_service_area`, plus `asset.type in [gas_boiler, heat_pump]` for heating-only partners), `pricing`, `sla` |
+| Jobs & team | how jobs arrive (partner portal / API with base URL / WhatsApp / email), which context fields they need, technicians (name + skill chips) | `transport`, `availability`, `required_context` (personal fields always `consent_required: true`), technician roster |
+
+Defaults fill the rest: the deliver lifecycle `status_events` (`accepted, declined, scheduled, in_progress, completed, invoiced`) and `documents_returned` (`visit_report, invoice`).
+
+**Validation is the spec.** Every keystroke posts the manifest to the same validator that guards the save, and the page shows the checklist: schema, slug, dotted category and triggers, trades, service area, eligibility ops and fields (`property|unit|asset|tenant|case.*`), an `in_service_area` rule, context sources, **consent on every PII field**, required lifecycle events (`accepted, declined, scheduled, completed` for deliver), a complete transport, pricing model and SLA.
+
+| Method | Path | Body → Returns |
+|---|---|---|
+| GET | `/api/partners/onboard/schema` | trades with brands, lifecycle, ops, transports, default `required_context` and form defaults |
+| POST | `/api/partners/onboard/validate` | `{manifest}` → `{valid, checks:[{id, ok, message}]}` |
+| POST | `/api/partners/onboard` | `{manifest, technicians:[{name, skills[], phone_e164?}]}` → `{partner_id, name, portal_url, technicians:[{tech_id, name, url}], manifest, file}`; 422 with the failed checks, 409 if the id belongs to a seeded partner |
+
+On save the partner is a DB row (active), its technicians get calendars (free slots for the next 3 days), and in `DEMO_MODE` the manifest is written to `partners/<id>.json` with an extra `technicians` roster, so it survives a demo reset like any hand-written partner. `rank_partners` picks it up for the next matching case with no code change (covered by `backend/tests/test_onboarding.py`).
+
+`service_area` with `radius_km` + `base_postcode` is evaluated without a geocoder in the demo: within 10 km the first 4 postcode digits must match, within 30 km the first 3, beyond that the first 2. A real deployment swaps in a distance lookup; the manifest stays the same.
+

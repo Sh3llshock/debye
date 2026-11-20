@@ -43,6 +43,7 @@ export const theme = {
   },
   fonts: {
     sans: ['"Public Sans"', 'system-ui', 'sans-serif'],
+    mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
   },
   // Role scale 30 / 18 / 16 / 15 / 14 / 13 / 12 (converted to rem in tailwind.config.ts so ?stage scales text).
   fontSize: {

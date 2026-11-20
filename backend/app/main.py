@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from . import demo, events, partner_api, staff_api, tech_api
+from . import demo, events, onboard_api, partner_api, staff_api, tech_api
 from .config import settings
 from .db import get_session
 from .models import Document
@@ -36,6 +36,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 app.include_router(events.router)
 app.include_router(staff_api.router)
+app.include_router(onboard_api.router)
 app.include_router(partner_api.list_router)
 app.include_router(partner_api.router)
 app.include_router(tech_api.router)

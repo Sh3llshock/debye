@@ -235,11 +235,28 @@ export interface PartnerProfile {
   category?: string
   rating?: number
   capabilities?: { trades?: string[]; brands_certified?: string[]; [k: string]: unknown }
-  service_area?: { postcodes?: string[] }
+  service_area?: { postcodes?: string[]; base_postcode?: string; radius_km?: number }
   active?: boolean
   staff?: { contact_id: string; name: string }[]
   open_jobs?: number
   [k: string]: unknown
+}
+
+export interface OnboardCheck {
+  id: string
+  ok: boolean
+  message: string
+}
+
+/** POST /api/partners/onboard */
+export interface OnboardResult {
+  partner_id: string
+  name: string
+  portal_url: string
+  technicians: { tech_id: string; name: string; skills: string[]; url: string }[]
+  manifest: Record<string, unknown>
+  file: string | null
+  checks: OnboardCheck[]
 }
 
 export interface JobSummary {
