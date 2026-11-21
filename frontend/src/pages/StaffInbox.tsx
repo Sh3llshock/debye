@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { CaseSummary } from '../api/types'
 import { LiveDot, useFullBleed } from '../components/Layout'
+import { NewPartnersBanner } from '../components/staff/PartnerApplications'
 import { ChannelTag, Chat, channelOf, firstName, isOpen, lastMessage, messagePreview, needsMe, StagePill, SummaryCard, tenantOf } from '../components/staff/StaffBits'
 import { ErrorBox, Loading } from '../components/ui'
 import { fmtRelative, fmtTime, placeLabel } from '../lib/format'
@@ -54,6 +55,7 @@ export default function StaffInbox() {
             </button>
           ))}
         </div>
+        <NewPartnersBanner />
         {!cases && <Loading />}
         {cases && list.length === 0 && <div className="px-5 py-8 text-center text-muted">{t('Nothing here.')}</div>}
         {list.map((x) => {

@@ -73,7 +73,10 @@ class Contract(SQLModel, table=True):
 class Partner(SQLModel, table=True):
     id: str = Field(primary_key=True)
     manifest: dict = _json(dict)
-    active: bool = True
+    active: bool = True  # kept in sync with status: active == (status == "active")
+    # pending_review (self-onboarded, staff check documents) | active | rejected | suspended
+    status: str = "active"
+    review: dict = _json(dict)  # {reviewer, decided_at, reason, checks}
 
 
 class Technician(SQLModel, table=True):
@@ -158,7 +161,8 @@ class Document(SQLModel, table=True):
     id: str = Field(primary_key=True)
     case_id: Optional[str] = Field(default=None, index=True)
     unit_id: Optional[str] = Field(default=None, index=True)
-    kind: str  # photo | invoice | report | contract | audio
+    partner_id: Optional[str] = Field(default=None, index=True)  # partner documents (licence, insurance)
+    kind: str  # photo | invoice | report | contract | audio | partner_doc
     filename: str
     mime: str
     path: str

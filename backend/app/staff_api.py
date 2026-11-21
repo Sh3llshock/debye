@@ -244,3 +244,61 @@ async def reject(case_id: str, body: RejectBody | None = None) -> dict:
                                {"partner_name": result.get("partner_name"), "reason": reason})
     with get_session() as s:
         return case_detail(s, s.get(Case, case_id))
+
+
+# --------------------------------------------------------------------------- partner review (feature 1)
+
+def partner_application(s, p: Partner) -> dict:
+    from .partners import verification
+    checks = services.partner_precheck(s, p)
+    onb = (p.manifest or {}).get("onboarding") or {}
+    return {"partner_id": p.id, "name": p.manifest.get("name"), "status": p.status or "active",
+            "applied_at": onb.get("at"), "company": onb.get("company") or {},
+            "manifest": p.manifest, "review": p.review or {},
+            "documents": [{**doc_view(d), "doc_type": (d.extracted or {}).get("doc_type"),
+                           "label": verification.DOC_TYPES.get((d.extracted or {}).get("doc_type"), d.filename)}
+                          for d in services.partner_documents(s, p.id)],
+            "precheck": checks, "precheck_result": verification.summary(checks)}
+
+
+@router.get("/partners/applications")
+def partner_applications() -> list[dict]:
+    """Partners waiting for review (self-onboarded on /partners/join), newest first."""
+    with get_session() as s:
+        ps = [p for p in s.exec(select(Partner)).all() if (p.status or "active") == "pending_review"]
+        out = [partner_application(s, p) for p in ps]
+    return sorted(out, key=lambda a: a.get("applied_at") or "", reverse=True)
+
+
+@router.get("/partners/{partner_id}/application")
+def partner_application_detail(partner_id: str) -> dict:
+    with get_session() as s:
+        p = s.get(Partner, partner_id)
+        if not p:
+            raise HTTPException(404, f"partner {partner_id} not found")
+        return partner_application(s, p)
+
+
+class PartnerDecisionBody(BaseModel):
+    reason: str = ""
+    staff_name: str | None = None
+
+
+@router.post("/partners/{partner_id}/approve")
+def approve_partner(partner_id: str, body: PartnerDecisionBody | None = None) -> dict:
+    try:
+        return services.approve_partner(partner_id, staff_name=body.staff_name if body else None)
+    except services.NotFound as nf:
+        raise HTTPException(404, str(nf))
+    except rules.RuleViolation as rv:
+        raise HTTPException(409, rv.message)
+
+
+@router.post("/partners/{partner_id}/reject")
+def reject_partner(partner_id: str, body: PartnerDecisionBody) -> dict:
+    try:
+        return services.reject_partner(partner_id, body.reason, staff_name=body.staff_name)
+    except services.NotFound as nf:
+        raise HTTPException(404, str(nf))
+    except rules.RuleViolation as rv:
+        raise HTTPException(422 if rv.code == "reason_required" else 409, rv.message)

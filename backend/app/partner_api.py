@@ -139,7 +139,10 @@ def _guard(fn, *args):
 
 def _partner_view(s, p: Partner, with_counts: bool = False) -> dict:
     staff = s.exec(select(Contact).where(Contact.partner_id == p.id)).all()
-    out = {**p.manifest, "active": p.active,
+    review = p.review or {}
+    out = {**p.manifest, "active": p.active, "status": p.status or "active",
+           "review": {"reviewer": review.get("reviewer"), "decided_at": review.get("decided_at"),
+                      "reason": review.get("reason")},
            "staff": [{"contact_id": c.id, "name": c.name} for c in staff]}
     if with_counts:
         from .models import Technician

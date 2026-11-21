@@ -116,3 +116,22 @@ On save the partner is a DB row (active), its technicians get calendars (free sl
 
 `service_area` with `radius_km` + `base_postcode` is evaluated without a geocoder in the demo: within 10 km the first 4 postcode digits must match, within 30 km the first 3, beyond that the first 2. A real deployment swaps in a distance lookup; the manifest stays the same.
 
+
+## 10. Partner review (built)
+
+A partner that onboards on `/partners/join` is saved with `status: "pending_review"` and is **not** ranked
+or dispatched until reltix staff approve it. Partner states: `pending_review | active | rejected | suspended`
+(`Partner.status`, with `Partner.review = {reviewer, decided_at, reason, checks}`); seeded partners are `active`.
+
+- The join form sends its documents (trade licence, liability insurance, gas registration, VAT certificate,
+  with numbers and valid-until dates). They are stored as `Document(kind="partner_doc", partner_id=…)`.
+- `partners/verification.py` pre-checks every application: all documents present, valid-until dates in the
+  future, insurance cover ≥ €1,000,000, company name the same in manifest and documents, base postcode inside
+  the service area, gas registration present for the heating trade. Each row is `pass | warn | fail`.
+- Staff API: `GET /api/staff/partners/applications`, `POST /api/staff/partners/{id}/approve`,
+  `POST /api/staff/partners/{id}/reject {reason}` (reason required). The Partners page shows a "New partners"
+  section; the inbox shows a banner.
+- `services.rank_partners` and `dispatch_job` use only `active` partners (`dispatch_job` raises
+  `partner_not_active` otherwise).
+- Expiry: `/demo/skip-to-tomorrow` and a daily background check suspend active partners whose insurance or
+  gas registration has expired (`partner.suspended` event).

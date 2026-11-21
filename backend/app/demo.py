@@ -115,7 +115,9 @@ async def skip_to_tomorrow() -> dict:
     _require_demo()
     advance_clock(timedelta(days=1))
     record_event(None, "system", "clock.skipped", "Demo clock moved to tomorrow", {"now": now_iso()})
-    return {"ok": True, "now": now_iso()}
+    from . import services
+    suspended = services.check_partner_expiry()  # feature 1: expired insurance / gas registration
+    return {"ok": True, "now": now_iso(), "suspended_partners": [p["partner_id"] for p in suspended]}
 
 
 @router.post("/sim-media")

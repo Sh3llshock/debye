@@ -546,7 +546,8 @@ def rank_partners(case_id: str) -> list[dict]:
             "case": {"type": case.type, "error_code": case.error_code},
         }
         manifests = [Manifest.model_validate(p.manifest)
-                     for p in s.exec(select(Partner).where(Partner.active == True)).all()]  # noqa: E712
+                     for p in s.exec(select(Partner).where(Partner.active == True)).all()  # noqa: E712
+                     if (p.status or "active") == "active"]
         fw_ids = {c.partner_id for c in s.exec(select(Contract).where(Contract.type == "framework")).all()}
         declined = set((case.data or {}).get("declined_by", []))
         full = [r for r in rank(case.type, ctx, manifests, fw_ids, case.property_id, trade=case_trade(case))
@@ -570,6 +571,9 @@ def dispatch_job(case_id: str, partner_id: str) -> dict:
         case = _get(s, Case, case_id)
         partner = _get(s, Partner, partner_id)
         name = partner.manifest.get("name", partner_id)
+        if (partner.status or "active") != "active" or not partner.active:
+            raise rules.RuleViolation("partner_not_active",
+                                      f"{name} is {partner.status or 'inactive'}; only active partners get jobs")
         try:
             approval = rules.check_dispatch(s, case, partner_id)
         except rules.RuleViolation as rv:
@@ -599,6 +603,126 @@ def dispatch_job(case_id: str, partner_id: str) -> dict:
                   "url": transport.get("url")})
     return {"case_id": case_id, "partner_id": partner_id, "partner_name": name,
             "status": "requested", "approval": approval}
+
+
+# --------------------------------------------------------------------------- partner review (feature 1)
+
+PARTNER_STATUSES = ("pending_review", "active", "rejected", "suspended")
+
+
+def partner_documents(s, partner_id: str) -> list[Document]:
+    return list(s.exec(select(Document).where(Document.partner_id == partner_id)
+                       .order_by(Document.id)).all())
+
+
+def partner_doc_facts(d: Document) -> dict:
+    """The verification view of a partner document: {doc_type, number, valid_until, ...}."""
+    return {**(d.extracted or {}), "document_id": d.id, "filename": d.filename}
+
+
+def partner_precheck(s, p: Partner) -> list[dict]:
+    from .partners import verification
+    docs = [partner_doc_facts(d) for d in partner_documents(s, p.id)]
+    company = ((p.manifest or {}).get("onboarding") or {}).get("company") or {}
+    return verification.precheck(p.manifest or {}, docs, company)
+
+
+def _persist_partner_status(p: Partner) -> None:
+    """Self-onboarded partners live as partners/<id>.json too (demo mode), so a reset keeps
+    their review state."""
+    if not settings.demo_mode or not (p.manifest or {}).get("onboarding"):
+        return
+    path = Path(settings.partners_dir) / f"{p.id}.json"
+    if not path.exists():
+        return
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw["onboarding"] = {**(raw.get("onboarding") or {}), "status": p.status, "review": p.review or {}}
+        path.write_text(json.dumps(raw, indent=2, ensure_ascii=False) + chr(10), encoding="utf-8")
+    except (OSError, ValueError):
+        pass
+
+
+def _set_partner_status(partner_id: str, status: str, actor: str, kind: str, summary_fn,
+                        reason: str = "", staff_name: str | None = None,
+                        allowed_from: tuple[str, ...] | None = None) -> dict:
+    with get_session() as s:
+        p = _get(s, Partner, partner_id)
+        current = p.status or "active"
+        if allowed_from and current not in allowed_from:
+            raise rules.RuleViolation("invalid_partner_status",
+                                      f"{p.manifest.get('name', partner_id)} is {current}")
+        who = staff_member(s, staff_name) if actor == "staff" else "Debye"
+        checks = partner_precheck(s, p)
+        p.status = status
+        p.active = status == "active"
+        p.review = {**(p.review or {}), "reviewer": who, "decided_at": now_iso(),
+                    "reason": reason or None, "status": status, "checks": checks}
+        p.manifest = {**(p.manifest or {}),
+                      **({"onboarding": {**p.manifest["onboarding"], "status": status}}
+                         if (p.manifest or {}).get("onboarding") else {})}
+        s.add(p)
+        s.commit()
+        s.refresh(p)
+        name = p.manifest.get("name", partner_id)
+        review = dict(p.review)
+        _persist_partner_status(p)
+    record_event(None, actor, kind, summary_fn(name, who),
+                 {"partner_id": partner_id, "partner_name": name, "status": status,
+                  "reason": reason or None, "by": who})
+    return {"partner_id": partner_id, "name": name, "status": status, "review": review}
+
+
+def approve_partner(partner_id: str, staff_name: str | None = None) -> dict:
+    """Staff approve a pending (or suspended) partner → active and rankable."""
+    return _set_partner_status(partner_id, "active", "staff", "partner.approved",
+                               lambda n, who: f"{who} approved {n} as a partner",
+                               staff_name=staff_name,
+                               allowed_from=("pending_review", "suspended", "rejected"))
+
+
+def reject_partner(partner_id: str, reason: str, staff_name: str | None = None) -> dict:
+    if not (reason or "").strip():
+        raise rules.RuleViolation("reason_required", "a reason is required to reject a partner")
+    return _set_partner_status(partner_id, "rejected", "staff", "partner.rejected",
+                               lambda n, who: f"{who} rejected {n}: {reason}",
+                               reason=reason, staff_name=staff_name,
+                               allowed_from=("pending_review",))
+
+
+def suspend_partner(partner_id: str, reason: str) -> dict:
+    return _set_partner_status(partner_id, "suspended", "system", "partner.suspended",
+                               lambda n, who: f"{n} suspended: {reason}", reason=reason)
+
+
+def check_partner_expiry() -> list[dict]:
+    """Daily check: suspend active partners whose insurance or gas registration has expired."""
+    from .partners import verification
+    todo = []
+    with get_session() as s:
+        for p in s.exec(select(Partner)).all():
+            if (p.status or "active") != "active":
+                continue
+            docs = [partner_doc_facts(d) for d in partner_documents(s, p.id)]
+            gone = verification.expired_docs(docs)
+            if gone:
+                labels = ", ".join(f"{verification.DOC_TYPES.get(d['doc_type'], d['doc_type'])} "
+                                   f"expired {d.get('valid_until')}" for d in gone)
+                todo.append((p.id, labels))
+    return [suspend_partner(pid, why) for pid, why in todo]
+
+
+_LAST_EXPIRY_CHECK: dict = {"date": None}
+
+
+def periodic_checks() -> dict:
+    """Run by the main.py background loop: partner expiry once per (demo) day."""
+    out: dict = {"suspended": []}
+    today = now().date().isoformat()
+    if _LAST_EXPIRY_CHECK["date"] != today:
+        _LAST_EXPIRY_CHECK["date"] = today
+        out["suspended"] = [p["partner_id"] for p in check_partner_expiry()]
+    return out
 
 
 def staff_member(s, name: str | None = None) -> str:

@@ -75,6 +75,11 @@ def test_onboarded_plumber_is_ranked_without_code_change(client, partners_dir):
     assert client.get(f"/api/partner/{pid}/technicians").json()[0]["free_slots"]
     assert client.get(f"/api/tech/{out['technicians'][0]['tech_id']}").status_code == 200
 
+    # pending staff review first (feature 1): not ranked until approved
+    assert out["status"] == "pending_review"
+    assert pid not in [x["partner_id"] for x in services.rank_partners(_open_plumbing_case().id)]
+    assert client.post(f"/api/staff/partners/{pid}/approve", json={}).status_code == 200
+
     # rankable: the next plumbing case considers it (radius 15 km around 52062 covers the property)
     ranking = services.rank_partners(_open_plumbing_case().id)
     assert pid in [x["partner_id"] for x in ranking]

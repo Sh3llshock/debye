@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
-import type { OnboardCheck, OnboardResult, PartnerProfile } from '../../api/types'
+import type { OnboardCheck, OnboardDocument, OnboardResult, PartnerProfile } from '../../api/types'
 import { LangToggle, Logo } from '../../components/Layout'
 import { t } from '../../lib/i18n'
 import { CheckPill, saveLocalProfile, setSession } from './shared'
@@ -538,6 +538,22 @@ function buildManifest(p: Profile): Record<string, unknown> {
   }
 }
 
+/** The uploaded documents with their numbers and dates, for the staff review (feature 1). */
+function onboardDocuments(p: Profile): OnboardDocument[] {
+  const company = String(p.company_name).trim()
+  const out: OnboardDocument[] = []
+  const add = (doc_type: OnboardDocument['doc_type'], key: string, extra: Partial<OnboardDocument>) => {
+    const filename = p.docs[key]
+    const given = Object.values(extra).some((v) => v !== undefined && v !== '')
+    if (filename || given) out.push({ doc_type, filename: filename ?? '', company_name: company, ...extra })
+  }
+  add('trade_licence', 'doc_hwk', { number: String(p.hwk_no || '') || undefined, issuer: String(p.hwk_chamber || '') || undefined })
+  add('insurance', 'doc_ins', { number: String(p.policy_no || '') || undefined, issuer: String(p.insurer || '') || undefined, valid_until: String(p.ins_valid || '') || undefined, coverage_eur: Number(p.coverage_eur) || undefined })
+  if (p.gas_no || p.docs.doc_gas) add('gas_registry', 'doc_gas', { number: String(p.gas_no || '') || undefined, issuer: String(p.gas_operator || '') || undefined, valid_until: String(p.gas_valid || '') || undefined })
+  add('vat', 'doc_vat', { number: String(p.vat_id || '') || undefined })
+  return out
+}
+
 /** Format checks we can do here (the mockup's VIES / register lookups are not real services). */
 function localChecks(p: Profile): { label: string; ok: boolean; pill: string }[] {
   const vatOk = /^DE\d{9}$/.test(String(p.vat_id).replace(/\s/g, ''))
@@ -598,7 +614,13 @@ export function PartnerRegister() {
     setErr(null)
     try {
       const techs = p.team.filter((x) => x.name.trim()).map((x) => ({ name: x.name.trim(), skills: [...new Set([...p.trades.map((k) => TRADES.find((y) => y[0] === k)?.[2] ?? 'heating'), ...p.brands])], ...(x.phone ? { phone_e164: toE164(x.phone) } : {}) }))
-      const r = await api.onboard(manifest, techs as { name: string; skills: string[] }[])
+      const r = await api.onboard(manifest, techs as { name: string; skills: string[] }[], onboardDocuments(p), {
+        name: String(p.company_name).trim(),
+        street: String(p.street),
+        postcode: String(p.postcode),
+        city: String(p.city),
+        vat_id: String(p.vat_id),
+      })
       saveLocalProfile(r.partner_id, p as unknown as Record<string, unknown>)
       setSession({ pid: r.partner_id, name: r.name })
       setDone(r)
@@ -641,8 +663,8 @@ export function PartnerRegister() {
       <RegShell side={sideSteps}>
         <div className="max-w-[660px] pt-6 md:pt-0">
           <Eyebrow>{t('Step 6 of 6')}</Eyebrow>
-          <H2>{t('{name} is live', { name: done.name })}</H2>
-          <Lead>{t('Your details passed every check. Debye ranks you for the next matching case.')}</Lead>
+          <H2>{done.status === 'pending_review' ? t('{name} is registered', { name: done.name }) : t('{name} is live', { name: done.name })}</H2>
+          <Lead>{done.status === 'pending_review' ? t('reltix checks your documents first. You get jobs as soon as a property manager approves you.') : t('Your details passed every check. Debye ranks you for the next matching case.')}</Lead>
           <ul className="my-5 list-none overflow-hidden rounded-tile bg-surface p-0 shadow-card">
             <ResultRow label={t('Partner portal')} right={<span className="font-mono text-label">{done.portal_url}</span>} />
             {done.technicians.map((x) => (
@@ -666,7 +688,7 @@ export function PartnerRegister() {
         <div className="max-w-[660px] pt-6 md:pt-0">
           <Eyebrow>{t('Step 6 of 6')}</Eyebrow>
           <H2>{t('Checking your details')}</H2>
-          <Lead>{t('These checks run automatically. Your account is active as soon as they pass.')}</Lead>
+          <Lead>{t('These checks run automatically. A reltix property manager then reviews your documents.')}</Lead>
           <ul className="my-5 list-none overflow-hidden rounded-tile bg-surface p-0 shadow-card">
             {lc.map((c) => (
               <ResultRow key={c.label} label={c.label} right={<span className={`pill ${c.ok ? 'bg-ok-tint text-ok' : 'bg-warn-tint text-warn'}`}>{c.pill}</span>} />

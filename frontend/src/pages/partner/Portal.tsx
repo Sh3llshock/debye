@@ -34,6 +34,7 @@ import {
   usePartnerJobs,
   useToast,
 } from './shared'
+import { needsReviewGate, ReviewStatus } from './ReviewStatus'
 
 export type Tab = 'overview' | 'new' | 'wip' | 'availability' | 'done' | 'profile'
 
@@ -59,6 +60,7 @@ export default function PartnerPortal({ tab = 'overview' }: { tab?: Tab }) {
   const ctx: Ctx = { pid: partnerId, partner: p ?? null, contact, all, techs: techs.data ?? [], put, toast, nav, invoiceOpen, setInvoiceOpen, loading: !jobs }
   let body: ReactNode
   if (partner.error && !p) body = <ErrorBox error={partner.error} onRetry={partner.reload} />
+  else if (p && needsReviewGate(p) && tab !== 'profile') body = <ReviewStatus p={p} />
   else if (error && !jobs) body = <ErrorBox error={error} onRetry={reload} />
   else if (caseId) body = <OneJob ctx={ctx} caseId={caseId} />
   else

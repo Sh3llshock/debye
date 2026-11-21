@@ -2,7 +2,8 @@
 
 GET  /api/partners/onboard/schema    defaults and choices for the join form
 POST /api/partners/onboard/validate  {manifest} → {valid, checks[]} (live checklist)
-POST /api/partners/onboard           {manifest, technicians[]} → partner is live and rankable
+POST /api/partners/onboard           {manifest, technicians[], documents[], company} → partner saved as
+                                     pending_review; staff approve it on the Partners page (feature 1)
 """
 from __future__ import annotations
 
@@ -29,9 +30,31 @@ class TechIn(BaseModel):
     phone_e164: str | None = None
 
 
+class DocIn(BaseModel):
+    """A licence / insurance document from the join form (Welcome.tsx)."""
+    doc_type: str  # trade_licence | insurance | gas_registry | vat
+    filename: str = ""
+    number: str | None = None
+    valid_until: str | None = None
+    coverage_eur: float | None = None
+    issuer: str | None = None
+    company_name: str | None = None
+    data_url: str | None = None  # optional "data:<mime>;base64,..." of the uploaded file
+
+
+class CompanyIn(BaseModel):
+    name: str | None = None
+    street: str | None = None
+    postcode: str | None = None
+    city: str | None = None
+    vat_id: str | None = None
+
+
 class OnboardIn(BaseModel):
     manifest: dict
     technicians: list[TechIn] = []
+    documents: list[DocIn] = []
+    company: CompanyIn | None = None
 
 
 class ValidateIn(BaseModel):
@@ -75,9 +98,15 @@ def onboard(body: OnboardIn) -> dict:
             # seeded partners can't be overwritten from the public form; re-onboarding is fine
             raise HTTPException(409, f"partner {m.partner_id} already exists")
         manifest = m.model_dump(mode="json", exclude_none=True)
-        manifest["onboarding"] = {"at": now_iso(), "via": "/partners/join"}
+        docs_meta = [_doc_meta(d) for d in body.documents]
+        manifest["onboarding"] = {"at": now_iso(), "via": "/partners/join", "status": "pending_review",
+                                  "company": body.company.model_dump(exclude_none=True) if body.company else {},
+                                  "documents": docs_meta}
         manifest.pop("technicians", None)
-        s.merge(Partner(id=m.partner_id, manifest=manifest, active=True))
+        # new partners wait for a reltix staff review before they are ranked (feature 1)
+        s.merge(Partner(id=m.partner_id, manifest=manifest, active=False, status="pending_review",
+                        review={}))
+        _store_documents(s, m.partner_id, body.documents, docs_meta)
 
         # replace this partner's technicians (re-onboarding the same partner stays idempotent)
         from sqlmodel import select
@@ -104,6 +133,48 @@ def onboard(body: OnboardIn) -> dict:
         path.write_text(json.dumps({**manifest, "technicians": roster}, indent=2, ensure_ascii=False) + "\n",
                         encoding="utf-8")
         file = f"partners/{path.name}"
-    log.info("onboarded partner %s with %d technician(s)", m.partner_id, len(techs))
+    log.info("onboarded partner %s with %d technician(s), pending review", m.partner_id, len(techs))
+    from .events import record_event
+    record_event(None, "partner", "partner.applied",
+                 f"{m.name} registered as a partner – waiting for review",
+                 {"partner_id": m.partner_id, "partner_name": m.name, "documents": len(docs_meta)})
     return {"partner_id": m.partner_id, "name": m.name, "portal_url": f"/partner/{m.partner_id}",
+            "status": "pending_review",
             "technicians": techs, "manifest": manifest, "file": file, "checks": checks}
+
+
+def _doc_meta(d: DocIn) -> dict:
+    return {k: v for k, v in d.model_dump(exclude={"data_url"}).items() if v not in (None, "")}
+
+
+def _store_documents(s, partner_id: str, docs: list[DocIn], metas: list[dict]) -> None:
+    """Document rows linked to the partner (kind partner_doc). The file is the upload if the form
+    sent one, else a short text stand-in so staff can still open something."""
+    import base64
+    from sqlmodel import select
+    from .db import next_id
+    from .models import Document
+    for old in s.exec(select(Document).where(Document.partner_id == partner_id)).all():
+        s.delete(old)
+    s.flush()
+    folder = Path(settings.storage_dir) / "partners" / partner_id
+    folder.mkdir(parents=True, exist_ok=True)
+    for d, meta in zip(docs, metas):
+        fname = Path(d.filename or f"{d.doc_type}.txt").name or f"{d.doc_type}.txt"
+        mime, data = "text/plain", None
+        if d.data_url and d.data_url.startswith("data:") and "," in d.data_url:
+            head, b64 = d.data_url.split(",", 1)
+            mime = head[5:].split(";")[0] or "application/octet-stream"
+            try:
+                data = base64.b64decode(b64)[:5_000_000]
+            except ValueError:
+                data = None
+        if data is None:
+            mime = "text/plain"
+            fname = Path(fname).stem + ".txt"
+            data = chr(10).join(f"{k}: {v}" for k, v in meta.items()).encode("utf-8")
+        path = folder / f"{d.doc_type}_{fname}"
+        path.write_bytes(data)
+        s.add(Document(id=next_id(s, Document, "doc"), partner_id=partner_id, kind="partner_doc",
+                       filename=fname, mime=mime, path=str(path), extracted=meta, created_at=now_iso()))
+        s.flush()
