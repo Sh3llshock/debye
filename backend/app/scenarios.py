@@ -395,7 +395,85 @@ def s11_jona_fuse() -> str:
     return c.id
 
 
-SCENARIOS = [s10_jona_radiator, s8_wagner_closed, s11_jona_fuse, s5_closed_invoiced, s4_scheduled_electrical, s6_self_help,
+
+async def _schmidt_past_job(contact_id: str, asset_id: str | None, title: str, symptoms: str, cause_id: str,
+                            reasoning: str, chat: list[tuple[str, str]], days: int, tech_id: str,
+                            invoice_no: str, lines: list[tuple[str, int, float]], report: str) -> str:
+    """A finished Heizung Schmidt job: consent → approval → slot → completion with invoice → tenant confirms."""
+    with _ago(days=days, hours=4):
+        c = services.open_case(contact_id, "repair.heating", "urgent", title, symptoms, None, asset_id,
+                               trade="heating",
+                               diagnosis={"cause_id": cause_id, "confidence": 0.8, "reasoning": reasoning,
+                                          "questions_asked": []})
+        _chat(contact_id, c.id, chat)
+        _consent_and_approve(c.id, contact_id, "heizung-schmidt")
+        base = now()
+        _schedule(c.id, "heizung-schmidt", tech_id, [_slot(1, 8, 10, base), _slot(1, 10, 12, base)])
+    with _ago(days=days - 1, hours=2):
+        net = round(sum(q * p for _, q, p in lines), 2)
+        vat = round(net * 0.19, 2)
+        gross = round(net + vat, 2)
+        pdf = _pdf([f"Heizung Schmidt GmbH - Rechnung {invoice_no}"]
+                   + [f"{d}   {q} x {p:.2f}" for d, q, p in lines]
+                   + [f"Netto {net:.2f}   MwSt 19% {vat:.2f}   Brutto {gross:.2f} EUR"])
+        extracted = {"invoice_number": invoice_no, "date": now().date().isoformat(), "net_eur": net,
+                     "vat_eur": vat, "gross_eur": gross,
+                     "line_items": [{"desc": d, "qty": q, "unit_price": p} for d, q, p in lines]}
+        await services.record_completion(c.id, "heizung-schmidt", report, None,
+                                         (f"{invoice_no}.pdf", "application/pdf", pdf), extracted=extracted)
+        _chat(contact_id, c.id, [("out", "Heizung Schmidt GmbH has finished the repair. Is everything working again?"),
+                                 ("in", "Yes, all good, thanks!")])
+        services.tenant_confirms_fixed(c.id, True)
+    return c.id
+
+
+async def s12_schmidt_ignition() -> str:
+    """Aylin, Musterstr. 12 1A, five weeks ago: boiler F.28, ignition electrode replaced."""
+    return await _schmidt_past_job(
+        "c_204", "asset_boiler_1", "No heating and no hot water, boiler shows F.28",
+        "Boiler display F.28, radiators and taps cold", "boiler_fault",
+        "F.28 means the ignition failed; with heating and hot water both off it's the boiler.",
+        [("in", "Heating and hot water are off, the boiler says F.28"),
+         ("out", "That means the boiler's ignition failed (error code F.28). That needs a heating technician. "
+                 "May I share your details with Heizung Schmidt GmbH?"), ("in", "Yes please")],
+        34, "tech_tom", "RE-2026-1061",
+        [("Anfahrtspauschale (Rahmenvertrag)", 1, 89.0), ("Arbeitszeit Heizungstechniker, Std.", 1, 72.0),
+         ("Zuendelektrode Vaillant ecoTEC", 1, 38.5)],
+        "Replaced the ignition electrode, boiler fires reliably, F.28 cleared")
+
+
+async def s13_schmidt_valve() -> str:
+    """Mateusz, Musterstr. 12 3B, three weeks ago: radiator valve stuck, replaced."""
+    return await _schmidt_past_job(
+        "c_205", None, "Living-room radiator stays cold, valve stuck",
+        "Thermostat turns but the radiator stays cold, other rooms warm", "radiator_valve_stuck",
+        "Only one radiator, the others are warm and bleeding didn't help: the valve pin is stuck.",
+        [("in", "My living room radiator is cold, the others are fine"),
+         ("out", "Did bleeding the radiator help?"), ("in", "No, still cold"),
+         ("out", "Then the valve is probably stuck. May I share your details with Heizung Schmidt GmbH?"),
+         ("in", "Sure")],
+        19, "tech_tom", "RE-2026-1098",
+        [("Anfahrtspauschale (Rahmenvertrag)", 1, 89.0), ("Arbeitszeit Heizungstechniker, Std.", 1, 72.0),
+         ("Thermostatventil-Unterteil Heimeier", 1, 24.9)],
+        "Replaced the stuck thermostatic valve insert, radiator heats evenly")
+
+
+async def s14_schmidt_service() -> str:
+    """Grace, Musterstr. 12 3C, twelve days ago: boiler losing pressure, expansion vessel recharged."""
+    return await _schmidt_past_job(
+        "c_206", "asset_boiler_1", "Boiler keeps losing pressure",
+        "Pressure drops below 1 bar every few days, refilled twice", "low_system_pressure",
+        "Pressure keeps dropping after refills: a recurring loss points to the expansion vessel, a technician job.",
+        [("in", "The boiler pressure keeps dropping, the caretaker refilled it twice"),
+         ("out", "If it keeps dropping after refills, a technician should check the expansion vessel. "
+                 "May I share your details with Heizung Schmidt GmbH?"), ("in", "Yes")],
+        12, "tech_ali", "RE-2026-1123",
+        [("Anfahrtspauschale (Rahmenvertrag)", 1, 89.0), ("Arbeitszeit Heizungstechniker, Std.", 1.5, 72.0),
+         ("Ausdehnungsgefaess Vordruck angepasst", 1, 0.0)],
+        "Recharged the expansion vessel to 1.0 bar, system pressure stable at 1.6 bar")
+
+
+SCENARIOS = [s12_schmidt_ignition, s10_jona_radiator, s13_schmidt_valve, s8_wagner_closed, s14_schmidt_service, s11_jona_fuse, s5_closed_invoiced, s4_scheduled_electrical, s6_self_help,
              s3_awaiting_technician, s9_gruen_requested, s2_requested, s7_caretaker, s1_approval_pending]
 
 
