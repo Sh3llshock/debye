@@ -44,7 +44,11 @@ def load_signups() -> list[dict]:
 
 
 def normalize(raw: str) -> str | None:
-    s = re.sub(r"[\s\-()./]", "", raw or "")
+    import unicodedata
+    s = unicodedata.normalize("NFKC", raw or "")  # full-width ＋ and digits from phone keyboards
+    s = s.replace("(0)", "")  # "+32 (0)469 …"
+    core = re.sub(r"[^\d+]", "", s)  # drops spaces, dashes, brackets and invisible direction marks
+    s = ("+" if core.startswith("+") else "") + core.replace("+", "")
     if s.startswith("00"):
         s = "+" + s[2:]
     if not s.startswith("+"):
