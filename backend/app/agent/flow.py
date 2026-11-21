@@ -212,6 +212,8 @@ def consent_scope(case_id: str, conv) -> tuple[list[str], str]:
     for f in map(norm_field, raw):
         if (f != "photos" or conv.photos) and f not in fields:
             fields.append(f)
+    order = list(CONSENT_FIELD_TEXT)
+    fields.sort(key=lambda f: order.index(f) if f in order else len(order))
     case = None
     try:
         case = be._call("get_case", case_id)

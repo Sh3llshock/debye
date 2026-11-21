@@ -136,6 +136,21 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
     bodies = [m["payload"]["interactive"]["body"]["text"] for m in outbox if m["payload"]["type"] == "interactive"]
     assert all(len(b) <= 1024 for b in bodies)
     consent = next(b for b in bodies if "share your name" in b or "deinen Namen" in b)
-    words = ("Namen", "Telefonnummer", "Adresse", "Stockwerk", "Fotos") if "deinen Namen" in consent         else ("name", "phone number", "address", "floor", "photos")  # German tenant: German consent
-    for word in words:
-        assert word in consent
+    # the question names exactly the consent-required fields of the chosen partner's manifest, and the
+    # record stores the same fields (photos only because the tenant sent one), channel and case purpose
+    de = "deinen Namen" in consent
+    words = {"name": "Namen" if de else "name", "phone": "Telefonnummer" if de else "phone number",
+             "address": "Adresse" if de else "address", "photos": "Fotos" if de else "photos",
+             "unit_floor": "Stockwerk" if de else "floor"}
+    from app import rules
+    from app.db import get_session
+    from app.models import Consent
+    from sqlmodel import select
+
+    with get_session() as s:
+        rec = s.exec(select(Consent).where(Consent.case_id == case_id)).one()
+
+    assert rec.channel == "whatsapp" and rec.purpose.startswith("On-site repair visit")
+    for f, word in words.items():
+        assert (word in consent) == (f in rec.data_shared), (f, consent, rec.data_shared)
+    assert "unit_floor" not in rec.data_shared  # not consent-required in heizung-schmidt's manifest

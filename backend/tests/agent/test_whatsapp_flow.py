@@ -266,9 +266,36 @@ def test_technician_flow_english(client, svc, claude):
     msgs = outbox(client)
     luka = [m for m in msgs if m["to"] == "+490000000001"][-1]["payload"]["text"]["body"]
     jonas = [m for m in msgs if m["to"] == "+490000000002"][-1]["payload"]["text"]["body"]
-    assert luka == ("Luka, Tom from Heizung Schmidt will come to your apartment on Sat 21 Nov between 8 and 10. "
-                    "I'll remind you the evening before.")
+    # the slot is this morning: the evening before has passed, so no reminder is promised
+    assert luka == "Luka, Tom from Heizung Schmidt will come to your apartment on Sat 21 Nov between 8 and 10."
     assert "Tom from Heizung Schmidt is coming on Sat 21 Nov between 8 and 10" in jonas
+
+
+def test_visit_reminder_is_real(client, svc, claude):
+    """'I'll remind you the evening before' only when a reminder is scheduled; skip-to-tomorrow sends it."""
+    from datetime import datetime, time as dtime, timedelta
+
+    from app import config
+    from app.agent import flow
+
+    flow.clear_reminders()
+    day = config.now().date() + timedelta(days=3)
+    slot = {"start": datetime.combine(day, dtime(9), tzinfo=config.TZ).isoformat(),
+            "end": datetime.combine(day, dtime(11), tzinfo=config.TZ).isoformat()}
+    assert flow.schedule_reminder("case_x", slot, ["c_202"], who="Tom from Heizung Schmidt")
+    past = {"start": (config.now() + timedelta(hours=2)).isoformat()}
+    assert not flow.schedule_reminder("case_y", past, ["c_202"])  # the evening before is gone
+    assert asyncio.run(flow.send_due_reminders()) == 0  # not yet
+    jump = datetime.combine(day - timedelta(days=1), dtime(19), tzinfo=config.TZ) - config.now()
+    config.advance_clock(jump)  # 19:00 the evening before
+    try:
+        assert asyncio.run(flow.send_due_reminders()) == 1
+        body = outbox(client)[-1]["payload"]["text"]["body"]
+        assert "reminder: Tom from Heizung Schmidt is coming tomorrow between 9 and 11" in body
+        assert asyncio.run(flow.send_due_reminders()) == 0  # once
+    finally:
+        config.advance_clock(-jump)
+        flow.clear_reminders()
 
 
 def test_twilio_numbered_list_english(monkeypatch):
