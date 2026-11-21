@@ -86,6 +86,12 @@
       "source": "case.documents[kind=photo]",
       "pii": true,
       "consent_required": true
+    },
+    {
+      "key": "access_details",
+      "source": "unit.access",
+      "pii": true,
+      "consent_required": true
     }
   ],
   "availability": {

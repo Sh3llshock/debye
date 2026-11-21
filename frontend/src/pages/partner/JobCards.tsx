@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { api, DEMO } from '../../api/client'
 import type { JobDetail, Slot, Technician } from '../../api/types'
-import { fmtSlot } from '../../lib/format'
+import { fmtDate, fmtSlot } from '../../lib/format'
 import { t } from '../../lib/i18n'
 import { useResource } from '../../lib/useResource'
 import { costCap, eur0, eur2, firstName, jobRows, KV, needsTimes, priceCheck, received, Shot, Story, title, TRACK, trackIndex, tradeOf, urgencyPill } from './shared'
@@ -143,6 +143,118 @@ function ActBar({ children }: { children: ReactNode }) {
 
 export const caseRef = (j: JobDetail) => `${t('Case')} ${j.case_id.replace(/^case_0*/, '')}`
 
+// ---------- needs_info: ask the tenant a question ----------
+export function QuestionsPanel({ job, pid, put, toast }: { job: JobDetail; pid: string; put: Put; toast: Toast }) {
+  const { busy, err, run } = useRun(put)
+  const [open, setOpen] = useState(false)
+  const [text, setText] = useState('')
+  const qs = job.questions ?? []
+  const who = firstName(job.tenant?.name) || t('the tenant')
+  const waiting = !!job.open_question
+  if (!qs.length && !open && ['completed', 'invoiced', 'closed'].includes(job.status)) return null
+  return (
+    <div className="border-t border-line px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="font-semibold">{t('Questions to the tenant')}</div>
+        {!open && !waiting && (
+          <button type="button" className="btn-secondary min-h-0 px-3 py-1.5 text-label" onClick={() => setOpen(true)}>
+            {t('Ask the tenant')}
+          </button>
+        )}
+      </div>
+      {qs.length > 0 && (
+        <ul className="m-0 mt-2.5 flex list-none flex-col gap-2 p-0">
+          {qs.map((q) => (
+            <li key={q.id} className="rounded-[12px] bg-bg px-3.5 py-3">
+              <div>
+                <span className="text-muted">{t('You asked')}: </span>
+                {q.text}
+              </div>
+              {q.answer ? (
+                <div className="mt-1">
+                  <span className="text-muted">{t('{who} answered', { who })}: </span>
+                  <b className="font-semibold">{q.answer}</b>
+                </div>
+              ) : (
+                <div className="mt-1 text-muted">{t('Waiting for {who} to answer on WhatsApp', { who })}</div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {open && (
+        <form
+          className="mt-2.5 flex flex-col gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (!text.trim()) return
+            run(
+              () => api.askTenant(pid, job.case_id, text.trim()),
+              () => {
+                setText('')
+                setOpen(false)
+                toast(t('Question sent to {who} on WhatsApp', { who }))
+              },
+            )
+          }}
+        >
+          <textarea className="field" rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder={t('e.g. Is there parking nearby?')} aria-label={t('Your question')} />
+          <div className="flex gap-2">
+            <button type="submit" className="btn-primary min-h-0 px-3 py-1.5 text-label" disabled={busy || !text.trim()}>
+              {busy ? t('Sending…') : t('Send question')}
+            </button>
+            <button type="button" className="btn-ghost min-h-0 px-3 py-1.5 text-label" onClick={() => setOpen(false)}>
+              {t('Cancel')}
+            </button>
+          </div>
+        </form>
+      )}
+      {err && <div className="mt-2 rounded-[12px] bg-red-tint px-3.5 py-3 text-red">{err}</div>}
+    </div>
+  )
+}
+
+// ---------- just-in-time access details ----------
+export function AccessPanel({ job }: { job: JobDetail }) {
+  const a = job.access
+  if (!a) return null
+  let body: ReactNode
+  if (!a.consented) body = <span className="text-muted">{t('Not shared by the tenant')}</span>
+  else if (!a.released)
+    body = <span className="text-muted">{a.available_on ? t('Available on the visit day ({date})', { date: fmtDate(a.available_on) }) : t('Available on the visit day')}</span>
+  else
+    body = (
+      <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1">
+        {a.key_safe_code && (
+          <>
+            <dt className="text-muted">{t('Key safe')}</dt>
+            <dd className="m-0 font-mono font-semibold">{a.key_safe_code}</dd>
+          </>
+        )}
+        {a.intercom_name && (
+          <>
+            <dt className="text-muted">{t('Intercom')}</dt>
+            <dd className="m-0">{a.intercom_name}</dd>
+          </>
+        )}
+        {a.parking_note && (
+          <>
+            <dt className="text-muted">{t('Parking')}</dt>
+            <dd className="m-0">{a.parking_note}</dd>
+          </>
+        )}
+      </dl>
+    )
+  return (
+    <div className="flex flex-wrap items-start gap-x-4 gap-y-1.5 border-t border-line px-5 py-4">
+      <div className="w-[200px] flex-none font-semibold">
+        {t('Access details')}
+      </div>
+      <div className="min-w-0 flex-1">{body}</div>
+    </div>
+  )
+}
+
 // ---------- New job ----------
 export function NewJobCard({ job, pid, techs, put, toast, onAccepted }: { job: JobDetail; pid: string; techs: Technician[]; put: Put; toast: Toast; onAccepted?: () => void }) {
   const { busy, err, run } = useRun(put)
@@ -269,6 +381,8 @@ export function WipCard({ job, pid, techs, put, toast, onCompleted }: { job: Job
         ))}
       </div>
       <JobBody job={job} time={time} className="pt-0" />
+      <AccessPanel job={job} />
+      <QuestionsPanel job={job} pid={pid} put={put} toast={toast} />
       <details className="group border-t border-line">
         <summary className="cursor-pointer list-none px-5 py-[13px] font-medium text-wine">
           <span className="mr-2 inline-block transition-transform group-open:rotate-90">›</span>

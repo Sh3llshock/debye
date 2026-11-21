@@ -192,10 +192,14 @@ async def request_consent(contact, case_id: str) -> None:
         contact,
         case_id,
         (f"Ich würde {who} schicken. Ist es okay, wenn ich deinen Namen, deine Telefonnummer, Adresse"
-         + (", dein Stockwerk und die Fotos weitergebe?" if conv.photos else " und dein Stockwerk weitergebe?"))
+         + (", dein Stockwerk und die Fotos weitergebe?" if conv.photos else " und dein Stockwerk weitergebe?")
+         + (" Zugangsinfos (Schlüsseltresor, Klingel) bekommen sie erst am Tag des Termins."
+            if "access_details" in cs.consent_fields else ""))
         if conv.lang == "de" else
         (f"I'd like to send {who} over. Is it okay if I share your name, phone number, address"
-         + (", floor and the photos with them?" if conv.photos else " and floor with them?")),
+         + (", floor and the photos with them?" if conv.photos else " and floor with them?")
+         + (" They only get the access details (key safe, intercom) on the day of the visit."
+            if "access_details" in cs.consent_fields else "")),
         [Option(f"consent_yes:{case_id}", "Ja, gerne" if conv.lang == "de" else "Yes, go ahead"),
          Option(f"consent_no:{case_id}", "Nein" if conv.lang == "de" else "No")],
     )
@@ -255,6 +259,42 @@ async def on_consent(contact, case_id: str, yes: bool) -> None:
 
 
 APPROVAL_PENDING_TEXT = "Thanks. Your property manager is confirming the repair, I'll update you shortly."
+
+
+# ---------------------------------------------------------------- partner asks the tenant (needs_info)
+async def send_partner_question(case_id: str, question: dict) -> None:
+    """ "Tom from Heizung Schmidt asks: Is there parking nearby?" The reply is routed back by the router."""
+    pname = question.get("partner_name") or partner_label(case_id)
+    who = question.get("asker_name")
+    for c in tenant_contacts(case_id, reporter_only=True):
+        de = st.conversation(be.attr(c, "id")).lang == "de"
+        if de:
+            lead = f"{who} von {pname} fragt" if who else f"{pname} fragt"
+        else:
+            lead = f"{who} from {pname} asks" if who else f"{pname} asks"
+        await out.text(c, case_id, f"{lead}: {question['text']}")
+
+
+async def answer_open_question(contact, conv: st.Conversation, text: str) -> bool:
+    """The tenant's free-text reply while a partner question is open on their case. True if handled."""
+    from app import questions
+
+    cid = be.attr(contact, "id")
+    try:
+        hit = questions.open_question_for(cid, conv.case_id)
+    except Exception:  # no backend tables (agent unit tests with stubs) → nothing to route
+        log.debug("open question lookup failed", exc_info=True)
+        return False
+    if not hit:
+        return False
+    case_id, _q = hit
+    res = questions.answer(case_id, text, cid)
+    if not res:
+        return False
+    pname = res.get("partner_name") or partner_label(case_id)
+    await out.text(contact, case_id, f"Danke, ich habe das an {pname} weitergegeben." if conv.lang == "de"
+                   else f"Thanks, I've passed that on to {pname}.")
+    return True
 
 
 async def tell_approval_pending(case_id: str, contacts: list | None = None) -> None:

@@ -78,7 +78,7 @@ def seed(reset: bool = False) -> None:
         for u in data.get("units", []):
             s.merge(Unit(id=u["id"], property_id=u["property_id"], floor=u.get("floor"),
                          size_sqm=u.get("size_sqm"), rooms=u.get("rooms"),
-                         meters=u.get("meters", [])))
+                         meters=u.get("meters", []), access=u.get("access") or {}))
         for a in data.get("assets", []):
             s.merge(Asset(id=a["id"], property_id=a["property_id"], unit_id=a.get("unit_id"),
                           type=a["type"], make=a.get("make"), model=a.get("model"),

@@ -336,6 +336,31 @@ export interface JobDetail extends JobSummary {
   events?: CaseEvent[]
   /** backend: who released the job, e.g. text "Approved by reltix staff (Anna Becker)" */
   approval?: JobApproval | null
+  /** needs_info: questions the partner asked the tenant (newest last) */
+  questions?: JobQuestion[]
+  open_question?: JobQuestion | null
+  /** just-in-time access details: only with consent and on the visit day */
+  access?: JobAccess | null
+}
+
+export interface JobQuestion {
+  id: string
+  text: string
+  asked_by?: string
+  asker_name?: string | null
+  asked_at: string
+  answer?: string | null
+  answered_at?: string | null
+}
+
+export interface JobAccess {
+  consented: boolean
+  released: boolean
+  /** visit day (YYYY-MM-DD) while the details are still held back */
+  available_on?: string | null
+  key_safe_code?: string | null
+  intercom_name?: string | null
+  parking_note?: string | null
 }
 
 export interface JobApproval {
