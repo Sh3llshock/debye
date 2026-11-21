@@ -308,6 +308,10 @@ async def on_one_room(contact, case_id: str, warm: bool) -> None:
 async def request_consent(contact, case_id: str, prefix: str = "") -> None:
     cs = st.case_state(case_id)
     conv = st.conversation(be.attr(contact, "id"))
+    if not prefix and conv.step == st.CONSENT and conv.case_id == case_id and _asked_recently(conv, st.CONSENT):
+        # already asked in this turn (e.g. open_case + triage + the agent's reply all lead here): once is enough
+        log.info("consent for %s already asked, not sending it again", case_id)
+        return
     conv.step = st.CONSENT
     conv.asked_at[st.CONSENT] = time.monotonic()
     who = ("einen Techniker" if conv.lang == "de" else "a technician") if cs.trade_unknown \

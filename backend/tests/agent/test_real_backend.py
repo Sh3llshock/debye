@@ -224,3 +224,23 @@ def test_boiler_error_writes_tenant_first(real, claude):
     real.post("/webhooks/whatsapp", json=tap(LUKA, f"aerr_heat:{cid}", "Heating is off"))
     consent = last(real, LUKA)["interactive"]["body"]["text"]
     assert "Is it okay if I share" in consent and "photos" not in consent  # no photos sent
+
+
+def test_consent_prompt_sent_once_per_turn(real, claude):
+    """Two paths reaching the consent question in one turn send it once (simulate.py report turn)."""
+    import asyncio
+
+    from app.agent import _backend as be
+    from app.agent import flow, state
+
+    claude([RuntimeError("down")] * 4)
+    real.post("/webhooks/whatsapp", json=wa(LUKA, type="text", text={"body": "my heating is completely cold"}))
+    contact = be.get_contact_by_phone("+" + LUKA)
+    conv = state.conversation(be.attr(contact, "id"))
+    cid = conv.case_id or asyncio.run(flow.ensure_case(contact, summary="cold", symptoms="cold"))["case_id"]
+    asyncio.run(flow.request_consent(contact, cid))
+    asyncio.run(flow.request_consent(contact, cid))
+    msgs = real.get("/webhooks/whatsapp/_outbox").json()["messages"]
+    asks = [m for m in msgs if m["payload"]["type"] == "interactive"
+            and any(b["reply"]["id"].startswith("consent_yes") for b in m["payload"]["interactive"]["action"].get("buttons", []))]
+    assert len(asks) == 1
