@@ -33,6 +33,11 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+for _s in (sys.stdout, sys.stderr):  # ✓/✗ on Windows cp1252 consoles
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
 BACKEND = Path(os.getenv("EVAL_BACKEND") or REPO / "backend").resolve()
 sys.path.insert(0, str(BACKEND))
 

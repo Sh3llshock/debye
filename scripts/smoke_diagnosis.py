@@ -25,6 +25,11 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+for _s in (sys.stdout, sys.stderr):  # ✓/✗ on Windows cp1252 consoles
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
 PHONE = "490000000001"  # c_202 (Luka; stored language "de" in some setups)
 
 CHATS = {
