@@ -224,3 +224,17 @@ def test_diagnosis_chips_never_repeat_a_question(web, claude):
     outs = [m["text"] for m in web.get("/api/tenant/messages", headers=h).json()["messages"] if m["direction"] == "out"]
     assert sum("use hot water" in t or "running at the same time" in t for t in outs) <= 1  # one merged question
     assert outbox(web) == []
+
+
+def test_new_problem_from_home_starts_a_new_chat(web):
+    """'Something else wrong at home?' must not continue the previous case's conversation."""
+    from app.agent import state as st
+    h = login(web)
+    me = web.get("/api/tenant/me", headers=h).json()
+    cid = me.get("contact", me).get("id") if isinstance(me.get("contact", me), dict) else None
+    contact_id = cid or "c_202"
+    conv = st.conversation(contact_id)
+    conv.case_id = "case_old"
+    r = web.post("/api/tenant/messages", headers=h, data={"text": "toilet is blocked", "new_case": "true"})
+    assert r.status_code == 200
+    assert st.conversation(contact_id).case_id != "case_old"

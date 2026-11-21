@@ -43,10 +43,10 @@ export default function Home() {
     setErr('')
     try {
       // what the current conversation already has, so the chat knows which reply is new
-      const before = await api.messages().catch(() => null)
-      const count = before?.messages.length ?? 0
-      const ins = before?.messages.filter((m) => m.direction === 'in').length ?? 0
-      await api.send({ text: v })
+      // a new chat starts empty, so every message after this one is new
+      const count = 0
+      const ins = 0
+      await api.send({ text: v, newCase: true })  // a new problem from home always starts a new chat
       DRAFT = ''
       setText('')
       refresh()

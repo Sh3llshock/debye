@@ -338,11 +338,16 @@ def _case_view(s, case, contact_id: str, full: bool = False) -> dict:
     return out
 
 
+_fresh_since: dict[str, str] = {}  # contact_id → ISO time of their last "new problem" from the home page
+
+
 def _messages(s, contact_id: str, case_id: str | None) -> list[dict]:
     from app.models import Document, Message
 
     q = select(Message).where(Message.contact_id == contact_id)
     q = q.where(Message.case_id == case_id) if case_id else q.where(Message.case_id == None)  # noqa: E711
+    if not case_id and contact_id in _fresh_since:
+        q = q.where(Message.ts >= _fresh_since[contact_id])  # a new chat starts empty
     rows = s.exec(q.order_by(Message.ts, Message.id)).all()
     out = []
     for m in rows:
@@ -501,6 +506,7 @@ async def send(
     text: str | None = Form(default=None),
     button_id: str | None = Form(default=None),
     button_title: str | None = Form(default=None),
+    new_case: bool = Form(default=False),
     file: UploadFile | None = File(default=None),
     wait: bool = Query(default=False, description="answer only after Debye's turn (tests, scripts)"),
     authorization: str | None = Header(default=None),
@@ -522,6 +528,11 @@ async def send(
     if not (msg.text or msg.button_id or msg.media):
         raise HTTPException(400, "empty message")
     remember(msg.from_phone, CHANNEL)  # replies and later updates come to the web page
+    if new_case and not msg.button_id:
+        from app.agent import state as st
+        # "Something else wrong at home?": a new problem starts a fresh conversation and its own case;
+        # the earlier case keeps its chat and its updates.
+        st.reset_conversation(c.id)
     _restore_case_from_button(c.id, msg.button_id)
 
     async def run() -> None:

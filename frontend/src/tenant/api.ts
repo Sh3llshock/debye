@@ -144,8 +144,9 @@ export const api = {
   case: (id: string) => req<TCaseDetail>(`/cases/${encodeURIComponent(id)}`),
   messages: (caseId?: string | null) =>
     req<THistory>(caseId ? `/messages?case_id=${encodeURIComponent(caseId)}` : '/messages'),
-  send: (m: { text?: string; buttonId?: string; buttonTitle?: string; file?: File | null }) => {
+  send: (m: { text?: string; buttonId?: string; buttonTitle?: string; file?: File | null; newCase?: boolean }) => {
     const fd = new FormData()
+    if (m.newCase) fd.set('new_case', 'true')
     if (m.text) fd.set('text', m.text)
     if (m.buttonId) fd.set('button_id', m.buttonId)
     if (m.buttonTitle) fd.set('button_title', m.buttonTitle)
