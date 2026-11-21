@@ -14,6 +14,7 @@ import PartnerPage, { PartnerLogin, PartnerRegister, PartnerWelcome } from './pa
 import TechPage from './pages/TechPage'
 import StaffPartners, { StaffPartner } from './pages/StaffPartners'
 import PartnerJoin from './pages/PartnerJoin'
+import TenantApp from './tenant/TenantApp'
 import { t, useLang } from './lib/i18n'
 
 function Staff() {
@@ -63,6 +64,7 @@ function App() {
         <Route path="/partner/:partnerId/done" element={<PartnerPage tab="done" />} />
         <Route path="/partner/:partnerId/profile" element={<PartnerPage tab="profile" />} />
         <Route path="/partner/:partnerId/jobs/:caseId" element={<PartnerPage />} />
+        <Route path="/tenant/*" element={<TenantApp />} />
         <Route path="/tech/:techId" element={<TechPage />} />
         <Route path="/tech/:techId/jobs/:caseId" element={<TechPage />} />
         <Route path="*" element={<NotFound />} />
