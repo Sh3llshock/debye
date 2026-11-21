@@ -56,7 +56,7 @@ export function Loading({ what }: { what?: string }) {
 
 export function ErrorBox({ error, onRetry }: { error: string; onRetry?: () => void }) {
   return (
-    <div className="rounded-panel border border-negative bg-negative-soft p-5 text-negative">
+    <div className="rounded-panel bg-red-tint p-5 text-red">
       <div className="font-semibold">{t('Something went wrong')}</div>
       <div className="mt-1 text-secondary">{error}</div>
       {onRetry && (
@@ -72,15 +72,19 @@ export function Empty({ children }: { children: ReactNode }) {
   return <div className="px-5 py-8 text-center text-body-sm text-muted">{children}</div>
 }
 
-/** Designer's v2 mascot (docs/design/v2/mascot, downscaled copies in public/mascot). */
+/**
+ * The v3 design replaces the v2 house mascot with the line logo. The poses are kept as names so
+ * pages need no change: "avatar" is the round wine avatar, every other pose is the plain logo.
+ */
 const MASCOT = {
-  waving: '/mascot/waving.png',
-  'thumbs-up': '/mascot/thumbs-up.png',
-  thinking: '/mascot/thinking.png',
-  avatar: '/mascot/avatar.png',
+  waving: '/brand/debye-logo-512.png',
+  'thumbs-up': '/brand/debye-logo-512.png',
+  thinking: '/brand/debye-logo-512.png',
+  avatar: '/brand/debye-avatar.png',
 } as const
 export function Mascot({ pose, className = '', alt = 'Debye' }: { pose: keyof typeof MASCOT; className?: string; alt?: string }) {
-  return <img src={MASCOT[pose]} alt={alt} draggable={false} className={`select-none ${className}`} />
+  const big = pose !== 'avatar'
+  return <img src={MASCOT[pose]} alt={alt} draggable={false} className={`select-none ${big ? 'object-contain p-[12%]' : ''} ${className}`} />
 }
 
 const ACTOR_LABEL: Record<string, string> = { debye: 'Debye', tenant: 'Resident', partner: 'Installer', staff: 'Property manager', pm: 'Property manager', system: 'System' }
@@ -93,17 +97,17 @@ const ACTOR_ICON: Record<string, string> = { tenant: 'user', partner: 'wrench', 
 export function ActorIcon({ actor, size = 28 }: { actor: string; size?: number }) {
   if (actor === 'debye')
     return (
-      <span className="inline-flex shrink-0 overflow-hidden rounded-full bg-surface ring-1 ring-line" style={{ width: size, height: size }}>
+      <span className="inline-flex shrink-0 overflow-hidden rounded-full bg-wine" style={{ width: size, height: size }}>
         <Mascot pose="avatar" alt="Debye" className="h-full w-full object-cover" />
       </span>
     )
   return (
-    <span className="inline-flex shrink-0 items-center justify-center rounded-full bg-sub text-secondary" style={{ width: size, height: size }} title={actorInfo(actor).label}>
+    <span className="inline-flex shrink-0 items-center justify-center rounded-full bg-beige text-secondary" style={{ width: size, height: size }} title={actorInfo(actor).label}>
       <Icon name={ACTOR_ICON[actor] ?? 'gear'} className="h-4 w-4" />
     </span>
   )
 }
 
 export function JsonView({ value }: { value: unknown }) {
-  return <pre className="max-h-[360px] overflow-auto rounded border border-line bg-sub p-3 text-meta text-ink">{JSON.stringify(value, null, 2)}</pre>
+  return <pre className="max-h-[360px] overflow-auto rounded bg-beige p-3 text-meta text-ink">{JSON.stringify(value, null, 2)}</pre>
 }

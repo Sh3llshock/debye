@@ -2,34 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
+/* v3 tokens as CSS variables (same values as src/theme.ts), for plain-CSS use, e.g. the tenant portal. */
+:root {
+  --bg: #FAF8F5; --surface: #FDFCFA; --ink: #2B1018; --body: #5A4744; --muted: #8E807A; --line: rgba(74,20,36,.10);
+  --wine: #6B1F33; --wine-d: #571828; --wine-tint: #F5EBED; --beige: #EFE8DF; --beige-d: #E2D8CB;
+  --ok: #2F7D4F; --ok-tint: #E7F3EB; --ok-line: #BFDCC9; --warn: #B04A12; --warn-tint: #FBEDE3;
+  --red: #C0262D; --red-tint: #FCE9EA; --blue: #34508C; --blue-tint: #E9EEF8; --cream: #FDFAF7;
+}
+
 @layer base {
   html { -webkit-text-size-adjust: 100%; }
   body { @apply bg-bg font-sans text-body text-ink antialiased; font-variant-numeric: tabular-nums; }
-  h1, h2, h3 { @apply font-semibold text-ink; }
-  a:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible, label:focus-within {
-    outline: 2px solid theme('colors.action');
+  h1, h2, h3, h4 { @apply font-semibold text-ink; letter-spacing: -0.02em; }
+  a:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible, label:focus-within {
+    outline: 2px solid theme('colors.wine');
     outline-offset: 2px;
+  }
+  input[type='text'], input[type='email'], input[type='tel'], input[type='password'], input[type='number'], input[type='date'], input[type='url'], input[type='search'], select, textarea {
+    @apply rounded bg-surface text-ink placeholder:text-muted;
   }
 }
 
 @layer components {
-  .btn { @apply inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded px-[18px] text-body font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50; transition-duration: 140ms; }
-  .btn-primary { @apply btn bg-action text-on-action hover:bg-action-dark; }
-  .btn-secondary { @apply btn border border-line bg-surface text-ink hover:bg-sub; }
-  .btn-ghost { @apply btn text-secondary hover:bg-sub; }
+  /* Pill buttons: beige by default, wine primary, ghost = hairline ring. */
+  .btn { @apply inline-flex min-h-[38px] items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 py-[9px] text-body font-medium text-ink transition-colors disabled:cursor-not-allowed disabled:opacity-50; transition-duration: 140ms; }
+  .btn-primary { @apply btn bg-wine text-cream hover:bg-wine-d; }
+  .btn-secondary { @apply btn bg-beige hover:bg-beige-d; }
+  .btn-ghost { @apply btn bg-transparent shadow-ring hover:bg-beige; }
   .btn-success { @apply btn-primary; }
-  .btn-inverse { @apply btn-primary; }
+  .btn-inverse { @apply btn bg-cream text-wine hover:bg-beige; }
+  .btn-danger { @apply btn bg-red-tint text-red hover:bg-red hover:text-cream; }
+  .link-btn { @apply text-label text-muted underline hover:text-wine; }
   .label { @apply text-meta font-medium text-muted; }
-  /* A work area: white, 1px border, no shadow. */
-  .panel { @apply rounded-panel border border-line bg-surface; }
+  .field { @apply w-full rounded bg-surface px-3 py-2.5 text-body text-ink shadow-ring outline-none placeholder:text-muted focus:shadow-[0_0_0_2px_#6B1F33]; }
+  /* A card: surface, 16px radius, hairline ring, no border. */
+  .panel { @apply rounded-panel bg-surface shadow-card; }
   .panel-head { @apply flex items-center justify-between gap-4 border-b border-line px-5 py-4; }
+  .card { @apply rounded-panel bg-surface p-5 shadow-card; }
+  .pill { @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-beige px-2.5 py-[3px] text-meta font-semibold text-secondary; }
+  .tab { @apply flex items-center gap-[7px] whitespace-nowrap rounded-full px-3.5 py-[7px] text-body font-medium text-secondary transition-colors hover:bg-beige; }
+  .tab-on { @apply bg-wine-tint text-wine hover:bg-wine-tint; }
+  .cnt { @apply rounded-full bg-wine px-[7px] py-px text-tiny font-bold text-cream; }
+  .cnt-soft { @apply bg-beige-d text-secondary; }
+  .uav { @apply grid h-8 w-8 flex-none place-items-center rounded-full bg-wine text-label font-semibold text-cream; }
+  .crumb { @apply mb-1.5 text-label text-muted; }
+  .crumb a { @apply no-underline hover:text-wine; }
+  table.t { @apply w-full border-collapse; }
+  table.t th { @apply border-b border-line px-3 py-2 text-left text-meta font-medium text-muted; }
+  table.t td { @apply border-b border-line px-3 py-[13px] align-middle; }
+  table.t tr:last-child td { @apply border-b-0; }
+  table.t tr.click { @apply cursor-pointer; }
+  table.t tr.click:hover td { background: rgba(107,31,51,.035); }
+  dl.kv { @apply m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3.5 gap-y-2; }
+  dl.kv dt { @apply text-muted; }
+  dl.kv dd { @apply m-0 text-right font-medium [overflow-wrap:anywhere]; }
 }
 
-/* New activity item: slides in, tinted with action-soft for a moment. */
+/* New activity item: slides in, tinted with wine-tint for a moment. */
 @keyframes enter {
-  0% { opacity: 0; transform: translateY(8px); background-color: theme('colors.action-soft'); }
-  20% { opacity: 1; transform: none; background-color: theme('colors.action-soft'); }
-  70% { background-color: theme('colors.action-soft'); }
+  0% { opacity: 0; transform: translateY(8px); background-color: theme('colors.wine-tint'); }
+  20% { opacity: 1; transform: none; background-color: theme('colors.wine-tint'); }
+  70% { background-color: theme('colors.wine-tint'); }
 }
 .animate-enter { animation: enter 1.6s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 @keyframes rise { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: none; } }
@@ -41,3 +74,6 @@
 
 @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .animate-pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

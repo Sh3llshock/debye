@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Debye · Help with your home</title>
+<link rel="icon" href="data:image/png;base64,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">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FAF8F5; --side: #F3EFEA; --surface: #FDFCFA; --ink: #2B1018; --body: #5A4744; --muted: #8E807A; --line: rgba(74,20,36,.10);
+    --wine: #6B1F33; --wine-d: #571828; --wine-tint: #F5EBED; --beige: #EFE8DF; --beige-d: #E2D8CB;
+    --ok: #2F7D4F; --ok-tint: #E7F3EB; --ok-line: #BFDCC9; --warn: #B04A12; --red: #C0262D; --red-tint: #FCE9EA;
+    --sys: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif;
+    --sysd: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { font-family: var(--sys); background: var(--bg); color: var(--ink); font-size: 15px; -webkit-font-smoothing: antialiased; }
+  h1, h2, h3 { font-family: var(--sysd); margin: 0; letter-spacing: -0.02em; }
+  button, input, textarea { font-family: var(--sys); }
+  button { cursor: pointer; }
+  .logo { width: 28px; height: 28px; background: url("data:image/png;base64,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") center / contain no-repeat; flex: none; }
+
+  /* ---------- login ---------- */
+  .login { min-height: 100%; display: grid; place-items: center; padding: 24px; }
+  .lbox { width: 100%; max-width: 380px; text-align: center; }
+  .lbox .logo { width: 64px; height: 64px; margin: 0 auto 18px; }
+  .lbox h1 { font-size: 28px; margin-bottom: 6px; }
+  .lbox p { color: var(--body); margin: 0 0 22px; }
+  .lbox input { width: 100%; padding: 13px 15px; border-radius: 12px; border: 1px solid var(--beige-d); background: var(--surface); font-size: 15px; margin-bottom: 10px; outline: none; }
+  .lbox input:focus { border-color: var(--wine); box-shadow: 0 0 0 3px rgba(107,31,51,.15); }
+  .primary { width: 100%; padding: 13px; border-radius: 12px; border: 0; background: var(--wine); color: #FDFAF7; font-size: 15px; font-weight: 600; }
+  .primary:hover { background: var(--wine-d); }
+  .err { color: var(--red); font-size: 14px; margin: 4px 0 10px; }
+  .lnote { font-size: 13px; color: var(--muted); margin-top: 16px; }
+
+  /* ---------- app shell ---------- */
+  .shell { display: flex; flex-direction: column; height: 100%; }
+  .top { display: flex; align-items: center; gap: 16px; padding: 12px 28px; border-bottom: 1px solid var(--line); background: var(--bg); }
+  .tbrand { display: flex; align-items: center; gap: 9px; font: 600 19px var(--sysd); border: 0; background: none; color: var(--ink); padding: 0; }
+  .tabs { display: flex; gap: 6px; margin-left: 18px; overflow-x: auto; }
+  .tab { border: 0; background: transparent; color: var(--body); padding: 7px 13px; border-radius: 980px; font-size: 13.5px; font-weight: 500; white-space: nowrap; display: flex; align-items: center; gap: 7px; }
+  .tab:hover { background: var(--beige); }
+  .tab.on { background: var(--wine-tint); color: var(--wine); }
+  .tab .dotst { width: 7px; height: 7px; }
+  .tuser { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 14px; white-space: nowrap; }
+  .tuser span { color: var(--muted); font-size: 12.5px; }
+  .tuser .logout { margin-left: 4px; }
+  .app { display: grid; grid-template-columns: 1fr; flex: 1; min-height: 0; }
+  .app.withpanel { grid-template-columns: 1fr 340px; }
+  .side { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 14px 10px; min-height: 0; }
+  .sbrand { display: flex; align-items: center; gap: 9px; padding: 4px 8px 14px; font: 600 18px var(--sysd); }
+  .newbtn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border-radius: 10px; border: 0; background: transparent; font-size: 14px; font-weight: 500; color: var(--ink); text-align: left; }
+  .newbtn:hover, .item:hover { background: rgba(107,31,51,.06); }
+  .newbtn .plus { width: 22px; height: 22px; border-radius: 6px; background: var(--wine); color: #FDFAF7; display: grid; place-items: center; font-size: 15px; }
+  .slabel { font-size: 12px; color: var(--muted); font-weight: 600; padding: 16px 12px 6px; }
+  .list { overflow-y: auto; flex: 1; }
+  .item { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 9px 12px; border-radius: 10px; font-size: 14px; color: var(--ink); }
+  .item.on { background: rgba(107,31,51,.10); }
+  .item small { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .dotst { width: 7px; height: 7px; border-radius: 50%; background: var(--wine); }
+  .dotst.ok { background: var(--ok); } .dotst.wait { background: #C9B9A6; }
+  .user { display: flex; align-items: center; gap: 10px; padding: 10px 8px 2px; border-top: 1px solid var(--line); margin-top: 8px; }
+  .uav { width: 32px; height: 32px; border-radius: 50%; background: var(--wine); color: #FDFAF7; display: grid; place-items: center; font-weight: 600; font-size: 14px; }
+  .user b { display: block; font-size: 14px; } .user span { font-size: 12px; color: var(--muted); }
+  .logout { margin-left: auto; border: 0; background: transparent; color: var(--muted); font-size: 12px; }
+
+  main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .topline { display: flex; align-items: center; gap: 12px; padding: 16px 28px; border-bottom: 1px solid var(--line); background: var(--surface); }
+  .back { border: 0; background: var(--beige); color: var(--body); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; }
+  .topline b { font: 600 18px var(--sysd); }
+  .mini { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin-top: 12px; }
+  .mini i { height: 4px; border-radius: 2px; background: var(--beige-d); } .mini i.d { background: var(--ok); } .mini i.n { background: var(--wine); }
+  .closedlist { margin-top: 26px; }
+  .closedlist .cl { display: flex; justify-content: space-between; padding: 10px 14px; border-radius: 12px; font-size: 14px; border: 0; background: transparent; width: 100%; text-align: left; color: var(--ink); }
+  .closedlist .cl:hover { background: var(--beige); } .closedlist .cl span { color: var(--muted); font-size: 13px; }
+  .topline b { font-weight: 600; } .topline span { color: var(--muted); font-size: 13px; }
+  .stpill { margin-left: auto; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 980px; background: var(--wine-tint); color: var(--wine); }
+  .stpill.ok { background: var(--ok-tint); color: var(--ok); }
+
+  /* ---------- home (ChatGPT start) ---------- */
+  .homewrap { flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 9vh 24px 40px; }
+  .hello { text-align: center; margin-bottom: 26px; }
+  .hello .logo { width: 52px; height: 52px; margin: 0 auto 16px; }
+  .hello h1 { font-size: 32px; font-weight: 600; }
+  .hello p { color: var(--body); margin: 8px 0 0; font-size: 16px; }
+  .bigin { width: 100%; max-width: 720px; background: var(--surface); border-radius: 24px; box-shadow: 0 0 0 1px var(--line), 0 6px 24px rgba(43,16,24,.06); padding: 14px 14px 10px 20px; }
+  .bigin textarea { width: 100%; border: 0; resize: none; background: transparent; font-size: 16px; color: var(--ink); outline: none; min-height: 56px; }
+  .binrow { display: flex; align-items: center; gap: 8px; }
+  .binrow .hint { font-size: 12px; color: var(--muted); }
+  .sendc { margin-left: auto; width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--wine); color: #FDFAF7; font-size: 16px; }
+  .sendc:disabled { opacity: .35; cursor: default; }
+  .att { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); cursor: pointer; font-size: 17px; }
+  .att:hover { background: var(--beige); }
+  .sugg { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; max-width: 720px; }
+  .sugg button { border: 1px solid var(--beige-d); background: transparent; color: var(--body); padding: 8px 14px; border-radius: 980px; font-size: 13px; }
+  .sugg button:hover { border-color: var(--wine); color: var(--wine); }
+  .opencases { width: 100%; max-width: 720px; margin-top: 40px; }
+  .opencases h3 { font-size: 14px; color: var(--muted); font-weight: 600; letter-spacing: 0; margin-bottom: 10px; }
+  .ocgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .oc { text-align: left; border: 0; background: var(--surface); border-radius: 16px; padding: 14px 16px; box-shadow: 0 0 0 1px var(--line); }
+  .oc:hover { box-shadow: 0 0 0 1.5px var(--wine); }
+  .oc b { display: block; font-size: 15px; margin-bottom: 4px; } .oc span { font-size: 13px; color: var(--muted); }
+  .oc .ostep { display: inline-block; margin-top: 10px; font-size: 12px; font-weight: 600; color: var(--wine); background: var(--wine-tint); padding: 3px 9px; border-radius: 980px; }
+
+  /* ---------- chat ---------- */
+  .thread { flex: 1; overflow-y: auto; padding: 26px 24px 8px; }
+  .inner { max-width: 740px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+  .row { display: flex; gap: 14px; }
+  .row.me { justify-content: flex-end; }
+  .bav { width: 30px; height: 30px; border-radius: 50%; background: var(--surface) url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAiR0lEQVR42u19e3xdZZnu877fWnsnbbnTG7RJKQgaaGm7Uy4VDfz0KKMOihj0h3KOohSSlpuc0RnPHEPGEcdRrJA2haowzmEGp+EcLygXQSSgUKG7hdIGWkrbhHItyK1tsvda3/ueP9ZaaVr23klpSrN3vqfAj+bS7O713p73Cjg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4VALIvQWj+tmqe5Mcyvr5tQDUhUaqa3iF0Al0YYLWoUNbAdmr78crBOz2/ToaFMQpQBmhBeAH0MBnAgA6pZSQNwJmTG2Dn85v5/RY4+XEEgCk2ajXx8GOiUG4LJsNBvt5aGjgrs69UiqnAA7D93wa0ch1eIVa0Rm+Q0BrG6q22bemEJuTiXGSVT2agMkEHKqqE4hojAJMCk/jZ02AghAAmgPodSi2g/AyEV4gxQYSPBmkqNseqi8VUpAWNHhdmKAd6JBK8BBOAUao0ANABzrswE9cUXvytBDePAZ9WKB1gE5TYHKaPY9BccwS/9Lo/wsF+hT/lwEQEQgAxd8fqoVV7QXwIgHPQGmdAg9ziv/StvHRrbt7mUYDAMvRIVSmyuAUYASFN0ADD7T08ydnxqRTOFUUjSB8iBTH+cZUEQgChahAVKFQqwoFIf4HUBCVeM666xOqAFQ1+SoyDBATwxCB458ViOwEdCOAh4R4+di0v/oH6x9+e09lKDfP4BRgRAh+C1rRKgDQUleXem179X8D4wIoPmiIaw0xrAqsSiTsgBJACqJY4If7OWr0M1RVoUQgAhlDDEOMUAWi8gKALCst13x4T9tLj28bqAzl4hWcAhxQwQcSYtlUUz/dZ/2aKs4zzMczCKEKQlUF1ALE+0nY90opABWAjCEijxgAEIh9jYh+T6S3HCbjHmrt7uxLFGGkk2enAAdY8BfWZD5ITFer6tkp9qojoReJ5I2I4q8faYg9hAAAExufGFYVorJJFL8IJWy/aesTz8dfS+ejkffkNE4BRiG5TYTg8umZM9TSP4LwcZ8YebEQ1RBEvLdCH1nmOGSJww4q8mz7uXHMF4YpjFKNPAN5ROwRI6/2DQLdpaQ/Xrw5+2gh5XcKMErQiEaTCP6CKZkZZOg7RPi0Fwm+KlQIxEOt3iahSCzDhmOyykSIfgHSnwPaxXmTz0UZn+jzkdVWCFQG/Jn8bmVDAQFUGWxSzAhUoMAfIfLPi3tW3T/SFMEpwP4NE+gagFoBWXDU3CPIl2sZ9D8Mczovtj+eHqKRl8hwR2TUi5M8eREI5DUGvSCqW4n4SVV9HoRtqniLSCwRaZwZqlLBkQQ6nKDTCFqnREcDmOQRH2SIIKoIVaEQq0DEf9+dnCSKbVJsYFWhqveD8E9tW1Z2DjAMBzRr5BTgPbD6zTVzvugxf98jPjonFgq1NATBV6hAIUTk+cRgIuTEWgKeBfAIlO4LCetIc1uW9jz5+rt5ncvRaB6u2TTBEt4vwDwifEoVM1JsxqpqbMHV0j54BUCtgjjNhqwKRPFbVW1Z0pNdted75RSggmL9+TWZySlCm8/mPBuR2zAWfBqKwKSIiYmRlzBPoMdUdbkluXdC98HPFKwMo4WBB/r5QxcmvMOy1uEVQgOAThRtp2g6qn6q8fRjRHSxQk9JsaHY0wyfIogEgC7ry+OaZS9mX036kt7rsMgpwDBneJImsqZp9Z/3FNd7zBPzElrdlcYcYsggUMVfRHE7DP1myebHNuzpYaIGtk7Zx8Y1UgDn72q5sAP/rKumZ2ZYoS8LcFGK+NB87MGGGLoV82yWQCbNBoHK81B8u6175c0Hwhs4BRjmkGc+Mn6qFot8NgvCqHg1aLiTCESKDQKxyoR7QuEftvc89ofdOzcbzDAI/JAUuQuNNDA+v+zoU6bA2CuJ6BLDPG6ISj0YR7CG2POIEYp9KE/2spu2PP7EQO7kFKAsLH+D14rOsOmo+qnG11+k2czrG4KAKCAEUIoNhWpDBW5XwQ+S2HgPoZcD5dViZbAAcGVN/XTLep1P5jN5tRDtz2DtUz3BZ2NEtU9UWxd3Z//lvfIGTgGGSfgvnTrnQ77h//KIJ+ckDAnkDRbu+GSMQiGK25ntd27YvHpNIaEbKRmtM9FgOmPucfm0+vlQXEdE4wK1QyL1g/GDfi+o8kCotnlp9+qn9nemyCnAMAh/c82cL/rEP1NCOhwk5Ely/mk2yItdR0QLBqYFR3rrwMAc/iU1s+pS8P6vZ/j9Q1D6IadO0+wZq7LdQhcu2ZL9+QB+JU4BRlimp7m2/lsp4u+GsCqqWiocUKj1yRiJskEtL1pvUcfWFb3lIPjFlP8rk2aNH5f27vaY5+QkHAZPEL1PDDI+G4Qq/5bL6YJlL2Z3NqDB6yyQ/XIKcKCEvyZzbbXx/iGK98Gl2g8otmx5sWsDxldvitsDDmQOfLiIf1PNjMMMp+73iGflxe4TJ3jne+abQOyakO2FSzevXpMonlOAAyz8C2rr26rYLOyTIESJ3P7AkCcUaTPW++airSt64wdpy32qqhEwHYD9yqRZ48emvceYUBOq6nA18Sk0TLHxRHVHKHJJe8+q/xhOXuAU4F0Jf2ZZFXsX90pQMu5VqPXIGKjmRbV5cU/2Z+Vu9Utzodkf8dm7N1DR4exiVahlIuOBEYp8b3FP9lvDxQuMk+uhbl9oMO240y6ondNWxX5Tn4QBgfzSlsvzBPp8XvVvl/Zkf92CBq8T3dqFrooaLu9Et7SgwfvhmyuezRw86dS08Y63KhbDEArFTXwcNU6JVBn/w3MOmfSBaUcf9pv2bdvCRsB07YMnYCfbQ7JwJrJwmWur2F/YJ2EAoKTwV7HnhSorxNpTburJ/nlA7FqRq0bitguC0rVWRfcYyRyOWJ0AMr0ShGk2n5+0Y8z9Xz3mpIkdgE3GMV0ItD/d+9TM31d53vdyEoYASoU9YTX7Xl7C37xk/S8kWZ5KCnkGe7+21bz9jMdmWqgi+2OgJzEwgdhnrJVPtG9dvfHdkmPnAYZS4a2Z/aW0ZxLhN4MJf5+Et7Z1Zz/TsXVFbwvAo0f4EQ31E20yRMnA/X4oXpHXJ2FomN/Hnnnwa1NPPrEVnWELGjynAMOY4ost/xkemVsCsaKR8NMgwv+TJd3ZC1ui7kauxGVSxXBN/zSaVqnu30iPQF5erDWgydXsPzC/dvbp70YJXAhUvKtTmqfMPs4YXgGiI6xKqfx2UM2e32eDGxf3rGpqQQtfg1al0bV7k1oA2ja+bgzGVG0x4CMsVGk/y1iUaWMD0M4A+omlW1Z27k3I6TxAgZ4XALh64syxZPjXhvmIuKOTS8Sjfq+Ety7uWdXUiEYzCoUfLajzWwGhMdXz0+wdYSGW9nnOGBqPWFqFhgP/jTZlqCUAoWheVdI+8MsFUzIzOtBho9kI5wH2Iaed+X9Vxju3r0SuPyFjeWt/ubgne1480DEqlsoOlKH5yHjLkA0uqcl8MM10n6imdOiD9rt2EMX7jpIVMLTbrHMirru23SW7vJIZZ58YO23wVxWZseS51S9qsgqyBDwn8oVIb+ab1cY7t7e08Ns0e15ebGd+PD6vPdGHW0eJ8A/cZLcM2aC5dvbZBvQLBaqkX5BLL9wCETPAhpgGbqGLFm/pThV5SwivQelFhaxn8LNQ3W7BvYZ0uxKJwFYb4XFCGJ+DPTbN/MGc4iIA/9yBRoNBQiHnAfboa4mt2EOiKhqFiFRI+FNkTKiy/m2Ep/28+4k3RgnhjZf17mrcu+y4WeMRev9EwKXRlglR2lUD2G2DBcUbLAwxGASrgrxIjgjPE/CMAo8SyTqEvNlH+PybY8e+dfOA9YtDxdUTZ4697uU1O1wItJctvq8eNfcw8mU1E00Ni5BeBcQQERSvW2tPbd+6emOF5/kLLuttqqmfzoRLGPiyzzwhF613iSMfFQDMYDaxwAsUeWtzRHiBCOsJ9AigK1jDDb1Hes+XWtWeeBu8s/CG5K5BMue8t7UApwC7dTXO+V218T7RV7ytVxkQEFEutGct27r6wf3RojtShb55fN04qh7zcSZcrKQfTpGpzotAVHMg9XjA/lCBIBDZAcUGIjxITH9gCZ4Uf8eLbRs35koJ+TAc6aChfh8569/fyLWwyqTa+ko2uEX9PX0SXLS0e/Utw92ae+B3GDUY4ExJFvUC8YbqNM6A0gUKPctjroECeRWBqhhmzyeGAshb2wdgPRHuFeCPaes/sWjriueLCftIuEZDLt8PuXRa/Qk+sBqqKVukrz8pdPXa4Mb2nlVN85Hxl6H0hZVyIbJ7zhx/c3rmkO2hfoiYvkhKpxNRrSFCING+OS9enZ6Pfr+ZlB4B4zeQ/KOLe9ZsLnZUYxiFnVoAKvTanQLspZs/LLOJ/W141GeeFagtsu4jmuQKRJ7YTq+etrP7lKBcj0LssvS7C05z7dxJrPJJIvqMQjOGeDJRRFShgCECESEQ26vAI6T4JUMf0dSEtW0b786VEHgZTmWNr9PYdxvyOAXYI+5vnjrn+9We/41iKU8FlEFKQK9wfs6SzWs2lFvGp5jQNx1VP9Wk9FwonaOqGd/woVDAxrLk7dr4/AIID0LxmzTJw9dtWd1d6FLMeyXwy9FoOo/ZcqwnmJezuvLGrSvXvlsloFEs/LJw2qyZDC8bXVlBkY1nalPsmZzkL2jvfvy2MiK970hZAsCVNZnJIaORQOeqar3PZpyowqqCCTDECMQCwDMEuktVfr1zR9VjN7+2Kx25h0INS/yerFAvdg+tedrptUaDj4DwEVWtV2B6mo0XqO0VKx9e8tzqbAtaaCB/GQpGcyFMVbmdmY3V0KJA/7pCbTX7ptcGt7T3PH5bOZDegStV+jdST519FLM5H4RPhar1PplDRBUWgFVBfIHGqmJtoLKcQHfljtS1y7Irg0JWngDBPr4Pewi8jcLJXZb+sqmZYy1TAys+AtKTVPPv89lUK4AQAlGRPhv2jfNS1TskmAVgJfCAwV56IBq9Kc/MZdXG3FAs5amAeMQkKj3VVekZY9Y/vAMYWbvtC4xr9s/JXj1x5thcVerjgH4FijN8Yw7d09LnxeYItI5Il1vLv21/7rGugdZ8OC9CDhT4a/oFfhcunT5zQipMzxCScxU4A8AHUmxSiJU0VFVShCD4yaLgUBUi+lSf5Y/99PlHt0bbrPfuddJoy/pcA+jCqfMmM+fWK9EYUaUCWR8lQAyxCcKwoX3r6gdHYrGr0AKtK6fOrbdGvwrF3xiiWo1vAAwIbxTAKgLdKkx37rlzNGonHpbQpv/EayGB//rkzJFBiusV8ilV1AM4wWM+1FByGkqElCwIfpJ1sqqwKq8DeBLArzzhh17nMWt/Hp9kciR4qMS3ds6v0+ydkytq/dVWsW/6JPjX9u5V3xxpoc+egv/VKacdXs32PGb5soBO94kpjK4XIdq7KQB0JQi3K8zdi7c8+sR+EPqSqcn5kzNHplOYocAnAJymQJ1PfDjHgh2qQFUtEZkCAr8OinsM84PSFzw18CCfywLtrfBPy3w6TeZXeQkLpjzjlYUUiqwPxmPm69npMoJOf+52ZumyqZljlekKIm00xJOi3mFFcuhCFRuhuEON/iI5U1RA6GVfBb5QpubvTph3UF8uP0cF5yjpXAAnesSHm90FPiQibzeBF31DoU+DcC+peYBS+SfbNu4u8MNJwmk0DWugrs7btqPqaZ/MtBKrO6xHbKzIGYt7sn9O9t6MkHNWCgBNtbM/4JH531CcY5jHWhUwohY0K/KKEn6nin9n/81HBrYd7KPQlxT45vEN41LV248PiT8G6FmAnmSIj0pOvCYCDyLjxRcm4/vDbxGwHkq/Z9AfYXjtDZv/8nIhge/CBB3u+guNrtAn01rF5tt9JUMfz/SG9idLn8vOX45Gc/7IiPsJgEaHs6kFhAUe0VirmsT1eQX+ZEA/Mdb7/aKtK/66+x2BOt3b9OBgufirJ84c21uVfp+BnknAmRaaYaIpPnF8Zknio39gj5i9XR/fSaBnADykqnd7wKof92RfLLSGZn8I/KhTgIT4Nh9bP8WEuh5AutCwRtzlCRHdFng4YfKm7NsjIesTZzZw2XGzjtTA3Jlmr95C4nEp2arAbSHklqXdq5/ax6vt1AJQFxppzyY4AJifyfjpbeZ9AjmLST8mwBwimpKK+4CC+MolEcgQGxM30ubFBkS0UVTuA+huz2DtDZuyPQdK4DHa6gBdaCRChzQH+oOUMdWx9edCZQGfjNlJ9uvLNmXfHClZnzjWDW1gWo7wq+tfD3oDIqyE0FKkzK/bNj761p5HLYb6upPvSQQ+iqc7+j+/4Ji5x7O1c4XobHoVpwrZY9NsOBJ4gYiEfSRkwMZnAwK8nFgR1XVWZQUR7jXGW3XYprOf3dMDJUqaCHySZHivLTJVdugTxe/N0zKnGtDDEm0q4GLV3rzYPyzpzn50JKU8k9eyoDZzQYrNxwLY9oGEdm82Sw9SbaWrp82u6VOaw+CPAxplatj4AOKQJsqhMtj4zCAAObFKwGYoniDgTsA8fHjPo0/v+Xoa0OBNGOb+IKcAQ93uUDPnL2n2TslrwcxPPMBOgVXULe1ZuakMen3eUfgaLBdfaBFv87TZtaTmdEA/ScAsBY5NMVcTduXioRAm8jw24PgsK1S3KNPjUL3HWPqTVr3xzJ49/nv0Bx2wdudRqwAJgV1QO/sLKfZvK5H2tFVRu8OipT2rvj5Sp7taAD4RjbRuEAuaHM8rJPBX1mQmB9AMgaJcPOH9KTbVA6utiHLx/WdZgyh78zyBHhfo/Qz6o2e9pxdtXdG7n472OQUY5rTnUz6ZYwqlPZPxxpj4Hj95U/bta/o9Qnn+vQcK3lVTTjs8b4KZAD5BwFkKHO8zH8yI2ghClX6BT3LxcfbmFQU9zsBdZPHn7WNTT+85m1uuAj8qSHCyzHbBzqqmKvan90lQZMRR1SeP+xD847JNq95sRKOhKKwoW+G/dOqcD/lM5ynhlLwG7/OIjxxYfMpb2198qmJDVtWzKq9alXWh4l5W+qOhsOv67ifeKHyDOBL4SpmBrkQPQArgkumZg/0Q65lpgi1wsEEBiVoGbFdwJM2enM3acrVkSbjXXFt/URXzzxToz8XvKj4xeYkiiLzBROsVeMAQ3RnmsW7JC4+9Vnha7ExpRWvF7jryKjD2Z0KHbQ70W1WeP7HYoAtBlYiYBJcvy2aDiLSVp/Vfl2xGUP2UIcYOm897ZFJpNlDAy4vdKdCnc6qdJPxbY3Lrbti89uUSRa+4Wtwp8Un5ioVXaVmf89EhzbVzJxGkKUrRFR5xjIZcwvvae1bd34IWbkVrGbv0Tok8H/0wZ8NTGHyoqK7NQTuN0P3Gw5obNq0crPgUC/zoQkUpwIlopMiKy9+n2Tuo+IYHIqsCA/4GAHShq6xDwSQrtLRn5cPzp2dOHEd08I+eXflcseH0A118chxg/+X8tbl27kSCbCBgnBb4Oyb9Pn0S3treverCSlpqtWf9Yn8MpzsPMOKtv/1Wmv1i1l8ZRHmRPGv4bQBUh46KIXexkFO8pFdaK29hl/MApaz/gqmzJ4N5AwFjBrH+be3dqy4fTaeLHFC59wEi6w9V4v+VZm+sRLspqYD157y1fWmb+n6lWX+HUaoASebnyprMZCb897yEWniprdoUGxLCvy/auuL5RjSyi4sduFKsf570H1LsjROoRcEhdzKBSMAa/Iuz/g4VoQC75/3py/kief/omIUhC/354p41m531d6gQD9DAAJRUrqhi7yCBFLX+eZHAIvyus/4OqIQsUDIquOCouYeTb9cT8eHxwAsVuuPVZ+1/tvdkv+gyPw4V4QGiUUEofHtlmv0jrBa0/iAQByrKbP/VPW6HSvEABADzJ2eq/RQ2GKKjwgIdn8lBi5zYO9q7s+fEPT8u9ncobw/QElt/38dX02yOju55oUDqk9iqQJm+A5R/z4/D8MOU44t+AN0KgHccctQtRDReoKB3bHdWmyLPBBI+tLR71Xdb0MLtaHfW36G8PcByNBoC9LXa2Z9JG/OBUK0tcs2RCIAh71pn/R0qRgHWxSlMq3xViS+zPhnOabj28O4x9wEgl/lxKHsFaESjaQWkeWrmDJ9pXk6sFNn0ACYCgb7Xis4w5gwODuWtAHWo03jq91uGmKND5AUPW5icDV8O8vgVgGRFiIND+SpA1PLcKk21sz9giD+aLz7uKF5ECZYuezG7M8kYuUftUOYeILoizqArfGZfo6a3ApfcyeSt7SPVn2DXvKyDA8q5EEYAcNEJ88ZV9eaeNUzj41UnBdsechLevqR7VaNre3CoCA+QhDFj+nJfqzJmvFUJqaDyEltVAPoj92gdKsUDEABcdtxxKRscnKw5LFD5ja6550VWtPdk5yVzse4RO5S1B0isvw0O+WyavWOiwlehtgeAiADVRdFvG9g9XocKCIESEqsLVYu2RkepT7EvpDV1BwC41KdD2StAUvhaUDv7dEN8Wl4LF76i1KcBKd20aOuK3ugYnEt9OlRKGlT5Cj8qfEmx1GdOwpyEuMWlPh0qggQnZ+8XHDX3CHjyLBMdEp2GK7Lrx9pftvdkP+tSnw4V4QHiiS+oby9JG+8QCwkLKyyRVYVhut49TodK8QAEAC11df6r26s2GDa1hYZe4h3/HIg8va1n+kkj6KK7g/MA2NfUJ17ZMeZTKePV2iKpT0DVEAGEGzrQYV3Xp0OFhECdEq070YUlqTHY5MRuNzl7exQ2udSnQ5krQJL6bKqZk/GIPpwXq8WuO6aYIap3tL30+LbGeFLMPVKHiiDBBPq6x8YU6foEQByqqDH0Y/cYHSqCBA9MfaonGw3RoYVSn/19PyrZ9u5sffJ97nE6lLUHSFKf8PXCKmMOtYVXHUIBMBFUcMNu3+fgUAEeAM01mcdTzDODaNubeQf5JSJRfd1DOD2+Z0su/elQ1h4gJrFYWJOZ5zHNyKtIob1FCrU+MQT6H9d3P/HGcjS6kUeHiiHBKsD/NMRUpO8HBDKBirChZQDQ4Z6hQ7mHQMl1w6Zj66dyqOsJqNKCr28X+V3SnZ0bf4Gz/g7l7gHigfdQFlaxV13kykv/0AsR2ghQR34dKsEDEAA01tX5E7ZXbzDMtUWW3SpHjW9vKvLHLO158nWX/nQoew/QiEYGgAk7x5ztG1Mbqi2y6VmtzwwQ7lja8+TrrvLrUBEKEG97UxW5lErG9MShCpjR5h6bQ0WEQAn5bZ4y+zg2vEaBKpQivyJrxvdkZ7dGSuKsv0N5e4Cu6MQpiPgbaTbVWpz8Kkdtzze2AuLanh0qwQMQAL1qymnVec5vMsyTwgLb3uIrj6TQHdYE02/ctOYVR34dyt4DJFY8x+HnUsabZFUsFbT+EflV6C9v3LTmFUd+HSpCAXbt7ZGrVEvJc7TukKDt7nE5VIQCNMb9O5fVzjnNYz456vspNPQSz/yqbAy6eaW79OJQUSRYQAu94vt+AKgYIrDqTcuQDRz5dagEBaAOdNiLTph3kELPDlRQ+NAFlMFeXuxOJXMr3MIrh0pQgMSKj+nt+0KavaIX3hPyK9C72rsfeymZFXaPzKGsFSDZ3CDAAlUFFc3EEosqDGhJxBscHMpcAZIU5qW1c04zzCWGXhLyaze9NLb3zwBwviO/DpVCgo3SVf4QyC9At3Z0deXjbc8ODuWrAC0Ad6DDXjZp1ngQzs5LKfJLJic2B5KbHfl1qBAPEA292DRfnGZzsBTZ+ACo+GxIofe0b1nd3YIWduTXodwVgFrRaWMO8JXokB1Rsc0QqgpWbgOALnSRe0wOZa0A8dCLTqzZfJZH5rjCR+6SU0eGA5FuSr3xEAC4yq9D2StAPPQCIb2SiVCK/HpEUOCnbRs35hz5dSh7BYiGXlqlqaZ+OgMfzYvVIuQXFJHf0Chuc+TXoUI8QLzxAXpxmr10saEXQG2KDSnwYNtz2WeTaTH3iBzKWQGoFZ22BQ2ekp4fqACgkj+TKDp1dGI8LebgULYKkJDfV2vf/tsUmenFNz5ADbHJ2/ClIKf3AcD50bkjB4fyVYCE/ELpMiIqsfFBrUcMEP2fZS9md7o7vw5lrwAJ+V1YM/MYAB+ML71wMfKbFxuC+aeO/DpUiAeIyK+S35Q2XqoU+fXZkFV9eMnmxzY48utQCQpAregM50/OjFHgS2Ek+1xyNQUnM78N7B6LQ1krQDL04vl0XprN5HjjAxfe98MmZ8OXaUfud8DAYXkHh7L1AFEMTySXlmay0bELAv6zfVvXdkd+Hd5rePtr3eHlU+pPUuipQZEzpwPIr6ianzny61AhHiBue2Zt8tkrceZUrc9Morqy/bnHuhz5dagEBaBWdIZXT5w5VgnnxuTXlLgFDAA3RGGPI78OZa4AMfmlXNq7oIq9yWHRdYdR5Tdnw5erc+GvHPl1qBAP0CkAVAhfFmiJzbtR5VdBt1738podjvw6lL0CNAKmFZAF0zMzGHTKEMivVaafOPLrUCEK0BjbdixMs+eVIr8pNmSBR27csnK9I78OlaAAdD46bPP4unFQ/XR+kMovAJDierjKr0MlKED/0toxVZ9LG29iicqv7CK/wV2O/DpUiAeIY3ilS6J1h8UPwftkANDN1728ZsfyeE26ewwOZasAydLaBdPn1humUwKVkuQ3J1YN7K0AsA4dTvgdylsB6vBKZPBDaUqR4SFUfv/U1vP4U478OlSCAlArOsMrak8+FIRz8mqLrTvsr/wS6HpX+XWoCAVIyG+g/KU0e0cW2/WPpO1Zwr8GXjTz68ivQwV4gKSARRcKpCj51bjtGaDblm3KvtnoyK9DuStAQn6bptTPNcz1gZQmv4GKKMsy95Y7VBQJZpZLS5NfWJ+YQtHHlm5evSZZk+7eeodyVgDqQIdtHt8wToFPlqr8KhRMBCa5Ca7y61AJCpCQX6recUFVicov4rbnPhu+lU7zHY78OlSIB0jIr14kRdI+A8kvEW780Ybsq478OpS9AiQFrEun1J9EhMxQZn494psBoM5Vfh3K3wNEMbwxg7c9+8Qkikev37LSLbxyqAgF6K/8KuRzg1Z+iQDWRa7y61ARCpCQ31C9C6tKXnlPFl7ZbdjRd6cjvw4V4gEi8qvQC0uR32ThFUhvad/Wtd2RX4eyV4Ck8htfec/kxUrJyq9Yy6BbHPl1qBAFiGCAZp9MqSvv1idDonhkcXf2aUd+HSpBAeh8dNi/O2HeQQr6m2BQ8gsA9GMAeMCRX4dyV4CE/O7sy32xis2RJcivxNueX9HenfcAQKcjvw7l7wES8ouLB1l4Fc38Ev6rfVvXdjfz61D2CpDE8E1TZs31iE4erO05L1bE8jLAzfw6VIQHiO/8svmsT8YMVvm1qg/fuHXlWkd+HSoqC6TAZIXqIDd+Qaptru3ZoRILYc8SiApF9AoIgykn4V9N+q27AVf5dagYBYgIMMPc2mfDHDMbhYYxuVUFBNCwynhMiuvbNm58y5Ffh3KBGVT8AW1Eo/m3N+/9a/0hE19Ms/dpQ8TxAjgyRDTG+GanDe4/clxf05nbtulCdDnhd6gMBQCALnRpC8A/fPOlVbMPnrSSCdMVOAiAYaIea6X9iHG981u7uvKd/VGRg8PIB+FdDMMAwOXHnDpRw3Ac0uO3tm28Ozfgz3PC71C5iDs7abCPOThUNBSglohEO8F3cHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwOKD4/1MHRSXDjv6QAAAAAElFTkSuQmCC") center / 66% no-repeat; box-shadow: 0 0 0 1px var(--line); flex: none; }
+  .btext { line-height: 1.58; min-width: 0; max-width: 82%; background: var(--surface); padding: 12px 16px; border-radius: 4px 18px 18px 18px; box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgba(43,16,24,.04); }
+  .bname { font-size: 12px; font-weight: 600; color: var(--wine); margin-bottom: 3px; }
+  .ubub { background: var(--wine); color: #FDFAF7; padding: 10px 16px; border-radius: 18px 4px 18px 18px; line-height: 1.5; }
+  .meta { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+  .row.me .meta { text-align: right; }
+  .via { font-size: 10.5px; font-weight: 600; color: #1E7A35; background: #E6F4EA; border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
+  .card { margin-top: 12px; background: var(--surface); border-radius: 14px; padding: 13px 15px; box-shadow: 0 0 0 1px var(--line); }
+  .card h4 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .ev { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+  .ev li { display: flex; gap: 8px; }
+  .ic { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; flex: none; margin-top: 2px; }
+  .ic.y { background: var(--ok); color: #fff; } .ic.n { background: var(--beige-d); color: var(--body); } .ic.i { background: var(--warn); color: #fff; }
+  .bar { height: 6px; border-radius: 980px; background: var(--beige-d); overflow: hidden; margin: 6px 0 10px; } .bar i { display: block; height: 100%; background: var(--wine); }
+  .big { display: flex; gap: 12px; align-items: center; } .tav { width: 42px; height: 42px; border-radius: 50%; background: var(--wine); color: #FDFAF7; display: grid; place-items: center; font-weight: 600; flex: none; }
+  .big b { display: block; font-size: 16px; } .big span { color: var(--body); font-size: 14px; }
+  .card.good { background: var(--ok-tint); box-shadow: none; } .card.emerg { background: var(--red-tint); box-shadow: none; }
+  .shot { width: 220px; height: 136px; border-radius: 12px; background: linear-gradient(160deg, #EAE4DC, #D2C9BE); display: grid; place-items: center; }
+  .boiler { width: 112px; height: 78px; background: #F7F5F1; border-radius: 10px; box-shadow: 0 6px 14px rgba(0,0,0,.16); display: grid; place-items: center; }
+  .lcd { background: #9FB7A4; border: 3px solid #5E6B60; border-radius: 6px; padding: 3px 9px; font: 700 19px "Courier New", monospace; color: #1E2A21; letter-spacing: 2px; }
+  .mixer { width: 84px; height: 84px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #FAFAFA, #A9ADB3); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: 44px; }
+  .row > div:last-child { min-width: 0; }
+  .chip { border: 1.5px solid var(--wine); background: transparent; color: var(--wine); padding: 8px 15px; border-radius: 980px; font-weight: 500; font-size: 14px; }
+  .chip:hover { background: var(--wine-tint); } .chip.on, .chip.solid { background: var(--wine); color: #FDFAF7; }
+  .composer { padding: 10px 24px 18px; }
+  .cin { max-width: 740px; margin: 0 auto; display: flex; gap: 8px; align-items: flex-end; background: var(--surface); border-radius: 24px; padding: 6px 6px 6px 10px; box-shadow: 0 0 0 1px var(--line), 0 4px 16px rgba(43,16,24,.05); }
+  .cin textarea { flex: 1; border: 0; resize: none; background: transparent; font-size: 15px; color: var(--ink); padding: 9px 4px; max-height: 140px; outline: none; }
+  .cnote { max-width: 740px; margin: 8px auto 0; text-align: center; font-size: 12px; color: var(--muted); }
+  .closedbar { max-width: 740px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface); border-radius: 16px; padding: 12px 16px; box-shadow: 0 0 0 1px var(--line); color: var(--body); }
+  .closedbar button { border: 0; background: var(--wine); color: #FDFAF7; padding: 9px 16px; border-radius: 980px; font-weight: 500; }
+
+  /* ---------- right: progress ---------- */
+  .panel { border-left: 1px solid var(--line); padding: 22px 22px 30px; overflow-y: auto; }
+  .panel h2 { font-size: 18px; margin-bottom: 2px; } .psub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .flow { list-style: none; margin: 0; padding: 0; }
+  .flow li { display: grid; grid-template-columns: 26px 1fr; gap: 12px; position: relative; padding-bottom: 20px; }
+  .flow li:last-child { padding-bottom: 0; }
+  .flow li::before { content: ""; position: absolute; left: 12px; top: 28px; bottom: 2px; width: 2px; border-radius: 2px; background: var(--beige-d); }
+  .flow li:last-child::before { display: none; }
+  .flow li.done::before { background: var(--ok-line); }
+  .fd { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; background: var(--bg); color: var(--muted); border: 1.5px solid var(--beige-d); position: relative; z-index: 1; }
+  .done .fd { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .now .fd { background: var(--wine); border-color: var(--wine); color: #fff; box-shadow: 0 0 0 5px var(--wine-tint); }
+  .ft b { display: block; font-size: 14px; font-weight: 600; padding-top: 3px; } .ft small { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+  .pending .ft b { color: var(--muted); font-weight: 500; }
+  .skip .ft b { color: var(--muted); text-decoration: line-through; font-weight: 400; }
+  .pbox { margin-top: 24px; background: var(--surface); border-radius: 14px; padding: 14px; box-shadow: 0 0 0 1px var(--line); font-size: 14px; }
+  .pbox h4 { margin: 0 0 8px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .pbox dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; } .pbox dt { color: var(--muted); } .pbox dd { margin: 0; text-align: right; }
+  @media (max-width: 1050px) { .app.withpanel { grid-template-columns: 1fr; } .panel { display: none; } .tuser span { display: none; } }
+</style>
+</head>
+<body>
+<div id="root" style="height:100%"></div>
+<script>
+/* ================= Debye shared core (same in all three pages) =================
+   All pages share one store in localStorage. Any change is saved and every open
+   page re-renders, so the tenant, housekeeper and partner interfaces stay in sync. */
+const KEY = 'debye_store_v3';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const strip = s => String(s ?? '').replace(/<br\s*\/?>/g, ' ').replace(/<[^>]+>/g, '');
+const nowT = () => new Date().toTimeString().slice(0, 5);
+const today = () => new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+const eur = n => '€' + Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const eur0 = n => '€' + Math.round(n).toLocaleString('en-GB');
+
+const PROPS_SEED = [
+  { id: 'u4b', street: 'Musterstraße 12', postcode: '52062', city: 'Aachen', floor: '2nd floor left', unit: '4b', sqm: 68, rooms: 3, tenant: 'Lena Hoffmann', phone: '+49 151 00000000', owner: 'Maria Becker', limit: 300, appliance: 'gas_combi_boiler', device: 'Vaillant ecoTEC plus', year: 2014, service: '12 Mar 2026', access: 'Tenant at home; ring “Hoffmann”' },
+  { id: 'u4a', street: 'Musterstraße 12', postcode: '52062', city: 'Aachen', floor: '2nd floor right', unit: '4a', sqm: 54, rooms: 2, tenant: 'Jonas Albrecht', phone: '+49 160 00000001', owner: 'Maria Becker', limit: 300, appliance: 'gas_combi_boiler', device: 'Vaillant ecoTEC plus', year: 2016, service: '12 Mar 2026', access: 'Key with caretaker' },
+  { id: 'u2a', street: 'Musterstraße 12', postcode: '52062', city: 'Aachen', floor: '1st floor left', unit: '2a', sqm: 72, rooms: 3, tenant: 'Peter Weber', phone: '+49 157 00000002', owner: 'Maria Becker', limit: 300, appliance: 'gas_combi_boiler', device: 'Buderus Logamax plus', year: 2019, service: '2 Feb 2026', access: 'Tenant at home' },
+  { id: 'k8', street: 'Kaiserstraße 8', postcode: '52062', city: 'Aachen', floor: 'ground floor', unit: '1a', sqm: 61, rooms: 2, tenant: 'Sara Yilmaz', phone: '+49 152 00000003', owner: 'Klaus Richter', limit: 250, appliance: 'electric_instantaneous_heater', device: 'Stiebel Eltron DHB-E', year: 2018, service: '–', access: 'Key with caretaker' },
+  { id: 'a40', street: 'Augustastraße 40', postcode: '52070', city: 'Aachen', floor: '3rd floor', unit: '3b', sqm: 80, rooms: 4, tenant: 'Anna Schmitz', phone: '+49 171 00000004', owner: 'Hausgemeinschaft Augusta', limit: 400, appliance: 'central_building_supply', device: 'Central boiler (basement)', year: 2011, service: '5 Oct 2025', access: 'Tenant at home' },
+  { id: 'l3', street: 'Lothringerstraße 3', postcode: '52064', city: 'Aachen', floor: '1st floor', unit: '1', sqm: 95, rooms: 4, tenant: 'Familie Meyer', phone: '+49 176 00000005', owner: 'Dr. Ute Lang', limit: 500, appliance: 'gas_boiler_with_tank', device: 'Viessmann Vitodens 200', year: 2020, service: '1 Jun 2026', access: 'Tenant at home' }
+];
+const PARTNERS_SEED = [
+  { id: 'p_krause', name: 'Krause SHK GmbH', short: 'Krause SHK', email: 'tom@krause-shk.example', city: 'Aachen', trades: ['Gas boilers', 'Plumbing', 'Showers & bathrooms'], brands: ['Vaillant', 'Buderus', 'Viessmann', 'Grohe'], techs: ['Tom Krause', 'Mehmet Yilmaz'], dist: '4 km', rating: 4.8, jobs: 23, ftf: '94%', resp: 'Within 24 h', status: 'verified', mobile: '+49 171 0000000', since: 'Mar 2026' },
+  { id: 'p_hahn', name: 'Hahn Haustechnik', short: 'Hahn Haustechnik', email: 'jana@hahn-haustechnik.example', city: 'Aachen', trades: ['Gas boilers', 'Plumbing'], brands: ['Vaillant', 'Wolf'], techs: ['Jana Hahn', 'Lukas Hahn'], dist: '7 km', rating: 4.6, jobs: 11, ftf: '88%', resp: 'Within 24 h', status: 'verified', mobile: '+49 172 0000000', since: 'May 2026' },
+  { id: 'p_weber', name: 'Weber & Söhne Heizung', short: 'Weber & Söhne', email: 'paul@weber-heizung.example', city: 'Würselen', trades: ['Gas boilers'], brands: ['Vaillant', 'Viessmann'], techs: ['Paul Weber'], dist: '11 km', rating: 4.9, jobs: 6, ftf: '91%', resp: 'Same day', status: 'verified', mobile: '+49 173 0000000', since: 'Aug 2026' }
+];
+const FAULTS = {
+  heater: { title: 'No hot water', jobTitle: 'No hot water at any tap', trade: 'Gas boiler', part: 'Gas valve or ignition electrode', urgency: 'high',
+    rank: [['p_krause', 92, 420, ['Free in the tenant’s windows', '4 km away', '94% fixed first time on Vaillant', 'Rated 4.8']],
+           ['p_hahn', 81, 395, ['Free Sun morning', '7 km away', '88% fixed first time', 'Cheapest']],
+           ['p_weber', 74, 465, ['Free this evening', '11 km away', 'Vaillant service partner', 'Rated 4.9']]] },
+  shower: { title: 'Shower not working', jobTitle: 'Shower only runs cold', trade: 'Plumbing', part: 'Thermostatic cartridge', urgency: 'normal',
+    rank: [['p_krause', 90, 150, ['Free in the tenant’s windows', '4 km away', 'Grohe experience', 'Rated 4.8']],
+           ['p_hahn', 84, 140, ['Free Mon morning', '7 km away', 'Cheapest']]] }
+};
+const AV = [
+  { id: 'today_pm', l: 'Today afternoon', slots: ['Today 13:00 – 14:30', 'Today 15:00 – 16:30'] },
+  { id: 'today_eve', l: 'Today evening', slots: ['Today 17:30 – 19:00'] },
+  { id: 'tom_am', l: 'Tomorrow morning', slots: ['Tomorrow 09:00 – 10:30', 'Tomorrow 10:30 – 12:00'] },
+  { id: 'tom_pm', l: 'Tomorrow afternoon', slots: ['Tomorrow 14:00 – 15:30'] },
+  { id: 'd2_am', l: 'Day after tomorrow, morning', slots: ['Day after tomorrow 08:00 – 09:30'] },
+  { id: 'd2_eve', l: 'Day after tomorrow, after 17:00', slots: ['Day after tomorrow 17:00 – 18:30'] }
+];
+const TREE = {
+  gas: { q: 'First a quick safety check: do you smell gas anywhere in the flat?', step: 'Safety', opts: [
+    { l: 'No', kw: /^(no|nein|nope|n)\b/, ev: ['yes', 'No gas smell, safe to continue'], next: 'taps' },
+    { l: 'Yes, I smell gas', kw: /^(yes|ja|y)\b|smell/, ev: ['info', 'Gas smell reported'], next: 'EMERGENCY' }] },
+  taps: { q: 'Is the hot water out in the kitchen too?', step: 'Where', opts: [
+    { l: 'Yes, everywhere', kw: /^(yes|ja|everywhere|all|überall)/, ev: ['yes', 'No hot water at any tap, so it’s the boiler, not the shower'], hyp: ['Boiler problem', 55], next: 'heating', fault: 'heater' },
+    { l: 'No, only the shower', kw: /^(no|nein|only|nur)/, ev: ['yes', 'Kitchen has hot water, so the boiler works; it’s the shower'], hyp: ['Shower fault', 55], next: 'shower_flow', fault: 'shower' }] },
+  heating: { q: 'Are the radiators warm?', step: 'Heating', opts: [
+    { l: 'No, cold too', kw: /^(no|nein|cold|kalt)/, ev: ['yes', 'Radiators cold too: the whole boiler is down'], hyp: ['Boiler not running at all', 65], next: 'photo' },
+    { l: 'Yes, warm', kw: /^(yes|ja|warm)/, ev: ['yes', 'Heating works: only the hot-water side of the boiler'], hyp: ['Hot-water valve or sensor in the boiler', 65], next: 'photo' }] },
+  photo: { q: 'Please send a photo of the <b>boiler display</b> (the small screen on the front).', step: 'Photo', photo: 'boiler',
+    ev: ['yes', 'Display shows F.28: the burner doesn’t ignite'], hyp: ['Ignition fault in the boiler', 75], next: 'pressure' },
+  pressure: { q: 'Next to the display there’s a small round gauge. What number does the needle point to?', step: 'Pressure', opts: [
+    { l: 'Between 1 and 2', kw: /between|1[.,]?5|^1|^2|ok|normal/, ev: ['no', 'Ruled out: low water pressure (gauge at 1–2 bar)'], hyp: ['Ignition fault in the boiler', 80], next: 'stove' },
+    { l: 'Below 1', kw: /below|under|unter|^0/, ev: ['info', 'Water pressure below 1 bar, may need topping up'], hyp: ['Ignition fault, plus low pressure', 70], next: 'stove' },
+    { l: 'Can’t find it', kw: /can|find|don|weiß/, ev: ['info', 'Pressure not checked'], next: 'stove' }] },
+  stove: { q: 'Do you have a gas stove? If so, does it light?', step: 'Gas supply', opts: [
+    { l: 'Yes, it lights', kw: /^(yes|ja)|lights|works|geht/, ev: ['no', 'Ruled out: gas supply problem (gas stove lights)'], hyp: ['Ignition fault: gas valve or ignition electrode', 88], next: 'reset' },
+    { l: 'No, it doesn’t light', kw: /^(no|nein)|doesn|nicht/, ev: ['info', 'Gas stove doesn’t light either: possibly the gas supply'], hyp: ['Gas supply to the building', 60], next: 'reset' },
+    { l: 'No gas stove', kw: /electric|no gas stove|kein|induction/, ev: ['info', 'Gas supply not checked (electric stove)'], next: 'reset' }] },
+  reset: { q: 'Let’s try one safe thing: press the <b>reset button (↺)</b> on the boiler once and wait one minute. Is the hot water back?', step: 'Try a reset', opts: [
+    { l: 'Yes, it works!', kw: /^(yes|ja)|works|back|geht/, ev: ['yes', 'Reset fixed it'], next: 'RESOLVED', fix: 'The reset fixed it. If F.28 shows up again this week, just write “again” and we’ll send a technician.' },
+    { l: 'No, F.28 again', kw: /^(no|nein)|f\.?28|again|wieder/, ev: ['yes', 'Reset tried once, F.28 came back: needs a technician'], hyp: ['Ignition fault: gas valve or ignition electrode', 92], next: 'DONE' }] },
+  shower_flow: { q: 'What happens when you turn the shower on?', step: 'Symptom', opts: [
+    { l: 'Water comes, but only cold', kw: /cold|kalt/, ev: ['yes', 'Shower runs, but only cold: the mixer isn’t letting hot water through'], hyp: ['Shower mixer cartridge', 70], next: 'shower_photo', sub: 'mixer' },
+    { l: 'Very weak or no water', kw: /weak|no water|little|schwach/, ev: ['yes', 'Very weak flow, only in the shower'], hyp: ['Limescale in shower head or hose', 65], next: 'shower_photo', sub: 'flow' }] },
+  shower_photo: { q: 'Please send a photo of the <b>shower tap</b>.', step: 'Photo', photo: 'mixer', ev: ['yes', 'Thermostatic mixer, about 10 years old'], next: 'SUB' },
+  mixer_test: { q: 'Turn the temperature knob fully to hot and let it run for one minute. Is it warm now?', step: 'Quick test', opts: [
+    { l: 'Yes, warm now', kw: /^(yes|ja)|warm/, ev: ['yes', 'Warm after running: mixer was just stiff'], next: 'RESOLVED', fix: 'It was just stiff. Turning it through its full range now and then keeps it moving.' },
+    { l: 'No, still cold', kw: /^(no|nein)|cold|kalt/, ev: ['yes', 'Still cold at full hot: cartridge is faulty'], hyp: ['Thermostatic cartridge in the shower mixer', 90], next: 'DONE' }] },
+  head_test: { q: 'Unscrew the shower head and run the water without it. Is the flow strong now?', step: 'Quick test', opts: [
+    { l: 'Yes, strong now', kw: /^(yes|ja)|strong|stark/, ev: ['yes', 'Strong flow without the head: it’s limescale'], next: 'RESOLVED', fix: 'It’s limescale. Soak the shower head in vinegar overnight, rinse, and screw it back on.' },
+    { l: 'No, still weak', kw: /^(no|nein)|weak|schwach/, ev: ['yes', 'Still weak without the head: hose or valve blocked'], hyp: ['Blocked hose or valve', 85], next: 'DONE' }] }
+};
+const HIST_CASES = [
+  { id: '7702', hist: true, propertyId: 'a40', title: 'Radiator valve leaking', stage: 'closed', opened: '16 Nov', closedAt: '18 Nov', partnerId: 'p_krause', total: 140.00 },
+  { id: '7655', hist: true, propertyId: 'u2a', title: 'Kitchen drain blocked', stage: 'closed', opened: '2 Nov', closedAt: '3 Nov', partnerId: 'p_krause', total: 145.00 }
+];
+const KRAUSE_JOBS = [
+  { id: 'job_5531', title: 'Shower mixer dripping', trade: 'Plumbing', urgency: 'normal', status: 'offered', received: 'Today, 09:02', device: 'Thermostatic shower mixer', part: 'Thermostat cartridge',
+    address: 'Kaiserstraße 8, 52062 Aachen, ground floor', contact: 'Sara · +49 152 00000003', access: 'Key with caretaker', windows: 'Tomorrow morning, Day after tomorrow, morning',
+    options: ['Tomorrow 09:00 – 10:30', 'Tomorrow 10:30 – 12:00', 'Day after tomorrow 08:00 – 09:30'], cap: 250, photo: 'mixer',
+    summary: ['Shower only drips and runs cold; the kitchen has hot water.', 'Turned the knob fully to hot for a minute: still cold.', 'Mixer is about 10 years old (photo).'],
+    also: ['Asked whether the bathroom fan can be checked at the same visit. Not part of this job.'], conclusion: ['Thermostatic cartridge in the shower mixer', 90],
+    reasoning: [['n', 'Kitchen has hot water', 'Rules out the water heater.'], ['y', 'Shower runs, but only cold', 'The mixer isn’t letting hot water through.'], ['y', 'Still cold at full hot after 1 min', 'Not just stiff: the cartridge is faulty.']],
+    transcript: [['t', '08:51', 'Shower is cold and dripping, the rest is fine'], ['c', '08:51', 'Safety check: any burning smell or water near electrics?'], ['t', '08:52', 'No'], ['c', '08:52', 'Is the hot water out in the kitchen too?'], ['t', '08:52', 'No, only the shower'], ['t', '08:54', 'can someone also look at the bathroom fan?'], ['c', '08:55', 'Turn the knob fully to hot and let it run one minute. Warm now?'], ['t', '08:58', 'No, still cold']],
+    work: 'Replaced thermostat cartridge.', parts: 'Cartridge', invNet: 151.26 },
+  { id: 'job_5497', title: 'Annual boiler service', trade: 'Gas boiler', urgency: 'normal', status: 'scheduled', received: 'Thu', device: 'Buderus Logamax plus (2019)', part: '–',
+    address: 'Musterstraße 12, 52062 Aachen, 1st floor left', contact: 'Peter · +49 157 00000002', access: 'Tenant at home', slot: 'Tue 08:00 – 09:00', cap: 180, photo: 'boiler', tech: 'Mehmet Yilmaz',
+    work: 'Annual service, flue gas measurement OK.', parts: '–', invNet: 142.86 },
+  { id: 'job_5470', title: 'Radiator valve leaking', trade: 'Radiators & valves', urgency: 'normal', status: 'completed', received: 'Mon', device: 'Thermostatic radiator valve', part: 'Valve insert',
+    address: 'Augustastraße 40, 52070 Aachen, 3rd floor', contact: 'Anna · +49 171 00000004', access: 'Tenant at home', slot: 'Wed 14:00 – 15:00', cap: 200, photo: 'mixer', tech: 'Tom Krause', completedAt: 'Wed 14:50',
+    work: 'Replaced valve insert, bled radiator.', parts: 'Valve insert', invNet: 117.65 },
+  { id: 'job_5402', title: 'Kitchen drain blocked', trade: 'Drain cleaning', urgency: 'normal', status: 'paid', received: '2 Nov', address: 'Musterstraße 12, 1st floor left', slot: '3 Nov', cap: 200, tech: 'Mehmet Yilmaz', completedAt: '3 Nov',
+    invoice: { no: 'R-2026-1098', net: 121.85, total: 145.00, paidAt: '17 Nov' } }
+];
+
+const PROFILE_SEED = {
+  p_krause: { company_name: 'Krause SHK GmbH', legal_form: 'GmbH', street: 'Lindenweg 7', postcode: '52068', city: 'Aachen', register: 'Amtsgericht Aachen, HRB 98765', vat_id: 'DE298765432', tax_no: '201/5678/1234',
+    contact_name: 'Tom Krause', contact_role: 'Managing director, master installer', email: 'tom@krause-shk.example', mobile: '+49 171 0000000', phone_office: '+49 241 0000000', website: 'krause-shk.example',
+    hwk_chamber: 'Handwerkskammer Aachen', hwk_no: 'HWK-AC 45112', master: 'Yes · Meisterbetrieb', gas_operator: 'Local gas network operator, Aachen', gas_no: 'IV-AC-2231', gas_valid: '2028-12-31',
+    insurer: 'Example Versicherung AG', policy_no: 'BHV-7731-22', coverage_eur: '5000000', ins_valid: '2027-06-30',
+    docs: { doc_hwk: 'handwerkskarte.pdf', doc_ins: 'insurance_2026.pdf', doc_gas: 'gas_registry.pdf', doc_vat: 'ust_bescheinigung.pdf' },
+    trades: ['gas_boiler', 'plumbing', 'shower_bath', 'water_heater_electric', 'radiators'], brands: ['Vaillant', 'Buderus', 'Viessmann', 'Grohe'],
+    base_postcode: '52068', radius_km: '15', postcodes: '52062, 52064, 52066, 52068, 52070', emergency: 'Yes', max_jobs: '6',
+    callout_eur: '89', hourly_eur: '72', weekend_pct: '25', night_pct: '50', response: 'Within 24 hours', hours_week: '07:00–17:00', hours_sat: '08:00–13:00', jobs_via: 'WhatsApp', calendar_url: '',
+    team: [{ name: 'Tom Krause', phone: '+49 171 0000000', qual: 'Master installer, gas registered' }, { name: 'Mehmet Yilmaz', phone: '+49 172 0000000', qual: 'Journeyman, gas registered' }],
+    account_holder: 'Krause SHK GmbH', iban: 'DE89 3704 0044 0532 0130 00', bic: 'COBADEFFXXX', invoice_format: 'ZUGFeRD (PDF + XML)', ag_terms: true, ag_dpa: true, ag_wa: true, ag_true: true },
+  p_hahn: { company_name: 'Hahn Haustechnik', legal_form: 'e.K.', street: 'Roermonder Str. 51', postcode: '52072', city: 'Aachen', register: 'Amtsgericht Aachen, HRA 4412', vat_id: 'DE311223344', tax_no: '201/4411/2200',
+    contact_name: 'Jana Hahn', contact_role: 'Owner, master installer', email: 'jana@hahn-haustechnik.example', mobile: '+49 172 0000000', phone_office: '+49 241 1111111', website: 'hahn-haustechnik.example',
+    hwk_chamber: 'Handwerkskammer Aachen', hwk_no: 'HWK-AC 38870', master: 'Yes · Meisterbetrieb', gas_operator: 'Local gas network operator, Aachen', gas_no: 'IV-AC-1980', gas_valid: '2027-09-30',
+    insurer: 'Beispiel Assekuranz', policy_no: 'BH-55-1902', coverage_eur: '3000000', ins_valid: '2027-01-31',
+    docs: { doc_hwk: 'handwerkskarte.pdf', doc_ins: 'versicherung.pdf', doc_gas: 'installateur.pdf', doc_vat: 'ust.pdf' },
+    trades: ['gas_boiler', 'plumbing'], brands: ['Vaillant', 'Wolf'], base_postcode: '52072', radius_km: '12', postcodes: '52062, 52064, 52072', emergency: 'No', max_jobs: '4',
+    callout_eur: '79', hourly_eur: '68', weekend_pct: '30', night_pct: '60', response: 'Within 24 hours', hours_week: '07:30–16:30', hours_sat: 'closed', jobs_via: 'WhatsApp', calendar_url: '',
+    team: [{ name: 'Jana Hahn', phone: '+49 172 0000000', qual: 'Master installer, gas registered' }, { name: 'Lukas Hahn', phone: '+49 172 0000001', qual: 'Journeyman' }],
+    account_holder: 'Jana Hahn', iban: 'DE12 3905 0000 1071 2233 44', bic: 'AACSDE33', invoice_format: 'PDF', ag_terms: true, ag_dpa: true, ag_wa: true, ag_true: true },
+  p_weber: { company_name: 'Weber & Söhne Heizung', legal_form: 'GmbH & Co. KG', street: 'Kaiserstraße 101', postcode: '52146', city: 'Würselen', register: 'Amtsgericht Aachen, HRA 7720', vat_id: 'DE287766551', tax_no: '202/1234/5678',
+    contact_name: 'Paul Weber', contact_role: 'Managing director', email: 'paul@weber-heizung.example', mobile: '+49 173 0000000', phone_office: '+49 2405 000000', website: 'weber-heizung.example',
+    hwk_chamber: 'Handwerkskammer Aachen', hwk_no: 'HWK-AC 20311', master: 'Yes · Meisterbetrieb', gas_operator: 'Local gas network operator, Würselen', gas_no: 'IV-WÜ-0771', gas_valid: '2029-03-31',
+    insurer: 'Example Versicherung AG', policy_no: 'BHV-1002-77', coverage_eur: '5000000', ins_valid: '2026-12-31',
+    docs: { doc_hwk: 'handwerkskarte.pdf', doc_ins: 'insurance.pdf', doc_gas: 'gas.pdf' },
+    trades: ['gas_boiler'], brands: ['Vaillant', 'Viessmann'], base_postcode: '52146', radius_km: '20', postcodes: '', emergency: 'Yes', max_jobs: '3',
+    callout_eur: '95', hourly_eur: '78', weekend_pct: '25', night_pct: '50', response: 'Same day', hours_week: '07:00–18:00', hours_sat: '08:00–14:00', jobs_via: 'Portal only', calendar_url: 'https://calendar.example/weber',
+    team: [{ name: 'Paul Weber', phone: '+49 173 0000000', qual: 'Master installer, Vaillant service partner' }],
+    account_holder: 'Weber & Söhne Heizung GmbH & Co. KG', iban: 'DE44 3706 0193 0011 2233 00', bic: 'GENODED1PAX', invoice_format: 'XRechnung', ag_terms: true, ag_dpa: true, ag_wa: false, ag_true: true }
+};
+const BILL_SEED = [
+  { propertyId: 'u4b', date: '12 Mar 2026', what: 'Annual boiler service', partner: 'p_krause', total: 142.00, status: 'Paid' },
+  { propertyId: 'u4a', date: '12 Mar 2026', what: 'Annual boiler service', partner: 'p_krause', total: 142.00, status: 'Paid' },
+  { propertyId: 'u2a', date: '3 Nov 2026', what: 'Kitchen drain blocked', partner: 'p_krause', total: 145.00, status: 'Paid' },
+  { propertyId: 'u2a', date: '2 Feb 2026', what: 'Annual boiler service', partner: 'p_hahn', total: 129.00, status: 'Paid' },
+  { propertyId: 'a40', date: '18 Nov 2026', what: 'Radiator valve leaking', partner: 'p_krause', total: 140.00, status: 'Paid' },
+  { propertyId: 'a40', date: '5 Oct 2026', what: 'Central boiler service', partner: 'p_weber', total: 389.00, status: 'Paid' },
+  { propertyId: 'k8', date: '14 Aug 2026', what: 'Water heater fuse replaced', partner: 'p_hahn', total: 96.00, status: 'Paid' },
+  { propertyId: 'l3', date: '1 Jun 2026', what: 'Boiler service', partner: 'p_weber', total: 175.00, status: 'Paid' }
+];
+function freshStore() {
+  const avail = {}; for (let d = 0; d < 7; d++) for (let b = 0; b < 6; b++) avail[d + '_' + b] = d < 5 ? b < 5 : (d === 5 ? b < 3 : false);
+  return { rev: 0, nextCase: 7781, properties: JSON.parse(JSON.stringify(PROPS_SEED)), partners: JSON.parse(JSON.stringify(PARTNERS_SEED)),
+    cases: JSON.parse(JSON.stringify(HIST_CASES)), profiles: JSON.parse(JSON.stringify(PROFILE_SEED)), bills: JSON.parse(JSON.stringify(BILL_SEED)), partnerJobs: { p_krause: JSON.parse(JSON.stringify(KRAUSE_JOBS)) },
+    partnerData: { p_krause: { avail, timeoff: [{ from: '2026-12-24', to: '2026-12-27', why: 'Christmas' }],
+      requests: [{ id: 'rq_610', what: 'Toilet cistern running', area: '52064 Aachen', dur: '60 min', by: 'Wed', picked: [], sent: false }] } } };
+}
+function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
+if (/[?&]reset\b/.test(location.search)) localStorage.removeItem(KEY);
+let ST = load() || freshStore();
+function save() { ST.rev++; try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) {} }
+function commit(fn) { ST = load() || ST; fn(ST); save(); if (typeof onStore === 'function') onStore(); }
+window.addEventListener('storage', e => { if (e.key === KEY) { ST = load() || freshStore(); if (typeof onStore === 'function') onStore(); } });
+
+const prop = id => ST.properties.find(p => p.id === id) || {};
+const partner = id => ST.partners.find(p => p.id === id) || {};
+const caseById = id => ST.cases.find(c => c.id === id);
+const liveCases = () => ST.cases.filter(c => !c.hist);
+const flatName = p => `${p.street} · ${p.floor}`;
+const rankFor = c => (FAULTS[c.fault] || FAULTS.heater).rank.map(([id, score, est, why]) => ({ id, score, est, why }));
+const capFor = est => Math.ceil(est * 1.07 / 10) * 10;
+const firstName = n => String(n || '').split(' ')[0];
+
+/* ---------- case helpers (used by every page) ---------- */
+function ev(c, text, source) { c.events.unshift({ t: nowT(), text, source }); }
+function bot(c, html, card) { c.messages.push({ who: 'bot', html, t: nowT(), card: card || null }); }
+function me(c, text, src) { c.messages.push({ who: 'me', html: esc(text), t: nowT(), src: src || 'WhatsApp' }); }
+function note(c, html) { c.messages.push({ who: 'note', html, t: nowT() }); }
+function echo(c, text, source) { me(c, text, source); }
+
+function openCase(st, text, source, pid) {
+  const p = st.properties.find(x => x.id === pid) || st.properties[0];
+  const c = { id: String(st.nextCase++), propertyId: p.id, title: text.length > 38 ? text.slice(0, 36).replace(/\s+\S*$/, '') + '…' : text.replace(/[.!]+$/, ''), problem: text, stage: 'diag', opened: nowT(), openedDate: today(), channel: source,
+    node: null, asked: 0, fault: null, sub: null, evidence: [], hyp: null, other: [], photo: false, availSel: [], ranking: null, partnerId: null,
+    estimate: null, approval: null, proposal: null, alts: [], showAlts: false, slot: null, tech: null, consent: null,
+    job: { status: null, report: null, invoice: null, declined: [] }, feedback: null, messages: [], events: [], qr: [], fix: null };
+  st.cases.unshift(c);
+  me(c, text, source);
+  ev(c, `Case opened: “${esc(text)}”`, source); ev(c, `Recognised ${p.tenant} by phone number`, 'Debye');
+  bot(c, `Hi ${firstName(p.tenant)} 👋 I’ve opened <b>case ${c.id}</b> for your flat at ${p.street}, ${p.floor}.<br><br>I already know your address and your boiler (${p.device}), so I’ll just ask a few quick questions. You can also answer on your case page: <a href="#">debye.app/c/${c.id}</a>`);
+  ask(c, 'gas');
+  return c;
+}
+function ask(c, id) {
+  c.node = id; c.asked++; const n = TREE[id];
+  bot(c, `<b>${c.asked}.</b> ${n.q}`);
+  c.qr = n.photo ? [{ label: '📷 Send photo', act: 'photo' }] : n.opts.map((o, i) => ({ label: o.l, act: 'answer', a: [id, i] }));
+}
+function applyOpt(c, o) {
+  if (o.ev) c.evidence.push({ kind: o.ev[0], text: o.ev[1] });
+  if (o.hyp) c.hyp = { t: o.hyp[0], c: o.hyp[1] };
+  if (o.fault) { c.fault = o.fault; c.title = FAULTS[o.fault].title; }
+  if (o.sub) c.sub = o.sub;
+}
+function route(c, next, o) {
+  if (next === 'SUB') next = c.sub === 'mixer' ? 'mixer_test' : 'head_test';
+  if (next === 'DONE') return finishDiag(c);
+  if (next === 'RESOLVED') { c.stage = 'resolved'; c.node = null; c.fix = o.fix; c.qr = []; ev(c, 'Fixed by the tenant with our help. No technician needed.', 'Debye'); bot(c, `Great news 🎉 ${o.fix}<br><br>I’ve closed the case. No technician, no cost.`, { type: 'resolved' }); return; }
+  if (next === 'EMERGENCY') { c.stage = 'emergency'; c.node = null; c.qr = []; c.title = 'Gas smell'; ev(c, 'Gas smell reported. Emergency procedure started, property manager alerted.', 'Debye'); bot(c, '<b>Please leave the flat now.</b> Don’t use light switches or your phone inside. Once outside, call the gas emergency number on your gas bill. I’ve alerted your property manager.', { type: 'emergency' }); return; }
+  ask(c, next);
+}
+function answer(c, id, i, source, typed) {
+  if (c.stage !== 'diag' || c.node !== id) return;
+  const n = TREE[id], o = n.opts[i];
+  c.qr = []; if (!typed) echo(c, o.l, source);
+  applyOpt(c, o); ev(c, `${n.step}: ${esc(o.l)}`, source);
+  route(c, o.next, o);
+}
+function photo(c, source) {
+  const n = TREE[c.node]; if (c.stage !== 'diag' || !n || !n.photo) return;
+  c.qr = []; c.photo = n.photo;
+  c.messages.push({ who: 'me', photo: n.photo, html: 'photo.jpg', t: nowT(), src: source });
+  applyOpt(c, n); ev(c, `Photo received${n.photo === 'boiler' ? ': display reads F.28' : ''}`, source);
+  if (n.photo === 'boiler') bot(c, 'Thanks. I can read <b>F.28</b> on the display: the burner isn’t igniting. A few more checks so the technician brings the right part.');
+  route(c, n.next, n);
+}
+function finishDiag(c) {
+  c.stage = 'avail'; c.node = null;
+  bot(c, `That’s all I need, thank you. My conclusion: <b>${esc(c.hyp.t.toLowerCase())}</b>. I’m finding ${c.fault === 'heater' ? 'a certified gas technician' : 'a plumber'} now.`, { type: 'diagnosis' });
+  bot(c, 'While I do that: <b>when are you roughly at home</b> in the next few days? Tap all that work, then “Send”. You’ll confirm the exact time later.', { type: 'avail' });
+  c.qr = availQR(c);
+}
+function availQR(c) { return AV.map(a => ({ label: (c.availSel.includes(a.id) ? '✓ ' : '') + a.l, act: 'avail', a: [a.id] })).concat(c.availSel.length ? [{ label: 'Send ➤', act: 'avail_send' }] : []); }
+function toggleAvail(c, id) { if (c.stage !== 'avail') return; const i = c.availSel.indexOf(id); if (i < 0) c.availSel.push(id); else c.availSel.splice(i, 1); c.qr = availQR(c); }
+function sendAvail(c, source, typed) {
+  if (c.stage !== 'avail' || !c.availSel.length) return;
+  c.availSel.sort((a, b) => AV.findIndex(x => x.id === a) - AV.findIndex(x => x.id === b));
+  const txt = c.availSel.map(id => AV.find(a => a.id === id).l).join(', ');
+  c.qr = []; if (!typed) echo(c, txt, source);
+  ev(c, `Rough availability: ${txt}`, source);
+  c.ranking = rankFor(c); c.partnerId = c.ranking[0].id; c.estimate = c.ranking[0].est;
+  ev(c, `${partner(c.partnerId).name} matched (score ${c.ranking[0].score} of ${c.ranking.length + 1} partners)`, 'Debye');
+  const limit = prop(c.propertyId).limit;
+  if (c.estimate <= limit) {
+    c.approval = { by: 'Automatic (under the owner’s limit)', amount: c.estimate, t: nowT() };
+    ev(c, `Repair approved automatically: ${eur0(c.estimate)} is under the €${limit} limit`, 'Debye');
+    bot(c, `Thanks! The repair is approved. Now <b>${partner(c.partnerId).short}</b> picks a time inside your windows, and I’ll ask you to confirm it.`);
+    toPartner(c);
+  } else {
+    c.stage = 'approval';
+    bot(c, 'Thanks! Here’s what happens next:<br>1. Your property manager approves the repair.<br>2. The technician picks a time inside your windows.<br>3. I ask you to confirm it.<br><br>Nothing to do until then.', { type: 'steps' });
+  }
+}
+function setPartnerChoice(c, pid) { const r = c.ranking.find(x => x.id === pid); if (!r) return; c.partnerId = pid; c.estimate = r.est; }
+function approve(c, by) {
+  if (c.stage !== 'approval') return;
+  c.approval = { by, amount: c.estimate, t: nowT() };
+  ev(c, `Repair approved by ${by}: ${eur0(c.estimate)} for ${partner(c.partnerId).short}${c.partnerId !== c.ranking[0].id ? ' (chosen instead of the best match)' : ''}`, 'Housekeeper');
+  bot(c, `Your property manager approved the repair ✓ Now waiting for <b>${partner(c.partnerId).short}</b> to accept and pick a time.`);
+  toPartner(c);
+}
+function rejectCase(c, by) {
+  if (c.stage !== 'approval') return;
+  c.stage = 'rejected'; c.qr = []; ev(c, `Repair not approved by ${by}`, 'Housekeeper');
+  bot(c, 'Your property manager wants to look at this personally and will call you today.');
+}
+function toPartner(c) { c.stage = 'partner'; c.job.status = 'offered'; c.job.offeredAt = nowT(); ev(c, `Job sent to ${partner(c.partnerId).name} (first name, phone, address, photos)`, 'Debye'); }
+function partnerAccept(c, slot, tech) {
+  if (c.stage !== 'partner') return;
+  const mine = c.availSel.flatMap(id => AV.find(a => a.id === id).slots);
+  c.job.status = 'accepted'; c.tech = tech; c.proposal = slot; c.alts = mine.filter(s => s !== slot).slice(0, 2); c.showAlts = false; c.stage = 'confirm';
+  ev(c, `${partner(c.partnerId).short} accepted. ${tech} proposed ${slot}`, 'Partner');
+  bot(c, `${partner(c.partnerId).short} accepted ✓ <b>${firstName(tech)}</b> can come <b>${slot}</b>. Does that work for you?`, { type: 'proposal' });
+  c.qr = [{ label: 'Yes, confirm', act: 'confirm', a: [slot] }].concat(c.alts.length ? [{ label: 'Another time', act: 'alt' }] : []);
+}
+function partnerDecline(c, reason) {
+  if (c.stage !== 'partner') return;
+  c.job.declined.push(c.partnerId); ev(c, `${partner(c.partnerId).short} declined: ${reason}`, 'Partner');
+  const next = c.ranking.find(r => !c.job.declined.includes(r.id));
+  if (next) { c.partnerId = next.id; c.estimate = next.est; ev(c, `Offered to the next partner: ${partner(next.id).short}`, 'Debye'); c.job.status = 'offered'; }
+  else { c.stage = 'approval'; c.job.status = null; ev(c, 'No partner left. Property manager needs to decide.', 'Debye'); }
+}
+function anotherTime(c, source, typed) {
+  if (c.stage !== 'confirm') return; if (!typed) echo(c, 'Another time', source);
+  c.showAlts = true; bot(c, `No problem. ${firstName(c.tech)} can also do:`);
+  c.qr = c.alts.map(s => ({ label: s, act: 'confirm', a: [s] }));
+}
+function confirmSlot(c, slot, source, typed) {
+  if (c.stage !== 'confirm') return;
+  c.slot = slot; c.stage = 'booked'; c.job.status = 'scheduled'; c.qr = [];
+  if (!typed) echo(c, slot === c.proposal ? 'Yes, confirm' : slot, source);
+  c.consent = { fields: ['first name', 'phone', 'address', 'photos'], partner: partner(c.partnerId).name, t: nowT(), channel: source };
+  ev(c, `Tenant confirmed ${slot}`, source);
+  bot(c, `Booked ✓ <b>${firstName(c.tech)} from ${partner(c.partnerId).short}</b> comes <b>${slot}</b>.<br><br>He gets your first name, phone, address and the photos, nothing else. Reply here if anything changes.`, { type: 'booking' });
+}
+function setJobStatus(c, status) {
+  c.job.status = status;
+  if (status === 'on_the_way') { ev(c, `${c.tech} is on the way`, 'Partner'); bot(c, `${firstName(c.tech)} is on the way 🚐`, { type: 'status' }); }
+  if (status === 'on_site') bot(c, `${firstName(c.tech)} has arrived.`, { type: 'status' });
+  if (status === 'on_site') { ev(c, `${c.tech} arrived`, 'Partner'); }
+}
+function completeJob(c, work, parts) {
+  c.job.status = 'completed'; c.job.report = { work, parts, t: nowT() }; c.stage = 'feedback';
+  ev(c, `Repair done: ${work}`, 'Partner');
+  bot(c, `${firstName(c.tech)} finished: ${esc(work.replace(/\.$/, ''))}. Is everything working again?`, { type: 'repair' });
+  c.qr = [{ label: '👍 Fixed', act: 'fb', a: ['fixed'] }, { label: 'Not fixed', act: 'fb', a: ['not'] }];
+}
+function feedback(c, val, source, typed) {
+  if (c.stage !== 'feedback') return;
+  if (!typed) echo(c, val === 'fixed' ? '👍 Fixed' : 'Not fixed', source);
+  c.qr = [];
+  if (val === 'fixed') { c.feedback = 'fixed'; ev(c, 'Tenant confirmed it’s fixed', source); bot(c, 'Great, thank you! Your landlord pays for this repair. I’ll put the report on your case page.'); tryClose(c); }
+  else { c.feedback = 'not'; ev(c, 'Tenant says it’s not fixed. Partner asked to call within 2 h.', source); bot(c, `Sorry about that. I’ve told ${partner(c.partnerId).short}; they’ll call you within 2 hours.`);
+    c.qr = [{ label: '👍 Fixed', act: 'fb', a: ['fixed'] }, { label: 'Not fixed', act: 'fb', a: ['not'] }]; }
+}
+function submitInvoice(c, inv) {
+  c.job.invoice = inv; c.job.status = 'invoiced';
+  ev(c, `Invoice ${inv.no} received: ${eur(inv.total)}${inv.total <= c.approval.amount * 1.1 ? ', within the approved amount' : ', over the approved amount'}`, 'Partner');
+  tryClose(c);
+}
+function tryClose(c) {
+  if (c.feedback === 'fixed' && c.job.invoice) { c.stage = 'closed'; c.closedAt = nowT(); ev(c, `Case closed. Invoice and report filed on ${flatName(prop(c.propertyId))}`, 'Debye'); bot(c, 'All done ✓ Your case is closed and the repair report is on your home record.', { type: 'closed' }); }
+}
+function tenantInput(c, act, a, source) {
+  if (act === 'answer') answer(c, a[0], a[1], source);
+  if (act === 'photo') photo(c, source);
+  if (act === 'avail') toggleAvail(c, a[0]);
+  if (act === 'avail_send') sendAvail(c, source);
+  if (act === 'confirm') confirmSlot(c, a[0], source);
+  if (act === 'alt') anotherTime(c, source);
+  if (act === 'fb') feedback(c, a[0], source);
+}
+function tenantText(st, c, text, source) {
+  const t = text.toLowerCase().trim();
+  if (!c || ['closed', 'resolved', 'rejected', 'emergency'].includes(c.stage)) return openCase(st, text, source, c && c.propertyId);
+  me(c, text, source);
+  if (c.stage === 'diag') {
+    const n = TREE[c.node];
+    if (!n.photo) { const i = n.opts.findIndex(o => o.kw.test(t)); if (i >= 0) return answer(c, c.node, i, source, true); }
+    c.other.push(text); ev(c, `Also mentioned: “${esc(text)}”`, source);
+    bot(c, `Noted, I’ll pass that on to the technician. Back to my question:<br>${n.q}`); return;
+  }
+  if (c.stage === 'avail') {
+    const map = [['today_pm', /today.*afternoon|afternoon today|heute nachmittag/], ['today_eve', /today.*evening|tonight|heute abend/], ['tom_am', /tomorrow.*morning|morgen früh|morgen vormittag/],
+      ['tom_pm', /tomorrow.*afternoon|morgen nachmittag/], ['d2_am', /day after.*morning|übermorgen.*(früh|vormittag)/], ['d2_eve', /day after.*(evening|17)|übermorgen.*abend/]];
+    const hit = map.filter(([, re]) => re.test(t)).map(([id]) => id);
+    if (hit.length) { c.availSel = hit; return sendAvail(c, source, true); }
+  }
+  if (c.stage === 'confirm') { if (/^(yes|ja|ok|confirm|passt|works)/.test(t)) return confirmSlot(c, c.proposal, source, true); if (/another|other|no|nein|andere/.test(t)) return anotherTime(c, source, true); }
+  if (c.stage === 'feedback') { if (/fixed|works|ok|gut|läuft|yes|ja/.test(t)) return feedback(c, 'fixed', source, true); if (/not|nein|no/.test(t)) return feedback(c, 'not', source, true); }
+  c.other.push(text); ev(c, `Message: “${esc(text)}”`, source);
+  bot(c, 'Got it, I’ve added that to your case. Your property manager can see it too.');
+}
+const STAGE_LABEL = { diag: ['Diagnosing', 'hot'], avail: ['Waiting for tenant times', 'wait'], approval: ['Needs approval', 'hot'], partner: ['Waiting for partner', 'wait'],
+  confirm: ['Tenant confirming time', 'wait'], booked: ['Booked', 'blue'], feedback: ['Repaired · awaiting tenant', 'blue'], closed: ['Closed', 'ok'], resolved: ['Fixed by tenant', 'ok'],
+  rejected: ['Not approved', ''], emergency: ['Emergency', 'red'] };
+function jobFromCase(c) {
+  const p = prop(c.propertyId), f = FAULTS[c.fault] || FAULTS.heater;
+  const summary = [];
+  summary.push(c.fault === 'heater' ? 'No hot water at any tap.' : 'Only the shower is affected; the kitchen has hot water.');
+  c.evidence.forEach(e => { if (!/^Kitchen|^No hot water at any/.test(e.text)) { const x = e.text.replace(/^Ruled out: /, ''); summary.push(x.charAt(0).toUpperCase() + x.slice(1) + '.'); } });
+  return { id: 'case_' + c.id, live: c.id, title: f.jobTitle, trade: f.trade, urgency: f.urgency, received: 'Today, ' + (c.job.offeredAt || ''), device: `${p.device} (${p.year})`,
+    display: c.photo === 'boiler' ? 'F.28 · no ignition' : '–', part: f.part, address: `${p.street}, ${p.postcode} ${p.city}, ${p.floor}`, contact: `${firstName(p.tenant)} · ${p.phone}`,
+    access: p.access + (c.other.length ? ' · see “also mentioned”' : ''), windows: c.availSel.map(id => AV.find(a => a.id === id).l).join(', '),
+    options: c.availSel.flatMap(id => AV.find(a => a.id === id).slots), cap: capFor(c.estimate || 0), photo: c.photo || (c.fault === 'heater' ? 'boiler' : 'mixer'),
+    summary: summary.slice(0, 5), also: c.other, conclusion: [c.hyp ? c.hyp.t : f.part, c.hyp ? c.hyp.c : 80],
+    reasoning: c.evidence.map(e => [e.kind === 'no' ? 'n' : 'y', e.text.split(':')[0].replace(/^Ruled out$/, 'Ruled out'), e.text.includes(':') ? e.text.split(':').slice(1).join(':').trim() : '']),
+    transcript: c.messages.filter(m => m.who !== 'note').map(m => [m.who === 'me' ? 't' : 'c', m.t, m.photo ? '[photo]' : strip(m.html)]),
+    slot: c.slot || c.proposal, tech: c.tech, status: c.job.status, invoice: c.job.invoice, work: c.fault === 'heater' ? 'Replaced gas valve, tested hot water at all taps.' : 'Replaced thermostat cartridge.',
+    parts: c.fault === 'heater' ? 'Gas valve (Vaillant)' : 'Cartridge', invNet: c.fault === 'heater' ? 345.38 : 126.05, completedAt: c.job.report ? 'Today ' + c.job.report.t : '' };
+}
+const LOGO = '__LOGO__';
+const $ = id => document.getElementById(id);
+const CLOSED = ['closed', 'resolved', 'rejected', 'emergency'];
+const SKEY = 'debye_tenant';
+const me_ = () => ST.properties.find(p => p.id === sessionStorage.getItem(SKEY));
+const emailOf = p => p.tenant.toLowerCase().replace(/^familie /, '').replace(/[^a-z]+/g, '.') + '@example.com';
+const myCases = () => { const p = me_(); return p ? ST.cases.filter(c => !c.hist && c.propertyId === p.id) : []; };
+const shot = k => k === 'boiler' ? `<div class="shot"><div class="boiler"><div class="lcd">F.28</div></div></div>` : `<div class="shot"><div class="mixer"></div></div>`;
+const icon = { yes: 'y', no: 'n', info: 'i' };
+let OPEN = null, LOGIN_ERR = '', DRAFT = '';
+const hroute = () => { const h = location.hash.slice(1).split('/'); return h[0] === 'case' ? h[1] : null; };
+window.addEventListener('hashchange', () => render());
+
+const STEP_SHORT = { diag: 'Diagnosis', avail: 'Your times needed', approval: 'Waiting for approval', partner: 'Waiting for technician', confirm: 'Confirm the time',
+  booked: 'Visit booked', feedback: 'Confirm the repair', closed: 'Closed', resolved: 'Fixed', rejected: 'Manager will call', emergency: 'Emergency' };
+
+/* ---------- login ---------- */
+function renderLogin() {
+  $('root').innerHTML = `<div class="login"><div class="lbox"><div class="logo"></div><h1>Log in to Debye</h1><p>Your home, your repairs, one place.</p>
+    <input id="lid" placeholder="Email or phone number" autocomplete="username"><input id="lpw" type="password" placeholder="Password" autocomplete="current-password">
+    ${LOGIN_ERR ? `<div class="err">${esc(LOGIN_ERR)}</div>` : ''}<button class="primary" id="lgo">Log in</button>
+    <div class="lnote">Use the email or phone number from your tenancy agreement. You can also just message Debye on WhatsApp.</div></div></div>`;
+  const go = () => {
+    const id = $('lid').value.trim().toLowerCase().replace(/\s+/g, ''), pw = $('lpw').value;
+    const p = ST.properties.find(x => x.phone.replace(/\s+/g, '') === id || emailOf(x) === id);
+    if (!p) { LOGIN_ERR = 'We couldn’t find a tenancy with that email or phone number.'; return renderLogin(); }
+    if (!pw) { LOGIN_ERR = 'Please enter your password.'; return renderLogin(); }
+    sessionStorage.setItem(SKEY, p.id); LOGIN_ERR = ''; location.hash = ''; render();
+  };
+  $('lgo').onclick = go; $('lpw').onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+
+/* ---------- top bar ---------- */
+const STEP_INDEX = { diag: 1, avail: 2, approval: 3, partner: 4, confirm: 5, booked: 6, feedback: 7, closed: 8, resolved: 8, rejected: 3, emergency: 1 };
+function miniBar(c) { const k = STEP_INDEX[c.stage] || 0; return `<div class="mini">${[...Array(8)].map((_, i) => `<i class="${i < k ? 'd' : i === k ? 'n' : ''}"></i>`).join('')}</div>`; }
+function topbar(sel) {
+  const p = me_(), open = myCases().filter(c => !CLOSED.includes(c.stage));
+  return `<header class="top"><button class="tbrand" data-new><div class="logo"></div>Debye</button>
+    <nav class="tabs"><button class="tab ${!sel ? 'on' : ''}" data-new>Home</button>${open.map(c => `<button class="tab ${sel === c.id ? 'on' : ''}" data-case="${c.id}"><span class="dotst ${['approval', 'partner'].includes(c.stage) ? 'wait' : ''}"></span>${esc(c.title.length > 22 ? c.title.slice(0, 21) + '…' : c.title)}</button>`).join('')}</nav>
+    <div class="tuser"><div class="uav">${esc(p.tenant[0])}</div><div><b style="font-weight:600">${esc(p.tenant)}</b> <span>· ${esc(p.street)}, ${esc(p.floor)}</span></div><button class="logout" data-logout>Log out</button></div></header>`;
+}
+const greet = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
+/* ---------- home ---------- */
+function renderHome() {
+  const p = me_(), open = myCases().filter(c => !CLOSED.includes(c.stage));
+  const closedC = myCases().filter(c => CLOSED.includes(c.stage));
+  $('root').innerHTML = `<div class="shell">${topbar(null)}<div class="app"><main>
+    <div class="homewrap"><div class="hello"><div class="logo"></div><h1>${greet()}, ${esc(firstName(p.tenant.replace(/^Familie /, '')))}.</h1><p>I’m Debye. What problem do you have at home?</p></div>
+      <div class="bigin"><textarea id="newtext" placeholder="Please enter your problem, e.g. “My shower only runs cold.”">${esc(DRAFT)}</textarea>
+        <div class="binrow"><span class="hint">I already know your address and your appliances.</span><button class="sendc" id="newgo" aria-label="Send">➤</button></div></div>
+      <div class="sugg"><button data-s="My shower’s broken, there’s no hot water.">No hot water</button><button data-s="My shower only runs cold.">Shower only runs cold</button><button data-s="The shower has almost no water pressure.">Weak shower</button></div>
+      <div class="opencases">${open.length ? `<h3>Open cases</h3><div class="ocgrid">${open.map(c => `<button class="oc" data-case="${c.id}"><b>${esc(c.title)}</b><span>Case ${c.id} · opened ${esc(c.opened)}${c.messages.some(m => m.src === 'WhatsApp') ? ' · on WhatsApp' : ''}</span><br><span class="ostep">${STEP_SHORT[c.stage]}</span>${miniBar(c)}</button>`).join('')}</div>`
+        : `<h3>Open cases</h3><p style="color:var(--muted);margin:0">No open cases. Anything you report here or on WhatsApp shows up here.</p>`}
+      ${closedC.length ? `<div class="closedlist"><h3>Closed cases</h3>${closedC.map(c => `<button class="cl" data-case="${c.id}"><b style="font-weight:500">${esc(c.title)}</b><span>${STEP_SHORT[c.stage]} · ${c.id}</span></button>`).join('')}</div>` : ''}</div></div></main></div></div>`;
+  const ta = $('newtext'); ta.focus(); ta.oninput = () => { DRAFT = ta.value; };
+  const start = v => { v = (v || '').trim(); if (!v) return ta.focus(); DRAFT = ''; let id; commit(st => { id = openCase(st, v, 'Website', me_().id).id; }); location.hash = 'case/' + id; };
+  $('newgo').onclick = () => start(ta.value);
+  ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); start(ta.value); } };
+  document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => start(b.dataset.s));
+}
+
+/* ---------- case chat ---------- */
+function cardHTML(c, m) {
+  const k = m.card && m.card.type; if (!k) return '';
+  const pn = c.partnerId ? partner(c.partnerId).short : '';
+  if (k === 'diagnosis') return `<div class="card"><h4>What we found</h4><b>${esc(c.hyp ? c.hyp.t : '')}</b><div class="bar"><i style="width:${c.hyp ? c.hyp.c : 0}%"></i></div>
+      <ul class="ev">${c.evidence.map(e => `<li><span class="ic ${icon[e.kind]}">${e.kind === 'no' ? '✗' : e.kind === 'info' ? '!' : '✓'}</span><span>${esc(e.text)}</span></li>`).join('')}</ul></div>`;
+  if (k === 'proposal') return `<div class="card"><div class="big"><div class="tav">${esc(firstName(c.tech)).slice(0, 1)}</div><div><b>${esc(c.proposal)}</b><span>${esc(c.tech)} · ${esc(pn)}</span></div></div></div>`;
+  if (k === 'booking') return `<div class="card good"><div class="big"><div class="tav">✓</div><div><b>${esc(c.slot)}</b><span>${esc(c.tech)} · ${esc(partner(c.partnerId).name)}</span></div></div></div>`;
+  if (k === 'repair') return c.job.report ? `<div class="card"><h4>Repair report</h4>${esc(c.job.report.work)}<div class="meta">Parts: ${esc(c.job.report.parts)}</div></div>` : '';
+  if (k === 'closed') return `<div class="card good"><b>Case ${c.id} closed</b><div class="meta" style="color:var(--ok)">📄 report_${c.id}.pdf · paid by your landlord</div></div>`;
+  if (k === 'resolved') return `<div class="card good"><b>Solved without a technician</b></div>`;
+  if (k === 'emergency') return `<div class="card emerg"><b style="color:var(--red)">Gas smell: leave the flat now</b><div class="meta">Your property manager has been alerted.</div></div>`;
+  return '';
+}
+function progress(c) {
+  const p = prop(c.propertyId), pn = c.partnerId ? partner(c.partnerId).short : 'Technician';
+  const order = ['diag', 'avail', 'approval', 'partner', 'confirm', 'booked', 'feedback', 'closed'];
+  const i = order.indexOf(c.stage), resolved = c.stage === 'resolved';
+  const S = (k) => { if (resolved) return k === 'diag' || k === 'closed' ? 'done' : 'skip'; if (c.stage === 'emergency' || c.stage === 'rejected') return k === 'diag' && c.stage === 'rejected' ? 'done' : 'pending'; const j = order.indexOf(k); return i > j ? 'done' : i === j ? 'now' : 'pending'; };
+  const visitSub = c.slot ? `${c.slot}${c.job.status === 'on_the_way' ? ' · on the way' : c.job.status === 'on_site' ? ' · technician is there' : c.job.status === 'completed' || c.job.status === 'invoiced' ? ' · done' : ''}` : '';
+  const rows = [
+    ['done', 'Problem reported', `${c.opened} · ${c.channel === 'WhatsApp' ? 'on WhatsApp' : 'on the website'}`],
+    [S('diag'), 'Diagnosis', c.stage === 'diag' ? `Question ${c.asked}` : (c.hyp ? `${c.hyp.t} · ${c.hyp.c}% sure` : '')],
+    [S('avail'), 'Your rough times', c.availSel.length && i > 1 ? c.availSel.map(id => AV.find(a => a.id === id).l).join(', ') : ''],
+    [S('approval'), 'Property manager approves', c.approval ? (c.approval.by.startsWith('Automatic') ? 'Approved automatically' : `Approved at ${c.approval.t}`) : ''],
+    [S('partner'), `${pn} accepts`, c.proposal ? `${firstName(c.tech)} proposed ${c.proposal}` : ''],
+    [S('confirm'), 'You confirm the time', c.slot || ''],
+    [resolved ? 'skip' : c.stage === 'booked' ? 'now' : ['feedback', 'closed'].includes(c.stage) ? 'done' : 'pending', 'Visit and repair', visitSub],
+    [resolved || c.stage === 'closed' ? 'done' : (c.stage === 'feedback' ? 'now' : 'pending'), 'Done', c.stage === 'closed' ? 'Report filed on your home record' : resolved ? 'Fixed without a technician' : (c.feedback === 'fixed' ? 'Finishing the paperwork' : c.stage === 'feedback' ? 'Is everything working again?' : '')]
+  ];
+  if (c.stage === 'emergency') rows.splice(1, rows.length - 1, ['now', 'Emergency: gas smell', 'Leave the flat. Your property manager was alerted.']);
+  return `<aside class="panel"><h2>${esc(c.title)}</h2><div class="psub">Case ${c.id} · ${esc(p.street)}, ${esc(p.floor)}</div>
+    <ol class="flow">${rows.map(([s, t, sub], n) => `<li class="${s}"><span class="fd">${s === 'done' ? '✓' : n + 1}</span><div class="ft"><b>${esc(t)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div></li>`).join('')}</ol>
+    ${c.tech ? `<div class="pbox"><h4>Technician</h4><div class="big"><div class="tav" style="width:36px;height:36px">${esc(c.tech[0])}</div><div><b style="font-size:14px">${esc(c.tech)}</b><span style="font-size:13px">${esc(partner(c.partnerId).name)}</span></div></div></div>` : ''}
+    <div class="pbox"><h4>Your home</h4><dl><dt>Boiler</dt><dd>${esc(p.device)}</dd><dt>Last service</dt><dd>${esc(p.service)}</dd><dt>Landlord</dt><dd>${esc(p.owner)}</dd></dl></div></aside>`;
+}
+function renderCase(id) {
+  const c = caseById(id); if (!c || c.propertyId !== me_().id) { location.hash = ''; return; }
+  const L = STAGE_LABEL[c.stage], closed = CLOSED.includes(c.stage);
+  let h = '';
+  c.messages.forEach(m => {
+    if (m.who === 'note') return;
+    if (m.who === 'me') h += `<div class="row me"><div style="display:flex;flex-direction:column;align-items:flex-end;max-width:75%"><div class="ubub">${m.photo ? shot(m.photo) : m.html}</div><div class="meta">${m.t}${m.src === 'WhatsApp' ? '<span class="via">via WhatsApp</span>' : ''}</div></div></div>`;
+    else h += `<div class="row"><div class="bav"></div><div><div class="btext"><div class="bname">Debye</div>${m.html}${cardHTML(c, m)}</div><div class="meta">${m.t}</div></div></div>`;
+  });
+  if (!closed && c.qr && c.qr.length) {
+    if (c.stage === 'avail') h += `<div class="actions">${c.qr.filter(q => q.act === 'avail').map(q => `<button class="chip ${c.availSel.includes(q.a[0]) ? 'on' : ''}" data-act="avail" data-a='${JSON.stringify(q.a)}'>${esc(AV.find(a => a.id === q.a[0]).l)}</button>`).join('')}
+        <button class="chip solid" data-act="avail_send" ${c.availSel.length ? '' : 'disabled style="opacity:.4"'}>Send my times</button></div>`;
+    else h += `<div class="actions">${c.qr.map((q, n) => q.act === 'photo' ? `<label class="chip solid" style="cursor:pointer">📷 Upload photo<input type="file" accept="image/*" data-photo style="display:none"></label>`
+        : `<button class="chip ${n === 0 ? 'solid' : ''}" data-act="${q.act}" data-a='${JSON.stringify(q.a || [])}'>${esc(q.label)}</button>`).join('')}</div>`;
+  }
+  const composer = closed ? `<div class="composer"><div class="closedbar"><span>This case is ${c.stage === 'closed' || c.stage === 'resolved' ? 'closed' : 'with your property manager'}. Something else broken?</span><button data-new>Report a new problem</button></div></div>`
+    : `<form class="composer" id="composer"><div class="cin"><label class="att" title="Add a photo">📎<input type="file" id="file" accept="image/*" style="display:none"></label>
+        <textarea id="msg" rows="1" placeholder="Message Debye…"></textarea><button class="sendc" type="submit" aria-label="Send">➤</button></div>
+        <div class="cnote">Same conversation as your WhatsApp with Debye. Answer wherever is easier.</div></form>`;
+  const prevScroll = $('thread') ? $('thread').scrollTop : null, wasBottom = $('thread') ? $('thread').scrollHeight - $('thread').scrollTop - $('thread').clientHeight < 80 : true;
+  const draft = $('msg') ? $('msg').value : '';
+  $('root').innerHTML = `<div class="shell">${topbar(c.id)}<div class="app withpanel"><main><div class="topline"><button class="back" data-new title="Home">‹</button><div><b>${esc(c.title)}</b><br><span>Case ${c.id} · opened ${esc(c.opened)}</span></div><span class="stpill ${closed && c.stage !== 'emergency' ? 'ok' : ''}">${L[0]}</span></div>
+    <div class="thread" id="thread"><div class="inner">${h}</div></div>${composer}</main>${progress(c)}</div></div>`;
+  const t = $('thread'); t.scrollTop = wasBottom || OPEN !== c.id ? t.scrollHeight : prevScroll; OPEN = c.id;
+  document.querySelectorAll('.inner [data-act]').forEach(b => b.onclick = () => commit(st => tenantInput(caseById(c.id), b.dataset.act, JSON.parse(b.dataset.a || '[]'), 'Website')));
+  document.querySelectorAll('[data-photo]').forEach(f => f.onchange = () => commit(st => photo(caseById(c.id), 'Website')));
+  if ($('composer')) {
+    const ta = $('msg'); ta.value = draft; if (draft) ta.focus();
+    $('composer').onsubmit = e => { e.preventDefault(); const v = ta.value.trim(); if (!v) return; ta.value = ''; commit(st => tenantText(st, caseById(c.id), v, 'Website')); };
+    ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('composer').requestSubmit(); } };
+    $('file').onchange = () => commit(st => { const cc = caseById(c.id); if (cc.stage === 'diag' && TREE[cc.node].photo) photo(cc, 'Website'); else { cc.messages.push({ who: 'me', photo: 'mixer', html: 'photo.jpg', t: nowT(), src: 'Website' }); ev(cc, 'Extra photo added', 'Website'); bot(cc, 'Thanks, added to your case.'); } });
+  }
+}
+
+function render() {
+  if (!me_()) return renderLogin();
+  const id = hroute(); if (id) renderCase(id); else { OPEN = null; renderHome(); }
+}
+document.addEventListener('click', e => {
+  const cs = e.target.closest('[data-case]'); if (cs) { location.hash = 'case/' + cs.dataset.case; return; }
+  if (e.target.closest('[data-new]')) { location.hash = ''; render(); return; }
+  if (e.target.closest('[data-logout]')) { sessionStorage.removeItem(SKEY); location.hash = ''; render(); }
+});
+function onStore() { const a = document.activeElement; if (a && a.id === 'newtext') return; render(); }
+render();
+</script>
+</body>
+</html>
