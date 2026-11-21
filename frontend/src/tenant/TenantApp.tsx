@@ -11,16 +11,7 @@ import Home from './Home'
 import Login from './Login'
 import './tenant.css'
 
-function useInter() {
-  useEffect(() => {
-    const id = 'tp-inter-font'
-    if (document.getElementById(id)) return
-    const l = document.createElement('link')
-    l.id = id
-    l.rel = 'stylesheet'
-    l.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
-    document.head.appendChild(l)
-  }, [])
+function useTitle() {
   useEffect(() => {
     const prev = document.title
     document.title = 'Debye · ' + t('Help with your home')
@@ -94,7 +85,7 @@ function Portal({ onLogout }: { onLogout: () => void }) {
 
 export default function TenantApp() {
   useLang()
-  useInter()
+  useTitle()
   const [token, setTok] = useState(getToken())
   const nav = useNavigate()
   const logout = useCallback(() => {

@@ -476,6 +476,26 @@ def _save_upload(f: UploadFile) -> Media:
     return Media(media_id=str(dest), mime=mime, filename=f.filename or dest.name, local_path=str(dest))
 
 
+def _restore_case_from_button(contact_id: str, button_id: str | None) -> None:
+    """Agent state lives in memory. After a restart a chip tap like `fixed_yes:case_0010` would be
+    logged without a case (the router logs before it reads the id), so it vanished from the case
+    thread. Point the conversation back at that case first, if it is one of this tenant's."""
+    if not button_id:
+        return
+    from app import router as msg_router
+    from app.agent import state as st
+    from app.db import get_session
+
+    m = msg_router.BUTTON_RE.match(button_id)
+    case_id = m.group("case") if m else None
+    conv = st.conversation(contact_id)
+    if not case_id or case_id == "new" or conv.case_id:
+        return
+    with get_session() as s:
+        if case_id in _case_ids_for(s, contact_id):
+            conv.case_id = case_id
+
+
 @router.post("/messages")
 async def send(
     text: str | None = Form(default=None),
@@ -502,6 +522,7 @@ async def send(
     if not (msg.text or msg.button_id or msg.media):
         raise HTTPException(400, "empty message")
     remember(msg.from_phone, CHANNEL)  # replies and later updates come to the web page
+    _restore_case_from_button(c.id, msg.button_id)
 
     async def run() -> None:
         try:

@@ -174,3 +174,27 @@ def test_updates_follow_last_channel(web, claude):
     msgs = web.get("/api/tenant/messages", headers=h).json()["messages"]
     assert msgs[-1]["text"] == "Update from your property manager." and msgs[-1]["channel"] == "web"
     assert outbox(web) == []
+
+
+def test_chip_after_restart_lands_in_its_case(web, claude):
+    """Agent state is in memory; after a restart a chip tap must still be logged under its case."""
+    from app.agent import state
+
+    claude([
+        [tool_use("open_case", summary="Heating cold, F.28", symptoms="cold", error_code="F.28", priority="urgent")],
+        [tool_use("ask_buttons", text="Are all radiators cold?",
+                  options=[{"id": "cold_all:case_0001", "title": "All cold"},
+                           {"id": "cold_some:case_0001", "title": "Just one room"}])],
+        [text("ok")],
+    ])
+    h = login(web)
+    web.post("/api/tenant/messages?wait=1", data={"text": "My heating is cold, display says F.28"}, headers=h)
+    case_id = web.get("/api/tenant/cases", headers=h).json()[0]["case_id"]
+    state.reset_all()  # = backend restart
+
+    hist = web.get(f"/api/tenant/messages?case_id={case_id}", headers=h).json()
+    assert hist["current"] and [o["title"] for o in hist["pending"]["options"]] == ["All cold", "Just one room"]
+    web.post("/api/tenant/messages?wait=1", data={"button_id": f"cold_all:{case_id}", "button_title": "All cold"},
+             headers=h)
+    msgs = web.get(f"/api/tenant/messages?case_id={case_id}", headers=h).json()["messages"]
+    assert any(m["direction"] == "in" and m["text"] == "All cold" for m in msgs)
