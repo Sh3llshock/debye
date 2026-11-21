@@ -1316,3 +1316,37 @@ def message_seen(wa_message_id: str) -> bool:
         return False
     with get_session() as s:
         return s.exec(select(Message).where(Message.wa_message_id == wa_message_id)).first() is not None
+
+
+def auto_offer_slots(case_id: str, max_slots: int = 3) -> dict | None:
+    """After staff approval: a portal partner with a free technician accepts automatically and the
+    technician's next free windows are offered to the tenant straight away (demo-friendly, real data:
+    technician calendars). Off with AUTO_PARTNER_SLOTS=0. Returns the notify payload or None."""
+    import os
+    from .partners.technicians import free_slots
+    if os.getenv("AUTO_PARTNER_SLOTS", "1") == "0":
+        return None
+    case = get_case(case_id)
+    if not case or case.status != "requested" or not case.partner_id:
+        return None
+    pid = case.partner_id
+    with get_session() as s:
+        p = s.get(Partner, pid)
+        transport = ((p.manifest or {}).get("transport") or {}).get("type", "portal") if p else None
+        techs = list(s.exec(select(Technician).where(Technician.partner_id == pid)).all())
+        options = [(t.id, t.name, free_slots(t.busy or [])) for t in techs]
+        name = (p.manifest or {}).get("name", pid) if p else pid
+    if transport not in (None, "portal") or not options:
+        return None
+    tech_id, tech_name, slots = max(options, key=lambda o: len(o[2]))
+    if not slots:
+        return None
+    try:
+        partner_accept(case_id, pid)
+        labelled = propose_slots(case_id, pid,
+                                 [{"start": sl["start"], "end": sl["end"]} for sl in slots[:max_slots]], tech_id)
+    except Exception:  # never break the approval; the partner can still accept in the portal
+        import logging
+        logging.getLogger("debye.services").exception("auto_offer_slots failed for %s", case_id)
+        return None
+    return {"slots": labelled, "partner_name": name, "technician_name": tech_name}
