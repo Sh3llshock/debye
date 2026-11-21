@@ -35,7 +35,7 @@ class FakeServices:
         self.contacts = {
             "c_202": SimpleNamespace(id="c_202", role="tenant", name="Luka", phone_e164="+490000000001",
                                      unit_id="unit_4b", language="de"),
-            "c_203": SimpleNamespace(id="c_203", role="tenant", name="Jonas Weber", phone_e164="+490000000002",
+            "c_203": SimpleNamespace(id="c_203", role="tenant", name="Jona Weber", phone_e164="+490000000002",
                                      unit_id="unit_2a", language="de"),
             "c_301": SimpleNamespace(id="c_301", role="partner_staff", name="Tom Schmidt",
                                      phone_e164="+490000000003", unit_id=None, language="de"),

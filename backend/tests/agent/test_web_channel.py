@@ -130,7 +130,7 @@ def test_other_tenant_cannot_read_case(web, claude):
     h = login(web)
     web.post("/api/tenant/messages?wait=1", data={"text": "Heating is cold everywhere"}, headers=h)
     case_id = web.get("/api/tenant/cases", headers=h).json()[0]["case_id"]
-    jonas = login(web, "jonas@example.com")
+    jonas = login(web, "jona.weber@example.com")
     assert web.get(f"/api/tenant/cases/{case_id}", headers=jonas).status_code == 404
     assert web.get(f"/api/tenant/messages?case_id={case_id}", headers=jonas).status_code == 404
     assert web.get("/api/tenant/cases", headers=jonas).json() == []

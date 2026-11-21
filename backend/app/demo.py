@@ -81,7 +81,7 @@ SCENARIO_ATTEMPTS = 2
 @router.post("/scenarios")
 async def load_scenarios() -> dict:
     """Reset, then create realistic cases through the real services (app/scenarios.py).
-    Luka's unit 4b and Jonas' unit 2a stay empty for the live WhatsApp demo.
+    Luka's unit 4b and Jona's unit 2a stay empty for the live WhatsApp demo.
 
     All-or-nothing: the services commit step by step, so instead of one DB transaction every attempt
     starts from a fresh reset, and any failure (e.g. MemoryError on a busy laptop) resets again.
@@ -340,7 +340,7 @@ async def t_maintenance_notice(body: dict) -> dict:
 TRIGGERS = {
     "tenant_report": t_tenant_report,
     "neighbour_report": t_neighbour_report,
-    "neighbour": t_neighbour_report,  # alias: Jonas (unit 2a) reports the same boiler
+    "neighbour": t_neighbour_report,  # alias: Jona (unit 2a) reports the same boiler
     "consent": t_consent,
     "pick_slot": t_pick_slot,
     "fixed": t_fixed,
