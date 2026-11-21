@@ -11,8 +11,10 @@ For every conversation in data/diagnosis/gold_conversations.json:
      clarification when needed, the edge case handled, tone, must_not rules.
   Code checks the cause, the outcome and the number of diagnostic questions (max 3).
 
-    python scripts/eval_diagnosis.py                       # all 40, writes docs/diagnosis-eval.md
-    python scripts/eval_diagnosis.py g01 g19               # only these (id prefixes)
+    python scripts/eval_diagnosis.py --quick               # all 40, 1 pass, 10 worker processes (~4 min)
+    python scripts/eval_diagnosis.py --passes 3 --out r.json   # 3 passes → r_p1.json, r_p2.json, r_p3.json
+    python scripts/eval_diagnosis.py --only g01,g28        # only these (id prefixes)
+    python scripts/smoke_diagnosis.py                      # the gate: ~10 exact chats, run before every report
     EVAL_BACKEND=/path/to/other/backend EVAL_OUT=before.json python scripts/eval_diagnosis.py
         # run the same conversations against another checkout (e.g. main, for a before/after table);
         # results go to EVAL_OUT as JSON, docs are written with --report before.json after.json
@@ -23,16 +25,24 @@ import asyncio
 import json
 import os
 import sys
+import atexit
+import shutil
 import tempfile
 import threading
 import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+for _s in (sys.stdout, sys.stderr):  # ✓/✗ on Windows cp1252 consoles
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
 BACKEND = Path(os.getenv("EVAL_BACKEND") or REPO / "backend").resolve()
 sys.path.insert(0, str(BACKEND))
 
 _tmp = Path(tempfile.mkdtemp(prefix="debye-eval-"))
+atexit.register(shutil.rmtree, _tmp, True)  # temp DB + storage: removed at exit
 os.environ.setdefault("DATABASE_URL", f"sqlite:///{(_tmp / 'eval.db').as_posix()}")
 os.environ.setdefault("STORAGE_DIR", str(_tmp / "storage"))
 os.environ["DEMO_MODE"] = "1"
@@ -363,7 +373,65 @@ def instrument(track_ref: dict) -> None:
     whatsapp.WhatsAppChannel.download_media = download_media
 
 
+def run_worker(job_file: str, out_file: str) -> int:
+    """One worker process: runs its share of (pass, conversation) jobs sequentially, with its own
+    database and agent state (set up at import time), and writes the rows to out_file."""
+    jobs = json.loads(Path(job_file).read_text(encoding="utf-8"))
+    rows = run_convs([j["id"] for j in jobs], passes=[j["pass"] for j in jobs])
+    Path(out_file).write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+    return 0
+
+
+def run_parallel(ids: list[str], passes: int, workers: int, out: str | None) -> int:
+    """Splits passes × conversations over worker processes (each isolated: own temp DB, own in-memory
+    agent state), merges the results, writes one JSON per pass."""
+    import subprocess
+
+    convs = [c["id"] for c in GOLD["conversations"] if not ids or any(c["id"].startswith(o) for o in ids)]
+    jobs = [{"pass": p, "id": cid} for p in range(1, passes + 1) for cid in convs]
+    workers = max(1, min(workers, len(jobs)))
+    tmp = Path(tempfile.mkdtemp(prefix="debye-eval-jobs-"))
+    atexit.register(shutil.rmtree, tmp, True)
+    procs = []
+    t0 = time.perf_counter()
+    for w in range(workers):
+        jf, of = tmp / f"jobs_{w}.json", tmp / f"rows_{w}.json"
+        jf.write_text(json.dumps(jobs[w::workers]), encoding="utf-8")
+        env = {k: v for k, v in os.environ.items() if k not in ("DATABASE_URL", "STORAGE_DIR")}
+        procs.append((subprocess.Popen([sys.executable, __file__, "--worker", str(jf), str(of)], env=env), of))
+    rows = []
+    for proc, of in procs:
+        proc.wait()
+        if of.exists():
+            rows += json.loads(of.read_text(encoding="utf-8"))
+    by_pass = [[r for r in rows if r.get("pass") == p] for p in range(1, passes + 1)]
+    order = {cid: i for i, cid in enumerate(convs)}
+    for run in by_pass:
+        run.sort(key=lambda r: order.get(r["id"], 0))
+    print(f"\n{len(rows)} conversations in {time.perf_counter() - t0:.0f} s with {workers} workers")
+    for p, run in enumerate(by_pass, 1):
+        print(f"pass {p}: {summary_line(run)}")
+    if passes > 1:
+        print(f"pooled: {summary_line(rows)}")
+    if out:
+        for p, run in enumerate(by_pass, 1):
+            path = out if passes == 1 else out.replace(".json", f"_p{p}.json")
+            Path(path).write_text(json.dumps(run, ensure_ascii=False, indent=1), encoding="utf-8")
+            print("wrote", path)
+    return 0
+
+
 def main(only: list[str]) -> int:
+    rows = run_convs(only)
+    out = os.getenv("EVAL_OUT")
+    if out:
+        Path(out).write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
+        print("wrote", out)
+    print(summary_line(rows))
+    return 0
+
+
+def run_convs(only: list[str], passes: list[int] | None = None) -> list[dict]:
     import app.channels.base  # noqa: F401  (loads .env: OpenAI key, model)
     from fastapi.testclient import TestClient
 
@@ -373,26 +441,26 @@ def main(only: list[str]) -> int:
     instrument(track_ref)
 
     rows = []
-    convs = [c for c in GOLD["conversations"] if not only or any(c["id"].startswith(o) for o in only)]
+    by_id = {c["id"]: c for c in GOLD["conversations"]}
+    if passes is not None:  # worker: exact ids, one per job
+        convs = [by_id[i] for i in only]
+    else:
+        convs = [c for c in GOLD["conversations"] if not only or any(c["id"].startswith(o) for o in only)]
     with TestClient(app) as client:
-        for conv in convs:
+        for n, conv in enumerate(convs):
             track_ref["t"] = {"asked": [], "concluded": [], "resolved": False}
             try:
                 r = run_one(client, conv, track_ref["t"])
             except Exception as exc:  # noqa: BLE001
                 r = {"id": conv["id"], "title": conv["title"], "tags": conv["tags"], "passed": False,
                      "error": f"{type(exc).__name__}: {exc}", "transcript": []}
+            r["pass"] = passes[n] if passes else 1
             rows.append(r)
             v = r.get("verdict") or {}
             print(f"{'✓' if r['passed'] else '✗'} {conv['id']:36s} got {str(r.get('got_cause')):30s} "
                   f"q={r.get('diagnostic_questions')} tone={v.get('tone')} inv={v.get('invented_facts')} "
                   f"edge={v.get('edge_case')} {r.get('error') or v.get('notes', '')[:90]}", flush=True)
-    out = os.getenv("EVAL_OUT")
-    if out:
-        Path(out).write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
-        print("wrote", out)
-    print(summary_line(rows))
-    return 0
+    return rows
 
 
 # ------------------------------------------------------------------ summary + report
@@ -516,4 +584,20 @@ if __name__ == "__main__":
         load = lambda arg: [json.loads(Path(f).read_text(encoding="utf-8")) for f in arg.split(",")]  # noqa: E731
         write_report(load(sys.argv[2]), load(sys.argv[3]))
         sys.exit(0)
-    sys.exit(main(sys.argv[1:]))
+    if sys.argv[1:2] == ["--worker"]:
+        sys.exit(run_worker(sys.argv[2], sys.argv[3]))
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Gold-conversation eval (parallel worker processes)")
+    ap.add_argument("ids", nargs="*", help="conversation id prefixes (default: all 40)")
+    ap.add_argument("--only", default="", help="comma-separated id prefixes, e.g. g01,g28")
+    ap.add_argument("--passes", type=int, default=1)
+    ap.add_argument("--workers", type=int, default=int(os.getenv("EVAL_WORKERS", "8")))
+    ap.add_argument("--quick", action="store_true", help="1 pass, 10 workers (≈ 3–5 min for all 40)")
+    ap.add_argument("--sequential", action="store_true", help="old behaviour: one process, in order")
+    ap.add_argument("--out", default=os.getenv("EVAL_OUT"), help="results JSON (per pass: _p1, _p2 ...)")
+    a = ap.parse_args()
+    ids = a.ids + [s for s in a.only.split(",") if s]
+    if a.sequential:
+        sys.exit(main(ids))
+    sys.exit(run_parallel(ids, 1 if a.quick else a.passes, 10 if a.quick else a.workers, a.out))

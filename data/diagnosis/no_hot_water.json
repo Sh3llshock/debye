@@ -193,12 +193,10 @@
       "label": "Hot water tank used up (others showered just before)",
       "signals": [
         "q_hot_water_use=before",
-        "q_radiators=no",
-        "q_scope=everywhere"
+        "q_radiators=no"
       ],
       "ask_order": [
-        "q_hot_water_use",
-        "q_scope"
+        "q_hot_water_use"
       ],
       "outcome": "self_help",
       "trade": null,
