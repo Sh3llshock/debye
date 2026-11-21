@@ -49,7 +49,8 @@ def _reset_agent_state() -> None:
     import importlib
     import logging
     for mod_name, fn_name in (("app.agent.state", "reset_all"),
-                              ("app.channels.whatsapp", "clear_outbox")):
+                              ("app.channels.whatsapp", "clear_outbox"),
+                              ("app.agent.flow", "clear_reminders")):
         try:
             fn = getattr(importlib.import_module(mod_name), fn_name, None)
         except ImportError:
@@ -117,13 +118,16 @@ async def skip_to_tomorrow() -> dict:
     advance_clock(timedelta(days=1))
     record_event(None, "system", "clock.skipped", "Demo clock moved to tomorrow", {"now": now_iso()})
     from . import services
+    from app.agent import flow
+
     suspended = services.check_partner_expiry()  # feature 1: expired insurance / gas registration
     # Job time limits are off unless PARTNER_SLA_ENABLED=1 (full feature on the partner-features branch).
     redispatched = services.check_sla() if os.getenv("PARTNER_SLA_ENABLED") == "1" else []
     for r in redispatched:
         await notify.notify_tenant(r["case_id"], "partner_declined", r)
+    reminders = await flow.send_due_reminders()  # "I'll remind you the evening before" comes due
     return {"ok": True, "now": now_iso(), "suspended_partners": [p["partner_id"] for p in suspended],
-            "redispatched": redispatched}
+            "redispatched": redispatched, "reminders_sent": reminders}
 
 
 @router.post("/sim-media")
@@ -253,10 +257,9 @@ async def t_consent(body: dict) -> dict:
         if not ranking:
             raise HTTPException(409, "no eligible partner")
         partner_id = ranking[0]["partner_id"]
-    m: Manifest = services.get_partner_manifest(partner_id)
-    fields = body.get("fields") or [rules.norm_field(f) for f in m.consent_fields]
+    fields = body.get("fields") or services.consent_fields_for(case_id, partner_id)
     services.record_consent(case.reporter_contact_id, partner_id, case_id, fields,
-                            body.get("purpose", "heating repair visit"), "whatsapp")
+                            body.get("purpose") or f"On-site repair visit: {case.title or case.type}", "whatsapp")
     services.add_tenant_input(case_id, "tap: consent")
     services.log_message(case.reporter_contact_id, case_id, "whatsapp", "in", "✅ Yes, go ahead")
     try:
@@ -335,6 +338,18 @@ TRIGGERS = {
     "notify": t_notify,
     "maintenance_notice": t_maintenance_notice,
 }
+
+
+async def t_boiler_error(body: dict) -> dict:
+    """centrix event asset.error_reported → Debye writes the tenant first. Body: unit_id, code, asset_id."""
+    from .centrix_events import AssetErrorReported, handle
+
+    ev = AssetErrorReported(unit_id=body.get("unit_id", "unit_4b"), code=body.get("code", "F.28"),
+                            asset_id=body.get("asset_id"))
+    return await handle(ev)
+
+
+TRIGGERS["boiler_error"] = t_boiler_error
 
 
 @router.post("/trigger/{name}")

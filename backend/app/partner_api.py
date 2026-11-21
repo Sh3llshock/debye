@@ -17,7 +17,8 @@ VISIBLE_STATUSES = {"requested", "accepted", "slots_proposed", "awaiting_technic
 PARTNER_EVENT_KINDS = {"job.sent", "job.accepted", "job.declined", "slot.proposed",
                        "slot.confirmed", "technician.confirmed", "job.completed", "invoice.checked",
                        "case.closed", "case.reopened", "tenant.confirmed_fixed",
-                       "job.needs_info", "job.info_provided", "access.released"}
+                       "job.needs_info", "job.info_provided", "access.released",
+                       "slot.rejected"}  # the tenant can't make any proposed time: the partner sees it and re-proposes
 
 
 def technician_view(c: Case) -> dict | None:

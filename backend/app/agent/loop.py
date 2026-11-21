@@ -68,18 +68,41 @@ def _image_block(path: str) -> dict | None:
     return {"type": "image", "source": {"type": "base64", "media_type": mime, "data": data}}
 
 
+def llm_context(ctx: dict) -> dict:
+    """Data minimisation: what the model needs for diagnosis and triage, nothing else. No phone, email,
+    street address, lease or rent, and no other tenants' words (open cases go without their summary)."""
+    g = lambda o, k: be.attr(o, k)  # noqa: E731  (dicts or model objects)
+    prop, unit = ctx.get("property") or {}, ctx.get("unit") or {}
+    return {
+        "building": {k: g(prop, k) for k in ("id", "city", "building_year", "heating_type", "heating_central")
+                     if g(prop, k) is not None},
+        "unit": {k: g(unit, k) for k in ("id", "floor", "rooms") if g(unit, k) is not None},
+        "assets": [{k: g(a, k) for k in ("id", "unit_id", "type", "make", "model", "known_error_codes")
+                    if g(a, k) is not None} for a in ctx.get("assets") or []],
+        "notices": [{k: g(n, k) for k in ("id", "title", "kind", "active", "starts", "ends")}
+                    for n in ctx.get("notices") or [] if g(n, "active")],
+        "open_cases": [{k: g(c, k) for k in ("case_id", "type", "status", "asset_id", "unit_id", "title",
+                                             "error_code", "error_label")} for c in ctx.get("open_cases") or []],
+    }
+
+
 def build_user_content(contact, conv: st.Conversation, text: str | None, image_paths: list[str]) -> list[dict]:
     ctx = flow.unit_context_for(contact)
     facts = {
-        "contact": {"id": be.attr(contact, "id"), "name": be.attr(contact, "name"),
+        "contact": {"first_name": flow.first_name(contact),
                     "reply_language": conv.lang},  # from the resident's own messages, not the profile
-        "unit_context": ctx,
+        "unit_context": llm_context(ctx),
     }
     status = {"case_id": conv.case_id, "step": conv.step}
     if conv.step == st.TRIAGE and st.TRIAGE in conv.asked_at:
         status["waiting_for"] = "resident's tap on 'All cold' / 'Just one room' (already asked, do not repeat)"
     elif conv.step == st.CONSENT:
         status["waiting_for"] = "resident's consent tap (already asked, do not repeat)"
+    elif conv.step == "proactive_check":
+        status["waiting_for"] = (f"answer to OUR first message: the boiler reported {conv.error_code} and we asked "
+                                 "whether the heating or the hot water is off (buttons aerr_heat / aerr_water / "
+                                 "aerr_fine, already asked, do not repeat). Heating off → record_triage all cold; "
+                                 "hot water off → diagnosis.")
     if conv.error_code:
         status["error_code_already_explained"] = conv.error_code
     from . import diagnosis
