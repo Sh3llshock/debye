@@ -242,6 +242,9 @@ async def confirm(token: str):
     await notify.notify_tenant(case_id, "approval_granted",
                                {"partner_name": result.get("partner_name"),
                                 "dispatched": result.get("dispatched")})
+    offer = services.auto_offer_slots(case_id)  # times from the technician's calendar → tenant
+    if offer:
+        await notify.notify_tenant(case_id, "slots_proposed", offer)
     name = html.escape(result.get("partner_name") or _partner_name(tok.get("p")))
     return _page("Approved", f"<h1 class='ok'>Approved. {name} is being booked.</h1>"
                  "<p>Debye sends the job now and tells the tenant on WhatsApp. You'll see the "

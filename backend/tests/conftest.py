@@ -12,6 +12,8 @@ os.environ["DEMO_MODE"] = "1"
 # never send real approval emails from tests (the repo .env may hold an AgentMail key)
 os.environ["APPROVAL_EMAIL_ENABLED"] = "0"
 os.environ["AGENTMAIL_API_KEY"] = ""
+# partners accept manually in the unit tests; test_auto_offer.py turns the demo auto-offer on
+os.environ["AUTO_PARTNER_SLOTS"] = "0"
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 

@@ -224,6 +224,9 @@ async def approve(case_id: str, body: ApproveBody | None = None) -> dict:
     await notify.notify_tenant(case_id, "approval_granted",
                                {"partner_name": result.get("partner_name"),
                                 "dispatched": result.get("dispatched")})
+    offer = services.auto_offer_slots(case_id)  # times from the technician's calendar → tenant
+    if offer:
+        await notify.notify_tenant(case_id, "slots_proposed", offer)
     with get_session() as s:
         return case_detail(s, s.get(Case, case_id))
 
