@@ -76,7 +76,8 @@ export default function StaffCase() {
   const seen = new Set<string>()
   const docs: DocumentItem[] = [...c.documents]
     .reverse()
-    .concat(u?.documents ?? [])
+    // unit documents (lease, …) belong here too, but not another case's report or invoice
+    .concat((u?.documents ?? []).filter((d) => !d.case_id || d.case_id === c.case_id))
     .filter((d) => !seen.has(d.document_id) && !!seen.add(d.document_id))
   const partnerName = (id: string) => c.ranking.find((r) => r.partner_id === id)?.name ?? (c.partner?.partner_id === id ? c.partner.name : id)
   const ch = channelOf(c)

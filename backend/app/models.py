@@ -34,6 +34,7 @@ class Unit(SQLModel, table=True):
     size_sqm: Optional[float] = None
     rooms: Optional[int] = None
     meters: list = _json(list)
+    access: dict = _json(dict)  # {key_safe_code, intercom_name, parking_note}: released just in time (feature 4)
 
 
 class Asset(SQLModel, table=True):

@@ -14,6 +14,7 @@ import PartnerPage, { PartnerLogin, PartnerRegister, PartnerWelcome } from './pa
 import TechPage from './pages/TechPage'
 import StaffPartners, { StaffPartner } from './pages/StaffPartners'
 import PartnerJoin from './pages/PartnerJoin'
+import { getSession } from './pages/partner/shared'
 import TenantApp from './tenant/TenantApp'
 import { t, useLang } from './lib/i18n'
 
@@ -23,6 +24,12 @@ function Staff() {
       <Outlet />
     </StaffLayout>
   )
+}
+
+/** /wip, /done, /partner/wip, … → that tab for the partner who is logged in (or the login page). */
+function PartnerShortcut({ tab }: { tab: string }) {
+  const pid = getSession()?.pid
+  return <Navigate to={pid ? `/partner/${pid}/${tab}` : '/partner/login'} replace />
 }
 
 function NotFound() {
@@ -57,6 +64,13 @@ function App() {
         <Route path="/partner" element={<PartnerWelcome />} />
         <Route path="/partner/login" element={<PartnerLogin />} />
         <Route path="/partner/register" element={<PartnerRegister />} />
+        <Route path="/partner/new" element={<PartnerShortcut tab="new" />} />
+        <Route path="/partner/wip" element={<PartnerShortcut tab="wip" />} />
+        <Route path="/partner/availability" element={<PartnerShortcut tab="availability" />} />
+        <Route path="/partner/done" element={<PartnerShortcut tab="done" />} />
+        <Route path="/partner/profile" element={<PartnerShortcut tab="profile" />} />
+        <Route path="/wip" element={<PartnerShortcut tab="wip" />} />
+        <Route path="/done" element={<PartnerShortcut tab="done" />} />
         <Route path="/partner/:partnerId" element={<PartnerPage />} />
         <Route path="/partner/:partnerId/new" element={<PartnerPage tab="new" />} />
         <Route path="/partner/:partnerId/wip" element={<PartnerPage tab="wip" />} />

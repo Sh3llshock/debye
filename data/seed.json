@@ -32,6 +32,7 @@
   "units": [
     {
       "id": "unit_4b",
+      "access": {"key_safe_code": "4711", "intercom_name": "Luka, 4B (2nd floor)", "parking_note": "Visitor spaces in the courtyard, gate code 2580. Boiler is in the bathroom, 2nd door left."},
       "property_id": "prop_12",
       "floor": 2,
       "size_sqm": 68,
