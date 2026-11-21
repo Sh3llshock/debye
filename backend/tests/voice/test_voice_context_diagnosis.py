@@ -120,21 +120,21 @@ def test_hot_water_answers_in_one_tool_call(app_client):
     c = app_client
     r = tool(c, "report_issue", conversation_id="w2", contact_id="c_202", issue_type="hot_water",
              summary="Shower cold", symptoms="No hot water in the shower",
-             answers="q_safety=no; q_scope=only_shower; q_recent_use=no; q_waited=yes; q_bogus=x")
+             answers="q_safety=no; q_scope=only_shower; q_hot_water_use=no; q_wait_result=stays_cold; q_bogus=x")
     assert r["done_on_phone"] and "WhatsApp" in r["say"]
     assert outbox_texts(c) == []
     from app.agent import state as st
 
     d = st.conversation("c_202").diagnosis
-    assert d["safety_done"] and d["answers"]["q_scope"] == "only_shower" and d["answers"]["q_waited"] == "yes"
-    assert set(d["asked"]) == {"q_scope", "q_recent_use", "q_waited"}  # only what was really asked
+    assert d["safety_done"] and d["answers"]["q_scope"] == "only_shower" and d["answers"]["q_wait_result"] == "stays_cold"
+    assert set(d["asked"]) == {"q_scope", "q_hot_water_use", "q_wait_result"}  # only what was really asked
     done = c.post("/api/voice/post_call", headers=H, json=ended("w2")).json()
     assert "3 diagnosis questions" in done["line"]
     texts = outbox_texts(c)
     joined = " ".join(texts)
     assert "only the shower is cold" in texts[0]
     assert "do you smell gas" not in joined
-    for qid in ("q_scope", "q_recent_use", "q_waited"):
+    for qid in ("q_scope", "q_hot_water_use", "q_wait_result"):
         assert f"diag:{qid}:" not in joined
     assert len(texts) >= 2
 

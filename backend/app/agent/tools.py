@@ -15,6 +15,12 @@ from . import state as st
 log = logging.getLogger("debye.tools")
 
 
+def be_id(contact) -> str | None:
+    from . import _backend as be
+
+    return be.attr(contact, "id")
+
+
 @dataclass
 class TurnContext:
     contact: Any
@@ -94,17 +100,30 @@ SCHEMAS += [
     {
         "name": "ask_question",
         "description": "Diagnosis mode only: ask one question from <diagnosis>.questions by id (sent with its answer "
-        "options). Pick the one that best splits the remaining causes. Max 5 per diagnosis.",
+        "options). Pick the one that best splits the remaining causes. Max 3 per diagnosis (re-asking the open "
+        "question doesn't count).",
         "input_schema": _obj({"question_id": {"type": "string"},
+                              "translation": {"type": ["string", "null"],
+                                              "description": "null if the resident writes English. Otherwise the "
+                                              "question text translated into their language (same meaning)."},
                               "lead_in": {"type": ["string", "null"],
-                                          "description": "optional short empathetic or acknowledging sentence "
-                                          "(no question in it; the question text is added by the system)"}}),
+                                          "description": "optional few words of lead-in like 'Ok.' or 'Got it, "
+                                          "thanks.' (no filler empathy, no question; the system adds the question; "
+                                          "null = a default lead-in)"}}),
     },
     {
         "name": "record_answer",
         "description": "Diagnosis mode only: record what the resident told you in free text as an answer key of a "
-        "question (also for questions you didn't ask, e.g. 'my roommate just showered' → q_recent_use=yes).",
+        "question (also for questions you didn't ask, e.g. 'my roommate just showered' → q_hot_water_use=before). "
+        "Use answer_key 'unknown' when the tenant doesn't know or can't check; the question is then skipped.",
         "input_schema": _obj({"question_id": {"type": "string"}, "answer_key": {"type": "string"}}),
+    },
+    {
+        "name": "clarify",
+        "description": "Diagnosis mode only: the tenant's answer is truly ambiguous ('everything', 'idk', 'kinda'). "
+        "Ask ONE short clarifying question instead of guessing, e.g. 'Do you mean all the taps, or that everything "
+        "was running at the same time?'. Doesn't count as a diagnostic question; at most 2 per diagnosis.",
+        "input_schema": _obj({"text": {"type": "string"}}),
     },
     {
         "name": "conclude_diagnosis",
@@ -113,7 +132,11 @@ SCHEMAS += [
         "for a technician). Do not send another message after it.",
         "input_schema": _obj({"cause_id": {"type": "string"},
                               "confidence": {"type": "number", "description": "0..1"},
-                              "reasoning": {"type": "string", "description": "one or two sentences for the staff"}}),
+                              "reasoning": {"type": "string", "description": "one or two sentences for the staff, "
+                                            "using only answers_so_far and centrix facts"},
+                              "translation": {"type": ["string", "null"],
+                                              "description": "null if the resident writes English. Otherwise the "
+                                              "cause's tenant_message translated into their language."}}),
     },
 ]
 
@@ -126,12 +149,12 @@ async def _reply(ctx: TurnContext, text: str) -> dict:
 
     if not (text or "").strip():
         raise ValueError("empty message: send nothing instead")
-    if "ask_question" in ctx.calls[:-1] and diagnosis.active(ctx.conv):
+    if {"ask_question", "clarify"} & set(ctx.calls[:-1]) and diagnosis.active(ctx.conv):
         raise ValueError("A diagnosis question was just sent: stop now, don't add another message.")
 
     d = ctx.conv.diagnosis
-    if diagnosis.active(ctx.conv) and d.get("asked") and d["asked"][-1] not in d["answers"] and "?" in text:
-        raise ValueError(f"Question {d['asked'][-1]} is still open: don't ask anything in plain text. Record what the "
+    if diagnosis.active(ctx.conv) and diagnosis.open_question(d) and "?" in text:
+        raise ValueError(f"Question {diagnosis.open_question(d)} is still open: don't ask anything in plain text. Record what the "
                          "resident said, or send a short acknowledgement without a question, or nothing.")
     await out.text(ctx.contact, ctx.conv.case_id, text)
     ctx.sent += 1
@@ -218,7 +241,8 @@ async def _record_triage(ctx: TurnContext, case_id: str, all_radiators_cold: boo
     return {"ok": True, "note": "Consent question was sent to the resident. Do not send another message."}
 
 
-async def _ask_question(ctx: TurnContext, question_id: str, lead_in: str | None) -> dict:
+async def _ask_question(ctx: TurnContext, question_id: str, lead_in: str | None = None,
+                        translation: str | None = None) -> dict:
     from . import diagnosis
 
     if not diagnosis.active(ctx.conv):
@@ -228,21 +252,34 @@ async def _ask_question(ctx: TurnContext, question_id: str, lead_in: str | None)
         raise ValueError(f"unknown question {question_id}")
     if question_id in d["answers"]:
         raise ValueError(f"{question_id} is already answered ({d['answers'][question_id]}); ask something else")
+    if question_id == diagnosis.open_question(d):  # re-asking the open question (after "hello?", "lol", a side question)
+        if {"ask_question", "clarify"} & set(ctx.calls[:-1]):
+            raise ValueError("A question was already sent this turn. Stop now.")
+        await diagnosis.ask(ctx.contact, ctx.conv, question_id, lead=(lead_in or "").split("?")[0].strip(),
+                            text=translation)
+        ctx.sent += 1
+        return {"ok": True, "delivered": True, "note": "Open question repeated. Wait for the answer."}
     if len(d["asked"]) >= diagnosis.MAX_QUESTIONS:
         raise ValueError("3 questions asked: call conclude_diagnosis now with the most likely cause")
     action, ident, _conf = diagnosis.next_step(ctx.conv)
     if action == "conclude" and d["answers"]:
         raise ValueError(f"The answers already point to {ident}: call conclude_diagnosis now instead of asking")
+    if question_id in diagnosis.NEVER_ASK:
+        raise ValueError(f"Never ask {question_id}; record it only if the resident mentions it")
+    forced = diagnosis.forced_question(ctx.conv)
+    if forced and question_id != forced:
+        raise ValueError(f"Ask {forced} now (it decides between the causes that fit)")
     cands = diagnosis.question_candidates(ctx.conv)
-    if cands and question_id not in cands[:2]:
+    if cands and question_id not in cands[:2] and not (action == "ask" and ident == question_id):
         raise ValueError(f"{question_id} doesn't help much now; ask {cands[0]} (it splits the causes that fit "
                          f"the answers so far)")
-    if ctx.conv.step == st.DIAGNOSIS and d["asked"] and d["asked"][-1] not in d["answers"] and ctx.sent:
+    if ctx.conv.step == st.DIAGNOSIS and diagnosis.open_question(d) and ctx.sent \
+            and diagnosis.open_question(d) != question_id:
         raise ValueError("A question was already sent this turn. Stop now and send nothing else.")
     if lead_in and "?" in lead_in:  # the KB question follows; never ask twice
         head = lead_in.split("?")[0]
         lead_in = head.rsplit(".", 1)[0].strip() + "." if "." in head else None
-    await diagnosis.ask(ctx.contact, ctx.conv, question_id, lead=lead_in)
+    await diagnosis.ask(ctx.contact, ctx.conv, question_id, lead=lead_in, text=translation)
     ctx.sent += 1
     return {"ok": True, "delivered": True, "note": "Question sent with its options. Wait for the answer."}
 
@@ -258,17 +295,42 @@ async def _record_answer(ctx: TurnContext, question_id: str, answer_key: str) ->
             "suggested_next": {"action": action, "id": ident, "confidence": conf}}
 
 
-async def _conclude(ctx: TurnContext, cause_id: str, confidence: float, reasoning: str) -> dict:
+async def _conclude(ctx: TurnContext, cause_id: str, confidence: float, reasoning: str,
+                    translation: str | None = None) -> dict:
     from . import diagnosis
 
     if not diagnosis.active(ctx.conv):
         raise ValueError("no diagnosis running")
-    res = await diagnosis.conclude(ctx.contact, ctx.conv, cause_id, max(0.0, min(1.0, confidence)), reasoning)
+    res = await diagnosis.conclude(ctx.contact, ctx.conv, cause_id, max(0.0, min(1.0, confidence)), reasoning,
+                                   translation=translation)
     ctx.sent += 1
     return res
 
 
+async def _clarify(ctx: TurnContext, text: str) -> dict:
+    from . import diagnosis
+
+    d = ctx.conv.diagnosis
+    if not diagnosis.active(ctx.conv):
+        raise ValueError("no diagnosis running")
+    if d.get("clarifications", 0) >= 2:
+        raise ValueError("2 clarifications used: record what you can (or 'unknown') and move on")
+    if ctx.sent:
+        raise ValueError("A message was already sent this turn: stop now.")
+    if not (text or "").strip() or "?" not in text:
+        raise ValueError("a clarifying question must be one short question")
+    if d.get("asked") and not diagnosis.open_question(d):
+        last = d["asked"][-1]
+        raise ValueError(f"The answer is clear ({last}={d['answers'].get(last, 'unknown')}); don't clarify, "
+                         "continue with the next question or conclude")
+    d["clarifications"] = d.get("clarifications", 0) + 1
+    await out.text(ctx.contact, ctx.conv.case_id, text.strip())
+    ctx.sent += 1
+    return {"ok": True, "delivered": True, "note": "Wait for the tenant's answer."}
+
+
 IMPLS: dict[str, Callable[..., Awaitable[dict]]] = {
+    "clarify": _clarify,
     "ask_question": _ask_question,
     "record_answer": _record_answer,
     "conclude_diagnosis": _conclude,
@@ -281,10 +343,23 @@ IMPLS: dict[str, Callable[..., Awaitable[dict]]] = {
 }
 
 
+SENDING_TOOLS = {"reply", "ask_buttons", "ask_list", "ask_question", "clarify", "conclude_diagnosis",
+                 "record_triage_answer", "open_case"}
+
+
+class NewerMessages(Exception):
+    """The tenant sent more messages while the model was thinking: re-plan with all of them."""
+
+
 async def execute(block, ctx: TurnContext) -> dict:
     """Runs one tool_use block and returns the tool_result content block."""
     name = block.name
     ctx.calls.append(name)
+    if name in SENDING_TOOLS and ctx.sent == 0:
+        from app import router as msg_router
+
+        if msg_router.has_pending(be_id(ctx.contact)):
+            raise NewerMessages()
     try:
         impl = IMPLS[name]
         result = await impl(ctx, **dict(block.input))
