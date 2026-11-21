@@ -89,7 +89,17 @@ async def load_scenarios() -> dict:
     Never a half-loaded state. Concurrent calls are serialised."""
     from . import scenarios as sc
     _require_demo()
+    from . import notify_email
     async with _scenarios_lock:
+        notify_email.SUPPRESS = True  # demo cases must not email the real staff inbox
+        try:
+            return await _load_scenarios_locked(sc)
+        finally:
+            notify_email.SUPPRESS = False
+
+
+async def _load_scenarios_locked(sc) -> dict:
+    if True:
         error = None
         for attempt in range(1, SCENARIO_ATTEMPTS + 1):
             seed(reset=True)

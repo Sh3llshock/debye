@@ -37,6 +37,15 @@ class Settings(BaseSettings):
     wa_verify_token: str | None = None
     wa_app_secret: str | None = None
 
+    # Staff approval email (AgentMail). APPROVAL_EMAIL_ENABLED unset = on when the key is set.
+    agentmail_api_key: str | None = None
+    agentmail_inbox: str | None = None  # sender inbox, e.g. internships@agentmail.to
+    agentmail_base_url: str = "https://api.agentmail.to/v0"
+    staff_approval_email: str | None = None  # recipient
+    approval_email_enabled: bool | None = None
+    email_link_secret: str | None = None  # HMAC key for the email links; random per process if unset
+    email_link_ttl_hours: float = 48
+
 
 settings = Settings()
 

@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from . import centrix_events, demo, events, onboard_api, partner_api, partner_events_api, staff_api, tech_api
+from . import centrix_events, demo, email_links, events, onboard_api, partner_api, partner_events_api, staff_api, tech_api
 from .config import settings
 from .db import get_session
 from .models import Document
@@ -63,6 +63,7 @@ app.include_router(partner_events_api.router)  # POST /api/partners/{id}/events 
 app.include_router(tech_api.router)
 app.include_router(demo.router)
 app.include_router(centrix_events.router)  # POST /api/centrix/events (asset.error_reported)
+app.include_router(email_links.router)  # /a/{token}, /api/email-actions/* (approval email links)
 
 
 # Agent-whatsapp routers (interfaces §3.3b). Guarded until the agent PR lands.
