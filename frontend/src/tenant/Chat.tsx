@@ -31,7 +31,7 @@ const WAIT_MS = 60_000
 const PHOTO_ASK = /\b(photo|picture|foto|bild)\b/i
 
 export default function Chat() {
-  const { caseId } = useParams()
+  const { caseId, chatId } = useParams()
   const { me, tick, refresh } = usePortal()
   const nav = useNavigate()
   const loc = useLocation()
@@ -54,8 +54,8 @@ export default function Chat() {
 
   const load = useCallback(async () => {
     try {
-      const h = await api.messages(caseId)
-      if (!caseId && h.case_id) {
+      const h = await api.messages(caseId, chatId)
+      if (!caseId && !chatId && h.case_id) {
         nav(`/tenant/case/${h.case_id}`, { replace: true, state: loc.state })
         return
       }
@@ -64,7 +64,7 @@ export default function Chat() {
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) nav('/tenant', { replace: true })
     }
-  }, [caseId, nav, loc.state])
+  }, [caseId, chatId, nav, loc.state])
 
   useEffect(() => {
     load()
@@ -131,7 +131,8 @@ export default function Chat() {
     if (ta.current) ta.current.style.height = ''
   }
 
-  const closed = detail ? isClosed(detail) : false
+  const earlier = !!chatId // an earlier web chat that never became a case: read-only
+  const closed = earlier || (detail ? isClosed(detail) : false)
   const current = hist?.current ?? !caseId
   const pending = current && waitingSince == null && !closed ? hist?.pending : null
   const lastOut = [...msgs].reverse().find((m) => m.direction === 'out')
@@ -235,7 +236,9 @@ export default function Chat() {
             <div className="composer">
               <div className="closedbar">
                 <span>
-                  {detail && (solvedWithoutTech(detail) || detail.status === 'closed')
+                  {earlier
+                    ? t('This is an earlier chat. Something else broken?')
+                    : detail && (solvedWithoutTech(detail) || detail.status === 'closed')
                     ? t('This case is closed. Something else broken?')
                     : t('This case is with your property manager. Something else broken?')}
                 </span>

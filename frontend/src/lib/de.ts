@@ -597,6 +597,8 @@ export const DE: Record<string, string> = {
   "Appliance": "Gerät",
   "Case {id}": "Fall {id}",
   "Closed cases": "Abgeschlossene Fälle",
+  "Earlier chats": "Frühere Chats",
+  "This is an earlier chat. Something else broken?": "Das ist ein früherer Chat. Ist etwas anderes kaputt?",
   "Confirm the repair": "Reparatur bestätigen",
   "Could not reach Debye. Please try again.": "Debye ist nicht erreichbar. Bitte noch einmal versuchen.",
   "Could not reach Debye. Retrying…": "Debye ist nicht erreichbar. Neuer Versuch…",

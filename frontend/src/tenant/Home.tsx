@@ -20,7 +20,11 @@ export function MiniBar({ c }: { c: TCase }) {
 let DRAFT = '' // survives navigating away and back, like the mockup
 
 export default function Home() {
-  const { me, cases, refresh } = usePortal()
+  const { me, cases, refresh, tick } = usePortal()
+  const [chats, setChats] = useState<{ id: string; title: string; started_at: string }[]>([])
+  useEffect(() => {
+    api.chats().then(setChats).catch(() => setChats([]))
+  }, [tick])
   const nav = useNavigate()
   const [text, setText] = useState(DRAFT)
   const [busy, setBusy] = useState(false)
@@ -78,6 +82,17 @@ export default function Home() {
                 </div>
               ) : (
                 <p style={{ color: 'var(--muted)', margin: 0 }}>{t('No open cases. Anything you report here or on WhatsApp shows up here.')}</p>
+              )}
+              {chats.length > 0 && (
+                <div className="closedlist">
+                  <h3>{t('Earlier chats')}</h3>
+                  {chats.map((ch) => (
+                    <button key={ch.id} className="cl" onClick={() => nav(`/tenant/chat/${ch.id}`)}>
+                      <b style={{ fontWeight: 500 }}>{ch.title}</b>
+                      <span>{fmtDay(ch.started_at)}</span>
+                    </button>
+                  ))}
+                </div>
               )}
               {closed.length > 0 && (
                 <div className="closedlist">

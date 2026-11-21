@@ -76,6 +76,7 @@ function Portal({ onLogout }: { onLogout: () => void }) {
       <Routes>
         <Route index element={<Home />} />
         <Route path="chat" element={<Chat />} />
+        <Route path="chat/:chatId" element={<Chat />} />
         <Route path="case/:caseId" element={<Chat />} />
         <Route path="*" element={<Home />} />
       </Routes>

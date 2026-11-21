@@ -339,14 +339,39 @@ def _case_view(s, case, contact_id: str, full: bool = False) -> dict:
 
 
 _fresh_since: dict[str, str] = {}  # contact_id → ISO time of their last "new problem" from the home page
+_earlier: dict[str, list[dict]] = {}  # contact_id → earlier web chats without a case [{id, since, until, title}]
 
 
-def _messages(s, contact_id: str, case_id: str | None) -> list[dict]:
+def _close_current_chat(contact_id: str, until: str) -> None:
+    """Before a new chat starts: keep the current case-less chat (if it has messages) as an earlier chat."""
+    from app.db import get_session
+    from app.models import Message
+
+    since = _fresh_since.get(contact_id, "")
+    with get_session() as s:
+        q = select(Message).where(Message.contact_id == contact_id, Message.case_id == None,  # noqa: E711
+                                  Message.channel == CHANNEL, Message.ts < until)
+        if since:
+            q = q.where(Message.ts >= since)
+        rows = s.exec(q.order_by(Message.ts, Message.id)).all()
+    if not rows:
+        return
+    first_in = next((m.text for m in rows if m.direction == "in" and m.text), None) or "Chat"
+    lst = _earlier.setdefault(contact_id, [])
+    lst.append({"id": f"chat_{len(lst) + 1}", "since": since, "until": until,
+                "title": first_in[:80], "started_at": rows[0].ts})
+
+
+def _messages(s, contact_id: str, case_id: str | None, window: dict | None = None) -> list[dict]:
     from app.models import Document, Message
 
     q = select(Message).where(Message.contact_id == contact_id)
     q = q.where(Message.case_id == case_id) if case_id else q.where(Message.case_id == None)  # noqa: E711
-    if not case_id and contact_id in _fresh_since:
+    if window is not None:  # an earlier web chat: its own time window
+        q = q.where(Message.ts < window["until"])
+        if window.get("since"):
+            q = q.where(Message.ts >= window["since"])
+    elif not case_id and contact_id in _fresh_since:
         q = q.where(Message.ts >= _fresh_since[contact_id])  # a new chat starts empty
     rows = s.exec(q.order_by(Message.ts, Message.id)).all()
     out = []
@@ -433,6 +458,7 @@ def my_case(case_id: str, authorization: str | None = Header(default=None)) -> d
 @router.get("/messages")
 def history(
     case_id: str | None = Query(default=None, description="a case id, or omit for the current conversation"),
+    chat: str | None = Query(default=None, description="an earlier web chat id (GET /chats)"),
     authorization: str | None = Header(default=None),
 ) -> dict:
     """Messages of one case (both channels), or of the current conversation: the contact's current
@@ -441,6 +467,13 @@ def history(
     from app.db import get_session
 
     c = _require(authorization)
+    if chat:  # an earlier web chat: read-only
+        window = next((x for x in _earlier.get(c.id, []) if x["id"] == chat), None)
+        if window is None:
+            raise HTTPException(404, "chat not found")
+        with get_session() as s:
+            msgs = _messages(s, c.id, None, window)
+        return {"case_id": None, "current": False, "messages": msgs, "pending": None, "chat": window}
     conv = st.conversation(c.id)
     with get_session() as s:
         if case_id and case_id not in _case_ids_for(s, c.id):
@@ -462,6 +495,14 @@ def history(
         # (button ids carry the case id, so the router handles them without that state)
         pending = {"question": msgs[-1]["text"], "options": msgs[-1]["options"]}
     return {"case_id": cid, "current": current, "messages": msgs, "pending": pending}
+
+
+@router.get("/chats")
+def earlier_chats(authorization: str | None = Header(default=None)) -> list[dict]:
+    """Earlier web chats that never became a case (newest first). Cases are listed via GET /cases."""
+    c = _require(authorization)
+    return [{"id": x["id"], "title": x["title"], "started_at": x["started_at"]}
+            for x in reversed(_earlier.get(c.id, []))]
 
 
 _tasks: set[asyncio.Task] = set()
@@ -533,8 +574,11 @@ async def send(
         # "Something else wrong at home?": a new problem starts a fresh conversation and its own case;
         # the earlier case keeps its chat and its updates.
         from app.config import now_iso
+        ts = now_iso()
+        if not st.conversation(c.id).case_id:
+            _close_current_chat(c.id, ts)  # it stays listed as an earlier chat
         st.reset_conversation(c.id)
-        _fresh_since[c.id] = now_iso()  # the new chat shows only messages from now on
+        _fresh_since[c.id] = ts  # the new chat shows only messages from now on
     _restore_case_from_button(c.id, msg.button_id)
 
     async def run() -> None:
