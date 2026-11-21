@@ -66,6 +66,7 @@ const http = {
     }
   },
   onboardValidate: (manifest: Record<string, unknown>) => req<{ valid: boolean; checks: OnboardCheck[] }>('POST', '/api/partners/onboard/validate', { manifest }),
+  askTenant: (pid: string, caseId: string, text: string) => req<JobDetail>('POST', `/api/partner/${enc(pid)}/jobs/${enc(caseId)}/question`, { text }),
   onboardFromWebsite: (url: string) => req<WebsiteAutofill>('POST', '/api/partners/onboard/from-website', { url }),
   onboard: (manifest: Record<string, unknown>, technicians: { name: string; skills: string[] }[]) =>
     req<OnboardResult>('POST', '/api/partners/onboard', { manifest, technicians }),
