@@ -20,14 +20,22 @@ Built for the reltix track "Plug a Partner into centrix" at MAIN Maastricht 2026
 Planning done; build in progress. Work is tracked as GitHub issues with milestones:
 M1 WhatsApp round-trip → M2 Golden path end to end → M3 Hosted V1 → M4 Feature freeze → M5 Submit.
 
-## Run (once the backend exists)
+## Run
+
+Step-by-step guide (backend, web pages, demo data, WhatsApp, public link, emails, voice, tests):
+**[docs/running.md](docs/running.md)**
+
+Quick start:
 
 ```bash
-cp .env.example .env            # fill in keys
+cp .env.example .env                       # set OPENAI_API_KEY, LLM_PROVIDER=openai, DEMO_MODE=1
 cd backend && pip install -r requirements.txt
-uvicorn app.main:app --reload
-cloudflared tunnel --url http://localhost:8000   # webhook URL for Meta
+cd ../frontend && npm ci && npm run build
+cd ../backend && uvicorn app.main:app --port 8000
+curl -X POST http://localhost:8000/demo/scenarios   # demo data
 ```
+
+Then open http://localhost:8000/staff, /partner/heizung-schmidt/new and /tenant.
 
 ## Assumptions
 
