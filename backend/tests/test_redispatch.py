@@ -119,6 +119,7 @@ def test_no_partner_left_needs_staff(client, monkeypatch):
 
 
 def test_sla_timeout_redispatches(client, monkeypatch):
+    monkeypatch.setenv("PARTNER_SLA_ENABLED", "1")  # time limits are off by default
     _spy(monkeypatch)
     luka, case = _luka_case()
     first = services.rank_partners(case.id)[0]["partner_id"]

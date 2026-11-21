@@ -5,6 +5,7 @@ Run from backend/:  uvicorn app.main:app --reload
 from __future__ import annotations
 
 import asyncio
+import os
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -13,7 +14,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from . import demo, events, onboard_api, partner_api, partner_events_api, staff_api, tech_api, triggers
+from . import demo, events, onboard_api, partner_api, partner_events_api, staff_api, tech_api
 from .config import settings
 from .db import get_session
 from .models import Document
@@ -28,9 +29,12 @@ log = logging.getLogger("debye")
 async def lifespan(app: FastAPI):
     events.bind_loop(asyncio.get_running_loop())
     seed(reset=settings.reseed_on_boot)
-    checker = asyncio.create_task(_periodic_checks())
+    # Background loop (job time limits, document expiry) is off unless PARTNER_SLA_ENABLED=1;
+    # the full feature lives on the partner-features branch.
+    checker = asyncio.create_task(_periodic_checks()) if os.getenv("PARTNER_SLA_ENABLED") == "1" else None
     yield
-    checker.cancel()
+    if checker:
+        checker.cancel()
 
 
 async def _periodic_checks(interval_s: float = 60.0) -> None:
@@ -56,7 +60,6 @@ app.include_router(onboard_api.router)
 app.include_router(partner_api.list_router)
 app.include_router(partner_api.router)
 app.include_router(partner_events_api.router)  # POST /api/partners/{id}/events (API partners)
-app.include_router(triggers.router)  # POST /api/centrix/events (tenant.move_in, ...)
 app.include_router(tech_api.router)
 app.include_router(demo.router)
 

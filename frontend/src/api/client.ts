@@ -1,4 +1,4 @@
-import type { CaseDetail, CaseSummary, CentrixEventResult, JobDetail, JobSummary, OnboardCheck, OnboardDocument, OnboardResult, PartnerApplication, PartnerProfile, Slot, TechProfile, Technician, UnitDetail, UnitSummary, WebsiteAutofill } from './types'
+import type { CaseDetail, CaseSummary, JobDetail, JobSummary, OnboardCheck, OnboardDocument, OnboardResult, PartnerApplication, PartnerProfile, Slot, TechProfile, Technician, UnitDetail, UnitSummary, WebsiteAutofill } from './types'
 
 export const USE_FIXTURES = import.meta.env.VITE_USE_FIXTURES === '1'
 export const DEMO = import.meta.env.VITE_DEMO === '1'
@@ -38,9 +38,6 @@ const KNOWN_PARTNERS = ['heizung-schmidt', 'waerme-wagner', 'heiztechnik-gruen',
 const http = {
   staffUnits: () => req<UnitSummary[]>('GET', '/api/staff/units'),
   staffUnit: (id: string) => req<UnitDetail>('GET', `/api/staff/units/${enc(id)}`),
-  // centrix moment → partners whose manifest triggers on it (backend/app/triggers.py)
-  centrixMoveIn: (unitId: string, contactId?: string, moveInDate?: string) =>
-    req<CentrixEventResult>('POST', '/api/centrix/events', { type: 'tenant.move_in', unit_id: unitId, contact_id: contactId, move_in_date: moveInDate }),
   staffCases: () => req<CaseSummary[]>('GET', '/api/staff/cases'),
   staffCase: (id: string) => req<CaseDetail>('GET', `/api/staff/cases/${enc(id)}`),
   approve: (id: string) => req<CaseDetail>('POST', `/api/staff/cases/${enc(id)}/approve`),
