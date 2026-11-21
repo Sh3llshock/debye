@@ -50,6 +50,7 @@ class CaseState:
     consent_purpose: str = "Heizungsreparatur vor Ort"
     slots: list[dict] = field(default_factory=list)  # [{start, end, label}]
     approval_notice_sent: bool = False
+    trade_unknown: bool = False  # escalation without enough answers: staff pick the company at approval
     technician_name: str | None = None  # set by notify slots_proposed / technician_confirmed
     chosen_slot: dict | None = None
     triage_answer: str | None = None

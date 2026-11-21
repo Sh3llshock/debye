@@ -242,15 +242,17 @@ def test_frustrated_tenant_gets_a_technician(client, svc, claude):
     start(client, claude)
     client.post("/webhooks/whatsapp", json=wa("this is useless, just send someone"))
     t = texts(client)
-    assert "Understood. I'll get a technician to look at it." in t
-    assert any(c.get("trade") for c in svc.cases.values()) and "share your name" in t[-1]
+    new = t[t.index(next(x for x in t if x.startswith("Understood"))):]
+    assert new[0] == "Understood, I'll get a technician to look at it." and len(new) == 2  # ack + consent only
+    assert "share your name" in t[-1] and "a technician" in t[-1] and "heating" not in " ".join(new).lower()
+    assert svc.cases  # a case for staff (trade unknown: they pick the company at approval)
 
 
 def test_frustrated_first_message_skips_questions(client, svc, claude):
     claude([RuntimeError("down")] * 10)
     client.post("/webhooks/whatsapp", json=wa("no hot water again, just send a plumber"))
     assert not any(i.startswith("diag:") for i in last_ids(client))
-    assert any(c.get("trade") for c in svc.cases.values())
+    assert svc.cases and len(texts(client)) == 2  # ack + consent
 
 
 def test_new_problem_after_closure_starts_fresh(client, svc, claude):
@@ -513,3 +515,49 @@ def test_extracted_answer_to_open_question_is_explicit(monkeypatch):
     d = conv.diagnosis
     assert d["answers"]["q_hot_water_use"] == "no" and d["conflicts"] == {"q_hot_water_use": "same_time"}
     assert diagnosis.decisive_self_help(d) is None
+
+
+def test_frustrated_consent_yes_waits_for_staff_pick(client, svc, claude):
+    claude([RuntimeError("down")] * 10)
+    client.post("/webhooks/whatsapp", json=wa("shower cold again, this is useless just send someone"))
+    client.post("/webhooks/whatsapp", json=tap("consent_yes:case_0001"))
+    assert "picks the right company" in texts(client)[-1]
+    assert not any(c[0] == "dispatch" for c in svc.calls)
+
+
+def test_volunteered_long_shower_concludes_tip_for_shower_only(client, svc, claude, monkeypatch):
+    from app.agent import diagnosis, state
+
+    async def fake(text, open_qs):
+        k = {"my roommate showered for ages just before": {"q_hot_water_use": "before"}}.get(text, {})
+        return {q["id"]: k.get(q["id"], "unknown") for q in open_qs}
+
+    monkeypatch.setattr(diagnosis, "_classify_answers", fake)
+    claude([RuntimeError("down")] * 10)
+    client.post("/webhooks/whatsapp", json=wa("no hot water"))
+    client.post("/webhooks/whatsapp", json=tap("diag:q_scope:only_shower"))
+    client.post("/webhooks/whatsapp", json=wa("my roommate showered for ages just before"))
+    assert state.conversation("c_202").diagnosis["concluded"] == "hot_water_used_up"
+    assert "reheats" in texts(client)[-1]
+    _cancel_followups()
+
+
+def test_volunteered_answer_while_knob_question_open(client, svc, claude, monkeypatch):
+    """Lead's replay: the knob question was open; 'my roommate showered for ages just before' must conclude
+    the used-up tip, not re-ask the knob."""
+    from app.agent import diagnosis, state
+
+    async def fake(text, open_qs):
+        k = {"my roommate showered for ages just before": {"q_hot_water_use": "before"}}.get(text, {})
+        return {q["id"]: k.get(q["id"], "unknown") for q in open_qs}
+
+    monkeypatch.setattr(diagnosis, "_classify_answers", fake)
+    claude([RuntimeError("down")] * 10)
+    conv = state.conversation("c_202")
+    diagnosis.start(conv, "no hot water")
+    conv.diagnosis.update({"asked": ["q_scope", "q_shower_handle"], "answers": {"q_scope": "only_shower"},
+                           "safety_done": True})
+    conv.step = state.DIAGNOSIS
+    client.post("/webhooks/whatsapp", json=wa("my roommate showered for ages just before"))
+    assert conv.diagnosis["concluded"] == "hot_water_used_up" and "knob" not in texts(client)[-1].lower()
+    _cancel_followups()

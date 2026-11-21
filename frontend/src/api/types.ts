@@ -282,6 +282,33 @@ export interface OnboardCheck {
   message: string
 }
 
+/** POST /api/partners/onboard/from-website: one extracted field */
+export interface WebsiteField<T = unknown> {
+  value: T
+  confidence: number
+  source_snippet: string
+}
+
+/** POST /api/partners/onboard/from-website (nothing is saved) */
+export interface WebsiteAutofill {
+  fields: {
+    name?: WebsiteField<string>
+    street?: WebsiteField<string>
+    postcode?: WebsiteField<string>
+    city?: WebsiteField<string>
+    phone?: WebsiteField<string>
+    email?: WebsiteField<string>
+    vat_id?: WebsiteField<string>
+    hwk_no?: WebsiteField<string>
+    trades?: WebsiteField<string[]>
+    brands?: WebsiteField<string[]>
+    service_area?: WebsiteField<{ postcodes?: string[]; base_postcode?: string; radius_km?: number }>
+  }
+  manifest_draft: Record<string, unknown> | null
+  sources?: string[]
+  message?: string
+}
+
 /** POST /api/partners/onboard */
 export interface OnboardResult {
   partner_id: string

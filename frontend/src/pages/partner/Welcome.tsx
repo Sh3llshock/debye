@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
-import type { OnboardCheck, OnboardDocument, OnboardResult, PartnerProfile } from '../../api/types'
+import type { OnboardCheck, OnboardDocument, OnboardResult, PartnerProfile, WebsiteAutofill } from '../../api/types'
 import { LangToggle, Logo } from '../../components/Layout'
 import { t } from '../../lib/i18n'
 import { CheckPill, saveLocalProfile, setSession } from './shared'
@@ -349,12 +349,18 @@ const AGREE: [string, string, string][] = [
   ['ag_true', '', 'The information and documents I’ve given are correct and up to date.'],
 ]
 
-function F({ label, id, req, hint, full, children, bad }: { label: string; id?: string; req?: boolean; hint?: string; full?: boolean; children: ReactNode; bad?: boolean }) {
+/** Small "from your website" marker on a field the website autofill filled in. */
+function FromWebsite() {
+  return <span className="ml-1.5 inline-block rounded-full bg-wine-tint px-2 py-px align-middle text-[11px] font-semibold text-wine">{t('from your website')}</span>
+}
+
+function F({ label, id, req, hint, full, children, bad, tag }: { label: string; id?: string; req?: boolean; hint?: string; full?: boolean; children: ReactNode; bad?: boolean; tag?: boolean }) {
   return (
     <div className={`flex min-w-0 flex-col gap-1.5 ${full ? 'sm:col-span-2' : ''} ${bad ? '[&_input]:shadow-[0_0_0_1.5px_#C0262D]' : ''}`}>
       <label htmlFor={id} className="text-label font-medium text-secondary">
         {label}
         {req && <span className="text-red"> *</span>}
+        {tag && <FromWebsite />}
       </label>
       {children}
       {hint && <small className="text-meta text-muted">{hint}</small>}
@@ -367,7 +373,7 @@ function Sec({ children, first }: { children: ReactNode; first?: boolean }) {
 }
 
 /** One form field from the step definition (also used read/write on the Profile tab). */
-export function ProfileField({ f, p, set, errors, first }: { f: FieldDef; p: Profile; set: (patch: Partial<Profile>) => void; errors: string[]; first?: boolean }) {
+export function ProfileField({ f, p, set, errors, first, auto }: { f: FieldDef; p: Profile; set: (patch: Partial<Profile>) => void; errors: string[]; first?: boolean; auto?: Set<string> }) {
   if (f.sec) return <Sec first={first}>{t(f.sec)}</Sec>
   if (f.custom === 'docs')
     return (
@@ -399,6 +405,11 @@ export function ProfileField({ f, p, set, errors, first }: { f: FieldDef; p: Pro
     const items: [string, string][] = key === 'trades' ? TRADES.map(([k, l]) => [k, t(l)]) : BRANDS.map((b) => [b, b])
     return (
       <div className="flex flex-col gap-1.5 sm:col-span-2">
+        {auto?.has(key) && (
+          <div>
+            <FromWebsite />
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           {items.map(([k, l]) => (
             <CheckPill key={k} on={p[key].includes(k)} onClick={() => set({ [key]: p[key].includes(k) ? p[key].filter((x) => x !== k) : [...p[key], k] } as Partial<Profile>)}>
@@ -458,7 +469,7 @@ export function ProfileField({ f, p, set, errors, first }: { f: FieldDef; p: Pro
   const v = String(p[k] ?? '')
   const id = `f_${k}`
   return (
-    <F label={t(f.l!)} id={id} req={f.req} hint={f.hint ? t(f.hint) : undefined} full={f.full} bad={errors.includes(k)}>
+    <F label={t(f.l!)} id={id} req={f.req} hint={f.hint ? t(f.hint) : undefined} full={f.full} bad={errors.includes(k)} tag={auto?.has(k)}>
       {f.type === 'select' ? (
         <select id={id} className="field" value={v} onChange={(e) => set({ [k]: e.target.value })}>
           {f.opts!.map((o) => (
@@ -567,6 +578,37 @@ function localChecks(p: Profile): { label: string; ok: boolean; pill: string }[]
   ]
 }
 
+const LEGAL_FORMS = ['GmbH & Co. KG', 'GmbH', 'UG', 'GbR', 'e.K.']
+const TRADE_TO_SERVICE: Record<string, string> = { heating: 'gas_boiler', plumbing: 'plumbing', electrical: 'water_heater_electric' }
+
+/** Website autofill result → a patch for the form, and the keys it filled (they get the "from your website" tag). */
+function autofillPatch(r: WebsiteAutofill, url: string): { patch: Partial<Profile>; keys: string[] } {
+  const f = r.fields
+  const patch: Record<string, unknown> = {}
+  const str: [keyof WebsiteAutofill['fields'], string][] = [
+    ['name', 'company_name'], ['street', 'street'], ['postcode', 'postcode'], ['city', 'city'],
+    ['phone', 'phone_office'], ['email', 'email'], ['vat_id', 'vat_id'], ['hwk_no', 'hwk_no'],
+  ]
+  for (const [src, dst] of str) {
+    const v = f[src]?.value
+    if (typeof v === 'string' && v.trim()) patch[dst] = v.trim()
+  }
+  const name = String(patch.company_name ?? '')
+  const lf = LEGAL_FORMS.find((x) => name.toLowerCase().includes(x.toLowerCase()))
+  if (lf) patch.legal_form = lf
+  const services = [...new Set((f.trades?.value ?? []).map((x) => TRADE_TO_SERVICE[x]).filter(Boolean))]
+  if (services.length) patch.trades = services
+  const brands = (f.brands?.value ?? []).filter((b) => BRANDS.includes(b))
+  if (brands.length) patch.brands = brands
+  const area = f.service_area?.value
+  if (area?.postcodes?.length) patch.postcodes = area.postcodes.join(', ')
+  if (area?.base_postcode) patch.base_postcode = area.base_postcode
+  if (area?.radius_km) patch.radius_km = String(area.radius_km)
+  const keys = Object.keys(patch)
+  if (keys.length) patch.website = url.trim()
+  return { patch: patch as Partial<Profile>, keys }
+}
+
 export function PartnerRegister() {
   const [p, setP] = useState<Profile>(EMPTY_PROFILE)
   const [step, setStep] = useState(0)
@@ -576,9 +618,36 @@ export function PartnerRegister() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [done, setDone] = useState<OnboardResult | null>(null)
+  // First step: "Start with your website" (POST /api/partners/onboard/from-website; nothing is saved).
+  const [intro, setIntro] = useState(true)
+  const [site, setSite] = useState('')
+  const [siteBusy, setSiteBusy] = useState(false)
+  const [siteMsg, setSiteMsg] = useState<string | null>(null)
+  const [auto, setAuto] = useState<Set<string>>(new Set())
   const set = (patch: Partial<Profile>) => {
     setP((x) => ({ ...x, ...patch }) as Profile)
     setErrors((e) => e.filter((k) => !(k in patch)))
+    setAuto((a) => (Object.keys(patch).some((k) => a.has(k)) ? new Set([...a].filter((k) => !(k in patch))) : a))
+  }
+  const fillFromWebsite = async () => {
+    if (!site.trim()) return
+    setSiteBusy(true)
+    setSiteMsg(null)
+    try {
+      const r = await api.onboardFromWebsite(site.trim())
+      const { patch, keys } = autofillPatch(r, site)
+      if (!keys.length) {
+        setSiteMsg(t(r.message || 'We didn’t find your company details on the website. Please fill in the form.'))
+        return
+      }
+      setP((x) => ({ ...x, ...patch }) as Profile)
+      setAuto(new Set(keys))
+      setIntro(false)
+    } catch (e) {
+      setSiteMsg(e instanceof Error ? t(e.message) : String(e))
+    } finally {
+      setSiteBusy(false)
+    }
   }
   const manifest = useMemo(() => buildManifest(p), [p])
 
@@ -635,7 +704,7 @@ export function PartnerRegister() {
     <>
       <ol className="m-0 mt-2 flex list-none flex-col gap-0.5 rounded-tile bg-bg p-1">
         {STEPS.map((s, i) => {
-          const isOn = i === step && !review && !done
+          const isOn = i === step && !review && !done && !intro
           const isDone = i < step || review || !!done
           return (
             <li key={s.t} className={`flex items-center gap-2.5 rounded-[10px] px-2.5 py-[9px] font-medium ${isOn ? 'bg-surface text-ink shadow-[0_1px_3px_rgba(0,0,0,.08)]' : isDone ? 'text-ink' : 'text-muted'}`}>
@@ -725,6 +794,38 @@ export function PartnerRegister() {
     )
   }
 
+  if (intro) {
+    return (
+      <RegShell side={sideSteps}>
+        <div className="max-w-[660px] pt-6 md:pt-0">
+          <Eyebrow>{t('Before you start')}</Eyebrow>
+          <H2>{t('Start with your website')}</H2>
+          <Lead>{t('We read your home page, Impressum and contact page and fill in what we find. You check and edit everything before you submit; nothing is saved until then.')}</Lead>
+          <form
+            className="mt-5 flex flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault()
+              fillFromWebsite()
+            }}
+          >
+            <F label={t('Your website')} id="f_site">
+              <input id="f_site" className="field" type="text" inputMode="url" autoComplete="url" placeholder="www.heizung-mueller.de" value={site} onChange={(e) => setSite(e.target.value)} />
+            </F>
+            {siteMsg && <p className="m-0 font-medium text-warn">{siteMsg}</p>}
+            <div className="mt-2 flex flex-wrap items-center gap-2.5">
+              <button type="submit" className="btn-primary" disabled={siteBusy || !site.trim()}>
+                {siteBusy ? t('Reading your website…') : t('Fill in for me')}
+              </button>
+              <button type="button" className="btn-ghost" disabled={siteBusy} onClick={() => setIntro(false)}>
+                {t('Skip')}
+              </button>
+            </div>
+          </form>
+        </div>
+      </RegShell>
+    )
+  }
+
   const st = STEPS[step]
   return (
     <RegShell side={sideSteps} wide>
@@ -739,14 +840,14 @@ export function PartnerRegister() {
         <Lead>{t(st.lead)}</Lead>
         <div className="grid grid-cols-1 gap-x-[18px] gap-y-4 sm:grid-cols-2">
           {st.fields.map((f, i) => (
-            <ProfileField key={f.k ?? f.sec ?? f.custom ?? i} f={f} p={p} set={set} errors={errors} first={i === 0} />
+            <ProfileField key={f.k ?? f.sec ?? f.custom ?? i} f={f} p={p} set={set} errors={errors} first={i === 0} auto={auto} />
           ))}
         </div>
         <div className="mt-[30px] flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
           {step === 0 ? (
-            <Link to="/partner" className="btn-ghost">
+            <button className="btn-ghost" onClick={() => setIntro(true)}>
               ← {t('Back')}
-            </Link>
+            </button>
           ) : (
             <button className="btn-ghost" onClick={back}>
               ← {t('Back')}

@@ -4,6 +4,7 @@ GET  /api/partners/onboard/schema    defaults and choices for the join form
 POST /api/partners/onboard/validate  {manifest} → {valid, checks[]} (live checklist)
 POST /api/partners/onboard           {manifest, technicians[], documents[], company} → partner saved as
                                      pending_review; staff approve it on the Partners page (feature 1)
+POST /api/partners/onboard/from-website {url} → {fields, manifest_draft} to pre-fill the form (nothing saved)
 """
 from __future__ import annotations
 
@@ -64,6 +65,19 @@ class ValidateIn(BaseModel):
 @router.get("/schema")
 def get_schema() -> dict:
     return onboarding.schema()
+
+
+class WebsiteIn(BaseModel):
+    url: str
+
+
+@router.post("/from-website")
+async def from_website(body: WebsiteIn) -> dict:
+    from .partners import website
+    try:
+        return await website.autofill(body.url)
+    except website.BlockedUrl as e:
+        raise HTTPException(400, str(e)) from None
 
 
 @router.post("/validate")
