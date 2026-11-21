@@ -1,4 +1,5 @@
 // v3 job cards: New job (accept + technician + times), Work in progress (track + report), invoice panel.
+import { Icon } from '../../components/icons'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { api, DEMO } from '../../api/client'
@@ -399,7 +400,7 @@ export function WipCard({ job, pid, techs, put, toast, onCompleted }: { job: Job
           <div className="flex flex-col gap-1.5">
             <label className="text-label font-medium text-secondary">{t('Photo after the repair')}</label>
             <label className={`btn-secondary min-h-0 cursor-pointer self-start px-3 py-1.5 text-label ${photo ? 'bg-ok-tint text-ok' : ''}`}>
-              📷 {photo ? photo.name : t('Add photo')}
+              <Icon name="camera" className="h-4 w-4" /> {photo ? photo.name : t('Add photo')}
               <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
             </label>
           </div>
@@ -526,7 +527,7 @@ export function InvoicePanel({ job, pid, put, toast, onClose }: { job: JobDetail
       {err && <div className="mt-3 rounded-[12px] bg-red-tint px-3.5 py-3 text-red">{err}</div>}
       <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
         <label className="btn-primary cursor-pointer">
-          📷 {file ? file.name : t('Upload invoice photo / PDF')}
+          <Icon name="upload" className="h-4 w-4" /> {file ? file.name : t('Upload invoice photo / PDF')}
           <input type="file" accept="image/*,.pdf,application/pdf" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </label>
         {DEMO && !file && (

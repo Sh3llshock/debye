@@ -686,4 +686,5 @@ export const DE: Record<string, string> = {
   'Describe what you see in your own words. Debye already knows your flat and its appliances.': 'Beschreiben Sie in Ihren Worten, was Sie sehen. Debye kennt Ihre Wohnung und Ihre Geräte schon.',
   'For example: the shower only runs cold': 'Zum Beispiel: Die Dusche bleibt kalt',
   'Debye already knows your flat and its appliances': 'Debye kennt Ihre Wohnung und Ihre Geräte schon',
+  'Your jobs': 'Ihre Aufträge',
 }

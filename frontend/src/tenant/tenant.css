@@ -39,9 +39,9 @@
 .tp .tbrand { display: flex; align-items: center; gap: 9px; font: 500 19px var(--sysd); border: 0; background: none; color: var(--ink); padding: 0; flex: none; }
 .tp .tabs { display: flex; gap: 6px; margin-left: 18px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
 .tp .tabs::-webkit-scrollbar { display: none; }
-.tp .tab { border: 0; background: transparent; color: var(--body); padding: 7px 13px; border-radius: 3px; font-size: 13.5px; font-weight: 500; white-space: nowrap; display: flex; align-items: center; gap: 7px; }
-.tp .tab:hover { background: var(--beige); }
-.tp .tab.on { background: var(--wine-tint); color: var(--wine); }
+.tp .tab { border: 0; background: transparent; color: var(--body); padding: 7px 4px; border-radius: 0; font-size: 14px; font-weight: 400; white-space: nowrap; display: flex; align-items: center; gap: 7px; }
+.tp .tab:hover { color: var(--ink); }
+.tp .tab.on { color: var(--ink); font-weight: 500; box-shadow: inset 0 -2px 0 var(--wine); }
 .tp .tab .dotst { width: 7px; height: 7px; }
 .tp .tuser { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 14px; white-space: nowrap; }
 .tp .tuser span { color: var(--muted); font-size: 12.5px; }
