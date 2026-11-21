@@ -63,7 +63,7 @@ def test_decline_without_new_consent_goes_to_approval(client, monkeypatch):
     _spy(monkeypatch)
     luka, case = _luka_case()
     first, second = [r["partner_id"] for r in services.rank_partners(case.id)][:2]
-    services.record_consent(luka.id, second, case.id, ["name", "phone", "address"], "repair", "whatsapp")
+    services.record_consent(luka.id, second, case.id, ["name", "phone", "address", "tenant_name", "tenant_phone", "unit_floor", "access_details", "photos"], "repair", "whatsapp")
     _sent_to(case.id, first, luka)
     services.partner_decline(case.id, first, "sick")
     c = services.get_case(case.id)
@@ -107,7 +107,8 @@ def test_no_partner_left_needs_staff(client, monkeypatch):
     services.record_consent(luka.id, ranked[0], case.id, ["address"], "repair", "whatsapp")
     with services.get_session() if hasattr(services, "get_session") else _nullctx() as s:
         c = s.get(services.Case, case.id)
-        c.data = {**c.data, "declined_by": ranked[1:]}  # everyone else already said no
+        others = [p.id for p in s.exec(services.select(services.Partner)).all() if p.id != ranked[0]]
+        c.data = {**c.data, "declined_by": others}  # everyone else already said no
         s.add(c)
         s.commit()
     _sent_to(case.id, ranked[0], luka)
