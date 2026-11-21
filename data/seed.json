@@ -309,6 +309,17 @@
       }
     },
     {
+      "id": "ct_fw_heiztechnik_api",
+      "type": "framework",
+      "partner_id": "heiztechnik-api",
+      "data": {
+        "auto_approve_limit_eur": 500,
+        "callout_fee_eur": 89,
+        "hourly_eur": 72,
+        "valid_until": "2027-12-31"
+      }
+    },
+    {
       "id": "ct_lease_1a",
       "type": "lease",
       "unit_id": "unit_1a",

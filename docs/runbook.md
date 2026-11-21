@@ -68,6 +68,13 @@ Pitch line: "The next partner plugs in without a line of code."
 
 The onboarded manifest is saved as `partners/heizung-mueller.json` and survives **Reset**. To remove it after the demo: delete that file, then reset.
 
+### Extra beat: a partner with its own system (API transport, about 1 minute)
+
+1. Start the fake partner next to the backend: `python scripts/fake_partner.py --port 8100 --debye http://localhost:8000` (`PARTNER_API_SECRET` must be set in `.env`, the same value for both).
+2. Open Luka's case and route it to the API partner: `POST /demo/trigger/tenant_report`, then `POST /demo/trigger/consent {"partner_id": "heiztechnik-api"}`.
+3. Anna approves on the staff page → the signed order goes to `:8100` ("Order … sent via API"). Within ~6 s the timeline shows "Heiztechnik API GmbH accepted" and two proposed slots, posted back through the signed events webhook.
+4. Luka picks a slot (`/demo/trigger/pick_slot`), then press "Complete + invoice" on `http://localhost:8100`: the case goes to invoiced with the price check, same as a portal partner.
+
 ### Variant: Luka calls instead of sending a voice note (step 1)
 Luka **calls** Debye (phone number, or the `/call` page as "Luka"): "Meine Heizung ist seit heute Morgen kalt … alle Heizkörper … auf dem Display steht F 28." Debye greets Luka by name and doesn't ask for address or boiler. It explains "die Zündung ist fehlgeschlagen (Fehlercode F.28)", opens the case and hangs up. Within about 10 s:
 - staff page: case opened, timeline line **"Call with Luka (0:47): heating cold, all radiators cold, ignition failed (F.28). Case opened, consent asked on WhatsApp."**
