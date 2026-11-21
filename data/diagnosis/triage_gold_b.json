@@ -1,0 +1,1972 @@
+{
+  "version": 1,
+  "notes": "Gold triage conversations, set B (areas: mold_damp, pests, roof_ceiling_leak, intercom, lift, management, other; plus vague-area, two-problem and emergency routing). Same schema and rules as set A: question ids, answer keys, cause ids and tenant_message texts come from the area KBs; tenant_facts holds the answer the tenant gives when first asked; for self_help_fails the KB's if_fails answers of the self-help cause override them after the failed tip, which yields expected_cause. Technician causes: concluding message, then the consent question (', floor and the photos' only when a photo was sent), then 'Thanks. Your property manager is confirming the repair, I'll update you shortly.' A re-ask after an off-topic reply repeats the same qid and does not count twice; 'clarify' does not count. Emergencies (fire or smoke but not 'smoke alarm', a CO alarm, someone stuck in the lift) come from the words: the safety message first, no question, no consent. vague_area: a first message with no area keyword gets 'Ok. What is it about?' ('Okay. Worum geht es?'), marked asks='area'; it is not a diagnostic question and the tenant's next turn names the area. two_problems: expected_area/expected_cause/expected_outcome/expected_trade and tenant_facts are the first-diagnosed problem (the first mentioned; an area with its own KB before hot water or heating); second_area, second_cause and second_tenant_facts are the queued one (second_area no_hot_water is the hot-water KB). Once the first is settled (tip confirmed, caretaker or management told, or consent answered) Debye sends 'Now to {label}.' ('Jetzt kümmere ich mich um {label_de}.') as its own message and the second diagnosis starts; max_diagnostic_questions applies to each problem. Water through the ceiling is not the flooding emergency (the router leaves it to the ceiling KB), even when it pours. management: at most 1 question.",
+  "conversations": [
+    {
+      "id": "tb01_bedroom_mould_dry_de",
+      "title": "Kleine trockene Schimmelflecken am Fenster (deutsch)",
+      "contact_id": "c_202",
+      "setup": null,
+      "expected_area": "mold_damp",
+      "expected_cause": "condensation_mould",
+      "expected_outcome": "self_help",
+      "expected_trade": null,
+      "tags": [
+        "german",
+        "decisive_first",
+        "self_help_works"
+      ],
+      "tenant_facts": {
+        "md_wet": "dry",
+        "md_size": "small",
+        "md_where": "window"
+      },
+      "self_help_result": "works",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "Hallo, im Schlafzimmer am Fenster sind ein paar kleine trockene Schimmelflecken, kleiner als meine Hand."
+        },
+        {
+          "role": "debye",
+          "text": "Kleine trockene Flecken kommen meist von Kondenswasser. Wisch sie mit Schimmelentferner oder 70-%-Alkohol ab (Handschuhe, Fenster auf), lüfte 3-4 Mal am Tag 5-10 Minuten stoß und lass eine Handbreit Abstand zwischen Möbeln und Außenwänden. Sag mir, ob er wiederkommt.",
+          "asks": null,
+          "concludes": "condensation_mould"
+        },
+        {
+          "role": "tenant",
+          "text": "Hab sie abgewischt und lüfte jetzt öfter, die Flecken sind weg."
+        },
+        {
+          "role": "debye",
+          "text": "Schön. Melde dich jederzeit, wenn er wiederkommt.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "answer in English",
+        "use 'Sie' instead of 'du'",
+        "ask whether the wall is wet (already given)",
+        "send a damp specialist"
+      ]
+    },
+    {
+      "id": "tb02_mould_back_after_cleaning",
+      "title": "Mould in the bedroom corner comes back bigger after cleaning",
+      "contact_id": "c_203",
+      "setup": null,
+      "expected_area": "mold_damp",
+      "expected_cause": "large_mould",
+      "expected_outcome": "technician",
+      "expected_trade": "mold_damp",
+      "tags": [
+        "self_help_fails"
+      ],
+      "tenant_facts": {
+        "md_wet": "dry",
+        "md_size": "small",
+        "md_where": "outside_wall"
+      },
+      "self_help_result": "fails",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "there's black mould in the corner of my bedroom"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is the wall wet to the touch or does it have water stains, or is it dry with just spots?",
+          "asks": "md_wet"
+        },
+        {
+          "role": "tenant",
+          "text": "it's dry, just black spots"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. How big is it: smaller than your hand, or bigger than a sheet of paper?",
+          "asks": "md_size"
+        },
+        {
+          "role": "tenant",
+          "text": "about the size of my hand"
+        },
+        {
+          "role": "debye",
+          "text": "Small dry spots usually come from condensation. Wipe them with a mould cleaner or 70% alcohol (gloves, window open), air fully 3-4 times a day for 5-10 minutes, and keep furniture a hand's width from outside walls. Tell me if it comes back.",
+          "asks": null,
+          "concludes": "condensation_mould"
+        },
+        {
+          "role": "tenant",
+          "text": "I cleaned it and aired every day like you said, but it's back and now it's bigger than a sheet of paper"
+        },
+        {
+          "role": "debye",
+          "text": "An area that size shouldn't be cleaned yourself, so a mould specialist needs to treat it and check why it grows. Keep the room aired and don't sleep right next to it if you can avoid it.",
+          "asks": null,
+          "concludes": "large_mould"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Trocknungstechnik Aachen over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "close the case after the failed tip",
+        "tell the tenant to clean the large area again",
+        "blame the tenant's airing",
+        "ask a fourth diagnostic question"
+      ]
+    },
+    {
+      "id": "tb03_wet_wall_photo",
+      "title": "Mould behind the sofa, photo shows a wet wall",
+      "contact_id": "c_204",
+      "setup": null,
+      "expected_area": "mold_damp",
+      "expected_cause": "damp_ingress",
+      "expected_outcome": "technician",
+      "expected_trade": "mold_damp",
+      "tags": [
+        "photo"
+      ],
+      "tenant_facts": {
+        "md_wet": "wet"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "there's mould on the living room wall behind the sofa"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is the wall wet to the touch or does it have water stains, or is it dry with just spots?",
+          "asks": "md_wet"
+        },
+        {
+          "role": "tenant",
+          "text": "[photo] it feels wet and there's a brown water stain above it",
+          "media": "photo"
+        },
+        {
+          "role": "debye",
+          "text": "A wet wall means water is getting in from somewhere, so a damp specialist needs to measure it and find the source. Please don't paint over it; photos of it help.",
+          "asks": null,
+          "concludes": "damp_ingress"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Trocknungstechnik Aachen over. Is it okay if I share your name, phone number, address, floor and the photos with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes go ahead"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "give the cleaning and airing tip for a wet wall",
+        "suggest painting over it",
+        "leave out the photos in the consent question",
+        "ask how big it is (not needed)"
+      ]
+    },
+    {
+      "id": "tb04_mouse_droppings",
+      "title": "Mouse droppings in the kitchen cupboard",
+      "contact_id": "c_205",
+      "setup": null,
+      "expected_area": "pests",
+      "expected_cause": "rodents",
+      "expected_outcome": "technician",
+      "expected_trade": "pest_control",
+      "tags": [
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "pe_what": "rodents"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "I found mouse droppings in the kitchen cupboard this morning"
+        },
+        {
+          "role": "debye",
+          "text": "Mice or rats need pest control, since they rarely come alone. Keep food in closed containers and don't touch droppings without gloves.",
+          "asks": null,
+          "concludes": "rodents"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Schädlingsfrei Nord over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask what kind of pest it is (already given)",
+        "suggest setting traps instead of pest control",
+        "ask how many there are"
+      ]
+    },
+    {
+      "id": "tb05_cockroaches_typos",
+      "title": "Cockroaches in the bathroom, typed with typos",
+      "contact_id": "c_206",
+      "setup": null,
+      "expected_area": "pests",
+      "expected_cause": "cockroaches",
+      "expected_outcome": "technician",
+      "expected_trade": "pest_control",
+      "tags": [
+        "typos",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "pe_what": "cockroaches"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "saw cockroachs in the bathrom agian last nite"
+        },
+        {
+          "role": "debye",
+          "text": "Cockroaches need pest control, and usually the neighbouring flats are checked too. Keep food sealed and don't spray yourself, it makes them spread.",
+          "asks": null,
+          "concludes": "cockroaches"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Schädlingsfrei Nord over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "ya ok"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask what kind of pest it is (already given)",
+        "recommend an insect spray",
+        "correct the tenant's spelling"
+      ]
+    },
+    {
+      "id": "tb06_ants_few_works",
+      "title": "A few ants in the kitchen, vinegar and bait box help",
+      "contact_id": "c_202",
+      "setup": null,
+      "expected_area": "pests",
+      "expected_cause": "ants_minor",
+      "expected_outcome": "self_help",
+      "expected_trade": null,
+      "tags": [
+        "self_help_works"
+      ],
+      "tenant_facts": {
+        "pe_what": "ants",
+        "pe_amount": "few"
+      },
+      "self_help_result": "works",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "we have ants in the kitchen"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is it just a few, or a lot of them every day?",
+          "asks": "pe_amount"
+        },
+        {
+          "role": "tenant",
+          "text": "just a few by the window"
+        },
+        {
+          "role": "debye",
+          "text": "A few ants are usually after food. Wipe their trail with vinegar water, keep food and bins sealed, and put an ant bait box where they come in. Tell me if they're still there in a few days.",
+          "asks": null,
+          "concludes": "ants_minor"
+        },
+        {
+          "role": "tenant",
+          "text": "vinegar and the bait box did it, they're gone"
+        },
+        {
+          "role": "debye",
+          "text": "Good to hear. Message me any time if they come back.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask what kind of pest it is (already given)",
+        "send pest control for a few ants"
+      ]
+    },
+    {
+      "id": "tb07_ants_come_back_infestation",
+      "title": "Ants by the bin keep coming after the tip",
+      "contact_id": "c_203",
+      "setup": null,
+      "expected_area": "pests",
+      "expected_cause": "pest_infestation",
+      "expected_outcome": "technician",
+      "expected_trade": "pest_control",
+      "tags": [
+        "self_help_fails"
+      ],
+      "tenant_facts": {
+        "pe_what": "ants",
+        "pe_amount": "few"
+      },
+      "self_help_result": "fails",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "ants keep showing up near the bin in my kitchen"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is it just a few, or a lot of them every day?",
+          "asks": "pe_amount"
+        },
+        {
+          "role": "tenant",
+          "text": "only a few so far"
+        },
+        {
+          "role": "debye",
+          "text": "A few ants are usually after food. Wipe their trail with vinegar water, keep food and bins sealed, and put an ant bait box where they come in. Tell me if they're still there in a few days.",
+          "asks": null,
+          "concludes": "ants_minor"
+        },
+        {
+          "role": "tenant",
+          "text": "they're still there, now there's a whole trail of them every day"
+        },
+        {
+          "role": "debye",
+          "text": "With that many, pest control needs to find where they come in and treat it.",
+          "asks": null,
+          "concludes": "pest_infestation"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Schädlingsfrei Nord over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes please"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "close the case after the failed tip",
+        "repeat the vinegar tip",
+        "ask what kind of pest it is (already given)"
+      ]
+    },
+    {
+      "id": "tb08_bites_vague_area",
+      "title": "Vague first message, then bedbugs",
+      "contact_id": "c_204",
+      "setup": null,
+      "expected_area": "pests",
+      "expected_cause": "bedbugs",
+      "expected_outcome": "technician",
+      "expected_trade": "pest_control",
+      "tags": [
+        "vague_area"
+      ],
+      "tenant_facts": {
+        "pe_what": "bedbugs"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "Hi, I have a problem and need help"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. What is it about?",
+          "asks": "area"
+        },
+        {
+          "role": "tenant",
+          "text": "pests I think, small brown bugs in my mattress and I wake up with bites"
+        },
+        {
+          "role": "debye",
+          "text": "Bedbugs need pest control. Wash bedding at 60°C and don't move furniture or mattresses to other rooms, so they don't spread.",
+          "asks": null,
+          "concludes": "bedbugs"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Schädlingsfrei Nord over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "guess an area from the first message",
+        "count the area question as a diagnostic question",
+        "ask what kind of pest it is (already given)",
+        "tell the tenant to move the mattress to another room"
+      ]
+    },
+    {
+      "id": "tb09_top_floor_rain_drip",
+      "title": "Bedroom ceiling drips when it rains, top floor",
+      "contact_id": "c_205",
+      "setup": null,
+      "expected_area": "roof_ceiling_leak",
+      "expected_cause": "roof_leak",
+      "expected_outcome": "technician",
+      "expected_trade": "roofing",
+      "tags": [
+        "clean"
+      ],
+      "tenant_facts": {
+        "rf_rain": "yes",
+        "rf_where": "ceiling",
+        "rf_top": "yes"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "water drips from my bedroom ceiling when it rains"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is your flat on the top floor, right under the roof?",
+          "asks": "rf_top"
+        },
+        {
+          "role": "tenant",
+          "text": "yes, attic flat right under the roof"
+        },
+        {
+          "role": "debye",
+          "text": "Rain coming through a top-floor ceiling points to the roof, so a roofer needs to check it. Put a bucket under the drip and move electronics away; photos of the ceiling help.",
+          "asks": null,
+          "concludes": "roof_leak"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Dachdeckerei Lambertz over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask whether it happens when it rains (already given)",
+        "send the caretaker",
+        "treat it as a flooding emergency"
+      ]
+    },
+    {
+      "id": "tb10_ceiling_pouring_dry_day",
+      "title": "Water pouring through the bathroom ceiling on a dry day",
+      "contact_id": "c_206",
+      "setup": null,
+      "expected_area": "roof_ceiling_leak",
+      "expected_cause": "neighbour_above_leak",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "tags": [
+        "ceiling_not_flooding"
+      ],
+      "tenant_facts": {
+        "rf_rain": "no",
+        "rf_where": "ceiling"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "water is pouring through my bathroom ceiling"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Does it happen when it rains, or also when it's dry outside?",
+          "asks": "rf_rain"
+        },
+        {
+          "role": "tenant",
+          "text": "no it's sunny today, hasn't rained in days"
+        },
+        {
+          "role": "debye",
+          "text": "If it drips when it's dry outside, the water most likely comes from the flat above. Our caretaker Peter Wolf will check with the neighbours above right away and call a plumber if needed. Keep a bucket under it.",
+          "asks": null,
+          "concludes": "neighbour_above_leak"
+        }
+      ],
+      "must_not": [
+        "send the flooding safety steps before asking (water from above is the ceiling KB)",
+        "tell the tenant to turn off their own main water valve",
+        "send a roofer",
+        "ask whether the flat is on the top floor"
+      ]
+    },
+    {
+      "id": "tb11_window_frame_rain",
+      "title": "Rain comes in around the living room window frame",
+      "contact_id": "c_202",
+      "setup": null,
+      "expected_area": "roof_ceiling_leak",
+      "expected_cause": "window_frame_leak",
+      "expected_outcome": "technician",
+      "expected_trade": "glazier",
+      "tags": [
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "rf_rain": "yes",
+        "rf_where": "window"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "when it rains, water comes in around the living room window frame"
+        },
+        {
+          "role": "debye",
+          "text": "Rain getting in at the window frame means the seal or the joint has failed, so a window fitter needs to reseal it. Towels on the sill help until then.",
+          "asks": null,
+          "concludes": "window_frame_leak"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Glaserei Hoffmann over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "ok yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "treat it as a window that won't close",
+        "send a roofer",
+        "ask whether it happens when it rains (already given)"
+      ]
+    },
+    {
+      "id": "tb12_outside_wall_off_topic",
+      "title": "Wet patch on the outside wall when it rains, off-topic reply",
+      "contact_id": "c_203",
+      "setup": null,
+      "expected_area": "roof_ceiling_leak",
+      "expected_cause": "facade_leak",
+      "expected_outcome": "technician",
+      "expected_trade": "roofing",
+      "tags": [
+        "off_topic"
+      ],
+      "tenant_facts": {
+        "rf_rain": "yes",
+        "rf_where": "wall"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "when it rains, a wet patch shows up on my living room wall"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is the water coming through the ceiling, around a window frame, or through an outside wall?",
+          "asks": "rf_where"
+        },
+        {
+          "role": "tenant",
+          "text": "ugh this weather is so depressing"
+        },
+        {
+          "role": "debye",
+          "text": "I know. And is it the ceiling, a window frame or an outside wall?",
+          "asks": "rf_where"
+        },
+        {
+          "role": "tenant",
+          "text": "it's on the outside wall, next to the balcony door"
+        },
+        {
+          "role": "debye",
+          "text": "Rain coming through an outside wall points to the facade or a gutter, so a roofer needs to check the outside. Photos of the wet spot help.",
+          "asks": null,
+          "concludes": "facade_leak"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Dachdeckerei Lambertz over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "treat the weather remark as an answer",
+        "treat it as mould",
+        "send the caretaker"
+      ]
+    },
+    {
+      "id": "tb13_doorbell_muted_fails",
+      "title": "Doorbell silent, mute switch was off, still silent",
+      "contact_id": "c_204",
+      "setup": null,
+      "expected_area": "intercom",
+      "expected_cause": "flat_handset_fault",
+      "expected_outcome": "technician",
+      "expected_trade": "electrical",
+      "tags": [
+        "self_help_fails"
+      ],
+      "tenant_facts": {
+        "ic_what": "no_ring",
+        "ic_neighbours": "no",
+        "ic_volume": "was_off"
+      },
+      "self_help_result": "fails",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "my doorbell doesn't ring anymore, the courier left a note again"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Do your neighbours have the same problem?",
+          "asks": "ic_neighbours"
+        },
+        {
+          "role": "tenant",
+          "text": "no, my neighbour's works fine"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Many handsets have a small volume or mute switch on the side or bottom. Is it turned off or down?",
+          "asks": "ic_volume"
+        },
+        {
+          "role": "tenant",
+          "text": "found a little switch on the side, it was off, it's on now"
+        },
+        {
+          "role": "debye",
+          "text": "Then it was just muted. Leave it on and tell me if the bell still doesn't ring next time someone comes.",
+          "asks": null,
+          "concludes": "bell_muted"
+        },
+        {
+          "role": "tenant",
+          "text": "a friend just tried it, it still doesn't ring"
+        },
+        {
+          "role": "debye",
+          "text": "If it's only your flat, the handset or its wiring is faulty, so an electrician needs to replace or repair it.",
+          "asks": null,
+          "concludes": "flat_handset_fault"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Elektro Klein GmbH over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "close the case after the failed tip",
+        "say the building's intercom is faulty",
+        "ask what isn't working (already given)",
+        "tell the tenant to open the handset"
+      ]
+    },
+    {
+      "id": "tb14_doorbell_volume_dont_know",
+      "title": "Doorbell silent, tenant doesn't know about the neighbours, volume was down",
+      "contact_id": "c_205",
+      "setup": null,
+      "expected_area": "intercom",
+      "expected_cause": "bell_muted",
+      "expected_outcome": "self_help",
+      "expected_trade": null,
+      "tags": [
+        "dont_know",
+        "self_help_works"
+      ],
+      "tenant_facts": {
+        "ic_what": "no_ring",
+        "ic_volume": "was_off"
+      },
+      "self_help_result": "works",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "the doorbell has gone silent"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Do your neighbours have the same problem?",
+          "asks": "ic_neighbours"
+        },
+        {
+          "role": "tenant",
+          "text": "no idea, haven't asked anyone"
+        },
+        {
+          "role": "debye",
+          "text": "No problem. Many handsets have a small volume or mute switch on the side or bottom. Is it turned off or down?",
+          "asks": "ic_volume"
+        },
+        {
+          "role": "tenant",
+          "text": "oh, the volume was turned all the way down"
+        },
+        {
+          "role": "debye",
+          "text": "Then it was just muted. Leave it on and tell me if the bell still doesn't ring next time someone comes.",
+          "asks": null,
+          "concludes": "bell_muted"
+        },
+        {
+          "role": "tenant",
+          "text": "just tested it with my flatmate, it rings again"
+        },
+        {
+          "role": "debye",
+          "text": "Good to hear. Message me any time if it stops again.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "insist the tenant asks the neighbours first",
+        "send an electrician",
+        "ask what isn't working (already given)"
+      ]
+    },
+    {
+      "id": "tb15_whole_building_intercom",
+      "title": "Intercom dead, the neighbour's too",
+      "contact_id": "c_206",
+      "setup": null,
+      "expected_area": "intercom",
+      "expected_cause": "building_intercom_fault",
+      "expected_outcome": "technician",
+      "expected_trade": "electrical",
+      "tags": [
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "ic_neighbours": "yes"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "the intercom is dead, and the lady across the hall says hers is dead too"
+        },
+        {
+          "role": "debye",
+          "text": "If the neighbours have it too, the building's intercom system is faulty, so an electrician needs to repair the central unit. Until then, visitors and deliveries can call you directly.",
+          "asks": null,
+          "concludes": "building_intercom_fault"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Elektro Klein GmbH over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "sure"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask whether the neighbours have it too (already given)",
+        "suggest the handset's mute switch",
+        "send the caretaker"
+      ]
+    },
+    {
+      "id": "tb16_neighbour_stuck_in_lift",
+      "title": "Neighbour stuck in the lift between floors",
+      "contact_id": "c_202",
+      "setup": null,
+      "expected_area": "lift",
+      "expected_cause": "person_trapped",
+      "expected_outcome": "emergency",
+      "expected_trade": "elevator",
+      "tags": [
+        "emergency",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "li_state": "someone_trapped"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "my neighbour is stuck in the lift between the 3rd and 4th floor"
+        },
+        {
+          "role": "debye",
+          "text": "Press the alarm button in the lift and hold it, that connects to the lift emergency service. Stay calm, don't try to open the doors, and call 112 if anyone feels unwell. I've alerted your property manager and the lift company.",
+          "asks": null,
+          "concludes": "person_trapped"
+        },
+        {
+          "role": "tenant",
+          "text": "she pressed the alarm and someone answered"
+        },
+        {
+          "role": "debye",
+          "text": "Good. Stay near the lift and keep talking to her if you can; I'll update you as soon as the lift company is confirmed.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask any diagnostic question before the safety steps",
+        "ask for consent before the safety message",
+        "tell anyone to force the doors open",
+        "promise an arrival time"
+      ]
+    },
+    {
+      "id": "tb17_lift_not_coming_question_back",
+      "title": "Lift not moving, no sign, tenant asks how long",
+      "contact_id": "c_203",
+      "setup": null,
+      "expected_area": "lift",
+      "expected_cause": "lift_out_of_service",
+      "expected_outcome": "technician",
+      "expected_trade": "elevator",
+      "tags": [
+        "question_back"
+      ],
+      "tenant_facts": {
+        "li_state": "stopped",
+        "li_notice": "no"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "the lift hasn't come for 20 minutes, it's not moving at all"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is there a sign or notice at the lift, for example about maintenance?",
+          "asks": "li_notice"
+        },
+        {
+          "role": "tenant",
+          "text": "no, no sign anywhere"
+        },
+        {
+          "role": "debye",
+          "text": "Then the lift company needs to come. If you or a neighbour can't manage the stairs, tell me and the property manager will help in the meantime.",
+          "asks": null,
+          "concludes": "lift_out_of_service"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Aufzugsdienst Rhein over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "how long will that take? I'm on the 6th floor"
+        },
+        {
+          "role": "debye",
+          "text": "I can't promise a time yet; the lift company suggests one once your property manager has confirmed. Is it okay if I share your name, phone number, address and floor with Aufzugsdienst Rhein?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "ok yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "promise a repair time",
+        "ask whether the lift moves (already given)",
+        "skip the consent question"
+      ]
+    },
+    {
+      "id": "tb18_maintenance_sign_still_down",
+      "title": "Lift maintenance sign, still down hours later",
+      "contact_id": "c_204",
+      "setup": null,
+      "expected_area": "lift",
+      "expected_cause": "lift_out_of_service",
+      "expected_outcome": "technician",
+      "expected_trade": "elevator",
+      "tags": [
+        "self_help_fails"
+      ],
+      "tenant_facts": {
+        "li_state": "stopped",
+        "li_notice": "yes"
+      },
+      "self_help_result": "fails",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "the elevator is out of order"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is there a sign or notice at the lift, for example about maintenance?",
+          "asks": "li_notice"
+        },
+        {
+          "role": "tenant",
+          "text": "yes there's a maintenance notice, says until 2pm"
+        },
+        {
+          "role": "debye",
+          "text": "Then it's the planned maintenance and it should run again once that's done. Tell me if it's still down after the time on the sign.",
+          "asks": null,
+          "concludes": "lift_maintenance"
+        },
+        {
+          "role": "tenant",
+          "text": "it's 6pm now and it's still not moving"
+        },
+        {
+          "role": "debye",
+          "text": "Then the lift company needs to come. If you or a neighbour can't manage the stairs, tell me and the property manager will help in the meantime.",
+          "asks": null,
+          "concludes": "lift_out_of_service"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Aufzugsdienst Rhein over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes please"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "close the case after the failed tip",
+        "tell the tenant to keep waiting",
+        "ask about the sign again"
+      ]
+    },
+    {
+      "id": "tb19_lift_jerks_vague_area",
+      "title": "Vague first message, then a jerking lift",
+      "contact_id": "c_205",
+      "setup": null,
+      "expected_area": "lift",
+      "expected_cause": "lift_fault_minor",
+      "expected_outcome": "technician",
+      "expected_trade": "elevator",
+      "tags": [
+        "vague_area"
+      ],
+      "tenant_facts": {
+        "li_state": "problem"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "something isn't working, can you help?"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. What is it about?",
+          "asks": "area"
+        },
+        {
+          "role": "tenant",
+          "text": "the lift, it jerks really hard when it stops"
+        },
+        {
+          "role": "debye",
+          "text": "Then the lift company needs to check it. If it stops between floors, press the alarm button in the lift.",
+          "asks": null,
+          "concludes": "lift_fault_minor"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Aufzugsdienst Rhein over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "guess an area from the first message",
+        "count the area question as a diagnostic question",
+        "ask whether the lift moves (already given)",
+        "say the lift is safe to use"
+      ]
+    },
+    {
+      "id": "tb20_utility_bill_de",
+      "title": "Frage zur Nebenkostenabrechnung (deutsch)",
+      "contact_id": "c_206",
+      "setup": null,
+      "expected_area": "management",
+      "expected_cause": "rent_question",
+      "expected_outcome": "management",
+      "expected_trade": null,
+      "tags": [
+        "german",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "mg_topic": "rent"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 1,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "Hallo, ich habe eine Frage zur Nebenkostenabrechnung, die ist viel höher als letztes Jahr."
+        },
+        {
+          "role": "debye",
+          "text": "Das klärt deine Hausverwalterin Anna Becker. Ich habe es weitergegeben, sie meldet sich innerhalb von zwei Werktagen.",
+          "asks": null,
+          "concludes": "rent_question"
+        },
+        {
+          "role": "tenant",
+          "text": "Okay, danke."
+        },
+        {
+          "role": "debye",
+          "text": "Gern. Melde dich, wenn du bis dahin noch etwas brauchst.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "answer in English",
+        "use 'Sie' instead of 'du'",
+        "explain or judge the bill",
+        "promise a refund"
+      ]
+    },
+    {
+      "id": "tb21_loud_music_nightly",
+      "title": "Neighbours play loud music every night",
+      "contact_id": "c_202",
+      "setup": null,
+      "expected_area": "management",
+      "expected_cause": "noise_complaint",
+      "expected_outcome": "management",
+      "expected_trade": null,
+      "tags": [
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "mg_topic": "noise"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 1,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "the people next door play loud music every night until 2am"
+        },
+        {
+          "role": "debye",
+          "text": "I've passed this to your property manager, who will follow up with the neighbours. It helps to note dates and times; if it's very loud late at night, the police non-emergency line can help right away.",
+          "asks": null,
+          "concludes": "noise_complaint"
+        },
+        {
+          "role": "tenant",
+          "text": "ok thanks"
+        },
+        {
+          "role": "debye",
+          "text": "You're welcome. Message me any time if it keeps happening.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "promise a warning or a rent reduction",
+        "ask what the problem is about (already clear)",
+        "tell the tenant to confront the neighbours"
+      ]
+    },
+    {
+      "id": "tb22_notice_period",
+      "title": "Tenant asks about the notice period for moving out",
+      "contact_id": "c_203",
+      "setup": null,
+      "expected_area": "management",
+      "expected_cause": "contract_question",
+      "expected_outcome": "management",
+      "expected_trade": null,
+      "tags": [
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "mg_topic": "contract"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 1,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "I'm thinking of moving out, how long is my notice period?"
+        },
+        {
+          "role": "debye",
+          "text": "Contract questions go to your property manager, Anna Becker. I've passed it on and she'll get back to you within two working days.",
+          "asks": null,
+          "concludes": "contract_question"
+        }
+      ],
+      "must_not": [
+        "state a notice period",
+        "ask what the question is about (already clear)",
+        "promise an outcome"
+      ]
+    },
+    {
+      "id": "tb23_neighbour_problem_asked",
+      "title": "Problem with a neighbour, one question splits it",
+      "contact_id": "c_204",
+      "setup": null,
+      "expected_area": "management",
+      "expected_cause": "neighbour_dispute",
+      "expected_outcome": "management",
+      "expected_trade": null,
+      "tags": [
+        "clean"
+      ],
+      "tenant_facts": {
+        "mg_topic": "neighbour"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 1,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "I have a problem with my neighbour"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is it about rent or payments, your contract, noise, or a neighbour?",
+          "asks": "mg_topic"
+        },
+        {
+          "role": "tenant",
+          "text": "she keeps parking her car in front of my garage"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks for telling me. I've passed it to your property manager, who will get in touch with you and, if needed, with the neighbour.",
+          "asks": null,
+          "concludes": "neighbour_dispute"
+        }
+      ],
+      "must_not": [
+        "ask a second question",
+        "promise to warn the neighbour",
+        "take sides"
+      ]
+    },
+    {
+      "id": "tb24_smoke_from_flat_below",
+      "title": "Smoke coming from the flat below",
+      "contact_id": "c_205",
+      "setup": null,
+      "expected_area": "other",
+      "expected_cause": "fire_smoke",
+      "expected_outcome": "emergency",
+      "expected_trade": null,
+      "tags": [
+        "emergency",
+        "decisive_first"
+      ],
+      "tenant_facts": {},
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "there's smoke coming from the flat below me, the stairwell smells burnt"
+        },
+        {
+          "role": "debye",
+          "text": "Please leave the flat now, close the door behind you, don't use the lift, and call 112. Warn your neighbours on the way out. I've alerted your property manager.",
+          "asks": null,
+          "concludes": "fire_smoke"
+        },
+        {
+          "role": "tenant",
+          "text": "we're outside, the fire brigade is on the way"
+        },
+        {
+          "role": "debye",
+          "text": "Good. Stay outside until the fire brigade says it's safe; I'll keep you posted.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask any question before the safety steps",
+        "treat it as an electrical burning smell",
+        "suggest using the lift",
+        "tell the tenant to look for the fire"
+      ]
+    },
+    {
+      "id": "tb25_co_alarm",
+      "title": "Carbon monoxide alarm going off in the hallway",
+      "contact_id": "c_206",
+      "setup": null,
+      "expected_area": "other",
+      "expected_cause": "co_alarm",
+      "expected_outcome": "emergency",
+      "expected_trade": "heating",
+      "tags": [
+        "emergency",
+        "decisive_first"
+      ],
+      "tenant_facts": {},
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "the CO alarm in the hallway is beeping loud and won't stop"
+        },
+        {
+          "role": "debye",
+          "text": "Please open the windows, leave the flat with everyone now and call 112 from outside. Don't go back in until they say it's safe. I've alerted your property manager.",
+          "asks": null,
+          "concludes": "co_alarm"
+        },
+        {
+          "role": "tenant",
+          "text": "ok we are all outside now"
+        },
+        {
+          "role": "debye",
+          "text": "Good. Please wait outside for the fire brigade; I'll keep you posted.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask whether it beeps briefly or continuously",
+        "treat it as a smoke alarm battery",
+        "ask about gas",
+        "tell the tenant to switch the alarm off"
+      ]
+    },
+    {
+      "id": "tb26_smoke_alarm_short_beeps",
+      "title": "Smoke alarm beeps briefly every minute",
+      "contact_id": "c_202",
+      "setup": null,
+      "expected_area": "other",
+      "expected_cause": "smoke_alarm_battery",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "tags": [
+        "smoke_alarm"
+      ],
+      "tenant_facts": {
+        "ot_alarm": "beeping"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "the smoke alarm in my hallway keeps making noise"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is the smoke alarm beeping briefly every minute or so, or sounding a loud continuous alarm?",
+          "asks": "ot_alarm"
+        },
+        {
+          "role": "tenant",
+          "text": "just a short beep every minute or so"
+        },
+        {
+          "role": "debye",
+          "text": "A short beep every minute means the smoke alarm's battery is low. The alarms are serviced by the building, so our caretaker Peter Wolf will replace it; please don't remove the alarm.",
+          "asks": null,
+          "concludes": "smoke_alarm_battery"
+        }
+      ],
+      "must_not": [
+        "treat 'smoke alarm' as a fire",
+        "tell the tenant to take the alarm down",
+        "pass it to management as noise"
+      ]
+    },
+    {
+      "id": "tb27_smoke_alarm_loud_no_smoke",
+      "title": "Smoke alarm sounding continuously, no smoke seen",
+      "contact_id": "c_203",
+      "setup": null,
+      "expected_area": "other",
+      "expected_cause": "smoke_alarm_sounding",
+      "expected_outcome": "emergency",
+      "expected_trade": null,
+      "tags": [
+        "smoke_alarm"
+      ],
+      "tenant_facts": {
+        "ot_alarm": "alarm"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "my smoke alarm is going off and won't stop"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is the smoke alarm beeping briefly every minute or so, or sounding a loud continuous alarm?",
+          "asks": "ot_alarm"
+        },
+        {
+          "role": "tenant",
+          "text": "it's a loud continuous alarm, but I don't see or smell any smoke"
+        },
+        {
+          "role": "debye",
+          "text": "A loud continuous alarm means it detects smoke. If you see or smell smoke, leave the flat now, close the door and call 112. If there's clearly no smoke, open a window; I've alerted your property manager.",
+          "asks": null,
+          "concludes": "smoke_alarm_sounding"
+        },
+        {
+          "role": "tenant",
+          "text": "opened the window and it stopped"
+        },
+        {
+          "role": "debye",
+          "text": "Good. Message me right away if it goes off again.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "send the fire safety message before asking ('smoke alarm' alone is not a fire)",
+        "treat it as a low battery",
+        "tell the tenant to remove the alarm"
+      ]
+    },
+    {
+      "id": "tb28_loose_tile_de_vague_area",
+      "title": "Unklare erste Nachricht, dann lockere Fliese im Bad (deutsch)",
+      "contact_id": "c_204",
+      "setup": null,
+      "expected_area": "other",
+      "expected_cause": "in_flat_repair",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "tags": [
+        "vague_area",
+        "german",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "ot_where": "in_flat",
+        "ot_urgent": "can_wait"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "Hallo, ich habe ein Problem in der Wohnung."
+        },
+        {
+          "role": "debye",
+          "text": "Okay. Worum geht es?",
+          "asks": "area"
+        },
+        {
+          "role": "tenant",
+          "text": "Eine Fliese im Bad hat sich gelöst, das kann aber warten."
+        },
+        {
+          "role": "debye",
+          "text": "Unser Hausmeister Peter Wolf meldet sich für einen Termin und holt bei Bedarf die passende Firma.",
+          "asks": null,
+          "concludes": "in_flat_repair"
+        },
+        {
+          "role": "tenant",
+          "text": "Super, danke."
+        },
+        {
+          "role": "debye",
+          "text": "Gern. Melde dich, wenn du bis dahin noch etwas brauchst.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "answer in English",
+        "use 'Sie' instead of 'du'",
+        "guess an area from the first message",
+        "ask whether it is urgent (already given)"
+      ]
+    },
+    {
+      "id": "tb29_balcony_railing_urgent",
+      "title": "Loose balcony railing, tenant says it's dangerous",
+      "contact_id": "c_205",
+      "setup": null,
+      "expected_area": "other",
+      "expected_cause": "in_flat_urgent",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "tags": [
+        "clean"
+      ],
+      "tenant_facts": {
+        "ot_where": "in_flat",
+        "ot_urgent": "urgent"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "the railing on my balcony is loose"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is it dangerous or stopping you from using part of the flat, or can it wait a few days?",
+          "asks": "ot_urgent"
+        },
+        {
+          "role": "tenant",
+          "text": "it's dangerous, my kid plays out there"
+        },
+        {
+          "role": "debye",
+          "text": "Then our caretaker Peter Wolf will come by today or tomorrow to look at it and bring in the right company if needed.",
+          "asks": null,
+          "concludes": "in_flat_urgent"
+        }
+      ],
+      "must_not": [
+        "ask whether it is in the flat or a shared area (already given)",
+        "tell the tenant to fix it",
+        "say it can wait"
+      ]
+    },
+    {
+      "id": "tb30_buzzer_and_mould",
+      "title": "Buzzer doesn't open the door, and mould in the bathroom",
+      "contact_id": "c_206",
+      "setup": null,
+      "expected_area": "intercom",
+      "expected_cause": "door_opener_fault",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "second_area": "mold_damp",
+      "second_cause": "large_mould",
+      "second_tenant_facts": {
+        "md_wet": "dry",
+        "md_size": "large"
+      },
+      "tags": [
+        "two_problems"
+      ],
+      "tenant_facts": {
+        "ic_what": "no_buzzer"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "the buzzer doesn't open the entrance, and also there's mould on the bathroom wall"
+        },
+        {
+          "role": "debye",
+          "text": "Then the electric door opener isn't releasing. Our caretaker Peter Wolf will check it and call an electrician if it's the opener itself.",
+          "asks": null,
+          "concludes": "door_opener_fault"
+        },
+        {
+          "role": "debye",
+          "text": "Now to the mould.",
+          "asks": null
+        },
+        {
+          "role": "debye",
+          "text": "Is the wall wet to the touch or does it have water stains, or is it dry with just spots?",
+          "asks": "md_wet"
+        },
+        {
+          "role": "tenant",
+          "text": "it's dry, but the patch is huge, bigger than a sheet of paper"
+        },
+        {
+          "role": "debye",
+          "text": "An area that size shouldn't be cleaned yourself, so a mould specialist needs to treat it and check why it grows. Keep the room aired and don't sleep right next to it if you can avoid it.",
+          "asks": null,
+          "concludes": "large_mould"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Trocknungstechnik Aachen over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "diagnose the mould first",
+        "forget the mould after the buzzer",
+        "handle both in one message",
+        "ask how big the mould is (already given)"
+      ]
+    },
+    {
+      "id": "tb31_wasps_and_loose_tile",
+      "title": "Wasp nest under the balcony, and a loose balcony tile",
+      "contact_id": "c_202",
+      "setup": null,
+      "expected_area": "pests",
+      "expected_cause": "wasps_nest",
+      "expected_outcome": "technician",
+      "expected_trade": "pest_control",
+      "second_area": "other",
+      "second_cause": "in_flat_repair",
+      "second_tenant_facts": {
+        "ot_where": "in_flat",
+        "ot_urgent": "can_wait"
+      },
+      "tags": [
+        "two_problems",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "pe_what": "wasps"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "wasps are building a nest under my balcony and also a tile on the balcony floor is loose"
+        },
+        {
+          "role": "debye",
+          "text": "A wasp nest needs pest control; please keep away from it and keep windows near it closed.",
+          "asks": null,
+          "concludes": "wasps_nest"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Schädlingsfrei Nord over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        },
+        {
+          "role": "debye",
+          "text": "Now to the problem.",
+          "asks": null
+        },
+        {
+          "role": "debye",
+          "text": "Is it dangerous or stopping you from using part of the flat, or can it wait a few days?",
+          "asks": "ot_urgent"
+        },
+        {
+          "role": "tenant",
+          "text": "no, it can wait"
+        },
+        {
+          "role": "debye",
+          "text": "Our caretaker Peter Wolf will get in touch to find a time to look at it, and brings in the right company if needed.",
+          "asks": null,
+          "concludes": "in_flat_repair"
+        }
+      ],
+      "must_not": [
+        "diagnose the tile first (wasps are mentioned first)",
+        "start the tile before the consent is answered",
+        "ask whether the tile is in the flat or a shared area (already given)"
+      ]
+    },
+    {
+      "id": "tb32_hot_water_and_lift",
+      "title": "No hot water in the shower and the lift is broken: lift first",
+      "contact_id": "c_203",
+      "setup": null,
+      "expected_area": "lift",
+      "expected_cause": "lift_out_of_service",
+      "expected_outcome": "technician",
+      "expected_trade": "elevator",
+      "second_area": "no_hot_water",
+      "second_cause": "shower_knob_or_limiter",
+      "second_tenant_facts": {
+        "q_scope": "only_shower",
+        "q_shower_handle": "set_wrong"
+      },
+      "tags": [
+        "two_problems",
+        "hot_water_second"
+      ],
+      "tenant_facts": {
+        "li_state": "stopped",
+        "li_notice": "no"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "no hot water in the shower, and also the lift is broken"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is the lift not moving at all, or does it run but with a problem like the doors, noises or jerking? Is anyone stuck inside?",
+          "asks": "li_state"
+        },
+        {
+          "role": "tenant",
+          "text": "it doesn't move at all"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Is there a sign or notice at the lift, for example about maintenance?",
+          "asks": "li_notice"
+        },
+        {
+          "role": "tenant",
+          "text": "no sign"
+        },
+        {
+          "role": "debye",
+          "text": "Then the lift company needs to come. If you or a neighbour can't manage the stairs, tell me and the property manager will help in the meantime.",
+          "asks": null,
+          "concludes": "lift_out_of_service"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Aufzugsdienst Rhein over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        },
+        {
+          "role": "debye",
+          "text": "Now to the hot water.",
+          "asks": null
+        },
+        {
+          "role": "debye",
+          "text": "Is it only the shower, or is the hot water cold at the sinks too?",
+          "asks": "q_scope"
+        },
+        {
+          "role": "tenant",
+          "text": "only the shower, the kitchen tap is hot"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is the shower knob turned fully to hot? Some stop at 38°C until you press a small button.",
+          "asks": "q_shower_handle"
+        },
+        {
+          "role": "tenant",
+          "text": "it's turned to the stop, I didn't know there's a button"
+        },
+        {
+          "role": "debye",
+          "text": "Most shower thermostats stop at 38°C: press the small button on the knob and turn further to go hotter. Try that and tell me if it works.",
+          "asks": null,
+          "concludes": "shower_knob_or_limiter"
+        },
+        {
+          "role": "tenant",
+          "text": "pressed it, it's hot now"
+        },
+        {
+          "role": "debye",
+          "text": "Good to hear. Message me any time if it goes cold again.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "diagnose the hot water first (an area with its own KB comes first)",
+        "ask about gas",
+        "forget the hot water after the lift"
+      ]
+    },
+    {
+      "id": "tb33_bins_and_parking_de",
+      "title": "Kaputte Mülltonnen und eine Frage zum Parkplatz (deutsch)",
+      "contact_id": "c_204",
+      "setup": null,
+      "expected_area": "other",
+      "expected_cause": "shared_area_repair",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "second_area": "management",
+      "second_cause": "other_request",
+      "second_tenant_facts": {
+        "mg_topic": "other"
+      },
+      "tags": [
+        "two_problems",
+        "german",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "ot_where": "shared"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "Die Mülltonnen im Hof sind kaputt, und außerdem habe ich eine Frage wegen eines Parkplatzes."
+        },
+        {
+          "role": "debye",
+          "text": "Danke für den Hinweis. Unser Hausmeister Peter Wolf kümmert sich um die Gemeinschaftsbereiche und erledigt das.",
+          "asks": null,
+          "concludes": "shared_area_repair"
+        },
+        {
+          "role": "debye",
+          "text": "Jetzt kümmere ich mich um deine Frage.",
+          "asks": null
+        },
+        {
+          "role": "debye",
+          "text": "Ich habe es an deine Hausverwalterin Anna Becker weitergegeben, sie meldet sich innerhalb von zwei Werktagen.",
+          "asks": null,
+          "concludes": "other_request"
+        }
+      ],
+      "must_not": [
+        "answer in English",
+        "use 'Sie' instead of 'du'",
+        "handle the parking question first",
+        "promise a parking space"
+      ]
+    },
+    {
+      "id": "tb34_ceiling_leak_and_rent",
+      "title": "Rain through the ceiling below another flat, and a rent question",
+      "contact_id": "c_205",
+      "setup": null,
+      "expected_area": "roof_ceiling_leak",
+      "expected_cause": "ceiling_leak_lower_floor",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "second_area": "management",
+      "second_cause": "rent_question",
+      "second_tenant_facts": {
+        "mg_topic": "rent"
+      },
+      "tags": [
+        "two_problems"
+      ],
+      "tenant_facts": {
+        "rf_rain": "yes",
+        "rf_where": "ceiling",
+        "rf_top": "no"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "water is coming through the ceiling again when it rains, and also I want to ask about my rent for this month"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is your flat on the top floor, right under the roof?",
+          "asks": "rf_top"
+        },
+        {
+          "role": "tenant",
+          "text": "no, there's a flat above me"
+        },
+        {
+          "role": "debye",
+          "text": "With a flat above you, the water may come from their balcony or a gutter. Our caretaker Peter Wolf will check from above and call a roofer if needed. Keep a bucket under it.",
+          "asks": null,
+          "concludes": "ceiling_leak_lower_floor"
+        },
+        {
+          "role": "debye",
+          "text": "Now to your question.",
+          "asks": null
+        },
+        {
+          "role": "debye",
+          "text": "That's one for your property manager, Anna Becker. I've passed it on and she'll get back to you within two working days.",
+          "asks": null,
+          "concludes": "rent_question"
+        }
+      ],
+      "must_not": [
+        "promise a rent reduction",
+        "answer the rent question before the leak",
+        "send a roofer directly",
+        "ask whether it happens when it rains (already given)"
+      ]
+    }
+  ]
+}

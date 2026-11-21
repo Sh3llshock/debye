@@ -9,7 +9,7 @@
     "description": "Water coming from above or from outside: a dripping or stained ceiling, water coming in around a window frame or through an outside wall when it rains, a leaking roof or skylight.",
     "button": "Ceiling / roof",
     "button_de": "Decke / Dach",
-    "keywords": ["ceiling", "roof", "skylight", "from above", "upstairs", "water stain", "rain comes in", "rain gets in", "when it rains", "dach", "dachfenster", "von oben", "wasserfleck", "regen kommt rein", "wenn es regnet", "von der decke", "an der decke", "decke tropft", "decke ist nass", "durch die decke"]
+    "keywords": ["ceiling", "roof", "skylight", "from above", "upstairs", "water stain", "rain comes in", "rain gets in", "when it rains", "dach", "dachfenster", "von oben", "wasserfleck", "regen kommt rein", "wenn es regnet", "von der decke", "an der decke", "decke tropft", "decke ist nass", "durch die decke", "whenever it rains", "every time it rains", "each time it rains", "if it rains", "after rain", "wet patch", "damp patch", "bei regen", "immer wenn es regnet"]
   },
   "applies_to": ["water dripping from the ceiling", "stain on the ceiling", "rain coming in", "Wasser tropft von der Decke"],
   "first_question": "rf_rain",
@@ -124,7 +124,7 @@
   ],
   "likelihood_order": ["neighbour_above_leak", "roof_leak", "window_frame_leak", "facade_leak", "ceiling_leak_lower_floor"],
   "strategy": [
-    "Water pouring from the ceiling or the ceiling sagging is an emergency (the router handles it): safety steps first.",
+    "Water through the ceiling is not the flooding emergency: the router leaves it to this KB, so ask rf_rain first even when it pours (a burst pipe is the leak KB's emergency).",
     "Ask rf_rain first: water when it's dry outside comes from the flat above (caretaker, urgent); with rain, ask rf_top or rf_where.",
     "Roof (top floor, rain): roofer. Window frame: window fitter (glazier). Outside wall: roofer. Below another flat: caretaker first.",
     "At most 3 diagnostic questions, one per message. Never state a fact the tenant didn't give."

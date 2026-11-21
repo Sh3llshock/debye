@@ -113,7 +113,9 @@ def _keyword_patterns(area: str) -> tuple[tuple[re.Pattern, float], ...]:
     for kw in dg.load_kb(area)["router"].get("keywords") or []:
         k = kw.lower().strip()
         weight = 0.3 if k in WEAK_WORDS else (2.0 if " " in k else 1.0)
-        pats.append((re.compile(r"(?<![\w])" + re.escape(k), re.I), weight))
+        # short single words only with an English ending ('lock' → locks/locked, never German 'locker')
+        tail = r"(?:s|es|ed|ing)?(?!\w)" if " " not in k and len(k) <= 5 else ""
+        pats.append((re.compile(r"(?<![\w])" + re.escape(k) + tail, re.I), weight))
     return tuple(pats)
 
 
@@ -419,7 +421,7 @@ async def after_conclusion(contact, conv: st.Conversation, queued_from: dict | N
     conv.diagnosis = None
     conv.triage = {"area": area, "second": True}
     de = conv.lang == "de"
-    await out.text(contact, None, f"Jetzt zu {label(area, 'de')}." if de else f"Now to {label(area)}.")
+    await out.text(contact, None, f"Jetzt kümmere ich mich um {label(area, 'de')}." if de else f"Now to {label(area)}.")
     log.info("triage: starting the queued second problem (%s)", area)
     if area == HEATING:
         from . import loop
