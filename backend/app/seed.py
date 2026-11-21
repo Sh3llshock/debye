@@ -52,6 +52,27 @@ def load_manifests() -> list[dict]:
     return out
 
 
+def _seed_partner_docs(s, m: dict) -> None:
+    """Self-onboarded partners keep their document facts in the manifest (onboarding.documents);
+    after a reset the Document rows come back as text stand-ins."""
+    from sqlmodel import select
+    from .db import next_id
+    from .models import Document
+    docs = (m.get("onboarding") or {}).get("documents") or []
+    if not docs or s.exec(select(Document).where(Document.partner_id == m["partner_id"])).first():
+        return
+    folder = Path(settings.storage_dir) / "partners" / m["partner_id"]
+    folder.mkdir(parents=True, exist_ok=True)
+    for meta in docs:
+        dtype = meta.get("doc_type", "doc")
+        fname = Path(str(meta.get("filename") or dtype)).stem + ".txt"
+        path = folder / f"{dtype}_{fname}"
+        path.write_text(chr(10).join(f"{k}: {v}" for k, v in meta.items()), encoding="utf-8")
+        s.add(Document(id=next_id(s, Document, "doc"), partner_id=m["partner_id"], kind="partner_doc",
+                       filename=fname, mime="text/plain", path=str(path), extracted=meta))
+        s.flush()
+
+
 def seed(reset: bool = False) -> None:
     if reset:
         drop_all()
@@ -111,6 +132,11 @@ def seed(reset: bool = False) -> None:
                     s.merge(Technician(id=t["id"], partner_id=m["partner_id"], name=t["name"],
                                        phone_e164=t.get("phone_e164"), skills=t.get("skills", []),
                                        busy=seed_busy(t.get("busy", []))))
-            s.merge(Partner(id=m["partner_id"], manifest=m, active=True))
+            # self-onboarded partners keep their review state across a reset (feature 1)
+            status = (m.get("onboarding") or {}).get("status") or "active"
+            review = (m.get("onboarding") or {}).get("review") or {}
+            s.merge(Partner(id=m["partner_id"], manifest=m, active=status == "active",
+                            status=status, review=review))
+            _seed_partner_docs(s, m)
         s.commit()
     log.info("seeded database")

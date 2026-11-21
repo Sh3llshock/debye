@@ -144,7 +144,10 @@ def _guard(fn, *args):
 
 def _partner_view(s, p: Partner, with_counts: bool = False) -> dict:
     staff = s.exec(select(Contact).where(Contact.partner_id == p.id)).all()
-    out = {**p.manifest, "active": p.active,
+    review = p.review or {}
+    out = {**p.manifest, "active": p.active, "status": p.status or "active",
+           "review": {"reviewer": review.get("reviewer"), "decided_at": review.get("decided_at"),
+                      "reason": review.get("reason")},
            "staff": [{"contact_id": c.id, "name": c.name} for c in staff]}
     if with_counts:
         from .models import Technician
@@ -179,8 +182,8 @@ def list_jobs(partner_id: str) -> list[dict]:
         out = []
         for c in cases:
             mine = c.partner_id == partner_id and c.status in VISIBLE_STATUSES
-            declined = partner_id in (c.data or {}).get("declined_by", [])
-            if mine or declined:
+            # feature 2: a declined job leaves the partner's inbox (the detail URL still works)
+            if mine:
                 out.append(job_summary(s, c, partner_id))
         return out
 
@@ -212,8 +215,9 @@ async def decline(partner_id: str, case_id: str, body: DeclineBody | None = None
     with get_session() as s:
         _job_case(s, partner_id, case_id)
     reason = body.reason if body else ""
-    _guard(services.partner_decline, case_id, partner_id, reason)
-    await notify.notify_tenant(case_id, "partner_declined", {"partner_id": partner_id, "reason": reason})
+    case = _guard(services.partner_decline, case_id, partner_id, reason)
+    # feature 2: the job went to the next partner (or to staff); tell the tenant once
+    await notify.notify_tenant(case_id, "partner_declined", (case.data or {}).get("redispatch") or {"reason": reason})
     return _detail(case_id, partner_id)
 
 

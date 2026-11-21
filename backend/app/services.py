@@ -546,7 +546,8 @@ def rank_partners(case_id: str) -> list[dict]:
             "case": {"type": case.type, "error_code": case.error_code},
         }
         manifests = [Manifest.model_validate(p.manifest)
-                     for p in s.exec(select(Partner).where(Partner.active == True)).all()]  # noqa: E712
+                     for p in s.exec(select(Partner).where(Partner.active == True)).all()  # noqa: E712
+                     if (p.status or "active") == "active"]
         fw_ids = {c.partner_id for c in s.exec(select(Contract).where(Contract.type == "framework")).all()}
         declined = set((case.data or {}).get("declined_by", []))
         full = [r for r in rank(case.type, ctx, manifests, fw_ids, case.property_id, trade=case_trade(case))
@@ -570,6 +571,9 @@ def dispatch_job(case_id: str, partner_id: str) -> dict:
         case = _get(s, Case, case_id)
         partner = _get(s, Partner, partner_id)
         name = partner.manifest.get("name", partner_id)
+        if (partner.status or "active") != "active" or not partner.active:
+            raise rules.RuleViolation("partner_not_active",
+                                      f"{name} is {partner.status or 'inactive'}; only active partners get jobs")
         try:
             approval = rules.check_dispatch(s, case, partner_id)
         except rules.RuleViolation as rv:
@@ -589,7 +593,7 @@ def dispatch_job(case_id: str, partner_id: str) -> dict:
         case.status = "requested"
         _patch_data(case, approval={**(case.data or {}).get("approval", {}), **approval,
                                     "granted": approval.get("granted", False)},
-                    pending_partner_id=None)
+                    pending_partner_id=None, sla=sla_for(partner.manifest, case.priority))
         _save_case(s, case)
         transport = partner.manifest.get("transport", {})
         manifest = dict(partner.manifest)
@@ -603,6 +607,126 @@ def dispatch_job(case_id: str, partner_id: str) -> dict:
         partner_transport.send_order(manifest, case_id)
     return {"case_id": case_id, "partner_id": partner_id, "partner_name": name,
             "status": "requested", "approval": approval}
+
+
+# --------------------------------------------------------------------------- partner review (feature 1)
+
+PARTNER_STATUSES = ("pending_review", "active", "rejected", "suspended")
+
+
+def partner_documents(s, partner_id: str) -> list[Document]:
+    return list(s.exec(select(Document).where(Document.partner_id == partner_id)
+                       .order_by(Document.id)).all())
+
+
+def partner_doc_facts(d: Document) -> dict:
+    """The verification view of a partner document: {doc_type, number, valid_until, ...}."""
+    return {**(d.extracted or {}), "document_id": d.id, "filename": d.filename}
+
+
+def partner_precheck(s, p: Partner) -> list[dict]:
+    from .partners import verification
+    docs = [partner_doc_facts(d) for d in partner_documents(s, p.id)]
+    company = ((p.manifest or {}).get("onboarding") or {}).get("company") or {}
+    return verification.precheck(p.manifest or {}, docs, company)
+
+
+def _persist_partner_status(p: Partner) -> None:
+    """Self-onboarded partners live as partners/<id>.json too (demo mode), so a reset keeps
+    their review state."""
+    if not settings.demo_mode or not (p.manifest or {}).get("onboarding"):
+        return
+    path = Path(settings.partners_dir) / f"{p.id}.json"
+    if not path.exists():
+        return
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw["onboarding"] = {**(raw.get("onboarding") or {}), "status": p.status, "review": p.review or {}}
+        path.write_text(json.dumps(raw, indent=2, ensure_ascii=False) + chr(10), encoding="utf-8")
+    except (OSError, ValueError):
+        pass
+
+
+def _set_partner_status(partner_id: str, status: str, actor: str, kind: str, summary_fn,
+                        reason: str = "", staff_name: str | None = None,
+                        allowed_from: tuple[str, ...] | None = None) -> dict:
+    with get_session() as s:
+        p = _get(s, Partner, partner_id)
+        current = p.status or "active"
+        if allowed_from and current not in allowed_from:
+            raise rules.RuleViolation("invalid_partner_status",
+                                      f"{p.manifest.get('name', partner_id)} is {current}")
+        who = staff_member(s, staff_name) if actor == "staff" else "Debye"
+        checks = partner_precheck(s, p)
+        p.status = status
+        p.active = status == "active"
+        p.review = {**(p.review or {}), "reviewer": who, "decided_at": now_iso(),
+                    "reason": reason or None, "status": status, "checks": checks}
+        p.manifest = {**(p.manifest or {}),
+                      **({"onboarding": {**p.manifest["onboarding"], "status": status}}
+                         if (p.manifest or {}).get("onboarding") else {})}
+        s.add(p)
+        s.commit()
+        s.refresh(p)
+        name = p.manifest.get("name", partner_id)
+        review = dict(p.review)
+        _persist_partner_status(p)
+    record_event(None, actor, kind, summary_fn(name, who),
+                 {"partner_id": partner_id, "partner_name": name, "status": status,
+                  "reason": reason or None, "by": who})
+    return {"partner_id": partner_id, "name": name, "status": status, "review": review}
+
+
+def approve_partner(partner_id: str, staff_name: str | None = None) -> dict:
+    """Staff approve a pending (or suspended) partner → active and rankable."""
+    return _set_partner_status(partner_id, "active", "staff", "partner.approved",
+                               lambda n, who: f"{who} approved {n} as a partner",
+                               staff_name=staff_name,
+                               allowed_from=("pending_review", "suspended", "rejected"))
+
+
+def reject_partner(partner_id: str, reason: str, staff_name: str | None = None) -> dict:
+    if not (reason or "").strip():
+        raise rules.RuleViolation("reason_required", "a reason is required to reject a partner")
+    return _set_partner_status(partner_id, "rejected", "staff", "partner.rejected",
+                               lambda n, who: f"{who} rejected {n}: {reason}",
+                               reason=reason, staff_name=staff_name,
+                               allowed_from=("pending_review",))
+
+
+def suspend_partner(partner_id: str, reason: str) -> dict:
+    return _set_partner_status(partner_id, "suspended", "system", "partner.suspended",
+                               lambda n, who: f"{n} suspended: {reason}", reason=reason)
+
+
+def check_partner_expiry() -> list[dict]:
+    """Daily check: suspend active partners whose insurance or gas registration has expired."""
+    from .partners import verification
+    todo = []
+    with get_session() as s:
+        for p in s.exec(select(Partner)).all():
+            if (p.status or "active") != "active":
+                continue
+            docs = [partner_doc_facts(d) for d in partner_documents(s, p.id)]
+            gone = verification.expired_docs(docs)
+            if gone:
+                labels = ", ".join(f"{verification.DOC_TYPES.get(d['doc_type'], d['doc_type'])} "
+                                   f"expired {d.get('valid_until')}" for d in gone)
+                todo.append((p.id, labels))
+    return [suspend_partner(pid, why) for pid, why in todo]
+
+
+_LAST_EXPIRY_CHECK: dict = {"date": None}
+
+
+def periodic_checks() -> dict:
+    """Run by the main.py background loop: partner expiry once per (demo) day."""
+    out: dict = {"suspended": [], "redispatched": check_sla()}
+    today = now().date().isoformat()
+    if _LAST_EXPIRY_CHECK["date"] != today:
+        _LAST_EXPIRY_CHECK["date"] = today
+        out["suspended"] = [p["partner_id"] for p in check_partner_expiry()]
+    return out
 
 
 def staff_member(s, name: str | None = None) -> str:
@@ -675,7 +799,10 @@ def partner_accept(case_id: str, partner_id: str) -> Case:
     return get_case(case_id)
 
 
-def partner_decline(case_id: str, partner_id: str, reason: str) -> Case:
+def partner_decline(case_id: str, partner_id: str, reason: str, actor: str = "partner",
+                    redispatch_next: bool = True) -> Case:
+    """The partner declines (or the SLA ran out, actor="system"): the job goes to the next-best
+    partner (redispatch). The result is on case.data.redispatch."""
     with get_session() as s:
         case = _get(s, Case, case_id)
         if case.partner_id != partner_id:
@@ -688,10 +815,118 @@ def partner_decline(case_id: str, partner_id: str, reason: str) -> Case:
         case.status = "partner_declined"
         _save_case(s, case)
         name = s.get(Partner, partner_id).manifest.get("name", partner_id)
-    record_event(case_id, "partner", "job.declined",
-                 f"{name} declined" + (f": {reason}" if reason else ""),
-                 {"partner_id": partner_id, "reason": reason})
+    verb = "declined" if actor == "partner" else "did not answer"
+    record_event(case_id, actor, "job.declined",
+                 f"{name} {verb}" + (f": {reason}" if reason else ""),
+                 {"partner_id": partner_id, "partner_name": name, "reason": reason})
+    if redispatch_next:
+        redispatch(case_id, reason, declined_partner_id=partner_id)
     return get_case(case_id)
+
+
+# --------------------------------------------------------------------------- redispatch + SLA (feature 2)
+
+def sla_for(manifest: dict, priority: str | None) -> dict:
+    """{"hours", "sent_at", "due_at"} from the manifest's sla block by case priority."""
+    from datetime import timedelta
+    sla = (manifest or {}).get("sla") or {}
+    urgent = (priority or "normal") in ("urgent", "emergency", "high")
+    hours = sla.get("urgent_response_hours" if urgent else "standard_response_hours") \
+        or sla.get("standard_response_hours") or 24
+    sent = now()
+    return {"hours": float(hours), "sent_at": sent.isoformat(timespec="seconds"),
+            "due_at": (sent + timedelta(hours=float(hours))).isoformat(timespec="seconds")}
+
+
+def _has_consent(case_id: str, partner_id: str) -> bool:
+    with get_session() as s:
+        return rules.has_consent(s, case_id, partner_id)
+
+
+def redispatch(case_id: str, reason: str = "", declined_partner_id: str | None = None) -> dict:
+    """Pick the next-best active partner that hasn't declined. Outcome:
+    - needs_consent: the tenant must first agree to share data with the new partner (the agent asks);
+    - dispatched / approval_pending: straight to rules.approval_status + dispatch_job;
+    - needs_staff: nobody left, the property manager takes over.
+    Stored on case.data.redispatch and returned."""
+    declined_name = None
+    if declined_partner_id:
+        with get_session() as s:
+            dp = s.get(Partner, declined_partner_id)
+            declined_name = dp.manifest.get("name", declined_partner_id) if dp else declined_partner_id
+    ranking = rank_partners(case_id)  # excludes declined_by and non-active partners
+    info: dict = {"at": now_iso(), "reason": reason, "declined_partner_id": declined_partner_id,
+                  "declined_partner_name": declined_name}
+    if not ranking:
+        info.update(outcome="needs_staff", next_partner_id=None, next_partner_name=None)
+        with get_session() as s:
+            case = _get(s, Case, case_id)
+            case.status = "needs_staff"
+            _patch_data(case, redispatch=info, pending_partner_id=None)
+            _save_case(s, case)
+        record_event(case_id, "debye", "case.needs_staff",
+                     "No other partner can take the job – the property manager takes over", info)
+        return info
+
+    pid, pname = ranking[0]["partner_id"], ranking[0]["name"]
+    info.update(next_partner_id=pid, next_partner_name=pname)
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        partner = _get(s, Partner, pid)
+        need = Manifest.model_validate(partner.manifest).consent_fields
+        has = rules.has_consent(s, case_id, pid) and rules.can_share(s, case_id, pid, need)
+        # staff approved the job for the previous partner; the new partner is approved again
+        approval = dict((case.data or {}).get("approval") or {})
+        if approval.get("granted"):
+            approval = {**approval, "granted": False,
+                        "previous": {k: approval.get(k) for k in ("granted_by", "granted_at")}}
+        _patch_data(case, approval=approval, pending_partner_id=pid)
+        if case.status == "partner_declined":
+            case.status = "new"
+        _save_case(s, case)
+        reporter = case.reporter_contact_id
+    if not has and not need and reporter:
+        # nothing personal goes to this partner, so there is nothing to ask the tenant
+        record_consent(reporter, pid, case_id, [], "no personal data shared", "system")
+        has = True
+    why = f" ({declined_name}: {reason})" if declined_name and reason else \
+        (f" ({declined_name} declined)" if declined_name else "")
+    record_event(case_id, "debye", "partner.redispatched", f"Asked {pname} instead{why}",
+                 {**info, "needs_consent": not has})
+    if not has:
+        info["outcome"] = "needs_consent"
+        with get_session() as s:
+            case = _get(s, Case, case_id)
+            case.status = "awaiting_consent"
+            _patch_data(case, redispatch=info)
+            _save_case(s, case)
+        return info
+    try:
+        dispatch_job(case_id, pid)
+        info["outcome"] = "dispatched"
+    except rules.RuleViolation as rv:
+        info["outcome"] = "approval_pending" if rv.code == "approval_required" else rv.code
+    with get_session() as s:
+        case = _get(s, Case, case_id)
+        _patch_data(case, redispatch=info)
+        _save_case(s, case)
+    return info
+
+
+def check_sla() -> list[dict]:
+    """Jobs not accepted in time count as a decline ("no response within X h") → redispatch."""
+    due = []
+    with get_session() as s:
+        for c in s.exec(select(Case).where(Case.status == "requested")).all():
+            sla = (c.data or {}).get("sla") or {}
+            if c.partner_id and sla.get("due_at") and datetime.fromisoformat(sla["due_at"]) <= now():
+                due.append((c.id, c.partner_id, sla.get("hours")))
+    out = []
+    for case_id, pid, hours in due:
+        h = f"{hours:g}" if isinstance(hours, (int, float)) else "?"
+        partner_decline(case_id, pid, f"no response within {h} h", actor="system")
+        out.append({"case_id": case_id, **((get_case(case_id).data or {}).get("redispatch") or {})})
+    return out
 
 
 def get_technicians(partner_id: str) -> list[dict]:

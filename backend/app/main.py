@@ -28,7 +28,23 @@ log = logging.getLogger("debye")
 async def lifespan(app: FastAPI):
     events.bind_loop(asyncio.get_running_loop())
     seed(reset=settings.reseed_on_boot)
+    checker = asyncio.create_task(_periodic_checks())
     yield
+    checker.cancel()
+
+
+async def _periodic_checks(interval_s: float = 60.0) -> None:
+    """Small background loop: partner document expiry (daily) and job SLAs (services.periodic_checks)."""
+    from . import services
+    while True:
+        await asyncio.sleep(interval_s)
+        try:
+            result = await asyncio.to_thread(services.periodic_checks)
+            from . import notify
+            for r in result.get("redispatched") or []:  # SLA ran out → tell the tenant
+                await notify.notify_tenant(r["case_id"], "partner_declined", r)
+        except Exception:  # never let the loop die
+            log.exception("periodic checks failed")
 
 
 app = FastAPI(title="Debye (AI assistant)", lifespan=lifespan)

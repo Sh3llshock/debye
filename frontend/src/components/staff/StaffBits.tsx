@@ -32,6 +32,8 @@ const STAGE: Record<string, [string, Tone]> = {
   requested: ['Waiting for partner', 'wait'],
   accepted: ['Partner picking times', 'wait'],
   partner_declined: ['Finding another partner', 'warn'],
+  awaiting_consent: ['Asking tenant for next partner', 'wait'],
+  needs_staff: ['No partner left · needs you', 'hot'],
   slots_proposed: ['Tenant confirming time', 'wait'],
   awaiting_technician: ['Technician confirming', 'wait'],
   scheduled: ['Booked', 'blue'],
@@ -53,7 +55,7 @@ export function Pill({ tone = '', children, className = '' }: { tone?: Tone; chi
 }
 
 export const isOpen = (c: CaseSummary) => !['closed', 'rejected'].includes(c.status)
-export const needsMe = (c: CaseSummary) => needsApproval(c.status)
+export const needsMe = (c: CaseSummary) => needsApproval(c.status) || c.status === 'needs_staff'
 
 /** Status pill; cases waiting for approval say "Needs you" in the inbox. */
 export function StagePill({ c, inbox = false }: { c: CaseSummary | CaseDetail; inbox?: boolean }) {

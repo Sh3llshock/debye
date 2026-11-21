@@ -23,10 +23,9 @@ def create_all() -> None:
 
 
 def _add_missing_columns() -> None:
-    """create_all never alters a table: add columns that models gained since the DB was created
-    (SQLite ADD COLUMN, nullable, no default), so a deploy works without a /demo/reset."""
+    """Tiny additive migration: create_all doesn't add new columns to existing tables, so a
+    database from before a model change (live demo server, no reseed) gets them via ALTER TABLE."""
     from sqlalchemy import inspect, text
-
     insp = inspect(engine)
     with engine.begin() as conn:
         for table in SQLModel.metadata.sorted_tables:
@@ -34,9 +33,14 @@ def _add_missing_columns() -> None:
                 continue
             have = {c["name"] for c in insp.get_columns(table.name)}
             for col in table.columns:
-                if col.name not in have:
-                    ddl = col.type.compile(dialect=engine.dialect)
-                    conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {ddl}'))
+                if col.name in have:
+                    continue
+                ddl = col.type.compile(dialect=engine.dialect)
+                default = col.default.arg if col.default is not None and not callable(col.default.arg) else None
+                if isinstance(default, bool):
+                    default = int(default)
+                dflt = f" DEFAULT {default!r}" if isinstance(default, (str, int, float)) else ""
+                conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {ddl}{dflt}'))
 
 
 def drop_all() -> None:

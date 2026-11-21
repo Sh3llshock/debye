@@ -18,7 +18,7 @@ async def notify_tenant(case_id: str, event: str, data: dict) -> None:
     cs = st.case_state(case_id)
     if data.get("partner_name"):
         cs.partner_name = data["partner_name"]
-    if data.get("partner_id"):
+    if data.get("partner_id") and event != "partner_declined":
         cs.partner_id = data["partner_id"]
     try:
         if event == "slots_proposed":
@@ -56,17 +56,8 @@ async def notify_tenant(case_id: str, event: str, data: dict) -> None:
                     f"Your property manager approved the repair. {flow.partner_label(case_id)} will suggest times shortly.",
                 )
         elif event == "partner_declined":
-            nxt = data.get("next_partner_name")
-            if nxt:
-                cs.partner_name = nxt
-                cs.partner_id = data.get("next_partner_id", cs.partner_id)
-            for c in flow.tenant_contacts(case_id, reporter_only=True):
-                msg = (
-                    f"Quick update: the first company is fully booked, so I've asked {nxt}."
-                    if nxt
-                    else "Quick update: the company can't take the job. I'm finding another one."
-                )
-                await out.text(c, case_id, msg)
+            # data = case.data.redispatch (feature 2): next_partner_*, outcome, declined_partner_name
+            await flow.on_redispatch(case_id, data)
         else:
             log.warning("notify_tenant: unknown event %s", event)
     except Exception:

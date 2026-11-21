@@ -1,9 +1,11 @@
 // German UI copy, keyed by the English source text (see i18n.ts).
 // API data (case titles, event summaries) and WhatsApp messages are not translated here.
 import { DE_PARTNER } from './de-partner'
+import { DE_PARTNER_OPS } from './de-partner-ops'
 
 export const DE: Record<string, string> = {
   ...DE_PARTNER,
+  ...DE_PARTNER_OPS,
   // shell
   // v3 staff portal
   '{n} question': '{n} Frage',

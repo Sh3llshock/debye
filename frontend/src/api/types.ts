@@ -16,6 +16,8 @@ export type CaseStatus =
   | 'declined'
   | 'slots_proposed'
   | 'partner_declined'
+  | 'awaiting_consent'
+  | 'needs_staff'
   | 'reopened'
   | 'awaiting_technician'
   | (string & {})
@@ -263,9 +265,43 @@ export interface PartnerProfile {
   capabilities?: { trades?: string[]; brands_certified?: string[]; [k: string]: unknown }
   service_area?: { postcodes?: string[]; base_postcode?: string; radius_km?: number }
   active?: boolean
+  /** feature 1: self-onboarded partners wait for a staff review */
+  status?: PartnerStatus
+  review?: { reviewer?: string | null; decided_at?: string | null; reason?: string | null }
   staff?: { contact_id: string; name: string }[]
   open_jobs?: number
   [k: string]: unknown
+}
+
+export type PartnerStatus = 'pending_review' | 'active' | 'rejected' | 'suspended'
+
+export interface PrecheckRow {
+  id: string
+  label: string
+  status: 'pass' | 'warn' | 'fail'
+  detail: string
+}
+
+export interface PartnerApplication {
+  partner_id: string
+  name: string
+  status: PartnerStatus
+  applied_at?: string | null
+  company: { name?: string; street?: string; postcode?: string; city?: string; vat_id?: string }
+  manifest: PartnerProfile
+  documents: { document_id: string; doc_type?: string; label: string; filename: string; url: string; extracted: Record<string, unknown> }[]
+  precheck: PrecheckRow[]
+  precheck_result: 'pass' | 'warn' | 'fail'
+}
+
+export interface OnboardDocument {
+  doc_type: 'trade_licence' | 'insurance' | 'gas_registry' | 'vat'
+  filename: string
+  number?: string
+  valid_until?: string
+  coverage_eur?: number
+  issuer?: string
+  company_name?: string
 }
 
 export interface OnboardCheck {
@@ -310,6 +346,7 @@ export interface OnboardResult {
   manifest: Record<string, unknown>
   file: string | null
   checks: OnboardCheck[]
+  status?: PartnerStatus
 }
 
 export interface JobSummary {
