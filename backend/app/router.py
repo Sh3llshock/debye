@@ -267,6 +267,17 @@ async def handle_button(contact, button_id: str) -> bool:
         except Exception:
             log.exception("diagnosis answer %s failed", button_id)
         return True
+    if (button_id or "").startswith(("offer:", "sellconsent:")):  # sell flow (triggers.py): offer:<case>:<offer_id>
+        kind, case_id, choice_id = ((button_id or "").split(":") + ["", ""])[:3]
+        st.conversation(be.attr(contact, "id")).pending_options = []
+        try:
+            if kind == "offer":
+                await flow.on_offer(contact, case_id, choice_id)
+            else:
+                await flow.on_sell_consent(contact, case_id, choice_id == "yes")
+        except Exception:
+            log.exception("sell button %s failed", button_id)
+        return True
     m = BUTTON_RE.match(button_id or "")
     if not m:
         return False
