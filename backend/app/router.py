@@ -218,6 +218,9 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
             await diagnosis.extract_answers(conv, text)
             await diagnosis.escalate_now(contact, conv, text)
             return False
+        # "I said the ceiling" / "none of these": the problem belongs to another area, switch instead of re-asking
+        if await triage.maybe_reroute(contact, conv, text):
+            return False
     # a photo of the display (or a code typed in the text) during the diagnosis answers q_display
     if (images or text) and diagnosis.active(conv) and "q_display" not in conv.diagnosis["answers"]:
         code, _src = flow.detect_error_code([text or ""], images)
@@ -253,7 +256,10 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
     consent_open = conv.step == st.CONSENT and conv.case_id and text and "?" in text \
         and diagnosis.area_of(conv) != diagnosis.HOT_WATER and bool(conv.diagnosis)
     case_id = conv.case_id
+    before = diagnosis.progress_signature(conv)
     interrupted = bool(await loop.run_tenant_turn(contact, text, images))
+    if not interrupted and before is not None:
+        await diagnosis.stall_guard(contact, conv, before)  # two turns in a row without progress: conclude
     if consent_open and not interrupted and conv.step == st.CONSENT and conv.case_id == case_id:
         # a question back ("how long will that take?") at the consent step: answered, then ask consent again
         conv.asked_at[st.CONSENT] = 0
@@ -296,6 +302,11 @@ async def handle_button(contact, button_id: str) -> bool:
 
         st.conversation(be.attr(contact, "id")).pending_options = []
         try:
+            if key == diagnosis.ESCAPE_KEY:  # "Something else": re-route or mark unknown, never the same question
+                from app.agent import triage as triage_mod
+
+                await triage_mod.on_escape(contact, qid)
+                return True
             await diagnosis.on_answer(contact, qid, key)
         except Exception:
             log.exception("diagnosis answer %s failed", button_id)
