@@ -25,16 +25,24 @@ import asyncio
 import json
 import os
 import sys
+import atexit
+import shutil
 import tempfile
 import threading
 import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+for _s in (sys.stdout, sys.stderr):  # ✓/✗ on Windows cp1252 consoles
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
 BACKEND = Path(os.getenv("EVAL_BACKEND") or REPO / "backend").resolve()
 sys.path.insert(0, str(BACKEND))
 
 _tmp = Path(tempfile.mkdtemp(prefix="debye-eval-"))
+atexit.register(shutil.rmtree, _tmp, True)  # temp DB + storage: removed at exit
 os.environ.setdefault("DATABASE_URL", f"sqlite:///{(_tmp / 'eval.db').as_posix()}")
 os.environ.setdefault("STORAGE_DIR", str(_tmp / "storage"))
 os.environ["DEMO_MODE"] = "1"
@@ -383,6 +391,7 @@ def run_parallel(ids: list[str], passes: int, workers: int, out: str | None) -> 
     jobs = [{"pass": p, "id": cid} for p in range(1, passes + 1) for cid in convs]
     workers = max(1, min(workers, len(jobs)))
     tmp = Path(tempfile.mkdtemp(prefix="debye-eval-jobs-"))
+    atexit.register(shutil.rmtree, tmp, True)
     procs = []
     t0 = time.perf_counter()
     for w in range(workers):

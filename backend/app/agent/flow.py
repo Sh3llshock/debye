@@ -186,7 +186,8 @@ async def request_consent(contact, case_id: str) -> None:
     conv = st.conversation(be.attr(contact, "id"))
     conv.step = st.CONSENT
     conv.asked_at[st.CONSENT] = time.monotonic()
-    who = cs.partner_name or "a heating company"
+    who = ("einen Techniker" if conv.lang == "de" else "a technician") if cs.trade_unknown \
+        else cs.partner_name or ("eine Heizungsfirma" if conv.lang == "de" else "a heating company")
     await out.buttons(
         contact,
         case_id,
@@ -209,6 +210,16 @@ async def on_consent(contact, case_id: str, yes: bool) -> None:
         await out.text(
             contact, case_id, "Understood, I won't share anything. Someone from the property management will get in touch."
         )
+        return
+    if cs.trade_unknown and not cs.partner_id:
+        # which company depends on the cause: the property manager picks it when approving
+        be.add_tenant_input(case_id, "tap: consent")
+        be.record_event(case_id, "tenant", "consent.given_pending_partner",
+                        "Tenant agreed to share their details with the technician staff pick", {})
+        conv.step = st.WAITING_APPROVAL
+        await out.text(contact, case_id, "Danke. Deine Hausverwaltung wählt die passende Firma aus und bestätigt "
+                       "den Termin; ich melde mich dann." if conv.lang == "de" else "Thanks. Your property manager "
+                       "picks the right company and confirms the visit; I'll update you then.")
         return
     if not cs.partner_id:
         try:
