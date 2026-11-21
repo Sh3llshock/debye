@@ -56,6 +56,22 @@ Each transition is a `status_event`:
 }
 ```
 
+### `needs_info`: the partner asks the resident
+
+Built for portal partners. A partner who needs something before the visit asks the resident from the job card instead of phoning around.
+
+| Method | Path | Body → Returns |
+|---|---|---|
+| POST | `/api/partner/{partner_id}/jobs/{case_id}/question` | `{text}` (1–500 chars) → the job detail with `questions[]` and `open_question`; 404 if the job isn't this partner's, 409 while a question is still open or the job is closed, 422 for an empty or too-long question |
+
+1. The question is stored on the case (`data.questions[]`, `data.open_question`), logged as `job.needs_info` and sent to the resident on WhatsApp: "Ali from Heizung Schmidt GmbH asks: Is there parking nearby?" (the assigned technician's first name, else the partner's staff contact).
+2. The resident's next free-text reply on that case is the answer. Button taps and the hot-water diagnosis keep their own handling; the reply goes to the open question only if neither took it. Debye confirms "Thanks, I've passed that on to …".
+3. The answer is stored on the question (`answer`, `answered_at`), logged as `job.info_provided` and shown on the partner's job card and the staff timeline.
+
+One open question per case at a time. A partner only sees its own questions.
+
+**Planned:** API partners sending `needs_info` as a `status_event` with `data.question`, and conversational partners asking by message (section 5). Both would reuse the same store and tenant routing.
+
 ## 4. API transport
 
 | Direction | Call | Body |
@@ -75,12 +91,33 @@ For partners without an API. Debye:
 2. Reads replies (text, voice, photos, PDFs) and maps them to lifecycle events: "Morgen 8–10 oder Do 14–16" → slots proposed; "erledigt" + photo → completed; PDF invoice → invoiced (fields extracted and price-checked).
 3. Writes the same `status_event`s as an API partner would. centrix doesn't care which transport produced them.
 
+**Status: planned.** The demo partners with `transport.type: conversational` are handled through the partner portal today. The job-card message, reply parsing and event mapping above are not built yet.
+
 ## 6. Consent and privacy
 
 - Before any handover, Debye asks the resident: "I'll share {fields} with {partner} so they can {purpose}. OK?" One tap.
 - Stored record: `{contact_id, partner_id, case_id, data_shared[], purpose, channel, given_at, revoked_at}`; matches the `consent` object in reltix's result payload.
-- Only consented `required_context` keys leave centrix. Sensitive access details (key-safe codes) are released just in time (on the job day) and logged.
+- Only consented `required_context` keys leave centrix. Sensitive access details (key-safe codes) are released just in time (on the job day) and logged; see below.
 - Data minimisation: partners never get lease, rent or other tenants' data.
+
+### Access details, just in time
+
+- Stored on the unit: `Unit.access = {key_safe_code, intercom_name, parking_note}` (seeded for `unit_4b`).
+- A partner that needs them lists `{"key": "access_details", "source": "unit.access", "pii": true, "consent_required": true}` in `required_context`. The three seeded heating partners do.
+- Debye's consent covers `access_details`, and the consent text tells the resident: "They only get the access details (key safe, intercom) on the day of the visit."
+- The job detail (`GET /api/partner/{id}/jobs/{case_id}` and the technician page) carries `access`:
+
+| Situation | `access` |
+|---|---|
+| unit has no access details | `null` |
+| no consent for `access_details` | `{consented: false, released: false}` |
+| consent, no slot booked yet | `{consented: true, released: false, available_on: null}` |
+| consent, not the slot's day (or case closed) | `{consented: true, released: false, available_on: "YYYY-MM-DD"}` |
+| consent, on the slot's day (demo clock) | `{consented: true, released: true, available_on, key_safe_code, intercom_name, parking_note}` |
+
+The first release writes an `access.released` event (fields and partner) to the case timeline. The day before and the day after, the values are held back.
+
+**Planned:** pushing access details to API partners on the job day (today they are only shown in the portal and on the technician page), and letting the resident revoke consent.
 
 ## 7. Result written back
 
@@ -113,6 +150,23 @@ Defaults fill the rest: the deliver lifecycle `status_events` (`accepted, declin
 | POST | `/api/partners/onboard` | `{manifest, technicians:[{name, skills[], phone_e164?}]}` → `{partner_id, name, portal_url, technicians:[{tech_id, name, url}], manifest, file}`; 422 with the failed checks, 409 if the id belongs to a seeded partner |
 
 On save the partner is a DB row (active), its technicians get calendars (free slots for the next 3 days), and in `DEMO_MODE` the manifest is written to `partners/<id>.json` with an extra `technicians` roster, so it survives a demo reset like any hand-written partner. `rank_partners` picks it up for the next matching case with no code change (covered by `backend/tests/test_onboarding.py`).
+
+### Start from the partner's website
+
+The partner registration flow (`/partner/register`) opens with **Start with your website**. The partner types their URL and clicks **Fill in for me**, or **Skip** to the empty form.
+
+| Method | Path | Body → Returns |
+|---|---|---|
+| POST | `/api/partners/onboard/from-website` | `{url}` → `{fields, manifest_draft, sources, message?}`; 400 for a URL that isn't http(s) or points at a local or private address |
+
+- Debye fetches the page the partner entered plus `/impressum` and `/kontakt` on the same host (German Impressum pages carry the legal name, address, VAT ID and register entries). Each page: 10 s timeout, at most ~500 KB, HTML stripped to text with `mailto:` and `tel:` links kept.
+- **SSRF guard:** only `http`/`https`; the host must resolve to public addresses only (loopback, private, link-local, reserved and the cloud metadata IP are refused); redirects are followed by hand and every hop is checked again.
+- The text goes to the LLM (same provider setting as invoice extraction, `LLM_PROVIDER`) with a strict JSON schema. Results are cleaned: trades and brands are limited to the onboarding schema lists, postcodes must be 5 digits, VAT IDs are normalised.
+- `fields` has one entry per field found, `{value, confidence, source_snippet}`, for `name, street, postcode, city, phone, email, vat_id, hwk_no, trades, brands, service_area`. `manifest_draft` is the same data as a manifest skeleton; it goes through `POST /api/partners/onboard/validate` like any other.
+- **Nothing is saved.** The form is pre-filled, each filled field carries a "from your website" tag until the partner edits it, and the partner still checks and submits every step.
+- No API key, a site that can't be opened, or an unusable answer: `{fields: {}}` with a message ("Please fill in the form."), and the partner continues by hand.
+
+Covered by `backend/tests/test_website_autofill.py` (saved HTML fixture, stubbed resolver and LLM, SSRF cases).
 
 `service_area` with `radius_km` + `base_postcode` is evaluated without a geocoder in the demo: within 10 km the first 4 postcode digits must match, within 30 km the first 3, beyond that the first 2. A real deployment swaps in a distance lookup; the manifest stays the same.
 

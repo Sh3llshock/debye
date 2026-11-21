@@ -68,6 +68,23 @@ Pitch line: "The next partner plugs in without a line of code."
 
 The onboarded manifest is saved as `partners/heizung-mueller.json` and survives **Reset**. To remove it after the demo: delete that file, then reset.
 
+### Extra beat: the installer asks Luka a question (about 30 s, between steps 6 and 8)
+Pitch line: "No phone tag. The installer asks, Debye gets the answer."
+1. Installer (laptop 2) → **Work in progress** → Luka's job → **Ask the tenant** → "Is there parking nearby?" → **Send question**. The card shows "Waiting for Luka to answer on WhatsApp".
+2. Luka's phone: "Tom from Heizung Schmidt GmbH asks: Is there parking nearby?" Luka replies in his own words, e.g. "Yes, visitor spaces in the courtyard."
+3. Debye: "Thanks, I've passed that on to Heizung Schmidt GmbH." The answer is on the job card; the staff timeline shows **job.needs_info** and **job.info_provided**.
+
+One open question at a time: the button comes back once Luka has answered.
+
+### Extra beat: access details on the visit day (after step 7)
+Pitch line: "The key-safe code leaves centrix only on the day, only with consent, and it's logged."
+- Before **Skip to tomorrow**, Luka's job card shows **Access details: Available on the visit day (date)**. The consent message in step 4 already told Luka this.
+- After **Skip to tomorrow**, the card shows key safe `4711`, the intercom name and the parking note, and the staff timeline gets **access.released**. The technician's phone page shows the same.
+- Needs the seeded values: run **Reset** once after deploying this feature (an old database gets the new column automatically, but no values).
+
+### Extra beat: onboarding from a website (Q&A)
+On http://localhost:8000/partner/register type a real installer's website (`www.vaillant.de` works) → **Fill in for me**. After about 10 s the form is filled from the home page and the Impressum, with "from your website" tags. Needs `OPENAI_API_KEY` (or the Anthropic key with `LLM_PROVIDER=anthropic`) and internet; otherwise it says "Please fill in the form" and **Skip** continues by hand. Nothing is saved until the partner submits.
+
 ### Variant: Luka calls instead of sending a voice note (step 1)
 Luka **calls** Debye (phone number, or the `/call` page as "Luka"): "Meine Heizung ist seit heute Morgen kalt … alle Heizkörper … auf dem Display steht F 28." Debye greets Luka by name and doesn't ask for address or boiler. It explains "die Zündung ist fehlgeschlagen (Fehlercode F.28)", opens the case and hangs up. Within about 10 s:
 - staff page: case opened, timeline line **"Call with Luka (0:47): heating cold, all radiators cold, ignition failed (F.28). Case opened, consent asked on WhatsApp."**
@@ -86,6 +103,9 @@ Pitch line: one case, two channels. The call continues in the chat without askin
 | Partner page won't load | Same idea for the installer side: `python scripts\simulate.py --step accept` (then `slots`, `complete`) |
 | Call: Debye can't look Luka up / no WhatsApp after the call | Tunnel URL changed: run `python scripts\elevenlabs_agent.py --base https://<tunnel>` again. Check that `VOICE_TOOL_SECRET` and `ELEVENLABS_AGENT_ID` are in `.env`. Server log shows `POST /api/voice/tools/...` per call. |
 | Call page says "Konnte nicht verbinden" | Allow the microphone. `ELEVENLABS_AGENT_ID` missing → 503. Fallback: the voice-note flow (step 1). |
+| Partner question gets no answer on the card | The reply must come after the question, as free text (not a button tap). Check the staff timeline for **job.info_provided**. If the phone is stuck, answer from the web chat (http://localhost:8000/chat/c_202). |
+| Access details missing on the visit day | The case needs the agent's consent (it includes `access_details`) and a slot booked for today's demo date. No values at all → **Reset** once (seed data). |
+| Website autofill says "Please fill in the form" | No LLM key, no internet, or the site blocks bots. Click **Skip** or try another site. |
 | Wrong state, start over | `.\scripts\demo_reset.ps1`, or the demo panel → **Reset** |
 | Server crashed | Restart it (step 3). Data is kept in `backend/debye.db`. Reset if the state looks wrong. |
 | Nothing works | Play the whole flow hands-off on the staff page: `python scripts\simulate.py --direct --reset --pause 4`. Last resort: the backup video. |
