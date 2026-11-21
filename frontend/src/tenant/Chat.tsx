@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Icon } from '../components/icons'
 import { t } from '../lib/i18n'
 import { ApiError, api, type TCaseDetail, type THistory, type THome, type TMessage, type TOption } from './api'
 import { MiniBar } from './Home'
@@ -211,7 +212,9 @@ export default function Chat() {
               {askPhoto && (
                 <div className="actions">
                   <button className="chip solid" onClick={() => photoInput.current?.click()}>
-                    📷 {t('Upload photo')}
+                    {/* TODO(slop:F2) icon: camera, h-4 w-4 */}
+                    <Icon name="camera" className="mr-1.5 inline h-4 w-4 align-[-3px]" />
+                    {t('Upload photo')}
                   </button>
                 </div>
               )}
@@ -262,7 +265,8 @@ export default function Chat() {
               )}
               <div className="cin">
                 <label className="att" title={t('Add a photo')}>
-                  📎
+                  {/* TODO(slop:F3) icon: paperclip (new path in icons.tsx), 18px, text-muted */}
+                  <Icon name="file" className="h-[18px] w-[18px]" />
                   <input
                     type="file"
                     accept="image/*"
@@ -291,7 +295,7 @@ export default function Chat() {
                   }}
                 />
                 <button className="sendc" type="submit" aria-label={t('Send')} disabled={!draft.trim() && !file}>
-                  ➤
+                  <Icon name="arrow" className="h-[18px] w-[18px]" />
                 </button>
               </div>
               <div className="cnote">{t('Same conversation as your WhatsApp with Debye. Answer wherever is easier.')}</div>
@@ -315,7 +319,9 @@ function Bubble({ m }: { m: TMessage }) {
                   <img key={d.document_id} src={d.url} alt={t('Photo')} />
                 ) : (
                   <a key={d.document_id} href={d.url} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>
-                    📎 {d.kind === 'voice_note' ? t('Voice note') : t('File')}
+                    {/* TODO(slop:F5) icon: mic for voice_note, file otherwise */}
+                    <Icon name={d.kind === 'voice_note' ? 'mic' : 'file'} className="mr-1 inline h-4 w-4 align-[-3px]" />
+                    {d.kind === 'voice_note' ? t('Voice note') : t('File')}
                   </a>
                 ),
               )}
@@ -360,7 +366,7 @@ function Bubble({ m }: { m: TMessage }) {
         <ol className="flow">
           {rows.map((r, n) => (
             <li key={n} className={r.state}>
-              <span className="fd">{r.state === 'done' ? '✓' : n + 1}</span>
+              <span className="fd">{r.state === 'done' ? <Icon name="check" className="h-3.5 w-3.5" /> : n + 1}</span>
               <div className="ft">
                 <b>{r.title}</b>
                 {r.sub && <small>{r.sub}</small>}
@@ -410,7 +416,9 @@ function Bubble({ m }: { m: TMessage }) {
               .map((d) => (
                 <div key={d.document_id}>
                   <a href={d.url} target="_blank" rel="noreferrer">
-                    📄 {d.filename}
+                    {/* TODO(slop:F5) icon: file */}
+                    <Icon name="file" className="mr-1 inline h-4 w-4 align-[-3px]" />
+                    {d.filename}
                   </a>
                 </div>
               ))}

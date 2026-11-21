@@ -132,6 +132,7 @@ export default function StaffUnit() {
           </p>
         </div>
       </div>
+      {/* TODO(slop:F34) KPI tiles -> one inline summary strip; share one component with StaffPartners */}
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
           [String(u.cases.length), t('Cases')],

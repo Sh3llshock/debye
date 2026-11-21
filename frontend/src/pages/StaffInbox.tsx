@@ -71,7 +71,7 @@ export default function StaffInbox() {
               className={`relative grid w-full grid-cols-[36px_minmax(0,1fr)_auto] gap-2.5 border-t border-line px-[18px] py-3 text-left ${on ? 'bg-wine-tint' : 'hover:bg-[rgba(107,31,51,.035)]'} ${isNew(x.case_id + x.status) ? 'animate-enter' : ''}`}
             >
               {needsMe(x) && <span className="absolute left-1.5 top-[22px] h-[7px] w-[7px] rounded-full bg-wine" aria-label={t('Needs you')} />}
-              <span className={`uav ${needsMe(x) ? '' : 'bg-[#B9AAA4]'}`}>{name.charAt(0)}</span>
+              <span className={`uav ${needsMe(x) ? '' : 'bg-muted'}`}>{name.charAt(0)}</span>
               <span className="min-w-0">
                 <span className="flex flex-wrap items-center gap-1.5 text-body font-semibold">
                   {name} <ChannelTag ch={channelOf(d)} />

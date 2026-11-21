@@ -2,6 +2,7 @@
    and partner pages are untouched. */
 .tp {
   /* colours come from the shared v3 tokens in src/index.css (:root); only the mockup's font stacks are local */
+  /* TODO(slop:F23) drop the SF/system stacks; use the shared family tokens from theme.ts (single source of truth, same face as staff/partner) */
   --sys: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif;
   --sysd: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", Arial, sans-serif;
   font-family: var(--sys); background: var(--bg); color: var(--ink); font-size: 15px; -webkit-font-smoothing: antialiased;
@@ -17,6 +18,7 @@
 
 /* ---------- login ---------- */
 .tp .login { min-height: 100%; display: grid; place-items: center; padding: 24px; overflow-y: auto; height: 100%; }
+/* TODO(slop:F26) left-aligned login form, smaller logo, specific tagline or none; F32 inputs/button to 10px radius */
 .tp .lbox { width: 100%; max-width: 380px; text-align: center; }
 .tp .lbox .logo { width: 64px; height: 64px; margin: 0 auto 18px; }
 .tp .lbox h1 { font-size: 28px; font-weight: 600; margin-bottom: 6px; }
@@ -49,7 +51,7 @@
 .tp .app { display: grid; grid-template-columns: 1fr; flex: 1; min-height: 0; }
 .tp .app.withpanel { grid-template-columns: 1fr 340px; }
 .tp .dotst { width: 7px; height: 7px; border-radius: 50%; background: var(--wine); flex: none; }
-.tp .dotst.ok { background: var(--ok); } .tp .dotst.wait { background: #C9B9A6; }
+.tp .dotst.ok { background: var(--ok); } .tp .dotst.wait { background: var(--beige-d); }
 .tp .uav { width: 32px; height: 32px; border-radius: 50%; background: var(--wine); color: var(--cream); display: grid; place-items: center; font-weight: 600; font-size: 14px; flex: none; }
 .tp .logout { margin-left: auto; border: 0; background: transparent; color: var(--muted); font-size: 12px; }
 .tp .logout:hover { color: var(--wine); }
@@ -76,6 +78,7 @@
 .tp .hello .logo { width: 52px; height: 52px; margin: 0 auto 16px; }
 .tp .hello h1 { font-size: 32px; font-weight: 600; }
 .tp .hello p { color: var(--body); margin: 8px 0 0; font-size: 16px; }
+/* TODO(slop:F32) radius/shadow: use theme.ts radii only (composer 16px, inputs 10px), drop the soft drop-shadow, keep hairline ring */
 .tp .bigin { width: 100%; max-width: 720px; background: var(--surface); border-radius: 24px; box-shadow: 0 0 0 1px var(--line), 0 6px 24px rgba(43,16,24,.06); padding: 14px 14px 10px 20px; }
 .tp .bigin textarea { width: 100%; border: 0; resize: none; background: transparent; font-size: 16px; color: var(--ink); outline: none; min-height: 56px; }
 .tp .bigin textarea::placeholder, .tp .cin textarea::placeholder { color: var(--muted); }
@@ -112,7 +115,7 @@
 .tp .ubub img + span { display: block; margin-top: 8px; }
 .tp .meta { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
 .tp .row.me .meta { text-align: right; }
-.tp .via { font-size: 10.5px; font-weight: 600; color: #1E7A35; background: #E6F4EA; border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
+.tp .via { font-size: 10.5px; font-weight: 600; color: var(--wa-text); background: var(--wa-tint); border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
 .tp .card { margin-top: 12px; background: var(--surface); border-radius: 14px; padding: 13px 15px; box-shadow: 0 0 0 1px var(--line); }
 .tp .card h4 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; }
 .tp .bar { height: 6px; border-radius: 980px; background: var(--beige-d); overflow: hidden; margin: 6px 0 10px; } .tp .bar i { display: block; height: 100%; background: var(--wine); }
@@ -129,6 +132,7 @@
 .tp .typing i:nth-child(2) { animation-delay: .15s; } .tp .typing i:nth-child(3) { animation-delay: .3s; }
 @keyframes tp-blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
 .tp .composer { padding: 10px 24px 18px; }
+/* TODO(slop:F32) same as .bigin: 16px radius, no soft drop-shadow */
 .tp .cin { max-width: 740px; margin: 0 auto; display: flex; gap: 8px; align-items: flex-end; background: var(--surface); border-radius: 24px; padding: 6px 6px 6px 10px; box-shadow: 0 0 0 1px var(--line), 0 4px 16px rgba(43,16,24,.05); }
 .tp .cin textarea { flex: 1; border: 0; resize: none; background: transparent; font-size: 15px; color: var(--ink); padding: 9px 4px; max-height: 140px; outline: none; min-width: 0; }
 .tp .cnote { max-width: 740px; margin: 8px auto 0; text-align: center; font-size: 12px; color: var(--muted); }
@@ -149,8 +153,8 @@
 .tp .flow li:last-child::before { display: none; }
 .tp .flow li.done::before { background: var(--ok-line); }
 .tp .fd { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; background: var(--bg); color: var(--muted); border: 1.5px solid var(--beige-d); position: relative; z-index: 1; }
-.tp .done .fd { background: var(--ok); border-color: var(--ok); color: #fff; }
-.tp .now .fd { background: var(--wine); border-color: var(--wine); color: #fff; box-shadow: 0 0 0 5px var(--wine-tint); }
+.tp .done .fd { background: var(--ok); border-color: var(--ok); color: var(--cream); }
+.tp .now .fd { background: var(--wine); border-color: var(--wine); color: var(--cream); box-shadow: 0 0 0 5px var(--wine-tint); }
 .tp .ft b { display: block; font-size: 14px; font-weight: 600; padding-top: 3px; } .tp .ft small { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
 .tp .pending .ft b { color: var(--muted); font-weight: 500; }
 .tp .skip .ft b { color: var(--muted); text-decoration: line-through; font-weight: 400; }

@@ -34,8 +34,10 @@ export default function Login({ onLogin }: { onLogin: (token: string) => void })
           go()
         }}
       >
+        {/* TODO(slop:F26) left-aligned form, smaller logo */}
         <div className="logo" />
         <h1>{t('Log in to Debye')}</h1>
+        {/* TODO(slop:F27) tagline: say what it does, e.g. "Report a problem and follow the repair.", or drop it */}
         <p>{t('Your home, your repairs, one place.')}</p>
         <input value={id} onChange={(e) => setId(e.target.value)} placeholder={t('Email or phone number')} autoComplete="username" />
         <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" placeholder={t('Password')} autoComplete="current-password" />

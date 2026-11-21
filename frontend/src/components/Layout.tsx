@@ -114,14 +114,14 @@ function Tabs({ items }: { items: TabItem[] }) {
   )
 }
 
-/** Crumbs above the page title ("Cases › 7781"); hidden when there is only one level. */
+/** Crumbs above the page title ("Cases > 7781"); hidden when there is only one level. */
 function Crumbs({ crumbs }: { crumbs: Crumb[] }) {
   if (crumbs.length < 2) return null
   return (
     <div className="crumb flex min-w-0 flex-wrap items-center gap-1">
       {crumbs.map((c, i) => (
         <span key={i} className="flex min-w-0 items-center gap-1">
-          {i > 0 && <span aria-hidden>›</span>}
+          {i > 0 && <Icon name="chevron" className="h-3.5 w-3.5" />}
           {c.to ? <Link to={c.to}>{c.label}</Link> : <span className="truncate">{c.label}</span>}
         </span>
       ))}

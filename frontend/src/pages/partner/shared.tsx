@@ -1,5 +1,6 @@
 // Shared bits of the v3 partner portal (docs/design/v3/partner-portal1.html).
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Icon } from '../../components/icons'
 import { api } from '../../api/client'
 import type { JobDetail, JobSummary, Slot } from '../../api/types'
 import { errorText, explainCodes, jobTitle } from '../../lib/errors'
@@ -157,15 +158,16 @@ export function Shot({ job, className = 'h-[130px]' }: { job: JobDetail; classNa
   const photo = job.photos?.find((p) => !p.filename.startsWith('after'))
   const code = job.error_code ?? job.asset?.error_code
   return (
-    <div className={`relative grid place-items-center overflow-hidden rounded-tile bg-[linear-gradient(160deg,#E3E3E8,#C9C9CF)] ${className}`}>
+    <div className={`relative grid place-items-center overflow-hidden rounded-tile bg-beige-d shadow-ring ${className}`}>
       {photo ? (
         <img src={photo.url} alt={photo.filename} className="absolute inset-0 h-full w-full object-cover" />
       ) : code ? (
-        <div className="grid h-[76px] w-[110px] place-items-center rounded-[10px] bg-[#F4F2EE] shadow-[0_6px_14px_rgba(0,0,0,.16)]">
-          <div className="rounded-[6px] border-[3px] border-[#5E6B60] bg-[#9FB7A4] px-[9px] py-[3px] font-mono text-[18px] font-bold tracking-[2px] text-[#1E2A21]">{code}</div>
+        // TODO(slop:F13) deliberate boiler illustration, or use public/demo-media/boiler_display_F28.jpg; tokens swapped in as stopgap
+        <div className="grid h-[76px] w-[110px] place-items-center rounded-[10px] bg-cream shadow-card">
+          <div className="rounded-[6px] border-[3px] border-muted bg-photo-display px-[9px] py-[3px] font-mono text-[18px] font-bold tracking-[2px] text-photo-bg">{code}</div>
         </div>
       ) : (
-        <div className="h-[88px] w-[88px] rounded-full bg-[radial-gradient(circle_at_40%_35%,#FAFAFA,#A9ADB3)] shadow-[0_6px_14px_rgba(0,0,0,.18)]" />
+        <div className="h-[88px] w-[88px] rounded-full bg-cream shadow-card" /> /* TODO(slop:F13) placeholder tile: flat beige-d with boiler <Icon>, no blob */
       )}
     </div>
   )
@@ -260,7 +262,7 @@ export function Story({ job, bordered = true }: { job: JobDetail; bordered?: boo
         {events.length > 0 && (
           <details className="group mt-3">
             <summary className="cursor-pointer list-none font-medium text-wine">
-              <span className="mr-2 inline-block transition-transform group-open:rotate-90">›</span>
+              <Icon name="chevron" className="mr-2 inline-block h-4 w-4 align-[-3px] transition-transform group-open:rotate-90" />
               {t('Show the case history ({n} steps)', { n: events.length })}
             </summary>
             <div className="mt-2.5 flex max-h-[300px] flex-col gap-[5px] overflow-y-auto rounded-tile bg-chat-bg p-3">
@@ -293,7 +295,7 @@ export function Story({ job, bordered = true }: { job: JobDetail; bordered?: boo
 function Reason({ ok, head, body }: { ok: boolean; head: string; body: string }) {
   return (
     <li className="grid grid-cols-[24px_1fr] gap-2.5 border-t border-line py-2 leading-[1.4] text-secondary first:border-t-0">
-      <span className={`grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold ${ok ? 'bg-ok text-white' : 'bg-beige text-muted'}`}>{ok ? '✓' : '✗'}</span>
+      <span className={`grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold ${ok ? 'bg-ok text-cream' : 'bg-beige text-muted'}`}>{ok ? <Icon name="check" className="h-3 w-3" /> : <span aria-hidden>{/* TODO(slop:F9) icon: close (new path in icons.tsx) */}–</span>}</span>
       <span>
         <b className="font-semibold text-ink">{head}</b>
         {body && (
@@ -322,7 +324,7 @@ export function useToast(): [ReactNode, (s: string) => void] {
   const node = (
     <div
       role="status"
-      className={`pointer-events-none fixed bottom-7 left-1/2 z-50 max-w-[90vw] -translate-x-1/2 rounded-tile bg-[rgba(29,29,31,.88)] px-5 py-3 font-medium text-white backdrop-blur transition-all duration-200 ${msg ? 'translate-y-0 opacity-100' : 'translate-y-2.5 opacity-0'}`}
+      className={`pointer-events-none fixed bottom-7 left-1/2 z-50 max-w-[90vw] -translate-x-1/2 rounded-tile bg-ink px-5 py-3 font-medium text-cream shadow-pop transition-opacity duration-200 ${msg ? 'opacity-100' : 'opacity-0'}`}
     >
       {msg}
     </div>

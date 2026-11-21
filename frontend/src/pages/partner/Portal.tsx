@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../../api/client'
 import type { JobDetail, PartnerProfile, Slot, Technician } from '../../api/types'
+import { Icon } from '../../components/icons'
 import { PartnerLayout } from '../../components/Layout'
 import { ErrorBox, Loading } from '../../components/ui'
 import { fmtSlot } from '../../lib/format'
@@ -121,8 +122,9 @@ function Overview({ ctx }: { ctx: Ctx }) {
       <Head
         title={t('Hello, {name}', { name: firstName(contact) || partner?.name || t('there') })}
         sub={`${new Date().toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })} · ${partner?.name ?? pid}`}
-        right={<span className="pill bg-ok-tint text-ok">✓ {t('Verified partner')}</span>}
+        right={<span className="pill bg-ok-tint text-ok"><Icon name="check" className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />{t('Verified partner')}</span>}
       />
+      {/* TODO(slop:F34) KPI tiles -> one inline summary strip (row, dividers, no tiles); keep click targets */}
       <div className="mb-[18px] grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         <Kpi label={t('New job requests')} value={fresh.length} onClick={() => go('new')} />
         <Kpi label={t('Work in progress')} value={wip.length} onClick={() => go('wip')} />
@@ -185,7 +187,8 @@ function Overview({ ctx }: { ctx: Ctx }) {
             </ul>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-1 py-4 text-center">
-              <span className="mb-1 grid h-10 w-10 place-items-center rounded-full bg-ok-tint font-bold text-ok">✓</span>
+              {/* TODO(slop:F36) plain muted left-aligned sentence, no green circle; check as small <Icon> */}
+              <span className="mb-1 grid h-10 w-10 place-items-center rounded-full bg-ok-tint font-bold text-ok"><Icon name="check" className="h-5 w-5" /></span>
               <b>{t('All caught up')}</b>
               <span className="text-muted">{t('No new jobs, requests or missing invoices.')}</span>
             </div>
@@ -238,7 +241,7 @@ function Overview({ ctx }: { ctx: Ctx }) {
 
 function Kpi({ label, value, onClick }: { label: string; value: ReactNode; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="rounded-panel bg-surface p-[18px] text-left shadow-card transition-transform hover:-translate-y-px">
+    <button onClick={onClick} className="rounded-panel bg-surface p-[18px] text-left shadow-card hover:bg-beige/40">
       <span className="text-label text-muted">{label}</span>
       <b className="mt-1.5 block text-page font-bold">{value}</b>
     </button>
@@ -406,7 +409,7 @@ function Availability({ ctx }: { ctx: Ctx }) {
                   </button>
                 )}
                 <button className="btn-ghost min-h-0 px-3 py-1.5 text-label" onClick={() => setWeek(week + 1)} aria-label={t('Next week')}>
-                  ›
+                  <Icon name="chevron" className="h-4 w-4" />
                 </button>
               </span>
             }
@@ -420,7 +423,7 @@ function Availability({ ctx }: { ctx: Ctx }) {
             <div className="grid min-w-[520px] grid-cols-[56px_repeat(7,minmax(0,1fr))] gap-1">
               <div />
               {days.map((x) => (
-                <button key={x.iso} className="flex flex-col items-center gap-px rounded-[8px] px-0 pb-1.5 pt-1 text-[11.5px] font-medium text-muted hover:bg-[#F3EEE7]" onClick={() => toggleDay(x.iso)} title={t('Toggle the whole day')}>
+                <button key={x.iso} className="flex flex-col items-center gap-px rounded-[8px] px-0 pb-1.5 pt-1 text-[11.5px] font-medium text-muted hover:bg-beige" onClick={() => toggleDay(x.iso)} title={t('Toggle the whole day')}>
                   <b className="text-label text-ink">{x.label}</b>
                   {x.day}
                 </button>
@@ -438,7 +441,8 @@ function Availability({ ctx }: { ctx: Ctx }) {
                         key={x.iso}
                         disabled={!!off}
                         onClick={() => toggleCell(x.iso, bi)}
-                        className={`h-[38px] rounded-[9px] text-[11px] font-semibold ${off ? 'cursor-default bg-[repeating-linear-gradient(45deg,#F3EEE7,#F3EEE7_5px,#EFE8DF_5px,#EFE8DF_10px)] text-muted' : on ? 'bg-ok text-white' : 'bg-[#F3EEE7] text-muted'}`}
+                        // TODO(slop:F15) availability cells: decide the 'off' look (stopgap: beige-d/50 + line-through, no hatching)
+                        className={`h-[38px] rounded-[9px] text-[11px] font-semibold ${off ? 'cursor-default bg-beige-d/50 text-muted line-through' : on ? 'bg-ok text-cream' : 'bg-beige text-muted'}`}
                       >
                         {off ? t('Off') : on ? t('Free') : ''}
                       </button>
@@ -454,11 +458,11 @@ function Availability({ ctx }: { ctx: Ctx }) {
               {t('Free')}
             </span>
             <span>
-              <i className="mr-1.5 inline-block h-3 w-3 rounded-[3px] bg-[#F3EEE7] align-[-2px] shadow-ring" />
+              <i className="mr-1.5 inline-block h-3 w-3 rounded-[3px] bg-beige align-[-2px] shadow-ring" />
               {t('Busy')}
             </span>
             <span>
-              <i className="mr-1.5 inline-block h-3 w-3 rounded-[3px] bg-[repeating-linear-gradient(45deg,#F3EEE7,#F3EEE7_2px,#E2D8CB_2px,#E2D8CB_4px)] align-[-2px]" />
+              <i className="mr-1.5 inline-block h-3 w-3 rounded-[3px] bg-beige-d/50 align-[-2px]" /> {/* TODO(slop:F15) legend swatch must match the 'off' cell look */}
               {t('Time off')}
             </span>
             <span className="sm:ml-auto">{t('{n} free blocks this week · click a block or a day to toggle', { n: nFree })}</span>

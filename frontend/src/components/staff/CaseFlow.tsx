@@ -5,6 +5,7 @@ import { explainCodes } from '../../lib/errors'
 import { fmtDateTime, fmtEur, fmtSlot, fmtSlotShort, fmtTime } from '../../lib/format'
 import { needsApproval } from '../../lib/lifecycle'
 import { t } from '../../lib/i18n'
+import { Icon } from '../icons'
 import { diagnosisOutcome, isNoTechnician } from '../case/Diagnosis'
 import { priceCheckInfo } from '../case/CasePanels'
 import { channelOf, firstName, Pill, tenantOf } from './StaffBits'
@@ -37,6 +38,7 @@ export function ApprovalChoice({ c, onApprove, onReject }: { c: CaseDetail; onAp
     }
   }
   return (
+    // TODO(slop:F33) replace shadow-lift with shadow-card + 1.5px wine ring (shadow-rec); no big blur
     <section className="animate-rise mb-[18px] rounded-panel bg-surface p-5 shadow-lift" aria-live="polite">
       <h3 className="mb-3 flex items-center justify-between gap-2 text-panel">
         {t('Diagnosed. Approve the partner')}
@@ -170,7 +172,7 @@ export function caseSteps(c: CaseDetail): Step[] {
           <ul className="mt-2.5 grid grid-cols-1 gap-x-[18px] gap-y-1.5 sm:grid-cols-2">
             {qs.map((x, i) => (
               <li key={i} className="grid grid-cols-[20px_minmax(0,1fr)] gap-2 leading-snug">
-                <span className="mt-px grid h-[18px] w-[18px] place-items-center rounded-full bg-ok text-[10px] font-bold text-white">✓</span>
+                <span className="mt-px grid h-[18px] w-[18px] place-items-center rounded-full bg-ok text-[10px] font-bold text-cream"><Icon name="check" className="h-3 w-3" /></span>
                 <span>
                   {x.q}
                   {x.a && <span className="font-medium"> → {x.a}</span>}
@@ -290,10 +292,10 @@ export function CaseProgress({ c }: { c: CaseDetail }) {
             {!last && <span className={`absolute bottom-0.5 left-[13px] top-[30px] w-0.5 rounded-sm ${x.s === 'done' ? 'bg-ok-line' : 'bg-beige-d'}`} />}
             <span
               className={`relative z-[1] grid h-7 w-7 place-items-center rounded-full border-[1.5px] text-meta font-bold ${
-                x.s === 'done' ? 'border-ok bg-ok text-white' : x.s === 'now' ? 'animate-station border-wine bg-wine text-white shadow-[0_0_0_5px_#F5EBED]' : 'border-beige-d bg-bg text-muted'
+                x.s === 'done' ? 'border-ok bg-ok text-cream' : x.s === 'now' ? 'animate-station border-wine bg-wine text-cream shadow-[0_0_0_5px_theme(colors.wine-tint)]' : 'border-beige-d bg-bg text-muted'
               }`}
             >
-              {x.s === 'done' ? '✓' : n + 1}
+              {x.s === 'done' ? <Icon name="check" className="h-3.5 w-3.5" /> : n + 1}
             </span>
             <div className="min-w-0">
               <div className="flex justify-between gap-3 pt-1">

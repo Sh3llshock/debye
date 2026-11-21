@@ -2,6 +2,7 @@
 // Register keeps the real onboarding backend: POST /api/partners/onboard(/validate).
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Icon } from '../../components/icons'
 import { api } from '../../api/client'
 import type { OnboardCheck, OnboardResult, PartnerProfile } from '../../api/types'
 import { LangToggle, Logo } from '../../components/Layout'
@@ -17,16 +18,20 @@ function Side({ children }: { children?: ReactNode }) {
         <Logo />
         Debye {t('partners')}
       </Link>
+      {/* TODO(slop:F28) factual headline, no 'thousands' claim: "Repair jobs from reltix properties, with diagnosis, photos and budget attached." */}
       <h1 className="text-[24px] font-bold leading-[1.15] text-ink md:text-page md:leading-[1.15]">{t('Get repair jobs from thousands of rented homes. No sales, no paperwork.')}</h1>
       <ul className="m-0 hidden list-none flex-col gap-3 p-0 leading-[1.45] sm:flex">
         <li className="flex gap-2.5">
-          🔧 <span><b className="font-semibold text-ink">{t('Jobs that fit you.')}</b> {t('Only your trades, brands and area.')}</span>
+          {/* TODO(slop:F1) icon: wrench (wine on wine-tint square) or plain definition list */}
+          <span><b className="font-semibold text-ink">{t('Jobs that fit you.')}</b> {t('Only your trades, brands and area.')}</span>
         </li>
         <li className="flex gap-2.5">
-          📸 <span><b className="font-semibold text-ink">{t('Everything up front.')}</b> {t('Photos, error codes, access, an approved budget.')}</span>
+          {/* TODO(slop:F1) icon: camera (wine on wine-tint square) or plain definition list */}
+          <span><b className="font-semibold text-ink">{t('Everything up front.')}</b> {t('Photos, error codes, access, an approved budget.')}</span>
         </li>
         <li className="flex gap-2.5">
-          💶 <span><b className="font-semibold text-ink">{t('Paid in 14 days.')}</b> {t('Send a photo of the invoice; we do the rest.')}</span>
+          {/* TODO(slop:F1) icon: euro/clock (needs new path in icons.tsx) */}
+          <span><b className="font-semibold text-ink">{t('Paid in 14 days.')}</b> {t('Send a photo of the invoice; we do the rest.')}</span>
         </li>
       </ul>
       {children}
@@ -65,6 +70,7 @@ export function PartnerWelcome() {
     <RegShell>
       <div className="max-w-[660px] pt-6 md:pt-0">
         <Eyebrow>{t('Debye partner portal')}</Eyebrow>
+        {/* TODO(slop:F29) drop 'Welcome'; make the H2 the value statement */}
         <H2>{t('Welcome')}</H2>
         <Lead>{t('Heating and plumbing companies get repair jobs from reltix properties, with the diagnosis, photos and an approved budget already done.')}</Lead>
         <div className="flex flex-wrap gap-2.5">
@@ -376,7 +382,7 @@ export function ProfileField({ f, p, set, errors, first }: { f: FieldDef; p: Pro
           p.docs[k] ? (
             <div key={k} className="flex items-center justify-between gap-3 rounded-[12px] bg-ok-tint px-3.5 py-3">
               <span className="min-w-0">
-                ✓ <b>{t(l)}</b> · {p.docs[k]}
+                <Icon name="check" className="mr-1 inline h-4 w-4 align-[-3px]" /> <b>{t(l)}</b> · {p.docs[k]}
               </span>
               <button type="button" className="btn-ghost min-h-0 px-3 py-1.5 text-label" onClick={() => set({ docs: Object.fromEntries(Object.entries(p.docs).filter(([x]) => x !== k)) })}>
                 {t('Replace')}
@@ -745,9 +751,9 @@ export function PartnerRegister() {
 function StepDot({ n, on, done }: { n: number; on: boolean; done: boolean }) {
   return (
     <span
-      className={`grid h-[22px] w-[22px] flex-none place-items-center rounded-full border-[1.5px] text-[11px] font-bold ${on ? 'border-wine bg-wine text-white' : done ? 'border-ok bg-ok text-white' : 'border-[#D1D1D6] bg-surface'}`}
+      className={`grid h-[22px] w-[22px] flex-none place-items-center rounded-full border-[1.5px] text-[11px] font-bold ${on ? 'border-wine bg-wine text-cream' : done ? 'border-ok bg-ok text-cream' : 'border-beige-d bg-surface'}`}
     >
-      {done && !on ? '✓' : n}
+      {done && !on ? <Icon name="check" className="h-3 w-3" /> : n}
     </span>
   )
 }

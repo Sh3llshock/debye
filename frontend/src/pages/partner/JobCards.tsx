@@ -1,6 +1,7 @@
 // v3 job cards: New job (accept + technician + times), Work in progress (track + report), invoice panel.
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { Icon } from '../../components/icons'
 import { api, DEMO } from '../../api/client'
 import type { JobDetail, Slot, Technician } from '../../api/types'
 import { fmtSlot } from '../../lib/format'
@@ -71,7 +72,7 @@ export function TimePicker({ techs, techId, setTechId, picked, setPicked, disabl
                 onClick={() => toggle(s)}
                 className={`rounded-full px-3 py-1.5 text-label font-medium transition-colors ${on ? 'bg-wine text-cream' : 'bg-surface text-ink shadow-ring hover:bg-beige'}`}
               >
-                {on ? '✓ ' : ''}
+                {on && <Icon name="check" className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />}
                 {fmtSlot(s)}
               </button>
             )
@@ -192,7 +193,8 @@ export function NewJobCard({ job, pid, techs, put, toast, onAccepted }: { job: J
             {t('Decline')}
           </button>
           <button
-            className="btn bg-ok text-white hover:bg-ok/90"
+            /* TODO(slop:F21) one shared .btn-success (bg-ok text-cream) */
+            className="btn bg-ok text-cream hover:bg-ok/90"
             disabled={busy}
             onClick={() =>
               run(
@@ -263,7 +265,7 @@ export function WipCard({ job, pid, techs, put, toast, onCompleted }: { job: Job
             className={`truncate rounded-[8px] px-1 py-[7px] text-center text-meta font-semibold sm:px-2.5 ${i < idx ? 'text-ok' : i === idx ? 'bg-surface text-ink shadow-[0_1px_3px_rgba(0,0,0,.12)]' : 'text-muted'}`}
             title={t(s.label)}
           >
-            {i < idx ? '✓ ' : ''}
+            {i < idx && <Icon name="check" className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />}
             {t(s.label)}
           </div>
         ))}
@@ -271,7 +273,7 @@ export function WipCard({ job, pid, techs, put, toast, onCompleted }: { job: Job
       <JobBody job={job} time={time} className="pt-0" />
       <details className="group border-t border-line">
         <summary className="cursor-pointer list-none px-5 py-[13px] font-medium text-wine">
-          <span className="mr-2 inline-block transition-transform group-open:rotate-90">›</span>
+          <Icon name="chevron" className="mr-2 inline-block h-4 w-4 align-[-3px] transition-transform group-open:rotate-90" />
           {t('Chat summary and how we got to the diagnosis')}
         </summary>
         <Story job={job} bordered={false} />
@@ -285,7 +287,9 @@ export function WipCard({ job, pid, techs, put, toast, onCompleted }: { job: Job
           <div className="flex flex-col gap-1.5">
             <label className="text-label font-medium text-secondary">{t('Photo after the repair')}</label>
             <label className={`btn-secondary min-h-0 cursor-pointer self-start px-3 py-1.5 text-label ${photo ? 'bg-ok-tint text-ok' : ''}`}>
-              📷 {photo ? photo.name : t('Add photo')}
+              {/* TODO(slop:F6) icon: camera */}
+              <Icon name="camera" className="mr-1.5 inline h-4 w-4 align-[-3px]" />
+              {photo ? photo.name : t('Add photo')}
               <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
             </label>
           </div>
@@ -340,7 +344,8 @@ export function WipCard({ job, pid, techs, put, toast, onCompleted }: { job: Job
             {(job.status === 'scheduled' || job.status === 'in_progress') &&
               (report ? (
                 <button
-                  className="btn bg-ok text-white hover:bg-ok/90"
+                  /* TODO(slop:F21) one shared .btn-success */
+                  className="btn bg-ok text-cream hover:bg-ok/90"
                   disabled={busy}
                   onClick={() =>
                     run(
@@ -361,7 +366,7 @@ export function WipCard({ job, pid, techs, put, toast, onCompleted }: { job: Job
                   {busy ? t('Sending…') : t('Submit job report')}
                 </button>
               ) : (
-                <button className="btn bg-ok text-white hover:bg-ok/90" onClick={() => setReport(true)}>
+                <button /* TODO(slop:F21) use .btn-success */ className="btn bg-ok text-cream hover:bg-ok/90" onClick={() => setReport(true)}>
                   {t('Mark job done')}
                 </button>
               ))}
@@ -412,7 +417,9 @@ export function InvoicePanel({ job, pid, put, toast, onClose }: { job: JobDetail
       {err && <div className="mt-3 rounded-[12px] bg-red-tint px-3.5 py-3 text-red">{err}</div>}
       <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
         <label className="btn-primary cursor-pointer">
-          📷 {file ? file.name : t('Upload invoice photo / PDF')}
+          {/* TODO(slop:F6) icon: upload */}
+          <Icon name="upload" className="mr-1.5 inline h-4 w-4 align-[-3px]" />
+          {file ? file.name : t('Upload invoice photo / PDF')}
           <input type="file" accept="image/*,.pdf,application/pdf" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </label>
         {DEMO && !file && (
@@ -421,7 +428,7 @@ export function InvoicePanel({ job, pid, put, toast, onClose }: { job: JobDetail
           </button>
         )}
         {file && (
-          <button className="btn bg-ok text-white hover:bg-ok/90" disabled={busy} onClick={() => send(file)}>
+          <button /* TODO(slop:F21) use .btn-success */ className="btn bg-ok text-cream hover:bg-ok/90" disabled={busy} onClick={() => send(file)}>
             {busy ? t('Reading…') : t('Submit invoice')}
           </button>
         )}
@@ -442,11 +449,12 @@ export function InvoiceRead({ job }: { job: JobDetail }) {
   return useMemo(
     () =>
       inv.doc ? (
+        // TODO(slop:F8) icon: check (text-ok) for ok state; alert icon (new path) for warn state, replacing the removed check/warning text prefix
         <div className={`mt-2 rounded-[12px] px-3.5 py-3 font-medium ${tone === 'ok' ? 'bg-ok-tint text-ok' : 'bg-warn-tint text-warn'}`}>
           {inv.gross != null
             ? tone === 'ok'
-              ? `✓ ${t('{eur} read from {file}', { eur: eur2(inv.gross), file: inv.doc.filename })}${cap != null ? ` · ${t('within the {cap} cost cap', { cap: eur2(cap) })}` : ''} · ${t('paid within 14 days')}`
-              : `⚠ ${t('{eur} read from {file}', { eur: eur2(inv.gross), file: inv.doc.filename })} · ${t('the property manager checks the difference')}`
+              ? `${t('{eur} read from {file}', { eur: eur2(inv.gross), file: inv.doc.filename })}${cap != null ? ` · ${t('within the {cap} cost cap', { cap: eur2(cap) })}` : ''} · ${t('paid within 14 days')}`
+              : `${t('{eur} read from {file}', { eur: eur2(inv.gross), file: inv.doc.filename })} · ${t('the property manager checks the difference')}`
             : `${inv.doc.filename} · ${t('Reading…')}`}
         </div>
       ) : null,

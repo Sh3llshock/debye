@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Icon } from '../components/icons'
 import { t } from '../lib/i18n'
 import { api, type TCase } from './api'
 import type { HomeState } from './Chat'
@@ -70,12 +71,13 @@ export default function Home() {
       <div className="app">
         <main>
           <div className="homewrap">
+            {/* TODO(slop:F25) left-align greeting, input under it; drop the extra 52px logo above the greeting (logo stays in the top bar) */}
             <div className="hello">
               <div className="logo" />
               <h1>
                 {greet()}, {me.contact.first_name}.
               </h1>
-              <p>{t('I’m Debye. What problem do you have at home?')}</p>
+              <p>{t('I’m Debye. What problem do you have at home?')}</p>{/* TODO(slop:F27) say what it does, e.g. "Report a problem and follow the repair." */}
             </div>
             <div className="bigin">
               <textarea
@@ -96,7 +98,7 @@ export default function Home() {
               <div className="binrow">
                 <span className="hint">{t('I already know your address and your appliances.')}</span>
                 <button className="sendc" aria-label={t('Send')} disabled={busy} onClick={() => start(text)}>
-                  ➤
+                  <Icon name="arrow" className="h-[18px] w-[18px]" />
                 </button>
               </div>
             </div>

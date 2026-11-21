@@ -2,6 +2,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { JobSummary, PartnerProfile, Technician } from '../api/types'
 import { tradeLabel } from '../components/case/Diagnosis'
+import { Icon } from '../components/icons'
 import { useCrumbs } from '../components/Layout'
 import { Pill, StagePill } from '../components/staff/StaffBits'
 import { ErrorBox, Loading } from '../components/ui'
@@ -126,12 +127,13 @@ export function StaffPartner() {
           <p className="mt-1 text-secondary">{[trades(p).map((y) => tradeLabel(y)).join(', '), area].filter(Boolean).join(' · ')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Pill tone="ok">✓ {t('Verified')}</Pill>
+          <Pill tone="ok"><Icon name="check" className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />{t('Verified')}</Pill>
           <Link className="btn-ghost" to={`/partner/${p.partner_id}`}>
             {t('Open partner portal')}
           </Link>
         </div>
       </div>
+      {/* TODO(slop:F34) KPI tiles -> one inline summary strip; share one component with StaffUnit */}
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
           [p.rating != null ? p.rating.toFixed(1) : '–', t('Rating')],

@@ -70,6 +70,7 @@ export const theme = {
     'photo-display': '#A9C49A',
   },
   fonts: {
+    // TODO(slop:F22) Inter is the only face: add a deliberate display face (fonts.display) and apply it to h1-h4
     sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Helvetica Neue"', 'Arial', 'sans-serif'],
     mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
   },

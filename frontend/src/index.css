@@ -7,12 +7,13 @@
   --bg: #FAF8F5; --surface: #FDFCFA; --ink: #2B1018; --body: #5A4744; --muted: #8E807A; --line: rgba(74,20,36,.10);
   --wine: #6B1F33; --wine-d: #571828; --wine-tint: #F5EBED; --beige: #EFE8DF; --beige-d: #E2D8CB;
   --ok: #2F7D4F; --ok-tint: #E7F3EB; --ok-line: #BFDCC9; --warn: #B04A12; --warn-tint: #FBEDE3;
-  --red: #C0262D; --red-tint: #FCE9EA; --blue: #34508C; --blue-tint: #E9EEF8; --cream: #FDFAF7;
+  --red: #C0262D; --red-tint: #FCE9EA; --blue: #34508C; --blue-tint: #E9EEF8; --cream: #FDFAF7; --wa-text: #1E7A35; --wa-tint: #E6F4EA;
 }
 
 @layer base {
   html { -webkit-text-size-adjust: 100%; }
   body { @apply bg-bg font-sans text-body text-ink antialiased; font-variant-numeric: tabular-nums; }
+  /* TODO(slop:F24) widen type contrast (bigger display size, lighter body weight, muted meta) once F22 lands */
   h1, h2, h3, h4 { @apply font-semibold text-ink; letter-spacing: -0.02em; }
   a:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible, label:focus-within {
     outline: 2px solid theme('colors.wine');
