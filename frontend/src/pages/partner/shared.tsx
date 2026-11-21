@@ -261,7 +261,7 @@ export function Story({ job, bordered = true }: { job: JobDetail; bordered?: boo
           <details className="group mt-3">
             <summary className="cursor-pointer list-none font-medium text-wine">
               <span className="mr-2 inline-block transition-transform group-open:rotate-90">›</span>
-              {t('Show the case history ({n} steps)', { n: events.length })}
+              {events.length === 1 ? t('Show the case history (1 step)') : t('Show the case history ({n} steps)', { n: events.length })}
             </summary>
             <div className="mt-2.5 flex max-h-[300px] flex-col gap-[5px] overflow-y-auto rounded-tile bg-chat-bg p-3">
               {events.map((e, i) => (

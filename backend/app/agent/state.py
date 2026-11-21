@@ -46,7 +46,7 @@ class CaseState:
     reporter_contact_id: str | None = None
     partner_id: str | None = None
     partner_name: str | None = None
-    consent_fields: list[str] = field(default_factory=lambda: ["name", "phone", "address", "unit_floor", "photos"])
+    consent_fields: list[str] = field(default_factory=lambda: ["name", "phone", "address", "unit_floor", "photos", "access_details"])
     consent_purpose: str = "Heizungsreparatur vor Ort"
     slots: list[dict] = field(default_factory=list)  # [{start, end, label}]
     approval_notice_sent: bool = False

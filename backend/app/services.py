@@ -596,11 +596,15 @@ def dispatch_job(case_id: str, partner_id: str) -> dict:
                     pending_partner_id=None, sla=sla_for(partner.manifest, case.priority))
         _save_case(s, case)
         transport = partner.manifest.get("transport", {})
+        manifest = dict(partner.manifest)
         asset = s.get(Asset, case.asset_id) if case.asset_id else None
         phrase = error_phrase(case.error_code, asset.known_error_codes if asset else None)
     record_event(case_id, "debye", "job.sent", f"Job sent to {name}" + (f". {phrase}" if phrase else ""),
                  {"partner_id": partner_id, "transport": transport.get("type"),
                   "url": transport.get("url")})
+    if transport.get("type") == "api":  # portal partners: unchanged (they work in the partner page)
+        from .partners import transport as partner_transport
+        partner_transport.send_order(manifest, case_id)
     return {"case_id": case_id, "partner_id": partner_id, "partner_name": name,
             "status": "requested", "approval": approval}
 

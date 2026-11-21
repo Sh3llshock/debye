@@ -67,6 +67,13 @@ Each transition is a `status_event`:
 
 Documents are sent as URLs or base64 with `{kind, filename, mime}`.
 
+### 4.1 What is built (Heiztechnik API GmbH, `partners/heiztechnik-api.json`)
+
+- **Order out** (`backend/app/partners/transport.py`): when `services.dispatch_job` passes its gates (consent + staff approval, unchanged) and `transport.type` is `api`, centrix POSTs `{base_url}/orders` with `{order_ref: "ord_<case_id>", partner_id, case{case_id, type, title, summary, error_code}, trade, priority, cost_cap_eur, slot_hints[{start,end}], context, consent{data_shared, given_at, channel, purpose}, events_webhook}`. `context` holds the manifest's `required_context` keys, and keys with `consent_required` only when the tenant consented for this partner and case. The raw body is signed: `X-Centrix-Signature: sha256=<hex HMAC-SHA256>` with the secret from the env var named in `transport.auth.secret_env`. The answer's `partner_order_id` is stored on the case (`data.partner_order`). If the partner is unreachable or the secret is missing, the case keeps status `requested` and a `job.send_failed` event shows it to staff; nothing crashes. `portal` partners behave exactly as before.
+- **Events in** (`backend/app/partner_events_api.py`): `POST /api/partners/{partner_id}/events` with a status_event (§3), signed the same way. 401 bad/missing signature, 422 wrong shape or unknown status, 404 unknown `order_ref`, 409 transition not allowed by the lifecycle. Each event calls the same services as the partner page: `accepted` → `partner_accept` (with `data.slots: [{start,end}]` → `propose_slots`, may repeat to re-propose), `scheduled` (`data.slot_start` of a proposed slot) → `confirm_slot`, `in_progress` → event only, `completed` (+ documents `photo`, `invoice`, `visit_report`; `data.invoice` may carry the invoice fields so no OCR is needed) → `record_completion` with the price check, `invoiced` → invoice + price check, `declined`/`cancelled` → `partner_decline`, `needs_info` (`data.question`) → `job.needs_info` + `case.data.open_question`. Documents come as `base64` or as a `url` on the partner's own `base_url` host (no other hosts are fetched), max 10 MB.
+- **Lifecycle check**: the partner-side state is derived from the case status (`slots_proposed` counts as `accepted`); `in_progress` is optional between `scheduled` and `completed`; nothing moves after `declined`, `cancelled` or `closed`.
+- **Fake partner**: `python scripts/fake_partner.py --port 8100 --debye http://localhost:8000` (needs `PARTNER_API_SECRET` in `.env`). It accepts after ~3 s, proposes the first two `slot_hints` after ~3 s more, and posts `completed` + the demo invoice from its page (`http://localhost:8100`) or with `--auto-complete 10`.
+
 ## 5. Conversational transport
 
 For partners without an API. Debye:
@@ -85,6 +92,19 @@ For partners without an API. Debye:
 ## 7. Result written back
 
 When the lifecycle reaches `closed` (deliver) or `active` (sell), centrix links the outcome to the unit: `service_contract` or `service_job` with partner, status, dates, price/invoice, documents and the consent record.
+
+### 7.1 What is built: the sell flow (Example Fibre GmbH, `partners/example-fibre.json`)
+
+Proof that the spec is generic: the internet partner runs end to end with no fibre-specific code.
+
+1. **Trigger** (`backend/app/triggers.py`): centrix sends `tenant.move_in {unit_id, contact_id?, move_in_date?}` to `POST /api/centrix/events` (staff unit page button "Tenant moves in", or `POST /demo/trigger/move_in`). Every active partner whose `triggers` contain the event is checked with its `eligibility` rules (`property.fibre_available eq true`, `in_service_area`); each eligible one gets a case of its `category` (`telecom.internet`, status `offered`, cost bearer tenant). Ineligible partners come back in `skipped` with the failed rules. Firing twice does not open a second offer while one is open.
+2. **Offer** (`agent/flow.send_offers`): the manifest's `offers` become buttons ("Fibre 250 · €29.99/month", "Fibre 500 · €34.99/month", "No thanks").
+3. **Consent**: on a pick Debye asks for the manifest's `consent_required` fields ("your name, your address and your move-in date … OK?"). Nothing leaves centrix before the tap. No staff approval: the tenant signs their own contract.
+4. **Order** through the API transport (§4.1) with `offer_id` and the consented context; case status `ordered`.
+5. **Lifecycle** through the events webhook: `offered → accepted → signed (+ contract document) → active`, anything else is a 409.
+6. **Result** on `active`: written to the unit in reltix's shape `{unit_id, contact_id, service_contract: {partner, category, product, status, start, monthly_price_eur, consent: {data_shared, given_at, channel}}}`, stored as a `service` Contract on the unit, on the case (`data.result`) and as a JSON document; the case closes. The staff unit page lists it under "Service contracts", the tenant portal under "Your services".
+
+Fake partner: `python scripts/fake_fibre.py --port 8101 --debye http://localhost:8000` (`FIBRE_SECRET` in `.env`) answers accepted → signed → active about 3 s apart.
 
 ## 8. Adding the next partner
 

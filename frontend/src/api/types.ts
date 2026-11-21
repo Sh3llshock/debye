@@ -228,6 +228,32 @@ export interface UnitDetail {
   lease: { data?: { rent_cold_eur?: number; start?: string }; rent_cold_eur?: number; start?: string; [k: string]: unknown } | null
   documents: DocumentItem[]
   cases: CaseSummary[]
+  service_contracts?: ServiceContractRow[]
+}
+
+/** reltix result shape for sell partners (backend/app/triggers.py write_service_contract) */
+export interface ServiceContract {
+  partner: string
+  category: string
+  product: string
+  status: string
+  start: string
+  monthly_price_eur: number | null
+  consent: { data_shared: string[]; given_at: string; channel: string } | null
+}
+export interface ServiceContractRow {
+  contract_id: string
+  unit_id: string
+  contact_id: string
+  case_id?: string
+  service_contract: ServiceContract
+}
+export interface CentrixEventResult {
+  event: string
+  unit_id: string
+  contact_id: string
+  opened: string[]
+  skipped: { partner_id: string; reasons: string[] }[]
 }
 
 // ---- partner ----
@@ -373,6 +399,31 @@ export interface JobDetail extends JobSummary {
   events?: CaseEvent[]
   /** backend: who released the job, e.g. text "Approved by reltix staff (Anna Becker)" */
   approval?: JobApproval | null
+  /** needs_info: questions the partner asked the tenant (newest last) */
+  questions?: JobQuestion[]
+  open_question?: JobQuestion | null
+  /** just-in-time access details: only with consent and on the visit day */
+  access?: JobAccess | null
+}
+
+export interface JobQuestion {
+  id: string
+  text: string
+  asked_by?: string
+  asker_name?: string | null
+  asked_at: string
+  answer?: string | null
+  answered_at?: string | null
+}
+
+export interface JobAccess {
+  consented: boolean
+  released: boolean
+  /** visit day (YYYY-MM-DD) while the details are still held back */
+  available_on?: string | null
+  key_safe_code?: string | null
+  intercom_name?: string | null
+  parking_note?: string | null
 }
 
 export interface JobApproval {

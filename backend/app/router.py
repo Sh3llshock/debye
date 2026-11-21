@@ -231,6 +231,8 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
             log.info("free text %r understood as %s", text[:40], opt.id)
             if await handle_button(contact, opt.id):
                 return False
+    if text and not images and not in_diagnosis and await flow.answer_open_question(contact, conv, text):
+        return False  # answer to a partner's question (feature 4, needs_info)
     return bool(await loop.run_tenant_turn(contact, text, images))
 
 
@@ -264,6 +266,17 @@ async def handle_button(contact, button_id: str) -> bool:
             await diagnosis.on_answer(contact, qid, key)
         except Exception:
             log.exception("diagnosis answer %s failed", button_id)
+        return True
+    if (button_id or "").startswith(("offer:", "sellconsent:")):  # sell flow (triggers.py): offer:<case>:<offer_id>
+        kind, case_id, choice_id = ((button_id or "").split(":") + ["", ""])[:3]
+        st.conversation(be.attr(contact, "id")).pending_options = []
+        try:
+            if kind == "offer":
+                await flow.on_offer(contact, case_id, choice_id)
+            else:
+                await flow.on_sell_consent(contact, case_id, choice_id == "yes")
+        except Exception:
+            log.exception("sell button %s failed", button_id)
         return True
     m = BUTTON_RE.match(button_id or "")
     if not m:

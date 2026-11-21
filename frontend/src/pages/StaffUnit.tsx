@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
-import type { UnitDetail } from '../api/types'
+import type { CentrixEventResult, UnitDetail } from '../api/types'
 import { Documents } from '../components/case/CasePanels'
 import { useCrumbs } from '../components/Layout'
 import { isOpen, StagePill } from '../components/staff/StaffBits'
@@ -95,6 +95,7 @@ export default function StaffUnit() {
   const refetch = useDebounced(reload, 300)
   useStream(() => refetch())
   const nav = useNavigate()
+  const [moveIn, setMoveIn] = useState<{ busy: boolean; res?: CentrixEventResult; err?: string }>({ busy: false })
   useCrumbs([{ label: t('Properties'), to: '/staff/units' }, { label: t('unit {u}', { u: unitLabel(unitId, u?.property?.address) }) }])
 
   if (error && !u) return <ErrorBox error={error} onRetry={reload} />
@@ -104,6 +105,17 @@ export default function StaffUnit() {
   const d = device(u)
   const invoices = u.documents.filter((x) => x.kind === 'invoice')
   const openCases = u.cases.filter(isOpen).length
+  const services = u.service_contracts ?? []
+  const fireMoveIn = async () => {
+    setMoveIn({ busy: true })
+    try {
+      const res = await api.centrixMoveIn(unitId, u.tenant?.contact_id ?? u.tenant?.id, u.tenant?.move_in)
+      setMoveIn({ busy: false, res })
+      reload()
+    } catch (e) {
+      setMoveIn({ busy: false, err: e instanceof Error ? e.message : String(e) })
+    }
+  }
   const kv = (rows: [string, React.ReactNode][]) => (
     <dl className="kv">
       {rows
@@ -131,6 +143,23 @@ export default function StaffUnit() {
             </span>
           </p>
         </div>
+        {u.tenant && (
+          <div className="flex flex-col items-end gap-1">
+            <button className="btn-ghost" disabled={moveIn.busy} onClick={fireMoveIn} title={t('Sends the centrix event tenant.move_in to every partner that listens for it')}>
+              {moveIn.busy ? t('Sending…') : t('Tenant moves in (centrix event)')}
+            </button>
+            {moveIn.res && (
+              <span className="text-label text-muted">
+                {moveIn.res.opened.length
+                  ? t('{n} partner offer sent to {name}', { n: moveIn.res.opened.length, name: u.tenant.name })
+                  : moveIn.res.skipped.length
+                    ? t('No new offer: {why}', { why: moveIn.res.skipped.map((x) => `${x.partner_id} (${x.reasons[0] ?? ''})`).join(', ') })
+                    : t('No partner listens for this event')}
+              </span>
+            )}
+            {moveIn.err && <span className="text-label text-wine">{moveIn.err}</span>}
+          </div>
+        )}
       </div>
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
@@ -185,6 +214,29 @@ export default function StaffUnit() {
               [t('Lease start'), lease.start ? fmtDate(lease.start) : null],
             ])}
           </section>
+          {services.length > 0 && (
+            <section className="card">
+              <h3 className="mb-3 text-panel">{t('Service contracts')}</h3>
+              <div className="flex flex-col gap-3">
+                {services.map(({ contract_id, service_contract: sc }) => (
+                  <div key={contract_id}>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <b>
+                        {sc.product} · {sc.partner}
+                      </b>
+                      <span className="pill bg-wine-tint text-wine">{t(sc.status)}</span>
+                    </div>
+                    {kv([
+                      [t('Category'), humanize(sc.category)],
+                      [t('Start'), sc.start ? fmtDate(sc.start) : null],
+                      [t('Monthly price'), sc.monthly_price_eur != null ? fmtEur(sc.monthly_price_eur, true) : null],
+                      [t('Data shared'), sc.consent ? `${sc.consent.data_shared.map(humanize).join(', ')} · ${t('consent via {c}', { c: sc.consent.channel })}` : null],
+                    ])}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
           <section className="card">
             <h3 className="mb-3 text-panel">{t('Documents')}</h3>
             <Documents docs={u.documents} />

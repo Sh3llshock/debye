@@ -5,7 +5,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlmodel import select
 
-from . import notify, rules, services
+from . import notify, questions, rules, services
 from .db import get_session
 from .models import Asset, Case, CaseEvent, Contact, Document, Partner, Property, Unit
 
@@ -16,7 +16,8 @@ VISIBLE_STATUSES = {"requested", "accepted", "slots_proposed", "awaiting_technic
                     "completed", "invoiced", "closed", "reopened"}
 PARTNER_EVENT_KINDS = {"job.sent", "job.accepted", "job.declined", "slot.proposed",
                        "slot.confirmed", "technician.confirmed", "job.completed", "invoice.checked",
-                       "case.closed", "case.reopened", "tenant.confirmed_fixed"}
+                       "case.closed", "case.reopened", "tenant.confirmed_fixed",
+                       "job.needs_info", "job.info_provided", "access.released"}
 
 
 def technician_view(c: Case) -> dict | None:
@@ -115,6 +116,10 @@ def job_detail(s, c: Case, partner_id: str) -> dict:
         "completion": data.get("completion"),
         "approval": _approval_view(data.get("approval") or {}),
         "price_check": data.get("price_check"),
+        "questions": [q for q in data.get("questions") or [] if q.get("asked_by") in (None, partner_id)],
+        "open_question": (data.get("open_question")
+                          if (data.get("open_question") or {}).get("asked_by") in (None, partner_id) else None),
+        "access": questions.access_view(s, c, partner_id, fields) if c.partner_id == partner_id else None,
         "events": [{"ts": e.ts, "actor": e.actor, "kind": e.kind, "summary": e.summary}
                    for e in events if e.kind in PARTNER_EVENT_KINDS],
     })
@@ -253,6 +258,29 @@ async def slots(partner_id: str, case_id: str, body: SlotsBody) -> dict:
     await notify.notify_tenant(case_id, "slots_proposed",
                                {"slots": labelled, "partner_name": name,
                                 "technician_name": tech.name if tech else None})
+    return _detail(case_id, partner_id)
+
+
+class QuestionBody(BaseModel):
+    text: str
+
+
+@router.post("/{partner_id}/jobs/{case_id}/question")
+async def ask_question(partner_id: str, case_id: str, body: QuestionBody) -> dict:
+    """needs_info: the partner asks the tenant; the answer comes back on the job (job.info_provided)."""
+    with get_session() as s:
+        _partner(s, partner_id)
+        _job_case(s, partner_id, case_id)
+    try:
+        q = questions.ask(case_id, partner_id, body.text)
+    except questions.QuestionError as e:
+        raise HTTPException(e.status, str(e))
+    from .agent import flow
+    try:
+        await flow.send_partner_question(case_id, q)
+    except Exception:
+        import logging
+        logging.getLogger("debye.partner").exception("sending the partner question to the tenant failed")
     return _detail(case_id, partner_id)
 
 

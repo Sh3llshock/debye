@@ -108,6 +108,24 @@ export default function Home() {
                 </button>
               ))}
             </div>
+            {(me.home?.services?.length ?? 0) > 0 && (
+              <div className="opencases">
+                <h3>{t('Your services')}</h3>
+                <div className="closedlist" style={{ marginTop: 0 }}>
+                  {me.home!.services!.map((sv) => (
+                    <div key={`${sv.partner}-${sv.product}`} className="cl">
+                      <b style={{ fontWeight: 500 }}>
+                        {sv.product} · {sv.partner}
+                      </b>
+                      <span>
+                        {sv.status === 'active' ? t('Active since {d}', { d: fmtDay(sv.start) }) : t(sv.status)}
+                        {sv.monthly_price_eur != null ? ` · €${sv.monthly_price_eur.toFixed(2)}${t('/month')}` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="opencases">
               <h3>{t('Open cases')}</h3>
               {open.length ? (
