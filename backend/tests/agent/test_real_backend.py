@@ -178,3 +178,24 @@ def test_one_room_cold_tip_then_caretaker_no_installer(real, claude):
     kinds = [e["kind"] for e in detail.get("events", [])]
     assert "caretaker.notified" in kinds and "job.sent" not in kinds and "consent.recorded" not in kinds
     assert not detail.get("partner_id")
+
+
+def test_llm_context_is_minimised(real):
+    """No phone, email, street address, lease or rent goes to the model each turn."""
+    import json
+
+    from app.agent import _backend as be
+    from app.agent import flow, loop, state
+
+    contact = be.get_contact_by_phone("+" + LUKA)
+    conv = state.conversation(be.attr(contact, "id"))
+    content = loop.build_user_content(contact, conv, "my heating is cold", [])
+    blob = json.dumps(content, ensure_ascii=False)
+    full = flow.unit_context_for(contact)
+    tenant, lease, prop = full.get("tenant") or {}, full.get("lease") or {}, full.get("property") or {}
+    for secret in (be.attr(contact, "phone_e164"), tenant.get("email"), prop.get("address"),
+                   *(str(v) for k, v in lease.items() if "rent" in k and v)):
+        if secret:
+            assert str(secret) not in blob, secret
+    assert '"lease"' not in blob and '"tenant"' not in blob
+    assert "Luka" in blob and "gas_boiler" in blob  # first name and the boiler stay
