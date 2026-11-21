@@ -86,8 +86,12 @@ async def ensure_case(
     type_: str = "repair.heating",
     trade: str | None = None,
     diagnosis: dict | None = None,
+    building_case: bool = True,
+    with_asset: bool = True,
 ) -> dict:
     """Opens a case or links the contact to the open one for the same central asset.
+    building_case=False (triage of other problems, e.g. a dripping tap): never linked to the building's
+    open heating case; with_asset=False: the case gets no heating asset.
 
     Returns {"case_id", "duplicate": bool}.
     """
@@ -95,9 +99,9 @@ async def ensure_case(
     if conv.case_id:
         return {"case_id": conv.case_id, "duplicate": False, "already_open": True}
     ctx = unit_context_for(contact)
-    asset_id = heating_asset_id(ctx)
+    asset_id = heating_asset_id(ctx) if with_asset else None
     existing = None
-    if asset_id:
+    if asset_id and building_case:
         try:
             existing = be.find_open_case_for_asset(asset_id)
         except Exception:
@@ -393,8 +397,9 @@ HEATING_WORDS = ("heat", "radiator", "boiler", "cold", "warm", "hot water", "hei
 async def link_if_building_case_open(contact, conv: st.Conversation) -> bool:
     """Safety net after a model turn: a resident who reports a heating problem while the building's
     central-heating case is open gets linked to it (quietly), even if the model forgot open_case."""
-    if conv.case_id:
-        return False
+    if conv.case_id or (conv.diagnosis or {}).get("area") \
+            or (getattr(conv, "triage", None) or {}).get("area") not in (None, "no_hot_water", "heating"):
+        return False  # a problem from another area (a leak, a lock ...) is never the building's heating case
     said = " ".join(conv.tenant_texts[-3:]).lower()
     if not any(w in said for w in HEATING_WORDS):
         return False

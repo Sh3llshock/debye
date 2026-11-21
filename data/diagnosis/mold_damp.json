@@ -1,0 +1,112 @@
+{
+  "symptom": "mold_damp",
+  "area": "mold_damp",
+  "label": "the mould",
+  "label_de": "den Schimmel",
+  "title": "Mould / damp",
+  "case_type": "repair.mold_damp",
+  "router": {
+    "description": "Mould or damp: black spots on walls, ceilings or around windows, damp or wet walls, musty smell, condensation, peeling paint from damp.",
+    "button": "Mould / damp",
+    "button_de": "Schimmel / Feuchtigkeit",
+    "keywords": ["mould", "mold", "mouldy", "moldy", "damp", "musty", "black spots", "condensation", "wet wall", "humid", "schimmel", "feucht", "feuchtigkeit", "stockflecken", "muffig", "kondenswasser", "nasse wand"]
+  },
+  "applies_to": ["mould in the bathroom", "black spots on the wall", "damp wall", "Schimmel im Schlafzimmer"],
+  "first_question": "md_wet",
+  "fallback_cause": "large_mould",
+  "neutral_message": "A damp specialist needs to look at it.",
+  "neutral_message_de": "Das sollte sich ein Fachbetrieb für Feuchteschäden ansehen.",
+  "follow_up_question": "just checking in: has the mould stayed away since you cleaned and aired?",
+  "follow_up_question_de": "kurze Nachfrage: Ist der Schimmel nach Putzen und Lüften weggeblieben?",
+  "follow_up_yes": "Yes, it's gone",
+  "follow_up_no": "It's back",
+  "resolved_message": "Good to hear. Message me any time if it comes back.",
+  "resolved_message_de": "Schön. Melde dich jederzeit, wenn er wiederkommt.",
+  "extraction_hints": "'around the window' → md_where=window; 'in the corner of the bedroom' / 'on the outside wall' / 'behind the wardrobe' → md_where=outside_wall; 'in the bathroom' / 'shower grout' → md_where=bathroom; 'on the ceiling' → md_where=ceiling; 'a few small spots' / 'size of my hand' → md_size=small; 'half the wall' / 'big patch' → md_size=large; 'the wall is wet' / 'water stains' / 'paint bubbling' → md_wet=wet; 'dry, just black spots' → md_wet=dry.",
+  "questions": [
+    {
+      "id": "md_wet",
+      "text": "Is the wall wet to the touch or does it have water stains, or is it dry with just spots?",
+      "text_de": "Ist die Wand nass oder hat sie Wasserflecken, oder ist sie trocken mit nur ein paar Flecken?",
+      "answers": {"wet": "the wall is wet or has water stains", "dry": "the wall is dry, just spots"},
+      "buttons": {"wet": "Wet / stains", "dry": "Dry, just spots"},
+      "buttons_de": {"wet": "Nass / Flecken", "dry": "Trocken, Flecken"},
+      "reask": "And is the wall wet or stained, or dry with spots?",
+      "reask_de": "Und ist die Wand nass oder fleckig, oder trocken?",
+      "fact_words": ["wet", "stain"]
+    },
+    {
+      "id": "md_size",
+      "text": "How big is it: smaller than your hand, or bigger than a sheet of paper?",
+      "text_de": "Wie groß ist es: kleiner als deine Hand oder größer als ein Blatt Papier?",
+      "answers": {"small": "smaller than a hand", "large": "bigger than a sheet of paper"},
+      "buttons": {"small": "Smaller than a hand", "large": "Bigger than paper"},
+      "buttons_de": {"small": "Kleiner als Hand", "large": "Größer als Papier"},
+      "reask": "And is it smaller than your hand, or bigger than a sheet of paper?",
+      "reask_de": "Und ist es kleiner als eine Hand oder größer als ein Blatt?",
+      "fact_words": ["sheet of paper", "hand"]
+    },
+    {
+      "id": "md_where",
+      "text": "Where is it: around a window, on an outside wall or in a corner, in the bathroom, or on the ceiling?",
+      "text_de": "Wo ist es: am Fenster, an einer Außenwand oder in einer Ecke, im Bad oder an der Decke?",
+      "answers": {"window": "around a window", "outside_wall": "on an outside wall or in a corner", "bathroom": "in the bathroom", "ceiling": "on the ceiling"},
+      "buttons": {"window": "Around a window", "outside_wall": "Wall / corner", "bathroom": "Bathroom", "ceiling": "Ceiling"},
+      "buttons_de": {"window": "Am Fenster", "outside_wall": "Wand / Ecke", "bathroom": "Bad", "ceiling": "Decke"},
+      "reask": "And where is it: window, wall or corner, bathroom or ceiling?",
+      "reask_de": "Und wo: Fenster, Wand/Ecke, Bad oder Decke?",
+      "fact_words": []
+    }
+  ],
+  "causes": [
+    {
+      "id": "condensation_mould",
+      "label": "Small mould from condensation (dry wall)",
+      "signals": ["md_wet=dry", "md_size=small"],
+      "ask_order": ["md_wet", "md_size"],
+      "outcome": "self_help",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["md_wet", "md_size"],
+      "decisive": true,
+      "if_fails": {"md_size": "large"},
+      "follow_up_minutes": 10080,
+      "tenant_message": "Small dry spots usually come from condensation. Wipe them with a mould cleaner or 70% alcohol (gloves, window open), air fully 3-4 times a day for 5-10 minutes, and keep furniture a hand's width from outside walls. Tell me if it comes back.",
+      "tenant_message_de": "Kleine trockene Flecken kommen meist von Kondenswasser. Wisch sie mit Schimmelentferner oder 70-%-Alkohol ab (Handschuhe, Fenster auf), lüfte 3-4 Mal am Tag 5-10 Minuten stoß und lass eine Handbreit Abstand zwischen Möbeln und Außenwänden. Sag mir, ob er wiederkommt."
+    },
+    {
+      "id": "damp_ingress",
+      "label": "Wet wall or water stains (water getting in)",
+      "signals": ["md_wet=wet"],
+      "ask_order": ["md_wet", "md_where"],
+      "outcome": "technician",
+      "trade": "mold_damp",
+      "technician_needed": true,
+      "requires": ["md_wet"],
+      "decisive": true,
+      "tenant_message": "A wet wall means water is getting in from somewhere, so a damp specialist needs to measure it and find the source. Please don't paint over it; photos of it help.",
+      "tenant_message_de": "Eine nasse Wand heißt, dass irgendwo Wasser eindringt; ein Fachbetrieb muss messen und die Ursache finden. Bitte nicht überstreichen; Fotos davon helfen."
+    },
+    {
+      "id": "large_mould",
+      "label": "Large mould area (more than a sheet of paper)",
+      "signals": ["md_size=large", "md_wet=dry"],
+      "ask_order": ["md_size", "md_wet"],
+      "outcome": "technician",
+      "trade": "mold_damp",
+      "technician_needed": true,
+      "requires": ["md_size"],
+      "tenant_message": "An area that size shouldn't be cleaned yourself, so a mould specialist needs to treat it and check why it grows. Keep the room aired and don't sleep right next to it if you can avoid it.",
+      "tenant_message_de": "Eine so große Fläche solltest du nicht selbst behandeln; ein Fachbetrieb muss sie sanieren und prüfen, warum sie wächst. Lüfte den Raum gut und schlaf nach Möglichkeit nicht direkt daneben."
+    }
+  ],
+  "likelihood_order": ["condensation_mould", "damp_ingress", "large_mould"],
+  "strategy": [
+    "Ask md_wet first (a wet wall means water getting in: specialist), then md_size.",
+    "Small and dry: self-help (clean, air, furniture away from the wall) with a follow-up check after a week; if it comes back, a specialist.",
+    "Large or wet: damp/mould specialist; staff approve.",
+    "Don't lecture the tenant about airing beyond the tip. At most 3 diagnostic questions, one per message.",
+    "Never state a fact the tenant didn't give."
+  ],
+  "sources": ["Umweltbundesamt Schimmelleitfaden (areas > 0.5 m² for professionals)", "Team troubleshooting sheet (mould)"]
+}

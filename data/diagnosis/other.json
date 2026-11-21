@@ -1,0 +1,275 @@
+{
+  "symptom": "other",
+  "area": "other",
+  "label": "the problem",
+  "label_de": "das Problem",
+  "title": "Repair",
+  "case_type": "repair.general",
+  "router": {
+    "description": "Any other repair that fits no other area: floors, tiles, walls, cupboards, a balcony, the stairwell, cellar, bike room, bins, garden, lights in shared areas. Fire, smoke or a carbon monoxide alarm is an emergency.",
+    "button": "Something else",
+    "button_de": "Etwas anderes",
+    "keywords": [
+      "broken",
+      "loose",
+      "tile",
+      "tiles",
+      "floor",
+      "parquet",
+      "cupboard",
+      "shelf",
+      "balcony",
+      "stairwell",
+      "staircase",
+      "cellar",
+      "basement",
+      "bike room",
+      "bins",
+      "garden",
+      "smoke alarm",
+      "kaputt",
+      "locker",
+      "fliese",
+      "boden",
+      "schrank",
+      "balkon",
+      "treppenhaus",
+      "keller",
+      "fahrradkeller",
+      "mülltonnen",
+      "garten",
+      "rauchmelder"
+    ]
+  },
+  "applies_to": [
+    "a tile came loose",
+    "the stairwell light is broken",
+    "smoke alarm keeps beeping"
+  ],
+  "first_question": "ot_where",
+  "fallback_cause": "in_flat_repair",
+  "neutral_message": "Our caretaker Peter Wolf will take a look.",
+  "neutral_message_de": "Unser Hausmeister Peter Wolf schaut es sich an.",
+  "extraction_hints": "'in my flat' / 'in the kitchen' / 'bedroom' / 'my balcony' → ot_where=in_flat; 'stairwell' / 'cellar' / 'bike room' / 'garden' / 'bins' / 'entrance hall' → ot_where=shared; 'can't use the bathroom' / 'dangerous' / 'someone could get hurt' → ot_urgent=urgent; 'not urgent' / 'whenever' / 'cosmetic' → ot_urgent=can_wait; 'the smoke alarm beeps every minute' → ot_alarm=beeping.",
+  "questions": [
+    {
+      "id": "ot_where",
+      "text": "Is it inside your flat, or in a shared area like the stairwell, cellar or garden?",
+      "text_de": "Ist es in deiner Wohnung oder in einem Gemeinschaftsbereich wie Treppenhaus, Keller oder Garten?",
+      "answers": {
+        "in_flat": "inside the flat",
+        "shared": "in a shared area of the building"
+      },
+      "buttons": {
+        "in_flat": "In my flat",
+        "shared": "Shared area"
+      },
+      "buttons_de": {
+        "in_flat": "In der Wohnung",
+        "shared": "Gemeinschaftsbereich"
+      },
+      "reask": "And is it in your flat or in a shared area?",
+      "reask_de": "Und ist es in deiner Wohnung oder im Gemeinschaftsbereich?",
+      "fact_words": []
+    },
+    {
+      "id": "ot_urgent",
+      "text": "Is it dangerous or stopping you from using part of the flat, or can it wait a few days?",
+      "text_de": "Ist es gefährlich oder kannst du einen Teil der Wohnung nicht nutzen, oder kann es ein paar Tage warten?",
+      "answers": {
+        "urgent": "dangerous or blocks normal use",
+        "can_wait": "can wait a few days"
+      },
+      "buttons": {
+        "urgent": "Urgent",
+        "can_wait": "Can wait"
+      },
+      "buttons_de": {
+        "urgent": "Dringend",
+        "can_wait": "Kann warten"
+      },
+      "reask": "And is it urgent, or can it wait a few days?",
+      "reask_de": "Und ist es dringend oder kann es warten?",
+      "fact_words": [
+        "dangerous",
+        "urgent"
+      ]
+    },
+    {
+      "id": "ot_alarm",
+      "text": "Is the smoke alarm beeping briefly every minute or so, or sounding a loud continuous alarm?",
+      "text_de": "Piept der Rauchmelder etwa jede Minute kurz, oder gibt er einen lauten Daueralarm?",
+      "answers": {
+        "beeping": "a short beep every minute or so",
+        "alarm": "a loud continuous alarm"
+      },
+      "buttons": {
+        "beeping": "Short beeps",
+        "alarm": "Loud alarm"
+      },
+      "buttons_de": {
+        "beeping": "Kurzes Piepen",
+        "alarm": "Lauter Alarm"
+      },
+      "reask": "And is it a short beep now and then, or a loud alarm?",
+      "reask_de": "Und ist es kurzes Piepen oder ein lauter Alarm?",
+      "fact_words": [
+        "beep",
+        "piep"
+      ]
+    }
+  ],
+  "causes": [
+    {
+      "id": "fire_smoke",
+      "label": "Fire or smoke",
+      "signals": [
+        "fire_smoke"
+      ],
+      "outcome": "emergency",
+      "trade": null,
+      "priority": "emergency",
+      "technician_needed": false,
+      "tenant_message": "Please leave the flat now, close the door behind you, don't use the lift, and call 112. Warn your neighbours on the way out. I've alerted your property manager.",
+      "tenant_message_de": "Bitte verlass jetzt die Wohnung, zieh die Tür hinter dir zu, nimm nicht den Aufzug und ruf die 112. Warn auf dem Weg die Nachbarn. Ich habe die Hausverwaltung informiert."
+    },
+    {
+      "id": "co_alarm",
+      "label": "Carbon monoxide alarm",
+      "signals": [
+        "co_alarm"
+      ],
+      "outcome": "emergency",
+      "trade": "heating",
+      "priority": "emergency",
+      "technician_needed": true,
+      "tenant_message": "Please open the windows, leave the flat with everyone now and call 112 from outside. Don't go back in until they say it's safe. I've alerted your property manager.",
+      "tenant_message_de": "Bitte öffne die Fenster, verlass jetzt mit allen die Wohnung und ruf von draußen die 112. Geh erst wieder rein, wenn sie es freigeben. Ich habe die Hausverwaltung informiert."
+    },
+    {
+      "id": "smoke_alarm_battery",
+      "label": "Smoke alarm low battery (short beeps)",
+      "signals": [
+        "ot_alarm=beeping"
+      ],
+      "ask_order": [
+        "ot_alarm"
+      ],
+      "outcome": "caretaker",
+      "trade": null,
+      "technician_needed": false,
+      "requires": [
+        "ot_alarm"
+      ],
+      "decisive": true,
+      "tenant_message": "A short beep every minute means the smoke alarm's battery is low. The alarms are serviced by the building, so our caretaker Peter Wolf will replace it; please don't remove the alarm.",
+      "tenant_message_de": "Kurzes Piepen etwa jede Minute heißt, die Batterie des Rauchmelders ist schwach. Die Melder wartet das Haus, unser Hausmeister Peter Wolf tauscht sie; bitte den Melder nicht abnehmen."
+    },
+    {
+      "id": "smoke_alarm_sounding",
+      "label": "Smoke alarm sounding continuously",
+      "signals": [
+        "ot_alarm=alarm"
+      ],
+      "ask_order": [
+        "ot_alarm"
+      ],
+      "outcome": "emergency",
+      "trade": null,
+      "priority": "emergency",
+      "technician_needed": false,
+      "requires": [
+        "ot_alarm"
+      ],
+      "decisive": true,
+      "tenant_message": "A loud continuous alarm means it detects smoke. If you see or smell smoke, leave the flat now, close the door and call 112. If there's clearly no smoke, open a window; I've alerted your property manager.",
+      "tenant_message_de": "Ein lauter Daueralarm heißt, der Melder erkennt Rauch. Wenn du Rauch siehst oder riechst, verlass sofort die Wohnung, zieh die Tür zu und ruf die 112. Ist sicher kein Rauch da, öffne ein Fenster; ich habe die Hausverwaltung informiert."
+    },
+    {
+      "id": "shared_area_repair",
+      "label": "Repair in a shared area",
+      "signals": [
+        "ot_where=shared"
+      ],
+      "ask_order": [
+        "ot_where"
+      ],
+      "outcome": "caretaker",
+      "trade": null,
+      "technician_needed": false,
+      "requires": [
+        "ot_where"
+      ],
+      "decisive": true,
+      "tenant_message": "Thanks for telling me. Our caretaker Peter Wolf looks after the shared areas and will take care of it.",
+      "tenant_message_de": "Danke für den Hinweis. Unser Hausmeister Peter Wolf kümmert sich um die Gemeinschaftsbereiche und erledigt das."
+    },
+    {
+      "id": "in_flat_urgent",
+      "label": "Urgent repair in the flat (other)",
+      "signals": [
+        "ot_where=in_flat",
+        "ot_urgent=urgent"
+      ],
+      "ask_order": [
+        "ot_where",
+        "ot_urgent"
+      ],
+      "outcome": "caretaker",
+      "trade": null,
+      "priority": "urgent",
+      "technician_needed": false,
+      "requires": [
+        "ot_urgent"
+      ],
+      "decisive": true,
+      "tenant_message": "Then our caretaker Peter Wolf will come by today or tomorrow to look at it and bring in the right company if needed.",
+      "tenant_message_de": "Dann kommt unser Hausmeister Peter Wolf heute oder morgen vorbei und holt bei Bedarf die passende Firma."
+    },
+    {
+      "id": "in_flat_repair",
+      "label": "Non-urgent repair in the flat (other)",
+      "signals": [
+        "ot_where=in_flat",
+        "ot_urgent=can_wait"
+      ],
+      "ask_order": [
+        "ot_where",
+        "ot_urgent"
+      ],
+      "outcome": "caretaker",
+      "trade": null,
+      "technician_needed": false,
+      "requires": [
+        "ot_urgent"
+      ],
+      "decisive": true,
+      "tenant_message": "Our caretaker Peter Wolf will get in touch to find a time to look at it, and brings in the right company if needed.",
+      "tenant_message_de": "Unser Hausmeister Peter Wolf meldet sich für einen Termin und holt bei Bedarf die passende Firma."
+    }
+  ],
+  "likelihood_order": [
+    "fire_smoke",
+    "co_alarm",
+    "smoke_alarm_battery",
+    "smoke_alarm_sounding",
+    "shared_area_repair",
+    "in_flat_urgent",
+    "in_flat_repair"
+  ],
+  "strategy": [
+    "Fire, smoke or a CO alarm: emergency, leave and call 112, staff alerted.",
+    "Anything that fits no other area: the caretaker Peter Wolf does the first look on site. Ask ot_where, then ot_urgent.",
+    "A beeping smoke alarm: ot_alarm (short beeps = battery, caretaker; a loud continuous alarm = treat as fire).",
+    "At most 3 diagnostic questions, one per message. Never state a fact the tenant didn't give."
+  ],
+  "sources": [
+    "reltix caretaker duties (Hausmeisterdienst)"
+  ],
+  "first_question_rules": [
+    {
+      "pattern": "smoke (alarm|detector)|rauchmelder|fire alarm",
+      "question": "ot_alarm"
+    }
+  ]
+}

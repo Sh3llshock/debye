@@ -1,0 +1,138 @@
+{
+  "symptom": "pests",
+  "area": "pests",
+  "label": "the pests",
+  "label_de": "die Schädlinge",
+  "title": "Pests",
+  "case_type": "repair.pest_control",
+  "router": {
+    "description": "Pests: mice, rats, cockroaches, bedbugs, ants, wasps or a wasp nest, moths, silverfish.",
+    "button": "Pests",
+    "button_de": "Schädlinge",
+    "keywords": ["mouse", "mice", "rat", "rats", "droppings", "cockroach", "cockroaches", "roach", "bedbug", "bed bug", "bedbugs", "bites", "ants", "ant", "wasp", "wasps", "nest", "pest", "pests", "vermin", "maus", "mäuse", "ratte", "kakerlake", "schabe", "bettwanze", "ameisen", "wespen", "ungeziefer", "schädling"]
+  },
+  "applies_to": ["mice in the kitchen", "cockroaches", "ants everywhere", "Mäuse in der Küche"],
+  "first_question": "pe_what",
+  "fallback_cause": "pest_infestation",
+  "neutral_message": "Pest control needs to look at it.",
+  "neutral_message_de": "Das sollte sich ein Schädlingsbekämpfer ansehen.",
+  "follow_up_question": "just checking in: are the ants gone?",
+  "follow_up_question_de": "kurze Nachfrage: Sind die Ameisen weg?",
+  "follow_up_yes": "Yes, they're gone",
+  "follow_up_no": "Still there",
+  "resolved_message": "Good to hear. Message me any time if they come back.",
+  "resolved_message_de": "Schön. Melde dich jederzeit, wenn sie wiederkommen.",
+  "extraction_hints": "'mice' / 'a rat' / 'droppings' / 'something gnawed' → pe_what=rodents; 'cockroaches' / 'roaches' → pe_what=cockroaches; 'bedbugs' / 'bites in bed' → pe_what=bedbugs; 'ants' → pe_what=ants; 'wasps' / 'wasp nest' → pe_what=wasps; 'just a few' / 'saw one or two' → pe_amount=few; 'a trail of them' / 'loads' / 'every day' → pe_amount=many.",
+  "questions": [
+    {
+      "id": "pe_what",
+      "text": "What have you seen: mice or rats, cockroaches, bedbugs, ants, or wasps?",
+      "text_de": "Was hast du gesehen: Mäuse oder Ratten, Kakerlaken, Bettwanzen, Ameisen oder Wespen?",
+      "answers": {"rodents": "mice or rats", "cockroaches": "cockroaches", "bedbugs": "bedbugs", "ants": "ants", "wasps": "wasps or a wasp nest"},
+      "buttons": {"rodents": "Mice / rats", "cockroaches": "Cockroaches", "bedbugs": "Bedbugs", "ants": "Ants", "wasps": "Wasps"},
+      "buttons_de": {"rodents": "Mäuse / Ratten", "cockroaches": "Kakerlaken", "bedbugs": "Bettwanzen", "ants": "Ameisen", "wasps": "Wespen"},
+      "reask": "And what kind: mice, cockroaches, bedbugs, ants or wasps?",
+      "reask_de": "Und was genau: Mäuse, Kakerlaken, Bettwanzen, Ameisen oder Wespen?",
+      "fact_words": []
+    },
+    {
+      "id": "pe_amount",
+      "text": "Is it just a few, or a lot of them every day?",
+      "text_de": "Sind es nur ein paar, oder jeden Tag ganz viele?",
+      "answers": {"few": "just a few", "many": "a lot, every day"},
+      "buttons": {"few": "Just a few", "many": "A lot"},
+      "buttons_de": {"few": "Nur ein paar", "many": "Ganz viele"},
+      "reask": "And is it a few, or a lot every day?",
+      "reask_de": "Und sind es ein paar oder ganz viele?",
+      "fact_words": ["trail", "every day"]
+    }
+  ],
+  "causes": [
+    {
+      "id": "ants_minor",
+      "label": "A few ants (food source)",
+      "signals": ["pe_what=ants", "pe_amount=few"],
+      "ask_order": ["pe_what", "pe_amount"],
+      "outcome": "self_help",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["pe_what", "pe_amount"],
+      "decisive": true,
+      "if_fails": {"pe_amount": "many"},
+      "follow_up_minutes": 4320,
+      "tenant_message": "A few ants are usually after food. Wipe their trail with vinegar water, keep food and bins sealed, and put an ant bait box where they come in. Tell me if they're still there in a few days.",
+      "tenant_message_de": "Ein paar Ameisen suchen meist Essen. Wisch ihre Straße mit Essigwasser ab, halte Essen und Müll dicht verschlossen und stell eine Köderdose an die Stelle, wo sie reinkommen. Sag mir, ob sie in ein paar Tagen noch da sind."
+    },
+    {
+      "id": "rodents",
+      "label": "Mice or rats",
+      "signals": ["pe_what=rodents"],
+      "ask_order": ["pe_what"],
+      "outcome": "technician",
+      "trade": "pest_control",
+      "technician_needed": true,
+      "requires": ["pe_what"],
+      "decisive": true,
+      "tenant_message": "Mice or rats need pest control, since they rarely come alone. Keep food in closed containers and don't touch droppings without gloves.",
+      "tenant_message_de": "Bei Mäusen oder Ratten muss ein Schädlingsbekämpfer kommen, sie kommen selten allein. Bewahr Essen verschlossen auf und fass Kot nur mit Handschuhen an."
+    },
+    {
+      "id": "cockroaches",
+      "label": "Cockroaches",
+      "signals": ["pe_what=cockroaches"],
+      "ask_order": ["pe_what"],
+      "outcome": "technician",
+      "trade": "pest_control",
+      "technician_needed": true,
+      "requires": ["pe_what"],
+      "decisive": true,
+      "tenant_message": "Cockroaches need pest control, and usually the neighbouring flats are checked too. Keep food sealed and don't spray yourself, it makes them spread.",
+      "tenant_message_de": "Bei Kakerlaken muss ein Schädlingsbekämpfer kommen, meist werden auch die Nachbarwohnungen geprüft. Halte Essen verschlossen und sprüh nicht selbst, sonst verteilen sie sich."
+    },
+    {
+      "id": "bedbugs",
+      "label": "Bedbugs",
+      "signals": ["pe_what=bedbugs"],
+      "ask_order": ["pe_what"],
+      "outcome": "technician",
+      "trade": "pest_control",
+      "technician_needed": true,
+      "requires": ["pe_what"],
+      "decisive": true,
+      "tenant_message": "Bedbugs need pest control. Wash bedding at 60°C and don't move furniture or mattresses to other rooms, so they don't spread.",
+      "tenant_message_de": "Bei Bettwanzen muss ein Schädlingsbekämpfer kommen. Wasch die Bettwäsche bei 60 °C und trag keine Möbel oder Matratzen in andere Räume, damit sie sich nicht verteilen."
+    },
+    {
+      "id": "wasps_nest",
+      "label": "Wasps or a wasp nest",
+      "signals": ["pe_what=wasps"],
+      "ask_order": ["pe_what"],
+      "outcome": "technician",
+      "trade": "pest_control",
+      "technician_needed": true,
+      "requires": ["pe_what"],
+      "decisive": true,
+      "tenant_message": "A wasp nest needs pest control; please keep away from it and keep windows near it closed.",
+      "tenant_message_de": "Ein Wespennest muss ein Schädlingsbekämpfer entfernen; halte bitte Abstand und lass Fenster in der Nähe zu."
+    },
+    {
+      "id": "pest_infestation",
+      "label": "Larger infestation (many, every day)",
+      "signals": ["pe_amount=many"],
+      "ask_order": ["pe_amount"],
+      "outcome": "technician",
+      "trade": "pest_control",
+      "technician_needed": true,
+      "requires": ["pe_amount"],
+      "tenant_message": "With that many, pest control needs to find where they come in and treat it.",
+      "tenant_message_de": "Bei so vielen muss ein Schädlingsbekämpfer finden, wo sie reinkommen, und das behandeln."
+    }
+  ],
+  "likelihood_order": ["rodents", "cockroaches", "bedbugs", "wasps_nest", "ants_minor", "pest_infestation"],
+  "strategy": [
+    "Ask pe_what unless the message names the pest. Mice/rats, cockroaches, bedbugs and wasps: pest control straight away.",
+    "Ants: ask pe_amount; a few → self-help (vinegar, sealed food, bait box) with a follow-up in a few days; many → pest control.",
+    "At most 3 diagnostic questions, one per message. Never state a fact the tenant didn't give."
+  ],
+  "sources": ["Team troubleshooting sheet (pests)"]
+}

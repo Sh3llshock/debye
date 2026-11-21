@@ -13,6 +13,7 @@ If the model is down, `next_step` (signal matching) picks the question or the co
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import json
 import logging
 import os
@@ -29,7 +30,12 @@ from . import state as st
 
 log = logging.getLogger("debye.diagnosis")
 
-KB_PATH = Path(__file__).resolve().parents[3] / "data" / "diagnosis" / "no_hot_water.json"
+KB_DIR = Path(__file__).resolve().parents[3] / "data" / "diagnosis"
+KB_PATH = KB_DIR / "no_hot_water.json"
+HOT_WATER = "no_hot_water"  # the original KB; every other area (agent/triage.py) uses the same engine
+# The KB in use for the conversation being handled: set from conv.diagnosis["area"] at every entry point
+# (use_area), so one engine serves all areas while hot water behaves exactly as before.
+_AREA: contextvars.ContextVar[str] = contextvars.ContextVar("debye_kb_area", default=HOT_WATER)
 MAX_QUESTIONS = 3  # KB strategy (PR 90): at most 3 questions, then the likeliest technician outcome
 SAFETY_QID = "q_safety"
 CARETAKER_CONTACT = "c_501"
@@ -44,9 +50,49 @@ HOT_WATER_RE = re.compile(
     r"lauwarm|kein warm|sho?we?r|shwr|ho?t ?wa?te?r|duschen?|hw is|no hw)", re.IGNORECASE)
 
 
+@lru_cache(maxsize=None)
+def load_kb(area: str = HOT_WATER) -> dict:
+    """One area's knowledge base: data/diagnosis/<area>.json (same format as no_hot_water.json)."""
+    path = KB_DIR / f"{area}.json"
+    if not path.is_file() or not re.fullmatch(r"[a-z_]+", area):
+        raise KeyError(f"no diagnosis KB for area {area!r}")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 @lru_cache(maxsize=1)
+def areas() -> tuple[str, ...]:
+    """Every area with a KB (a json file with questions and causes), hot water first."""
+    out = []
+    for f in sorted(KB_DIR.glob("*.json")):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(data, dict) and data.get("questions") and data.get("causes"):
+            out.append(f.stem)
+    return tuple(sorted(out, key=lambda a: (a != HOT_WATER, a)))
+
+
+def area_of(x) -> str:
+    """The area of a conversation or diagnosis dict (hot water if none is set)."""
+    d = x.diagnosis if hasattr(x, "diagnosis") else x
+    return (d.get("area") or HOT_WATER) if isinstance(d, dict) else HOT_WATER
+
+
+def use_area(x) -> str:
+    """Point kb()/questions()/causes() at the KB of this conversation (or diagnosis dict)."""
+    area = area_of(x)
+    if _AREA.get() != area:
+        _AREA.set(area)
+    return area
+
+
+def is_hot_water() -> bool:
+    return _AREA.get() == HOT_WATER
+
+
 def kb() -> dict:
-    return json.loads(KB_PATH.read_text(encoding="utf-8"))
+    return load_kb(_AREA.get())
 
 
 def questions() -> dict[str, dict]:
@@ -61,18 +107,22 @@ def applies(text: str | None) -> bool:
     if not text:
         return False
     t = text.lower()
-    return any(p.lower() in t for p in kb().get("applies_to", [])) or bool(HOT_WATER_RE.search(t))
+    return any(p.lower() in t for p in load_kb(HOT_WATER).get("applies_to", [])) or bool(HOT_WATER_RE.search(t))
 
 
 def active(conv: st.Conversation) -> bool:
     d = conv.diagnosis
+    use_area(conv)
     return bool(d) and not d.get("concluded")
 
 
 # ------------------------------------------------------------------ state helpers
-def start(conv: st.Conversation, complaint: str | None) -> dict:
+def start(conv: st.Conversation, complaint: str | None, area: str = HOT_WATER) -> dict:
     conv.diagnosis = {"answers": {}, "asked": [], "safety_done": False, "concluded": None,
                       "complaint": complaint, "started": time.time(), "facts": [], "turn": 1}
+    if area != HOT_WATER:
+        conv.diagnosis["area"] = area
+    use_area(conv)
     return conv.diagnosis
 
 
@@ -80,6 +130,7 @@ def record(conv: st.Conversation, qid: str, key: str, authoritative: bool = Fals
     """Stores an answer. A different answer to an already answered question is a conflict (kept apart
     until the resident confirms it: a tap, or the same answer again); never silently overwritten."""
     d = conv.diagnosis
+    use_area(d)
     conflicts = d.setdefault("conflicts", {})
     explicit = d.setdefault("explicit", [])
     # explicit = a tap, or the answer to the question that was open (or just re-asked)
@@ -127,6 +178,7 @@ def score(d: dict, error_code: str | None = None) -> list[dict]:
     """Causes ranked best first: score = (matched − 2·contradicted) / considered signals.
     Fact signals (neighbour_reported, building_notice_today, free-text hints) only count when present:
     the centrix shortcuts already handled them."""
+    use_area(d)
     out = []
     facts = d.get("facts", [])
     for cid, c in causes().items():
@@ -151,6 +203,7 @@ def score(d: dict, error_code: str | None = None) -> list[dict]:
 
 
 def _next_question(d: dict, cause_id: str) -> str | None:
+    use_area(d)
     cause = causes()[cause_id]
     order = list(cause.get("ask_order") or []) + [s.split("=")[0] for s in cause["signals"] if "=" in s]
     for qid in dict.fromkeys(order):
@@ -169,6 +222,7 @@ def question_candidates(conv: st.Conversation) -> list[str]:
     """Open questions in the order they help most: first those of causes that already have supporting
     evidence (most matched signals), then along likelihood_order; contradicted causes are skipped."""
     d = conv.diagnosis
+    use_area(d)
     ranked = score(d, conv.error_code)
     possible = sorted((r for r in ranked if r["bad"] == 0), key=lambda r: (-r["ok"], _likelihood(r["id"])))
     out: list[str] = []
@@ -194,16 +248,25 @@ FACT_WORDS = {
 
 def missing_core(d: dict, cause_id: str) -> list[str]:
     """Questions the cause's explanation relies on (KB 'requires') that have no answer yet."""
+    use_area(d)
     cause = causes().get(cause_id) or {}
     return [q for q in cause.get("requires") or []
             if q in questions() and q not in d["answers"] and q not in d.get("dont_know", [])]
 
 
+def fact_words() -> dict[str, tuple[str, ...]]:
+    """Words that state a fact about each question (hot water: FACT_WORDS; other KBs: questions' fact_words)."""
+    if is_hot_water():
+        return FACT_WORDS
+    return {q["id"]: tuple(q.get("fact_words") or ()) for q in kb()["questions"] if q.get("fact_words")}
+
+
 def invented_facts(d: dict, reasoning: str | None) -> list[str]:
+    use_area(d)
     text = (reasoning or "").lower()
     first = (d.get("complaint") or "").lower()
     out = []
-    for qid, words in FACT_WORDS.items():
+    for qid, words in fact_words().items():
         if qid in d["answers"] or qid in d.get("dont_know", []):
             continue
         hit = next((w for w in words if re.search(r"\b" + re.escape(w), text) and w not in first), None)
@@ -213,6 +276,7 @@ def invented_facts(d: dict, reasoning: str | None) -> list[str]:
 
 
 def contradictions(d: dict, cause_id: str, error_code: str | None = None) -> list[str]:
+    use_area(d)
     out = []
     for s in causes()[cause_id].get("signals", []):
         if "=" in s and _signal_ok(s, d["answers"], d.get("facts", []), error_code) is False:
@@ -228,11 +292,30 @@ HOLIDAY_RE = re.compile(r"(holiday|vacation|been away|back from|came back|got ba
 NEVER_ASK = {q for q in ("q_gas_stove",)}  # recorded only when the tenant volunteers it
 
 
+def fallback_cause() -> str:
+    """The neutral technician cause when nothing is clear (hot water: boiler_fault)."""
+    return kb().get("fallback_cause") or "boiler_fault"
+
+
+def first_question_rule(conv: st.Conversation) -> str | None:
+    """Other areas: a KB rule may force the first question from the complaint's words
+    (e.g. 'smoke alarm' → ot_alarm)."""
+    d = conv.diagnosis
+    if d.get("asked"):
+        return None
+    text = d.get("complaint") or ""
+    for rule in kb().get("first_question_rules") or []:
+        qid = rule.get("question")
+        if qid in questions() and qid not in d["answers"] and qid not in d.get("dont_know", [])                 and re.search(rule.get("pattern") or "$^", text, re.IGNORECASE):
+            return qid
+    return None
+
+
 def code_settles(d: dict, error_code: str | None) -> str | None:
     """A display code decides it: F.22 + gauge below 1 bar → caretaker (via q_pressure), F.22 with normal
     pressure or any other code → boiler technician (gas supply only if the stove won't light either)."""
     code = (error_code or "").upper().replace(" ", "")
-    if not code:
+    if not code or area_of(d) != HOT_WATER:
         return None
     a = d["answers"]
     if a.get("q_gas_stove") == "no":
@@ -249,6 +332,8 @@ def code_settles(d: dict, error_code: str | None) -> str | None:
 def forced_question(conv: st.Conversation) -> str | None:
     """Questions the gold conversations always ask first in a situation (the model may not pick another)."""
     d = conv.diagnosis
+    if use_area(d) != HOT_WATER:
+        return first_question_rule(conv)
     a = d["answers"]
     skip = set(a) | set(d.get("dont_know", [])) | set(d["asked"])
 
@@ -271,6 +356,7 @@ def forced_question(conv: st.Conversation) -> str | None:
 def decisive_self_help(d: dict, error_code: str | None = None) -> str | None:
     """A decisive cause whose required answers are given and match (e.g. q_hot_water_use=before,
     q_gas_stove=no) and that nothing contradicts: conclude at once."""
+    use_area(d)
     boiler_problem = error_code or d["answers"].get("q_display") in ("code", "dark") \
         or d["answers"].get("q_radiators") == "yes"
     if d.get("conflicts"):
@@ -296,6 +382,7 @@ def decisive_self_help(d: dict, error_code: str | None = None) -> str | None:
 def next_step(conv: st.Conversation) -> tuple[str, str, float]:
     """Deterministic policy (fallback + guard): ("ask", qid, 0) or ("conclude", cause_id, confidence)."""
     d = conv.diagnosis
+    use_area(d)
     ranked = score(d, conv.error_code)
     out_of_questions = len(d["asked"]) >= MAX_QUESTIONS
     decisive = decisive_self_help(d, conv.error_code)
@@ -321,20 +408,23 @@ def next_step(conv: st.Conversation) -> tuple[str, str, float]:
                     if qid:
                         return "ask", qid, 0.0
             return "conclude", best["id"], confidence
-        if not d["asked"] and "q_scope" not in d["answers"]:
-            return "ask", "q_scope", 0.0  # strategy: usually q_scope first (unless already clear)
+        first = kb().get("first_question") or "q_scope"
+        if not d["asked"] and first not in d["answers"] and (is_hot_water() or first not in d.get("dont_know", [])):
+            return "ask", first, 0.0  # strategy: usually q_scope first (unless already clear)
         cands = question_candidates(conv)
         if cands:
             return "ask", cands[0], 0.0
-    for qid in ("q_scope", "q_hot_water_use", "q_switch_check", "q_wait_result", "q_radiators", "q_display"):
-        if qid not in d["answers"] and qid not in d["asked"] and qid not in d.get("dont_know", []):
+    order = ("q_scope", "q_hot_water_use", "q_switch_check", "q_wait_result", "q_radiators", "q_display")         if is_hot_water() else tuple(q["id"] for q in kb()["questions"])
+    for qid in order:
+        if qid not in d["answers"] and qid not in d["asked"] and qid not in d.get("dont_know", [])                 and (is_hot_water() or len(d["asked"]) < MAX_QUESTIONS):
             return "ask", qid, 0.0
-    return "conclude", (ranked[0]["id"] if ranked else "boiler_fault"), 0.4
+    return "conclude", (ranked[0]["id"] if ranked else fallback_cause()), 0.4
 
 
 def context_block(conv: st.Conversation) -> dict:
     """What the model sees in <diagnosis>."""
     d = conv.diagnosis
+    use_area(d)
     return {
         "symptom": kb()["symptom"],
         "first_message": d.get("complaint"),
@@ -381,6 +471,10 @@ def code_sentence(conv: st.Conversation) -> str:
 
 def _options(qid: str, lang: str = "en") -> list[Option]:
     q = questions()[qid]
+    if q.get("buttons"):  # other areas: the KB names its buttons
+        titles = (q.get("buttons_de") if lang == "de" else None) or q["buttons"]
+        return [Option(f"diag:{qid}:{k}", (titles.get(k) or k.replace("_", " ").capitalize())[:20])
+                for k in q["answers"]]
     if lang == "de":
         de = {**_SHORT_DE, **({"normal": "Ganz auf heiß"} if qid == "q_shower_handle" else {}),
               **({"yes": "Nur ein Rinnsal", "no": "Normaler Durchfluss"} if qid == "q_weather_pipe" else {})}
@@ -447,6 +541,7 @@ def open_question(d: dict) -> str | None:
 async def ask_conflict(contact, conv: st.Conversation) -> None:
     """'Earlier you said X, now it sounds like Y. Which is right?' with both answers as buttons."""
     d = conv.diagnosis
+    use_area(d)
     qid, new = next(iter(d["conflicts"].items()))
     q, old = questions()[qid], d["answers"][qid]
     if qid in d.setdefault("conflict_asked", []) or not question_slot_free(d):
@@ -472,6 +567,7 @@ def resolve_conflict_reply(conv: st.Conversation, text: str | None) -> None:
     """Any reply to 'just to check' resolves it: a clear pick wins, anything else keeps the earlier
     (explicit) answer and the diagnosis moves on. Never asked again."""
     d = conv.diagnosis
+    use_area(d)
     qid = d.pop("conflict_open", None)
     if not qid:
         return
@@ -487,6 +583,7 @@ def resolve_conflict_reply(conv: st.Conversation, text: str | None) -> None:
 
 async def ask(contact, conv: st.Conversation, qid: str, lead: str | None = None, text: str | None = None) -> None:
     d = conv.diagnosis
+    use_area(d)
     if not question_slot_free(d):
         log.info("diagnosis: a question was already sent this turn; %s not sent", qid)
         return
@@ -600,8 +697,13 @@ FIXED_RE = re.compile(r"\b((it'?s|is|water'?s?|shower'?s?|shower is) (hot|warm)(
                       r"that was it|that did it|that worked|it worked|that fixed it|"
                       r"it works (again|now)|works (again|now)|working (again|now)|(it'?s|is|water'?s?) (warm|hot) "
                       r"again|(warm|hot) water is back|it'?s back|fixed( now)?|solved|all good now|"
-                      r"geht wieder|funktioniert wieder|wieder warm|wieder heiß)\b", re.IGNORECASE)
-STILL_COLD_RE = re.compile(r"\b(still (ice[- ]?|freezing |)cold|still freezing|still (not|isn'?t) (working|warm|hot)|didn'?t (work|help)|doesn'?t work|not working|"
+                      r"geht wieder|funktioniert wieder|wieder warm|wieder heiß|"
+                      r"(it'?s |it )?(draining|drains|dry|closes|shuts|rings) (again|now)|stopped (dripping|leaking)|"
+                      r"power'?s? (is )?back|(light|lights|socket|bell) works?( again| now)|läuft wieder( ab)?|"
+                      r"tropft nicht mehr|ist wieder trocken|klingelt wieder)\b", re.IGNORECASE)
+STILL_COLD_RE = re.compile(r"\b(still (leaking|dripping|blocked|clogged|broken|stuck|dead|dark|there|wet|beeping|not draining)|"
+                           r"still no (power|light)|tropft (immer )?noch|immer noch (verstopft|kaputt|undicht)|"
+                           r"still (ice[- ]?|freezing |)cold|still freezing|still (not|isn'?t) (working|warm|hot)|didn'?t (work|help)|doesn'?t work|not working|"
                            r"no change|immer noch kalt|geht nicht|hat nicht geholfen)\b", re.IGNORECASE)
 FRUSTRATED_RE = re.compile(r"\b(useless|just send (someone|somebody|a technician|a plumber)|send (a|the) technician|"
                            r"stop asking|so many questions|schick( einfach)? (jemand|einen techniker)|nutzlos)\b",
@@ -630,6 +732,7 @@ def fixed_from_text(text: str | None) -> bool | None:
 async def resolved_by_tenant(contact, conv: st.Conversation, text: str) -> None:
     """'It works again' during a diagnosis: close nicely, no technician."""
     d = conv.diagnosis
+    use_area(d)
     if d:
         d["concluded"] = "resolved_by_tenant"
     if conv.case_id and be.has("close_self_help"):
@@ -637,17 +740,26 @@ async def resolved_by_tenant(contact, conv: st.Conversation, text: str) -> None:
             be.close_self_help(conv.case_id, f"Tenant reports it works again: \"{text[:100]}\"")
         except Exception:
             log.exception("close_self_help failed")
-    await out.text(contact, conv.case_id, say(conv, "Good to hear. Message me any time if it goes cold again.", "Schön. Melde dich jederzeit, wenn es wieder kalt wird."))
+    k = load_kb(use_area(d))
+    await out.text(contact, conv.case_id, say(conv, k.get("resolved_message") or "Good to hear. Message me any time if it goes cold again.", k.get("resolved_message_de") or "Schön. Melde dich jederzeit, wenn es wieder kalt wird."))
+    queued = getattr(conv, "triage", None) if area_of(d) != HOT_WATER else None
     st.reset_conversation(be.attr(contact, "id"))
+    if queued:
+        from . import triage
+
+        await triage.after_conclusion(contact, st.conversation(be.attr(contact, "id")), queued)
 
 
 def likeliest_technician(d: dict, error_code: str | None = None) -> tuple[str, bool]:
     """(cause, supported): the likeliest technician cause whose required answers are all given; else
     boiler_fault as a neutral 'heating technician' case (supported=False: don't explain a cause)."""
+    use_area(d)
     for r in score(d, error_code):
         c = causes()[r["id"]]
         if c["outcome"] == "technician" and r["bad"] == 0 and not missing_core(d, r["id"]) and r["ok"]:
             return r["id"], True
+    if area_of(d) != HOT_WATER:
+        return fallback_cause(), False
     return "boiler_fault", d["answers"].get("q_radiators") == "yes" or bool(error_code)
 
 
@@ -656,9 +768,21 @@ NEUTRAL_TECH_DE = "Das sollte sich ein Heizungstechniker ansehen."
 NEUTRAL_TECHS = (NEUTRAL_TECH, NEUTRAL_TECH_DE)
 
 
+def neutral_message(conv: st.Conversation) -> str:
+    """'A heating technician needs to look at it.' (or the area's own neutral line)."""
+    if is_hot_water():
+        return say(conv, NEUTRAL_TECH, NEUTRAL_TECH_DE)
+    return say(conv, kb().get("neutral_message") or NEUTRAL_TECH, kb().get("neutral_message_de") or NEUTRAL_TECH_DE)
+
+
+def neutral_messages() -> tuple[str, ...]:
+    return NEUTRAL_TECHS + tuple(m for m in (kb().get("neutral_message"), kb().get("neutral_message_de")) if m)
+
+
 async def escalate_now(contact, conv: st.Conversation, text: str) -> None:
     """Frustrated tenant: no more questions, send the likeliest technician (staff approve)."""
     d = conv.diagnosis
+    use_area(d)
     tech, supported = likeliest_technician(d, conv.error_code)
     await out.text(contact, conv.case_id, say(conv, "Understood. I'll get a technician to look at it.", "Verstanden. Ich schicke einen Techniker vorbei."))
     await conclude(contact, conv, tech, 0.5, f"Tenant asked for a technician instead of more questions: "
@@ -690,6 +814,7 @@ async def _classify_answers(text: str, open_qs: list[dict]) -> dict:
         r = await client.chat.completions.create(
             model=os.getenv("OPENAI_CHAT_MODEL") or "gpt-6-luna",
             messages=[
+                {"role": "system", "content": _area_extraction_prompt()} if not is_hot_water() else
                 {"role": "system", "content": "A tenant describes a hot-water problem. For each question, give the "
                  "answer key ONLY if the tenant's message clearly states it (paraphrases count: 'the display is dark' "
                  "→ q_display=dark; 'my stove won't light' → q_gas_stove=no; 'stays cold no matter how long I wait' "
@@ -715,6 +840,14 @@ async def _classify_answers(text: str, open_qs: list[dict]) -> dict:
     except Exception:
         log.exception("answer extraction failed")
         return {}
+
+
+def _area_extraction_prompt() -> str:
+    k = kb()
+    return (f"A tenant reports a problem ({k.get('title') or k['symptom']}). For each question, give the answer key "
+            "ONLY if the tenant's message clearly states it (paraphrases count). " + (k.get("extraction_hints") or "")
+            + " Ambiguous words ('kinda', 'idk', 'both?', 'everything') are 'unknown'. If the tenant corrects an "
+            "earlier statement, use the corrected one. Never guess.")
 
 
 _ONLY_SHOWER_RE = re.compile(
@@ -743,6 +876,7 @@ async def extract_answers(conv: st.Conversation, text: str | None) -> dict:
     d = conv.diagnosis
     if not text or not d:
         return {}
+    use_area(d)
     d["last_text"] = text
     open_qs = [q for q in kb()["questions"] if q["id"] not in d["answers"] or q["id"] in ("q_hot_water_use", "q_scope")]
     if not open_qs:
@@ -771,6 +905,7 @@ async def on_answer(contact, qid: str, key: str) -> None:
     if not conv.diagnosis:
         start(conv, None)
     d = conv.diagnosis
+    use_area(d)
     d["turn"] = d.get("turn", 0) + 1  # a tap is a new turn
     if qid == SAFETY_QID:
         d["safety_done"] = True
@@ -845,12 +980,12 @@ def conclusion_text(conv: st.Conversation, c: dict, translation: str | None = No
     from . import error_codes
 
     own = c.get("tenant_message_de") if conv.lang == "de" else None
-    if translation and translation not in NEUTRAL_TECHS and (conv.lang != "de" or not _looks_german(translation)):
+    if translation and translation not in neutral_messages() and (conv.lang != "de" or not _looks_german(translation)):
         translation = None  # never a translated message for an English resident
     text = (translation or "").strip() or own or c["tenant_message"]
     d = conv.diagnosis or {}
-    if conv.error_code and not d.get("code_explained") and (not translation or translation in NEUTRAL_TECHS) \
-            and c.get("outcome") != "self_help":
+    if conv.error_code and not d.get("code_explained") and (not translation or translation in neutral_messages()) \
+            and c.get("outcome") != "self_help" and is_hot_water():
         d["code_explained"] = True
         text = (code_sentence(conv) if conv.lang == "de" else error_codes.resident_sentence(conv.error_code, "text")) \
             + " " + text
@@ -862,6 +997,7 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
     from . import flow
 
     d = conv.diagnosis or start(conv, None)
+    hw = use_area(d) == HOT_WATER
     if d.get("concluded"):
         return {"ok": True, "note": "already concluded"}
     if cause_id != "gas_smell" and cause_id not in causes():
@@ -901,12 +1037,16 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         message = ""  # never explain a cause whose required answers are missing (e.g. 'radiators are warm')
     d["concluded"] = cause_id
     if message is not None:  # escalation without enough answers: no explanation of a cause we can't support
-        translation = message or say(conv, NEUTRAL_TECH, NEUTRAL_TECH_DE)
+        translation = message or neutral_message(conv)
     rec = diagnosis_record(conv, cause_id, confidence, reasoning)
-    complaint = d.get("complaint") or "No hot water"
+    complaint = d.get("complaint") or ("No hot water" if hw else kb().get("title") or "Repair")
+    # other areas: a case of their own (no link to the building's boiler case), the boiler only for heating jobs
+    where = {} if hw else {"building_case": False,
+                           "with_asset": (causes().get(cause_id) or {}).get("trade") == "heating"}
+    case_type = "repair.hot_water" if hw else kb().get("case_type") or "repair.general"
 
     if cause_id == "gas_smell":
-        sf = kb()["safety_first"]["if_yes"]
+        sf = load_kb(HOT_WATER)["safety_first"]["if_yes"]
         res = await flow.ensure_case(contact, summary="Gas smell reported", symptoms=complaint, priority="emergency",
                                      type_="emergency.gas", diagnosis=rec)
         cid = res["case_id"]
@@ -923,7 +1063,7 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         conv.step = st.SELF_HELP
         if be.has("close_self_help") and not conv.case_id:
             res = await flow.ensure_case(contact, summary=_title(c, conv), symptoms=complaint, priority="normal",
-                                         type_="repair.hot_water", diagnosis=rec)
+                                         type_=case_type, diagnosis=rec, **where)
             if not res.get("duplicate"):
                 _store(res["case_id"], None, rec, opened=not res.get("already_open"))
             conv.step = st.SELF_HELP
@@ -933,10 +1073,26 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         return {"ok": True, "outcome": "self_help", "follow_up_minutes": minutes,
                 "note": "Tip sent; no case dispatched. Do not send another message."}
 
+    if outcome == "emergency":  # flooding, fire, break-in, someone stuck in the lift: safety steps first
+        res = await flow.ensure_case(contact, summary=f"EMERGENCY: {c['label']}", symptoms=complaint,
+                                     priority="emergency", type_=f"emergency.{d.get('area') or 'other'}",
+                                     trade=c.get("trade"), diagnosis=rec, **where)
+        cid = res["case_id"]
+        _store(cid, c.get("trade"), rec, opened=not res.get("duplicate") and not res.get("already_open"))
+        be.record_event(cid, "debye", "staff.alert", f"URGENT: {c['label']}. Safety steps sent to the tenant"
+                        + (f"; {c['trade']} emergency service needed." if c.get("trade") else "."),
+                        {"notify_staff": "urgent", "cause_id": cause_id, "trade": c.get("trade")})
+        conv.step = st.CLOSED
+        await out.text(contact, cid, conclusion_text(conv, c, translation))
+        return {"ok": True, "outcome": "emergency", "case_id": cid,
+                "note": "Safety message sent. Do not send another message."}
+
     if outcome == "technician":
         type_ = "repair.heating" if c.get("trade") == "heating" else f"repair.{c.get('trade') or 'general'}"
+        prio = {} if hw else {"priority": c.get("priority") or "normal"}
         res = await flow.ensure_case(contact, summary=_title(c, conv), symptoms=complaint,
-                                     error_code=conv.error_code, type_=type_, trade=c.get("trade"), diagnosis=rec)
+                                     error_code=conv.error_code, type_=type_, trade=c.get("trade"), diagnosis=rec,
+                                     **prio, **where)
         cid = res["case_id"]
         if not res.get("duplicate"):
             _store(cid, c.get("trade"), rec, opened=not res.get("already_open"))
@@ -945,6 +1101,8 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
             return {"ok": True, "outcome": "technician", "case_id": cid, "duplicate": True}
         await out.text(contact, cid, conclusion_text(conv, c, translation))
         cs = st.case_state(cid)
+        if not hw:
+            cs.consent_purpose = c.get("label") or cs.consent_purpose
         try:
             ranking = be.rank_partners(cid)  # backend-core ranks by the case's trade
             if ranking:
@@ -955,9 +1113,10 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         return {"ok": True, "outcome": "technician", "case_id": cid,
                 "note": "Consent question sent. Do not send another message."}
 
-    # caretaker / utility: a case for the record, no partner
+    # caretaker / utility / management: a case for the record, no partner
+    prio = {} if hw else {"priority": c.get("priority") or "normal"}
     res = await flow.ensure_case(contact, summary=_title(c, conv), symptoms=complaint, error_code=conv.error_code,
-                                 type_="repair.hot_water", trade=c.get("trade"), diagnosis=rec)
+                                 type_=case_type, trade=c.get("trade"), diagnosis=rec, **prio, **where)
     cid = res["case_id"]
     if not res.get("duplicate"):
         _store(cid, c.get("trade"), rec, opened=not res.get("already_open"))
@@ -970,19 +1129,28 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         else:
             be.record_event(cid, "debye", "caretaker.notified", f"Caretaker asked to check: {c['label']}",
                             {"contact_id": CARETAKER_CONTACT, "cause_id": cause_id})
+    elif outcome == "management":
+        be.record_event(cid, "debye", "staff.management", f"Property manager to follow up: {c['label']}",
+                        {"cause_id": cause_id, "contact_id": be.attr(contact, "id")})
     else:
         be.record_event(cid, "debye", "staff.utility_contact", f"Staff to contact the gas supplier: {c['label']}",
                         {"cause_id": cause_id})
     conv.step = st.DISPATCHED
     await out.text(contact, cid, conclusion_text(conv, c, translation))
+    if not hw:
+        from . import triage
+
+        await triage.after_conclusion(contact, conv)  # a second problem from the first message comes next
     return {"ok": True, "outcome": outcome, "case_id": cid, "note": "Message sent. Do not send another message."}
 
 
 def _title(c: dict, conv: st.Conversation) -> str:
     from . import error_codes
 
-    if conv.error_code:
+    if conv.error_code and is_hot_water():
         return error_codes.case_title(conv.error_code)
+    if not is_hot_water():
+        return f"{kb().get('title') or 'Repair'} – {c['label'][0].lower()}{c['label'][1:]}"
     return f"No hot water – {c['label'][0].lower()}{c['label'][1:]}"
 
 
@@ -1032,12 +1200,21 @@ async def send_follow_up(contact, cause_id: str) -> None:
     conv = st.conversation(be.attr(contact, "id"))
     name = (be.attr(contact, "name") or "").split(" ")[0]
     conv.step = st.SELF_HELP
+    if use_area(conv) != HOT_WATER:
+        k = kb()
+        q = say(conv, k.get("follow_up_question") or "just checking in: is it working again?",
+                k.get("follow_up_question_de") or "kurze Nachfrage: Geht es wieder?")
+        await out.buttons(contact, conv.case_id, f"Hi{' ' + name if name else ''}, {q}",
+                          [Option(f"diagfu_yes:{cause_id}", (k.get("follow_up_yes") or "Yes, all good")[:20]),
+                           Option(f"diagfu_no:{cause_id}", (k.get("follow_up_no") or "No, still broken")[:20])])
+        return
     await out.buttons(contact, conv.case_id, f"Hi{' ' + name if name else ''}, just checking in: is the hot water back?",
                       [Option(f"diagfu_yes:{cause_id}", "Yes, all good"), Option(f"diagfu_no:{cause_id}", "Still cold")])
 
 
 async def on_follow_up(contact, cause_id: str, fixed: bool) -> None:
     conv = st.conversation(be.attr(contact, "id"))
+    hw = use_area(conv) == HOT_WATER
     if fixed:
         conv.step = st.CLOSED
         if conv.case_id and be.has("close_self_help"):
@@ -1046,7 +1223,12 @@ async def on_follow_up(contact, cause_id: str, fixed: bool) -> None:
             except Exception:
                 log.exception("close_self_help failed")
         await out.text(contact, conv.case_id, say(conv, "Good to hear. I'll close this then.", "Schön, dann schließe ich das hier."))
+        queued = None if hw else getattr(conv, "triage", None)
         st.reset_conversation(be.attr(contact, "id"))
+        if queued:
+            from . import triage
+
+            await triage.after_conclusion(contact, st.conversation(be.attr(contact, "id")), queued)
         return
     # still cold after the self-help tip: what the failure tells us is an answer; keep diagnosing
     conv.diagnosis = conv.diagnosis or start(conv, None)
@@ -1064,6 +1246,7 @@ async def on_follow_up(contact, cause_id: str, fixed: bool) -> None:
         return
     tech, supported = (ident, True) if action == "conclude" and causes().get(ident, {}).get("outcome") != "self_help" \
         and not missing_core(d, ident) else likeliest_technician(d, conv.error_code)
-    await out.text(contact, conv.case_id, say(conv, "Thanks for letting me know, then I'll get a technician to look at it.", "Danke für die Rückmeldung, dann schicke ich einen Techniker."))
+    if hw:
+        await out.text(contact, conv.case_id, say(conv, "Thanks for letting me know, then I'll get a technician to look at it.", "Danke für die Rückmeldung, dann schicke ich einen Techniker."))
     await conclude(contact, conv, tech, 0.6, f"Still cold after the self-help tip for '{_label(cause_id)}'.",
                    force=True, message=None if supported else "")

@@ -1,0 +1,133 @@
+{
+  "symptom": "roof_ceiling_leak",
+  "area": "roof_ceiling_leak",
+  "label": "the water from above",
+  "label_de": "das Wasser von oben",
+  "title": "Ceiling / roof leak",
+  "case_type": "repair.roofing",
+  "router": {
+    "description": "Water coming from above or from outside: a dripping or stained ceiling, water coming in around a window frame or through an outside wall when it rains, a leaking roof or skylight.",
+    "button": "Ceiling / roof",
+    "button_de": "Decke / Dach",
+    "keywords": ["ceiling", "roof", "skylight", "from above", "upstairs", "water stain", "rain comes in", "rain gets in", "when it rains", "decke", "dach", "dachfenster", "von oben", "wasserfleck", "regen kommt rein", "wenn es regnet"]
+  },
+  "applies_to": ["water dripping from the ceiling", "stain on the ceiling", "rain coming in", "Wasser tropft von der Decke"],
+  "first_question": "rf_rain",
+  "fallback_cause": "neighbour_above_leak",
+  "neutral_message": "Someone needs to look at it on site.",
+  "neutral_message_de": "Das muss sich jemand vor Ort ansehen.",
+  "follow_up_question": "just checking in: is it dry now?",
+  "follow_up_question_de": "kurze Nachfrage: Ist es jetzt trocken?",
+  "follow_up_yes": "Yes, it's dry",
+  "follow_up_no": "Still wet",
+  "resolved_message": "Good to hear. Message me any time if it starts again.",
+  "resolved_message_de": "Schön. Melde dich jederzeit, wenn es wieder anfängt.",
+  "extraction_hints": "'from the ceiling' → rf_where=ceiling; 'around the window frame' / 'under the window' → rf_where=window; 'through the wall' → rf_where=wall; 'only when it rains' / 'since the storm' → rf_rain=yes; 'it's dry outside' / 'not raining' → rf_rain=no; 'top floor' / 'under the roof' / 'attic flat' → rf_top=yes; 'there's a flat above me' → rf_top=no.",
+  "questions": [
+    {
+      "id": "rf_rain",
+      "text": "Does it happen when it rains, or also when it's dry outside?",
+      "text_de": "Passiert es, wenn es regnet, oder auch, wenn es draußen trocken ist?",
+      "answers": {"yes": "only or mainly when it rains", "no": "also when it's dry"},
+      "buttons": {"yes": "When it rains", "no": "Also when dry"},
+      "buttons_de": {"yes": "Wenn es regnet", "no": "Auch bei Trockenheit"},
+      "reask": "And is it only when it rains?",
+      "reask_de": "Und passiert es nur bei Regen?",
+      "fact_words": ["rain", "regen", "storm"]
+    },
+    {
+      "id": "rf_where",
+      "text": "Is the water coming through the ceiling, around a window frame, or through an outside wall?",
+      "text_de": "Kommt das Wasser durch die Decke, am Fensterrahmen oder durch eine Außenwand?",
+      "answers": {"ceiling": "through the ceiling", "window": "around a window frame", "wall": "through an outside wall"},
+      "buttons": {"ceiling": "Ceiling", "window": "Window frame", "wall": "Outside wall"},
+      "buttons_de": {"ceiling": "Decke", "window": "Fensterrahmen", "wall": "Außenwand"},
+      "reask": "And is it the ceiling, a window frame or an outside wall?",
+      "reask_de": "Und ist es die Decke, ein Fensterrahmen oder eine Außenwand?",
+      "fact_words": []
+    },
+    {
+      "id": "rf_top",
+      "text": "Is your flat on the top floor, right under the roof?",
+      "text_de": "Liegt deine Wohnung im obersten Stock, direkt unter dem Dach?",
+      "answers": {"yes": "top floor, under the roof", "no": "there is a flat above"},
+      "buttons": {"yes": "Yes, top floor", "no": "No, flat above"},
+      "buttons_de": {"yes": "Ja, ganz oben", "no": "Nein, Wohnung drüber"},
+      "reask": "And are you on the top floor, under the roof?",
+      "reask_de": "Und wohnst du ganz oben unter dem Dach?",
+      "fact_words": ["top floor", "under the roof", "dachgeschoss"]
+    }
+  ],
+  "causes": [
+    {
+      "id": "roof_leak",
+      "label": "Roof leak (rain, top floor)",
+      "signals": ["rf_rain=yes", "rf_top=yes", "rf_where=ceiling"],
+      "ask_order": ["rf_rain", "rf_top"],
+      "outcome": "technician",
+      "trade": "roofing",
+      "priority": "urgent",
+      "technician_needed": true,
+      "requires": ["rf_rain", "rf_top"],
+      "tenant_message": "Rain coming through a top-floor ceiling points to the roof, so a roofer needs to check it. Put a bucket under the drip and move electronics away; photos of the ceiling help.",
+      "tenant_message_de": "Regen, der im obersten Stock durch die Decke kommt, deutet aufs Dach; ein Dachdecker muss das prüfen. Stell einen Eimer unter die Tropfstelle und räum Elektrogeräte weg; Fotos von der Decke helfen."
+    },
+    {
+      "id": "neighbour_above_leak",
+      "label": "Leak from the flat above (also when dry)",
+      "signals": ["rf_rain=no", "rf_where=ceiling"],
+      "ask_order": ["rf_rain", "rf_where"],
+      "outcome": "caretaker",
+      "trade": null,
+      "priority": "urgent",
+      "technician_needed": false,
+      "requires": ["rf_rain"],
+      "tenant_message": "If it drips when it's dry outside, the water most likely comes from the flat above. Our caretaker Peter Wolf will check with the neighbours above right away and call a plumber if needed. Keep a bucket under it.",
+      "tenant_message_de": "Wenn es auch bei trockenem Wetter tropft, kommt das Wasser wahrscheinlich aus der Wohnung darüber. Unser Hausmeister Peter Wolf schaut sofort bei den Nachbarn oben nach und holt bei Bedarf einen Installateur. Stell einen Eimer darunter."
+    },
+    {
+      "id": "window_frame_leak",
+      "label": "Rain coming in at a window frame (seal)",
+      "signals": ["rf_rain=yes", "rf_where=window"],
+      "ask_order": ["rf_where", "rf_rain"],
+      "outcome": "technician",
+      "trade": "glazier",
+      "technician_needed": true,
+      "requires": ["rf_where"],
+      "tenant_message": "Rain getting in at the window frame means the seal or the joint has failed, so a window fitter needs to reseal it. Towels on the sill help until then.",
+      "tenant_message_de": "Wenn Regen am Fensterrahmen reinkommt, ist die Dichtung oder die Fuge kaputt; ein Fensterbauer muss das neu abdichten. Bis dahin helfen Handtücher auf der Fensterbank."
+    },
+    {
+      "id": "facade_leak",
+      "label": "Rain coming through an outside wall (facade)",
+      "signals": ["rf_rain=yes", "rf_where=wall"],
+      "ask_order": ["rf_where", "rf_rain"],
+      "outcome": "technician",
+      "trade": "roofing",
+      "technician_needed": true,
+      "requires": ["rf_where"],
+      "tenant_message": "Rain coming through an outside wall points to the facade or a gutter, so a roofer needs to check the outside. Photos of the wet spot help.",
+      "tenant_message_de": "Regen, der durch eine Außenwand kommt, deutet auf die Fassade oder eine Regenrinne; ein Dachdecker muss das von außen prüfen. Fotos der nassen Stelle helfen."
+    },
+    {
+      "id": "ceiling_leak_lower_floor",
+      "label": "Rain through the ceiling below another flat (roof or balcony above)",
+      "signals": ["rf_rain=yes", "rf_top=no", "rf_where=ceiling"],
+      "ask_order": ["rf_rain", "rf_top"],
+      "outcome": "caretaker",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["rf_rain", "rf_top"],
+      "tenant_message": "With a flat above you, the water may come from their balcony or a gutter. Our caretaker Peter Wolf will check from above and call a roofer if needed. Keep a bucket under it.",
+      "tenant_message_de": "Mit einer Wohnung über dir kann das Wasser von deren Balkon oder einer Rinne kommen. Unser Hausmeister Peter Wolf schaut von oben nach und holt bei Bedarf einen Dachdecker. Stell einen Eimer darunter."
+    }
+  ],
+  "likelihood_order": ["neighbour_above_leak", "roof_leak", "window_frame_leak", "facade_leak", "ceiling_leak_lower_floor"],
+  "strategy": [
+    "Water pouring from the ceiling or the ceiling sagging is an emergency (the router handles it): safety steps first.",
+    "Ask rf_rain first: water when it's dry outside comes from the flat above (caretaker, urgent); with rain, ask rf_top or rf_where.",
+    "Roof (top floor, rain): roofer. Window frame: window fitter (glazier). Outside wall: roofer. Below another flat: caretaker first.",
+    "At most 3 diagnostic questions, one per message. Never state a fact the tenant didn't give."
+  ],
+  "sources": ["Team troubleshooting sheet (water from above)"]
+}

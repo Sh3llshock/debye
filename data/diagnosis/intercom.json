@@ -1,0 +1,123 @@
+{
+  "symptom": "intercom",
+  "area": "intercom",
+  "label": "the intercom",
+  "label_de": "die Sprechanlage",
+  "title": "Intercom / doorbell",
+  "case_type": "repair.electrical",
+  "router": {
+    "description": "Intercom, doorbell or door buzzer: the bell doesn't ring, can't hear or talk to visitors, the buzzer doesn't open the entrance door, packages can't be delivered because of it.",
+    "button": "Intercom / doorbell",
+    "button_de": "Klingel / Sprechanlage",
+    "keywords": ["intercom", "doorbell", "door bell", "bell doesn't ring", "buzzer", "buzz", "entry phone", "klingel", "klingelt nicht", "sprechanlage", "gegensprechanlage", "türöffner", "summer"]
+  },
+  "applies_to": ["doorbell doesn't ring", "intercom broken", "buzzer doesn't open", "Klingel geht nicht"],
+  "first_question": "ic_what",
+  "fallback_cause": "flat_handset_fault",
+  "neutral_message": "An electrician needs to look at it.",
+  "neutral_message_de": "Das sollte sich ein Elektriker ansehen.",
+  "follow_up_question": "just checking in: does the bell ring again?",
+  "follow_up_question_de": "kurze Nachfrage: Klingelt es wieder?",
+  "follow_up_yes": "Yes, it rings",
+  "follow_up_no": "Still silent",
+  "resolved_message": "Good to hear. Message me any time if it stops again.",
+  "resolved_message_de": "Schön. Melde dich jederzeit, wenn es wieder ausfällt.",
+  "extraction_hints": "'the doorbell doesn't ring' / 'I don't hear the bell' → ic_what=no_ring; 'it rings but I can't hear them' / 'they can't hear me' → ic_what=no_audio; 'the buzzer doesn't open the door' → ic_what=no_buzzer; 'my neighbour has the same problem' / 'nobody's bell works' → ic_neighbours=yes; 'the neighbours' bells work' → ic_neighbours=no.",
+  "questions": [
+    {
+      "id": "ic_what",
+      "text": "What isn't working: the bell doesn't ring, you can't hear or talk to the visitor, or the buzzer doesn't open the door?",
+      "text_de": "Was geht nicht: Es klingelt nicht, du kannst den Besuch nicht hören oder sprechen, oder der Türöffner macht nicht auf?",
+      "answers": {"no_ring": "the bell doesn't ring", "no_audio": "rings, but no sound or talking", "no_buzzer": "the buzzer doesn't open the door"},
+      "buttons": {"no_ring": "Doesn't ring", "no_audio": "Can't hear / talk", "no_buzzer": "Buzzer doesn't open"},
+      "buttons_de": {"no_ring": "Klingelt nicht", "no_audio": "Kein Ton", "no_buzzer": "Öffner geht nicht"},
+      "reask": "And what isn't working: ringing, talking, or the buzzer?",
+      "reask_de": "Und was geht nicht: Klingeln, Sprechen oder der Öffner?",
+      "fact_words": []
+    },
+    {
+      "id": "ic_neighbours",
+      "text": "Do your neighbours have the same problem?",
+      "text_de": "Haben deine Nachbarn das gleiche Problem?",
+      "answers": {"yes": "the neighbours have it too", "no": "the neighbours' intercom works"},
+      "buttons": {"yes": "Yes, them too", "no": "No, only me"},
+      "buttons_de": {"yes": "Ja, die auch", "no": "Nein, nur ich"},
+      "reask": "And do the neighbours have the same problem?",
+      "reask_de": "Und haben die Nachbarn das gleiche Problem?",
+      "fact_words": ["neighbour", "nachbar"]
+    },
+    {
+      "id": "ic_volume",
+      "text": "Many handsets have a small volume or mute switch on the side or bottom. Is it turned off or down?",
+      "text_de": "Viele Hörer haben seitlich oder unten einen kleinen Lautstärke- oder Stummschalter. Ist der aus oder ganz leise?",
+      "answers": {"was_off": "it was off or down and is on now", "on": "it's on, or there's no such switch"},
+      "buttons": {"was_off": "It was off", "on": "It's on / none"},
+      "buttons_de": {"was_off": "War aus", "on": "Ist an / keiner"},
+      "reask": "Could you check the small volume or mute switch on the handset?",
+      "reask_de": "Kannst du den kleinen Lautstärke- oder Stummschalter am Hörer prüfen?",
+      "fact_words": ["mute", "volume", "stumm"]
+    }
+  ],
+  "causes": [
+    {
+      "id": "bell_muted",
+      "label": "Handset muted or volume turned down",
+      "signals": ["ic_what=no_ring", "ic_volume=was_off"],
+      "ask_order": ["ic_what", "ic_volume"],
+      "outcome": "self_help",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["ic_volume"],
+      "decisive": true,
+      "if_fails": {"ic_volume": "on"},
+      "follow_up_minutes": 1440,
+      "tenant_message": "Then it was just muted. Leave it on and tell me if the bell still doesn't ring next time someone comes.",
+      "tenant_message_de": "Dann war es nur stumm geschaltet. Lass es an und sag mir, falls es beim nächsten Besuch trotzdem nicht klingelt."
+    },
+    {
+      "id": "building_intercom_fault",
+      "label": "Building intercom system fault (neighbours affected too)",
+      "signals": ["ic_neighbours=yes"],
+      "ask_order": ["ic_neighbours"],
+      "outcome": "technician",
+      "trade": "electrical",
+      "technician_needed": true,
+      "requires": ["ic_neighbours"],
+      "decisive": true,
+      "tenant_message": "If the neighbours have it too, the building's intercom system is faulty, so an electrician needs to repair the central unit. Until then, visitors and deliveries can call you directly.",
+      "tenant_message_de": "Wenn die Nachbarn es auch haben, ist die Sprechanlage des Hauses defekt; ein Elektriker muss die Zentrale reparieren. Bis dahin können Besuch und Lieferdienste dich direkt anrufen."
+    },
+    {
+      "id": "flat_handset_fault",
+      "label": "Faulty handset or wiring in the flat",
+      "signals": ["ic_neighbours=no", "ic_volume=on"],
+      "ask_order": ["ic_neighbours", "ic_volume"],
+      "outcome": "technician",
+      "trade": "electrical",
+      "technician_needed": true,
+      "requires": ["ic_neighbours"],
+      "tenant_message": "If it's only your flat, the handset or its wiring is faulty, so an electrician needs to replace or repair it.",
+      "tenant_message_de": "Wenn es nur deine Wohnung betrifft, ist der Hörer oder seine Leitung defekt; ein Elektriker muss ihn reparieren oder tauschen."
+    },
+    {
+      "id": "door_opener_fault",
+      "label": "Door buzzer / electric opener doesn't release the entrance door",
+      "signals": ["ic_what=no_buzzer"],
+      "ask_order": ["ic_what", "ic_neighbours"],
+      "outcome": "caretaker",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["ic_what"],
+      "tenant_message": "Then the electric door opener isn't releasing. Our caretaker Peter Wolf will check it and call an electrician if it's the opener itself.",
+      "tenant_message_de": "Dann löst der elektrische Türöffner nicht aus. Unser Hausmeister Peter Wolf prüft das und holt einen Elektriker, falls der Öffner selbst kaputt ist."
+    }
+  ],
+  "likelihood_order": ["building_intercom_fault", "bell_muted", "door_opener_fault", "flat_handset_fault"],
+  "strategy": [
+    "Ask ic_what unless known, then ic_neighbours (building-wide → electrician for the central unit).",
+    "Only your flat and the bell is silent: check the handset's mute/volume switch first (self-help).",
+    "The buzzer doesn't open the door: caretaker first.",
+    "At most 3 diagnostic questions, one per message. Never state a fact the tenant didn't give."
+  ],
+  "sources": ["Team troubleshooting sheet (intercom)"]
+}

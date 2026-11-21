@@ -1,0 +1,135 @@
+{
+  "symptom": "appliances",
+  "area": "appliances",
+  "label": "the appliance",
+  "label_de": "das Gerät",
+  "title": "Appliance",
+  "case_type": "repair.appliances",
+  "router": {
+    "description": "A household appliance that doesn't work: fridge or freezer not cooling, oven or hob, dishwasher, washing machine (not a leak), extractor hood. Built-in kitchen appliances usually come with the flat.",
+    "button": "Appliance",
+    "button_de": "Haushaltsgerät",
+    "keywords": ["fridge", "freezer", "oven", "hob", "stove", "cooker", "dishwasher", "washing machine", "dryer", "extractor", "hood", "microwave", "appliance", "kühlschrank", "gefrier", "backofen", "ofen", "herd", "kochfeld", "spülmaschine", "geschirrspüler", "waschmaschine", "dunstabzug", "gerät"]
+  },
+  "applies_to": ["fridge not cooling", "oven doesn't heat", "dishwasher broken", "Kühlschrank kühlt nicht"],
+  "first_question": "ap_owner",
+  "fallback_cause": "appliance_fault",
+  "neutral_message": "An appliance technician needs to look at it.",
+  "neutral_message_de": "Das sollte sich ein Gerätetechniker ansehen.",
+  "follow_up_question": "just checking in: is it working again?",
+  "follow_up_question_de": "kurze Nachfrage: Geht es wieder?",
+  "follow_up_yes": "Yes, it works",
+  "follow_up_no": "Still broken",
+  "resolved_message": "Good to hear. Message me any time if it acts up again.",
+  "resolved_message_de": "Schön. Melde dich jederzeit, wenn es wieder spinnt.",
+  "extraction_hints": "'fridge' / 'freezer' → ap_which=fridge; 'oven' / 'hob' / 'stove' → ap_which=oven_hob; 'dishwasher' → ap_which=dishwasher; 'washing machine' / 'dryer' → ap_which=washing_machine; 'extractor hood' → ap_which=extractor; 'it came with the flat' / 'the built-in kitchen' / 'the landlord's' → ap_owner=landlord; 'my own' / 'I bought it' → ap_owner=own; 'completely dead, no light' → ap_power=no_power; 'the light is on but it doesn't cool / heat' / 'display works' → ap_power=has_power; 'a fuse was down' → ap_breaker=tripped.",
+  "questions": [
+    {
+      "id": "ap_owner",
+      "text": "Did the appliance come with the flat, or is it your own?",
+      "text_de": "Gehört das Gerät zur Wohnung, oder ist es dein eigenes?",
+      "answers": {"landlord": "it came with the flat", "own": "it's the tenant's own"},
+      "buttons": {"landlord": "Came with the flat", "own": "It's my own"},
+      "buttons_de": {"landlord": "Gehört zur Wohnung", "own": "Mein eigenes"},
+      "reask": "And did it come with the flat, or is it yours?",
+      "reask_de": "Und gehört es zur Wohnung oder dir?",
+      "fact_words": ["came with the flat", "your own", "built-in"]
+    },
+    {
+      "id": "ap_power",
+      "text": "Is it completely dead, or does it still have a light or display on?",
+      "text_de": "Ist es komplett tot, oder leuchtet noch ein Licht oder die Anzeige?",
+      "answers": {"no_power": "completely dead, no light or display", "has_power": "light or display on, but it doesn't work properly"},
+      "buttons": {"no_power": "Completely dead", "has_power": "Light / display on"},
+      "buttons_de": {"no_power": "Komplett tot", "has_power": "Licht/Anzeige an"},
+      "reask": "And is it completely dead, or is a light or display still on?",
+      "reask_de": "Und ist es ganz tot oder leuchtet noch etwas?",
+      "fact_words": ["display", "light is on"]
+    },
+    {
+      "id": "ap_breaker",
+      "text": "Have a look at the fuse box: is one of the switches flipped down?",
+      "text_de": "Schau bitte in den Sicherungskasten: Ist einer der Schalter unten?",
+      "answers": {"tripped": "a switch is flipped down", "all_up": "all switches are up"},
+      "buttons": {"tripped": "One is down", "all_up": "All are up"},
+      "buttons_de": {"tripped": "Einer ist unten", "all_up": "Alle oben"},
+      "reask": "Could you check if a switch in the fuse box is down?",
+      "reask_de": "Kannst du nachsehen, ob im Sicherungskasten ein Schalter unten ist?",
+      "fact_words": ["fuse", "breaker", "sicherung"]
+    },
+    {
+      "id": "ap_which",
+      "text": "Which appliance is it?",
+      "text_de": "Um welches Gerät geht es?",
+      "answers": {"fridge": "fridge or freezer", "oven_hob": "oven or hob", "dishwasher": "dishwasher", "washing_machine": "washing machine or dryer", "extractor": "extractor hood"},
+      "buttons": {"fridge": "Fridge / freezer", "oven_hob": "Oven / hob", "dishwasher": "Dishwasher", "washing_machine": "Washing machine", "extractor": "Extractor hood"},
+      "buttons_de": {"fridge": "Kühlschrank", "oven_hob": "Ofen / Herd", "dishwasher": "Spülmaschine", "washing_machine": "Waschmaschine", "extractor": "Dunstabzug"},
+      "reask": "And which appliance is it?",
+      "reask_de": "Und welches Gerät ist es?",
+      "fact_words": []
+    }
+  ],
+  "causes": [
+    {
+      "id": "own_appliance",
+      "label": "Tenant's own appliance (not the landlord's repair)",
+      "signals": ["ap_owner=own"],
+      "ask_order": ["ap_owner"],
+      "outcome": "management",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["ap_owner"],
+      "decisive": true,
+      "tenant_message": "Your own appliances aren't covered by the landlord, so the manufacturer's service or a repair shop is the right call. If the socket itself has no power, tell me and I'll look into that.",
+      "tenant_message_de": "Eigene Geräte deckt der Vermieter nicht ab; da ist der Kundendienst des Herstellers oder eine Reparaturwerkstatt richtig. Wenn die Steckdose selbst keinen Strom hat, sag mir Bescheid, dann kümmere ich mich darum."
+    },
+    {
+      "id": "appliance_tripped_fuse",
+      "label": "Appliance circuit tripped",
+      "signals": ["ap_power=no_power", "ap_breaker=tripped"],
+      "ask_order": ["ap_power", "ap_breaker"],
+      "outcome": "self_help",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["ap_breaker"],
+      "decisive": true,
+      "if_fails": {"ap_breaker": "all_up"},
+      "follow_up_minutes": 30,
+      "tenant_message": "Flip it back up. If it trips again as soon as the appliance runs, leave it off: then the appliance itself is faulty. Tell me if it works.",
+      "tenant_message_de": "Schalte ihn wieder hoch. Fliegt er wieder raus, sobald das Gerät läuft, lass es aus: Dann ist das Gerät selbst defekt. Sag mir, ob es geht."
+    },
+    {
+      "id": "appliance_no_power",
+      "label": "Appliance gets no power, fuses up (socket or connection)",
+      "signals": ["ap_owner=landlord", "ap_power=no_power", "ap_breaker=all_up"],
+      "ask_order": ["ap_power", "ap_breaker"],
+      "outcome": "technician",
+      "trade": "electrical",
+      "technician_needed": true,
+      "requires": ["ap_breaker"],
+      "tenant_message": "If it's completely dead with all fuses up, the socket or its connection is the problem, so an electrician needs to check it.",
+      "tenant_message_de": "Wenn es bei oben stehenden Sicherungen komplett tot ist, liegt es an der Steckdose oder am Anschluss; das muss ein Elektriker prüfen."
+    },
+    {
+      "id": "appliance_fault",
+      "label": "Landlord's appliance faulty (has power, doesn't work)",
+      "signals": ["ap_owner=landlord", "ap_power=has_power"],
+      "ask_order": ["ap_owner", "ap_power"],
+      "outcome": "technician",
+      "trade": "appliances",
+      "technician_needed": true,
+      "requires": ["ap_owner"],
+      "tenant_message": "Then the appliance itself needs a repair, so I'll get an appliance technician. Please don't open it or take it apart.",
+      "tenant_message_de": "Dann muss das Gerät selbst repariert werden; ich hole einen Gerätetechniker. Bitte nicht öffnen oder auseinandernehmen."
+    }
+  ],
+  "likelihood_order": ["own_appliance", "appliance_tripped_fuse", "appliance_fault", "appliance_no_power"],
+  "strategy": [
+    "Ask ap_owner first unless known: the landlord repairs only appliances that came with the flat; a tenant's own appliance goes to management with a short pointer to the manufacturer.",
+    "Then ap_power; completely dead → ap_breaker (self-help: flip it back up).",
+    "Landlord's appliance with power but not working: appliance technician; staff approve.",
+    "At most 3 diagnostic questions, one per message.",
+    "Never tell the tenant to open an appliance. Never state a fact the tenant didn't give."
+  ],
+  "sources": ["Team troubleshooting sheet (appliances)", "Landlord vs. tenant responsibility for fitted kitchens (Mietrecht)"]
+}

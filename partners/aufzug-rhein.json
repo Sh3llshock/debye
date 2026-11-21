@@ -1,0 +1,88 @@
+{
+  "partner_id": "aufzug-rhein",
+  "name": "Aufzugsdienst Rhein",
+  "category": "repair.elevator",
+  "kind": "deliver",
+  "triggers": [
+    "case.repair.elevator"
+  ],
+  "service_area": {
+    "postcodes": [
+      "52062",
+      "52064",
+      "52066",
+      "52068",
+      "52070"
+    ]
+  },
+  "capabilities": {
+    "trades": [
+      "elevator"
+    ]
+  },
+  "eligibility": [
+    {
+      "field": "property.postcode",
+      "op": "in_service_area"
+    }
+  ],
+  "pricing": {
+    "model": "quote",
+    "callout_fee_eur": 0,
+    "hourly_eur": 85
+  },
+  "required_context": [
+    {
+      "key": "address",
+      "source": "property.address",
+      "pii": true,
+      "consent_required": true
+    },
+    {
+      "key": "unit_floor",
+      "source": "unit.floor",
+      "pii": false,
+      "consent_required": false
+    },
+    {
+      "key": "tenant_name",
+      "source": "tenant.name",
+      "pii": true,
+      "consent_required": true
+    },
+    {
+      "key": "tenant_phone",
+      "source": "tenant.phone",
+      "pii": true,
+      "consent_required": true
+    }
+  ],
+  "availability": {
+    "mode": "conversational"
+  },
+  "transport": {
+    "type": "portal",
+    "url": "/partner/aufzug-rhein",
+    "notify": {
+      "channel": "email",
+      "address": "jobs@aufzug-rhein.example"
+    }
+  },
+  "status_events": [
+    "accepted",
+    "declined",
+    "scheduled",
+    "completed",
+    "invoiced"
+  ],
+  "documents_returned": [
+    "visit_report",
+    "invoice"
+  ],
+  "sla": {
+    "urgent_response_hours": 2,
+    "standard_response_hours": 72
+  },
+  "rating": 4.7,
+  "_demo": "Demo partner for the triage branch (data invented)."
+}

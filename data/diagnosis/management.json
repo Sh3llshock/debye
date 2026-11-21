@@ -1,0 +1,107 @@
+{
+  "symptom": "management",
+  "area": "management",
+  "label": "your question",
+  "label_de": "deine Frage",
+  "title": "Request",
+  "case_type": "management.request",
+  "router": {
+    "description": "Not a repair: rent, payments, deposit, utility bill, the lease or contract, moving in or out, parking, noise from neighbours, a dispute with a neighbour, rubbish or cleaning of shared areas, keys for a new flatmate.",
+    "button": "Rent / contract / neighbours",
+    "button_de": "Miete / Vertrag / Nachbarn",
+    "keywords": ["rent", "payment", "pay", "deposit", "invoice", "bill", "utility bill", "service charge", "lease", "contract", "move out", "moving out", "notice period", "terminate", "noise", "noisy", "loud", "music", "party", "neighbour", "neighbor", "dispute", "parking", "miete", "kaution", "nebenkosten", "abrechnung", "vertrag", "mietvertrag", "kündigung", "kündigen", "auszug", "lärm", "laut", "nachbar", "streit", "parkplatz"]
+  },
+  "applies_to": ["question about my rent", "noise complaint", "neighbour dispute", "Frage zur Nebenkostenabrechnung"],
+  "first_question": "mg_topic",
+  "fallback_cause": "other_request",
+  "neutral_message": "I'll pass it to your property manager.",
+  "neutral_message_de": "Ich gebe das an deine Hausverwaltung weiter.",
+  "extraction_hints": "'rent' / 'deposit' / 'utility bill' / 'payment' → mg_topic=rent; 'lease' / 'contract' / 'move out' / 'notice' / 'new flatmate' → mg_topic=contract; 'loud music' / 'noise' / 'party' / 'barking' → mg_topic=noise; 'my neighbour keeps' / 'argument with the neighbour' / 'their bikes in the hallway' → mg_topic=neighbour; anything else administrative → mg_topic=other.",
+  "questions": [
+    {
+      "id": "mg_topic",
+      "text": "Is it about rent or payments, your contract, noise, or a neighbour?",
+      "text_de": "Geht es um Miete oder Zahlungen, deinen Vertrag, Lärm oder einen Nachbarn?",
+      "answers": {"rent": "rent, deposit, bills or payments", "contract": "the lease or contract, moving in or out", "noise": "noise", "neighbour": "a dispute or issue with a neighbour", "other": "something else administrative"},
+      "buttons": {"rent": "Rent / payments", "contract": "Contract", "noise": "Noise", "neighbour": "A neighbour", "other": "Something else"},
+      "buttons_de": {"rent": "Miete / Zahlung", "contract": "Vertrag", "noise": "Lärm", "neighbour": "Nachbar", "other": "Etwas anderes"},
+      "reask": "And is it about rent, your contract, noise or a neighbour?",
+      "reask_de": "Und geht es um Miete, Vertrag, Lärm oder einen Nachbarn?",
+      "fact_words": []
+    }
+  ],
+  "causes": [
+    {
+      "id": "rent_question",
+      "label": "Rent, deposit or payment question",
+      "signals": ["mg_topic=rent"],
+      "ask_order": ["mg_topic"],
+      "outcome": "management",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["mg_topic"],
+      "decisive": true,
+      "tenant_message": "That's one for your property manager, Anna Becker. I've passed it on and she'll get back to you within two working days.",
+      "tenant_message_de": "Das klärt deine Hausverwalterin Anna Becker. Ich habe es weitergegeben, sie meldet sich innerhalb von zwei Werktagen."
+    },
+    {
+      "id": "contract_question",
+      "label": "Lease or contract question (moving in or out, notice, flatmates)",
+      "signals": ["mg_topic=contract"],
+      "ask_order": ["mg_topic"],
+      "outcome": "management",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["mg_topic"],
+      "decisive": true,
+      "tenant_message": "Contract questions go to your property manager, Anna Becker. I've passed it on and she'll get back to you within two working days.",
+      "tenant_message_de": "Vertragsfragen klärt deine Hausverwalterin Anna Becker. Ich habe es weitergegeben, sie meldet sich innerhalb von zwei Werktagen."
+    },
+    {
+      "id": "noise_complaint",
+      "label": "Noise complaint",
+      "signals": ["mg_topic=noise"],
+      "ask_order": ["mg_topic"],
+      "outcome": "management",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["mg_topic"],
+      "decisive": true,
+      "tenant_message": "I've passed this to your property manager, who will follow up with the neighbours. It helps to note dates and times; if it's very loud late at night, the police non-emergency line can help right away.",
+      "tenant_message_de": "Ich habe das an deine Hausverwaltung weitergegeben, sie spricht mit den Nachbarn. Notier dir am besten Datum und Uhrzeit; wenn es spät nachts sehr laut ist, hilft sofort auch die Polizei."
+    },
+    {
+      "id": "neighbour_dispute",
+      "label": "Issue with a neighbour",
+      "signals": ["mg_topic=neighbour"],
+      "ask_order": ["mg_topic"],
+      "outcome": "management",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["mg_topic"],
+      "decisive": true,
+      "tenant_message": "Thanks for telling me. I've passed it to your property manager, who will get in touch with you and, if needed, with the neighbour.",
+      "tenant_message_de": "Danke, dass du es mir sagst. Ich habe es an deine Hausverwaltung weitergegeben, sie meldet sich bei dir und bei Bedarf beim Nachbarn."
+    },
+    {
+      "id": "other_request",
+      "label": "Other administrative request",
+      "signals": ["mg_topic=other"],
+      "ask_order": ["mg_topic"],
+      "outcome": "management",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["mg_topic"],
+      "decisive": true,
+      "tenant_message": "I've passed it to your property manager, Anna Becker, and she'll get back to you within two working days.",
+      "tenant_message_de": "Ich habe es an deine Hausverwalterin Anna Becker weitergegeben, sie meldet sich innerhalb von zwei Werktagen."
+    }
+  ],
+  "likelihood_order": ["noise_complaint", "rent_question", "contract_question", "neighbour_dispute", "other_request"],
+  "strategy": [
+    "Not a repair: no diagnosis questions beyond mg_topic (usually clear from the first message), hand it to property management.",
+    "Never promise an outcome (rent reduction, termination, a warning to the neighbour); the property manager decides.",
+    "At most 1 question. Never state a fact the tenant didn't give."
+  ],
+  "sources": ["reltix property management: what goes to the PM instead of a craftsman"]
+}
