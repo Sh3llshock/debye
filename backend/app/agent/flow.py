@@ -205,6 +205,15 @@ async def request_consent(contact, case_id: str) -> None:
 
 
 async def on_consent(contact, case_id: str, yes: bool) -> None:
+    await _on_consent(contact, case_id, yes)
+    conv = st.conversation(be.attr(contact, "id"))
+    if (conv.triage or {}).get("queued"):  # a second problem from the first message comes next (agent/triage.py)
+        from . import triage
+
+        await triage.after_conclusion(contact, conv)
+
+
+async def _on_consent(contact, case_id: str, yes: bool) -> None:
     conv = st.conversation(be.attr(contact, "id"))
     cs = st.case_state(case_id)
     if not yes:

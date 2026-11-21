@@ -9,7 +9,7 @@
     "description": "Water coming from above or from outside: a dripping or stained ceiling, water coming in around a window frame or through an outside wall when it rains, a leaking roof or skylight.",
     "button": "Ceiling / roof",
     "button_de": "Decke / Dach",
-    "keywords": ["ceiling", "roof", "skylight", "from above", "upstairs", "water stain", "rain comes in", "rain gets in", "when it rains", "decke", "dach", "dachfenster", "von oben", "wasserfleck", "regen kommt rein", "wenn es regnet"]
+    "keywords": ["ceiling", "roof", "skylight", "from above", "upstairs", "water stain", "rain comes in", "rain gets in", "when it rains", "dach", "dachfenster", "von oben", "wasserfleck", "regen kommt rein", "wenn es regnet", "von der decke", "an der decke", "decke tropft", "decke ist nass", "durch die decke"]
   },
   "applies_to": ["water dripping from the ceiling", "stain on the ceiling", "rain coming in", "Wasser tropft von der Decke"],
   "first_question": "rf_rain",

@@ -9,7 +9,7 @@
     "description": "A blocked or slow drain: toilet, sink, shower or bath not draining, water coming back up, gurgling, sewage smell from the drain.",
     "button": "Blocked drain",
     "button_de": "Verstopfter Abfluss",
-    "keywords": ["blocked", "clogged", "clog", "blockage", "won't drain", "wont drain", "doesn't drain", "not draining", "drains slowly", "draining slowly", "slow drain", "backing up", "coming back up", "gurgl", "toilet won't flush", "toilet is blocked", "verstopft", "abfluss", "läuft nicht ab", "läuft schlecht ab", "gluckert"]
+    "keywords": ["blocked", "clogged", "clog", "blockage", "won't drain", "wont drain", "doesn't drain", "not draining", "drains slowly", "draining slowly", "slow drain", "backing up", "coming back up", "gurgl", "toilet won't flush", "toilet is blocked", "verstopft", "abfluss", "läuft nicht ab", "läuft schlecht ab", "gluckert", "drain", "drains slow", "spülbecken läuft", "nicht mehr ab", "gar nicht ab", "abläuft"]
   },
   "applies_to": ["blocked toilet", "sink won't drain", "shower drain slow", "Abfluss verstopft"],
   "first_question": "dr_which",

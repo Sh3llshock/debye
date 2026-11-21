@@ -9,7 +9,7 @@
     "description": "No power or electrical faults inside the flat: power out in the flat or one room, a socket or light not working, the fuse keeps tripping, flickering lights. Burning smell, sparks or a power cut for the whole building are emergencies.",
     "button": "Power / electrics",
     "button_de": "Strom / Elektrik",
-    "keywords": ["no power", "power is out", "power out", "power cut", "no electricity", "electricity", "socket", "sockets", "outlet", "plug", "fuse", "breaker", "tripped", "trips", "light doesn't work", "lights don't work", "lights are off", "lights went out", "light switch", "flicker", "bulb", "kein strom", "strom ist weg", "steckdose", "sicherung", "licht geht nicht", "flackert", "fi-schalter"]
+    "keywords": ["no power", "power is out", "power out", "power cut", "no electricity", "electricity", "socket", "sockets", "outlet", "plug", "fuse", "breaker", "tripped", "trips", "light doesn't work", "lights don't work", "lights are off", "lights went out", "light switch", "flicker", "bulb", "kein strom", "strom ist weg", "steckdose", "sicherung", "licht geht nicht", "flackert", "fi-schalter", "lamp", "lampe", "deckenlampe", "licht", "light stopped", "light has stopped", "light is broken", "light not working", "light won't", "light went out", "light fitting", "ceiling light"]
   },
   "applies_to": ["no power in the flat", "socket doesn't work", "fuse keeps tripping", "kein Strom"],
   "first_question": "el_scope",
