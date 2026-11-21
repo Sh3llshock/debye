@@ -161,13 +161,14 @@ export function Shot({ job, className = 'h-[130px]' }: { job: JobDetail; classNa
     <div className={`relative grid place-items-center overflow-hidden rounded-tile bg-beige-d shadow-ring ${className}`}>
       {photo ? (
         <img src={photo.url} alt={photo.filename} className="absolute inset-0 h-full w-full object-cover" />
+      ) : code === 'F28' ? (
+        <img src="/demo-media/boiler_display_F28.jpg" alt={t('Boiler display')} className="absolute inset-0 h-full w-full object-cover" />
       ) : code ? (
-        // TODO(slop:F13) deliberate boiler illustration, or use public/demo-media/boiler_display_F28.jpg; tokens swapped in as stopgap
         <div className="grid h-[76px] w-[110px] place-items-center rounded-[10px] bg-cream shadow-card">
           <div className="rounded-[6px] border-[3px] border-muted bg-photo-display px-[9px] py-[3px] font-mono text-[18px] font-bold tracking-[2px] text-photo-bg">{code}</div>
         </div>
       ) : (
-        <div className="h-[88px] w-[88px] rounded-full bg-cream shadow-card" /> /* TODO(slop:F13) placeholder tile: flat beige-d with boiler <Icon>, no blob */
+        <Icon name="wrench" className="h-8 w-8 text-muted" />
       )}
     </div>
   )
@@ -295,7 +296,7 @@ export function Story({ job, bordered = true }: { job: JobDetail; bordered?: boo
 function Reason({ ok, head, body }: { ok: boolean; head: string; body: string }) {
   return (
     <li className="grid grid-cols-[24px_1fr] gap-2.5 border-t border-line py-2 leading-[1.4] text-secondary first:border-t-0">
-      <span className={`grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold ${ok ? 'bg-ok text-cream' : 'bg-beige text-muted'}`}>{ok ? <Icon name="check" className="h-3 w-3" /> : <span aria-hidden>{/* TODO(slop:F9) icon: close (new path in icons.tsx) */}–</span>}</span>
+      <span className={`grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold ${ok ? 'bg-ok text-cream' : 'bg-beige text-muted'}`}>{ok ? <Icon name="check" className="h-3 w-3" /> : <Icon name="close" className="h-3 w-3" />}</span>
       <span>
         <b className="font-semibold text-ink">{head}</b>
         {body && (

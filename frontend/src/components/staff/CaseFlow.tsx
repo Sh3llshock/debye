@@ -38,8 +38,7 @@ export function ApprovalChoice({ c, onApprove, onReject }: { c: CaseDetail; onAp
     }
   }
   return (
-    // TODO(slop:F33) replace shadow-lift with shadow-card + 1.5px wine ring (shadow-rec); no big blur
-    <section className="animate-rise mb-[18px] rounded-panel bg-surface p-5 shadow-lift" aria-live="polite">
+    <section className="animate-rise mb-[18px] rounded-panel bg-surface p-5 shadow-card ring-[1.5px] ring-wine" aria-live="polite">
       <h3 className="mb-3 flex items-center justify-between gap-2 text-panel">
         {t('Diagnosed. Approve the partner')}
         <Pill tone="hot">{t('Needs you')}</Pill>

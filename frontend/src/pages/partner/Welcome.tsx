@@ -11,6 +11,14 @@ import { CheckPill, saveLocalProfile, setSession } from './shared'
 
 // ---------------------------------------------------------------- layout: side panel + main
 
+function Tick({ name }: { name: string }) {
+  return (
+    <span className="grid h-7 w-7 flex-none place-items-center rounded bg-wine-tint text-wine">
+      <Icon name={name} className="h-4 w-4" />
+    </span>
+  )
+}
+
 function Side({ children }: { children?: ReactNode }) {
   return (
     <aside className="flex flex-col gap-[22px] border-b border-line bg-surface px-5 py-6 text-secondary md:border-b-0 md:border-r md:px-8 md:py-10">
@@ -18,19 +26,18 @@ function Side({ children }: { children?: ReactNode }) {
         <Logo />
         Debye {t('partners')}
       </Link>
-      {/* TODO(slop:F28) factual headline, no 'thousands' claim: "Repair jobs from reltix properties, with diagnosis, photos and budget attached." */}
-      <h1 className="text-[24px] font-bold leading-[1.15] text-ink md:text-page md:leading-[1.15]">{t('Get repair jobs from thousands of rented homes. No sales, no paperwork.')}</h1>
+      <h1 className="text-[24px] font-semibold leading-[1.15] text-ink md:text-page md:leading-[1.15]">{t('Repair jobs from reltix properties, with diagnosis, photos and budget attached.')}</h1>
       <ul className="m-0 hidden list-none flex-col gap-3 p-0 leading-[1.45] sm:flex">
         <li className="flex gap-2.5">
-          {/* TODO(slop:F1) icon: wrench (wine on wine-tint square) or plain definition list */}
+          <Tick name="wrench" />
           <span><b className="font-semibold text-ink">{t('Jobs that fit you.')}</b> {t('Only your trades, brands and area.')}</span>
         </li>
         <li className="flex gap-2.5">
-          {/* TODO(slop:F1) icon: camera (wine on wine-tint square) or plain definition list */}
+          <Tick name="camera" />
           <span><b className="font-semibold text-ink">{t('Everything up front.')}</b> {t('Photos, error codes, access, an approved budget.')}</span>
         </li>
         <li className="flex gap-2.5">
-          {/* TODO(slop:F1) icon: euro/clock (needs new path in icons.tsx) */}
+          <Tick name="euro" />
           <span><b className="font-semibold text-ink">{t('Paid in 14 days.')}</b> {t('Send a photo of the invoice; we do the rest.')}</span>
         </li>
       </ul>
@@ -57,7 +64,7 @@ function Eyebrow({ children }: { children: ReactNode }) {
   return <div className="text-label font-semibold text-wine">{children}</div>
 }
 function H2({ children }: { children: ReactNode }) {
-  return <h2 className="mb-2 mt-1 text-[28px] font-bold leading-tight md:text-[34px]">{children}</h2>
+  return <h2 className="mb-2 mt-1 text-[28px] font-semibold leading-tight md:text-[34px]">{children}</h2>
 }
 function Lead({ children }: { children: ReactNode }) {
   return <p className="mb-[26px] mt-0 text-[15px] leading-[1.5] text-secondary">{children}</p>
@@ -70,8 +77,7 @@ export function PartnerWelcome() {
     <RegShell>
       <div className="max-w-[660px] pt-6 md:pt-0">
         <Eyebrow>{t('Debye partner portal')}</Eyebrow>
-        {/* TODO(slop:F29) drop 'Welcome'; make the H2 the value statement */}
-        <H2>{t('Welcome')}</H2>
+        <H2>{t('Jobs arrive diagnosed, with photos and a budget.')}</H2>
         <Lead>{t('Heating and plumbing companies get repair jobs from reltix properties, with the diagnosis, photos and an approved budget already done.')}</Lead>
         <div className="flex flex-wrap gap-2.5">
           <Link to="/partner/register" className="btn-primary">
@@ -357,7 +363,7 @@ const AGREE: [string, string, string][] = [
 
 function F({ label, id, req, hint, full, children, bad }: { label: string; id?: string; req?: boolean; hint?: string; full?: boolean; children: ReactNode; bad?: boolean }) {
   return (
-    <div className={`flex min-w-0 flex-col gap-1.5 ${full ? 'sm:col-span-2' : ''} ${bad ? '[&_input]:shadow-[0_0_0_1.5px_#C0262D]' : ''}`}>
+    <div className={`flex min-w-0 flex-col gap-1.5 ${full ? 'sm:col-span-2' : ''} ${bad ? '[&_input]:shadow-[0_0_0_1.5px_theme(colors.red)]' : ''}`}>
       <label htmlFor={id} className="text-label font-medium text-secondary">
         {label}
         {req && <span className="text-red"> *</span>}

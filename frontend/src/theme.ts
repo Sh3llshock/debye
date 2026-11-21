@@ -70,15 +70,16 @@ export const theme = {
     'photo-display': '#A9C49A',
   },
   fonts: {
-    // TODO(slop:F22) Inter is the only face: add a deliberate display face (fonts.display) and apply it to h1-h4
-    sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+    // Fraunces (warm, soft-serif display) over Hanken Grotesk (clear, slightly humanist text).
+    display: ['Fraunces', 'Georgia', '"Times New Roman"', 'serif'],
+    sans: ['"Hanken Grotesk"', '-apple-system', 'BlinkMacSystemFont', '"Helvetica Neue"', 'Arial', 'sans-serif'],
     mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
   },
   // v3 scale: page 30/700, card title 16, body 14, meta 12–13 (rem in tailwind.config.ts so ?stage scales text).
   fontSize: {
-    page: ['30px', { lineHeight: '36px', letterSpacing: '-0.02em' }],
+    page: ['34px', { lineHeight: '40px', letterSpacing: '-0.02em' }],
     stat: ['26px', { lineHeight: '32px', letterSpacing: '-0.02em' }],
-    title: ['24px', { lineHeight: '30px', letterSpacing: '-0.02em' }],
+    title: ['26px', { lineHeight: '32px', letterSpacing: '-0.02em' }],
     head: ['20px', { lineHeight: '26px', letterSpacing: '-0.02em' }],
     panel: ['16px', { lineHeight: '22px', letterSpacing: '-0.01em' }],
     body: ['14px', { lineHeight: '21px' }],

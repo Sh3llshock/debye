@@ -2,9 +2,9 @@
    and partner pages are untouched. */
 .tp {
   /* colours come from the shared v3 tokens in src/index.css (:root); only the mockup's font stacks are local */
-  /* TODO(slop:F23) drop the SF/system stacks; use the shared family tokens from theme.ts (single source of truth, same face as staff/partner) */
-  --sys: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif;
-  --sysd: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", Arial, sans-serif;
+  /* same families as staff/partner (theme.ts fonts) */
+  --sys: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --sysd: Fraunces, Georgia, "Times New Roman", serif;
   font-family: var(--sys); background: var(--bg); color: var(--ink); font-size: 15px; -webkit-font-smoothing: antialiased;
   height: 100vh; height: 100dvh; overflow: hidden; font-variant-numeric: normal;
 }
@@ -18,14 +18,13 @@
 
 /* ---------- login ---------- */
 .tp .login { min-height: 100%; display: grid; place-items: center; padding: 24px; overflow-y: auto; height: 100%; }
-/* TODO(slop:F26) left-aligned login form, smaller logo, specific tagline or none; F32 inputs/button to 10px radius */
-.tp .lbox { width: 100%; max-width: 380px; text-align: center; }
-.tp .lbox .logo { width: 64px; height: 64px; margin: 0 auto 18px; }
-.tp .lbox h1 { font-size: 28px; font-weight: 600; margin-bottom: 6px; }
+.tp .lbox { width: 100%; max-width: 380px; text-align: left; }
+.tp .lbox .logo { width: 36px; height: 36px; margin: 0 0 18px; }
+.tp .lbox h1 { font-size: 30px; font-weight: 600; margin-bottom: 6px; }
 .tp .lbox p { color: var(--body); margin: 0 0 22px; }
-.tp .lbox input { width: 100%; padding: 13px 15px; border-radius: 12px; border: 1px solid var(--beige-d); background: var(--surface); font-size: 15px; margin-bottom: 10px; outline: none; color: var(--ink); }
+.tp .lbox input { width: 100%; padding: 13px 15px; border-radius: 10px; border: 1px solid var(--beige-d); background: var(--surface); font-size: 15px; margin-bottom: 10px; outline: none; color: var(--ink); }
 .tp .lbox input:focus { border-color: var(--wine); box-shadow: 0 0 0 3px rgba(107,31,51,.15); }
-.tp .primary { width: 100%; padding: 13px; border-radius: 12px; border: 0; background: var(--wine); color: var(--cream); font-size: 15px; font-weight: 600; }
+.tp .primary { width: 100%; padding: 13px; border-radius: 10px; border: 0; background: var(--wine); color: var(--cream); font-size: 15px; font-weight: 600; }
 .tp .primary:hover { background: var(--wine-d); }
 .tp .primary:disabled { opacity: .6; }
 .tp .err { color: var(--red); font-size: 14px; margin: 4px 0 10px; }
@@ -34,6 +33,7 @@
 .tp .lang button { border: 0; background: transparent; color: var(--body); font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 980px; }
 .tp .lang button.on { background: var(--surface); color: var(--wine); box-shadow: 0 1px 2px rgba(43,16,24,.08); }
 .tp .login .lang { margin-top: 18px; }
+.tp .lbox .lang { display: inline-flex; }
 
 /* ---------- app shell ---------- */
 .tp .shell { display: flex; flex-direction: column; height: 100%; }
@@ -73,13 +73,11 @@
 .tp .stpill.red { background: var(--red-tint); color: var(--red); }
 
 /* ---------- home ---------- */
-.tp .homewrap { flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 9vh 24px 40px; }
-.tp .hello { text-align: center; margin-bottom: 26px; }
-.tp .hello .logo { width: 52px; height: 52px; margin: 0 auto 16px; }
-.tp .hello h1 { font-size: 32px; font-weight: 600; }
+.tp .homewrap { flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: flex-start; padding: 9vh max(24px, calc((100% - 720px) / 2)) 40px; }
+.tp .hello { text-align: left; margin-bottom: 22px; }
+.tp .hello h1 { font-size: 36px; font-weight: 600; }
 .tp .hello p { color: var(--body); margin: 8px 0 0; font-size: 16px; }
-/* TODO(slop:F32) radius/shadow: use theme.ts radii only (composer 16px, inputs 10px), drop the soft drop-shadow, keep hairline ring */
-.tp .bigin { width: 100%; max-width: 720px; background: var(--surface); border-radius: 24px; box-shadow: 0 0 0 1px var(--line), 0 6px 24px rgba(43,16,24,.06); padding: 14px 14px 10px 20px; }
+.tp .bigin { width: 100%; max-width: 720px; background: var(--surface); border-radius: 16px; box-shadow: 0 0 0 1px var(--line); padding: 14px 14px 10px 20px; }
 .tp .bigin textarea { width: 100%; border: 0; resize: none; background: transparent; font-size: 16px; color: var(--ink); outline: none; min-height: 56px; }
 .tp .bigin textarea::placeholder, .tp .cin textarea::placeholder { color: var(--muted); }
 .tp .binrow { display: flex; align-items: center; gap: 8px; }
@@ -88,7 +86,7 @@
 .tp .sendc:disabled { opacity: .35; cursor: default; }
 .tp .att { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); cursor: pointer; font-size: 17px; flex: none; }
 .tp .att:hover { background: var(--beige); }
-.tp .sugg { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; max-width: 720px; }
+.tp .sugg { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; margin-top: 14px; max-width: 720px; }
 .tp .sugg button { border: 1px solid var(--beige-d); background: transparent; color: var(--body); padding: 8px 14px; border-radius: 980px; font-size: 13px; }
 .tp .sugg button:hover { border-color: var(--wine); color: var(--wine); }
 .tp .opencases { width: 100%; max-width: 720px; margin-top: 40px; }
@@ -107,7 +105,7 @@
 .tp .row.me { justify-content: flex-end; }
 .tp .row > div:last-child { min-width: 0; }
 .tp .bav { width: 30px; height: 30px; border-radius: 50%; background: var(--surface) url("/brand/debye-logo.png") center / 70% no-repeat; box-shadow: 0 0 0 1px var(--line); flex: none; }
-.tp .btext { line-height: 1.58; min-width: 0; max-width: 82%; background: var(--surface); padding: 12px 16px; border-radius: 4px 18px 18px 18px; box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgba(43,16,24,.04); white-space: pre-wrap; overflow-wrap: anywhere; display: inline-block; }
+.tp .btext { line-height: 1.58; min-width: 0; max-width: 82%; background: var(--surface); padding: 12px 16px; border-radius: 4px 18px 18px 18px; box-shadow: 0 0 0 1px var(--line); white-space: pre-wrap; overflow-wrap: anywhere; display: inline-block; }
 .tp .row > div:last-child > .btext { max-width: 100%; }
 .tp .bname { font-size: 12px; font-weight: 600; color: var(--wine); margin-bottom: 3px; white-space: normal; }
 .tp .ubub { background: var(--wine); color: var(--cream); padding: 10px 16px; border-radius: 18px 4px 18px 18px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -132,8 +130,7 @@
 .tp .typing i:nth-child(2) { animation-delay: .15s; } .tp .typing i:nth-child(3) { animation-delay: .3s; }
 @keyframes tp-blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
 .tp .composer { padding: 10px 24px 18px; }
-/* TODO(slop:F32) same as .bigin: 16px radius, no soft drop-shadow */
-.tp .cin { max-width: 740px; margin: 0 auto; display: flex; gap: 8px; align-items: flex-end; background: var(--surface); border-radius: 24px; padding: 6px 6px 6px 10px; box-shadow: 0 0 0 1px var(--line), 0 4px 16px rgba(43,16,24,.05); }
+.tp .cin { max-width: 740px; margin: 0 auto; display: flex; gap: 8px; align-items: flex-end; background: var(--surface); border-radius: 16px; padding: 6px 6px 6px 10px; box-shadow: 0 0 0 1px var(--line); }
 .tp .cin textarea { flex: 1; border: 0; resize: none; background: transparent; font-size: 15px; color: var(--ink); padding: 9px 4px; max-height: 140px; outline: none; min-width: 0; }
 .tp .cnote { max-width: 740px; margin: 8px auto 0; text-align: center; font-size: 12px; color: var(--muted); }
 .tp .cfile { max-width: 740px; margin: 0 auto 8px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--body); }

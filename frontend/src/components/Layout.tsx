@@ -193,7 +193,7 @@ function StaffSearch() {
         onChange={(e) => setQ(e.target.value)}
         placeholder={t('Search cases, flats, tenants…')}
         aria-label={t('Search')}
-        className="w-[260px] rounded-full bg-surface px-3.5 py-2 text-label text-ink shadow-ring outline-none placeholder:text-muted focus:shadow-[0_0_0_2px_#6B1F33]"
+        className="w-[260px] rounded-full bg-surface px-3.5 py-2 text-label text-ink shadow-ring outline-none placeholder:text-muted focus:shadow-[0_0_0_2px_theme(colors.wine)]"
       />
     </form>
   )

@@ -193,8 +193,7 @@ export function NewJobCard({ job, pid, techs, put, toast, onAccepted }: { job: J
             {t('Decline')}
           </button>
           <button
-            /* TODO(slop:F21) one shared .btn-success (bg-ok text-cream) */
-            className="btn bg-ok text-cream hover:bg-ok/90"
+            className="btn-success"
             disabled={busy}
             onClick={() =>
               run(
@@ -287,7 +286,6 @@ export function WipCard({ job, pid, techs, put, toast, onCompleted }: { job: Job
           <div className="flex flex-col gap-1.5">
             <label className="text-label font-medium text-secondary">{t('Photo after the repair')}</label>
             <label className={`btn-secondary min-h-0 cursor-pointer self-start px-3 py-1.5 text-label ${photo ? 'bg-ok-tint text-ok' : ''}`}>
-              {/* TODO(slop:F6) icon: camera */}
               <Icon name="camera" className="mr-1.5 inline h-4 w-4 align-[-3px]" />
               {photo ? photo.name : t('Add photo')}
               <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
@@ -344,8 +342,7 @@ export function WipCard({ job, pid, techs, put, toast, onCompleted }: { job: Job
             {(job.status === 'scheduled' || job.status === 'in_progress') &&
               (report ? (
                 <button
-                  /* TODO(slop:F21) one shared .btn-success */
-                  className="btn bg-ok text-cream hover:bg-ok/90"
+                  className="btn-success"
                   disabled={busy}
                   onClick={() =>
                     run(
@@ -366,7 +363,7 @@ export function WipCard({ job, pid, techs, put, toast, onCompleted }: { job: Job
                   {busy ? t('Sending…') : t('Submit job report')}
                 </button>
               ) : (
-                <button /* TODO(slop:F21) use .btn-success */ className="btn bg-ok text-cream hover:bg-ok/90" onClick={() => setReport(true)}>
+                <button className="btn-success" onClick={() => setReport(true)}>
                   {t('Mark job done')}
                 </button>
               ))}
@@ -417,7 +414,6 @@ export function InvoicePanel({ job, pid, put, toast, onClose }: { job: JobDetail
       {err && <div className="mt-3 rounded-[12px] bg-red-tint px-3.5 py-3 text-red">{err}</div>}
       <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
         <label className="btn-primary cursor-pointer">
-          {/* TODO(slop:F6) icon: upload */}
           <Icon name="upload" className="mr-1.5 inline h-4 w-4 align-[-3px]" />
           {file ? file.name : t('Upload invoice photo / PDF')}
           <input type="file" accept="image/*,.pdf,application/pdf" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
@@ -428,7 +424,7 @@ export function InvoicePanel({ job, pid, put, toast, onClose }: { job: JobDetail
           </button>
         )}
         {file && (
-          <button /* TODO(slop:F21) use .btn-success */ className="btn bg-ok text-cream hover:bg-ok/90" disabled={busy} onClick={() => send(file)}>
+          <button className="btn-success" disabled={busy} onClick={() => send(file)}>
             {busy ? t('Reading…') : t('Submit invoice')}
           </button>
         )}
@@ -449,13 +445,15 @@ export function InvoiceRead({ job }: { job: JobDetail }) {
   return useMemo(
     () =>
       inv.doc ? (
-        // TODO(slop:F8) icon: check (text-ok) for ok state; alert icon (new path) for warn state, replacing the removed check/warning text prefix
-        <div className={`mt-2 rounded-[12px] px-3.5 py-3 font-medium ${tone === 'ok' ? 'bg-ok-tint text-ok' : 'bg-warn-tint text-warn'}`}>
-          {inv.gross != null
-            ? tone === 'ok'
-              ? `${t('{eur} read from {file}', { eur: eur2(inv.gross), file: inv.doc.filename })}${cap != null ? ` · ${t('within the {cap} cost cap', { cap: eur2(cap) })}` : ''} · ${t('paid within 14 days')}`
-              : `${t('{eur} read from {file}', { eur: eur2(inv.gross), file: inv.doc.filename })} · ${t('the property manager checks the difference')}`
-            : `${inv.doc.filename} · ${t('Reading…')}`}
+        <div className={`mt-2 flex items-start gap-2 rounded-[12px] px-3.5 py-3 font-medium ${tone === 'ok' ? 'bg-ok-tint text-ok' : 'bg-warn-tint text-warn'}`}>
+          <Icon name={tone === 'ok' ? 'check' : 'alert'} className={`mt-0.5 h-4 w-4 flex-none ${tone === 'ok' ? 'text-ok' : 'text-warn'}`} />
+          <span>
+            {inv.gross != null
+              ? tone === 'ok'
+                ? `${t('{eur} read from {file}', { eur: eur2(inv.gross), file: inv.doc.filename })}${cap != null ? ` · ${t('within the {cap} cost cap', { cap: eur2(cap) })}` : ''} · ${t('paid within 14 days')}`
+                : `${t('{eur} read from {file}', { eur: eur2(inv.gross), file: inv.doc.filename })} · ${t('the property manager checks the difference')}`
+              : `${inv.doc.filename} · ${t('Reading…')}`}
+          </span>
         </div>
       ) : null,
     [inv.doc, inv.gross, tone, cap], // eslint-disable-line react-hooks/exhaustive-deps

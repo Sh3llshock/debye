@@ -53,8 +53,7 @@ export function ServiceLine({ line, waiting }: { line: LineState; waiting?: stri
         return (
           <li key={s.label} className="relative pr-2">
             <div className="relative flex h-[18px] items-center">
-              {/* TODO(slop:F38) duration-700 -> duration-200 */}
-              {i < n - 1 && <span className={`absolute left-[6px] right-0 top-1/2 h-[3px] -translate-y-1/2 transition-colors duration-700 ${trackDone ? 'bg-life-done' : 'bg-life-track'}`} />}
+              {i < n - 1 && <span className={`absolute left-[6px] right-0 top-1/2 h-[3px] -translate-y-1/2 transition-colors duration-200 ${trackDone ? 'bg-life-done' : 'bg-life-track'}`} />}
               {current ? (
                 <span key={`cur-${line.reached}`} className="animate-station relative z-10 -ml-[3px] h-[18px] w-[18px] rounded-full border-[3px] border-surface bg-life-current ring-1 ring-life-current" />
               ) : (

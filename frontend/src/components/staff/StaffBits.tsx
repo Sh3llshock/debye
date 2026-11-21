@@ -1,6 +1,7 @@
 // Shared pieces of the v3 staff portal (inbox, cases table, case page): status pill, 8-step bar,
 // WhatsApp-style chat, and the case summary card.
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { Icon } from '../icons'
 import type { CaseDetail, CaseSummary, ThreadMessage } from '../../api/types'
 import { explainCodes } from '../../lib/errors'
 import { fmtSlotShort, fmtTime, placeLabel } from '../../lib/format'
@@ -95,9 +96,15 @@ export function ChannelTag({ ch }: { ch: string }) {
 export function lastMessage(d?: CaseDetail): ThreadMessage | null {
   return d?.messages.length ? d.messages[d.messages.length - 1] : null
 }
-export function messagePreview(m: ThreadMessage | null) {
+export function messagePreview(m: ThreadMessage | null): ReactNode {
   if (!m) return ''
-  if (!m.text && m.media?.length) return t('Photo') // TODO(slop:F7) icon: camera (return ReactNode with <Icon name="camera"/>)
+  if (!m.text && m.media?.length)
+    return (
+      <span className="inline-flex items-center gap-1">
+        <Icon name="camera" className="h-3.5 w-3.5" />
+        {t('Photo')}
+      </span>
+    )
   return m.text ? splitButtons(m.text).body : ''
 }
 
@@ -115,8 +122,17 @@ export function Chat({ c, maxH = 'max-h-[520px]' }: { c: CaseDetail; maxH?: stri
       {c.messages.map((m) => {
         const tenant = m.direction === 'in'
         const { body, buttons } = !tenant && m.text ? splitButtons(m.text) : { body: m.text ?? '', buttons: [] as string[] }
-        // TODO(slop:F7) icon: mic / camera before each label
-        const media = m.media?.length ? m.media.map((x) => (x.kind === 'audio' || x.kind === 'voice_note' ? t('Voice note') : t('Photo'))).join(' ') : ''
+        const media = m.media?.length
+          ? m.media.map((x, i) => {
+              const voice = x.kind === 'audio' || x.kind === 'voice_note'
+              return (
+                <span key={i} className="mr-2 inline-flex items-center gap-1">
+                  <Icon name={voice ? 'mic' : 'camera'} className="h-3.5 w-3.5" />
+                  {voice ? t('Voice note') : t('Photo')}
+                </span>
+              )
+            })
+          : null
         return (
           <div key={messageKey(m)} className={`max-w-[78%] rounded-[12px] px-3 py-2 text-body leading-[1.45] shadow-bubble ${tenant ? 'self-end bg-chat-out' : 'self-start bg-surface'} ${isNew(messageKey(m)) ? 'animate-rise' : ''}`}>
             {media && <div className="text-secondary">{media}</div>}

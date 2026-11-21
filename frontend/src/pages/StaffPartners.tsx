@@ -1,4 +1,5 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { SummaryStrip } from '../components/SummaryStrip'
 import { api } from '../api/client'
 import type { JobSummary, PartnerProfile, Technician } from '../api/types'
 import { tradeLabel } from '../components/case/Diagnosis'
@@ -133,20 +134,14 @@ export function StaffPartner() {
           </Link>
         </div>
       </div>
-      {/* TODO(slop:F34) KPI tiles -> one inline summary strip; share one component with StaffUnit */}
-      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {[
-          [p.rating != null ? p.rating.toFixed(1) : '–', t('Rating')],
-          [String(jobs.data?.length ?? '…'), t('Jobs for us')],
-          [String(done), t('Done')],
-          [String(techs.data?.length ?? '…'), t('Technicians')],
-        ].map(([b, s]) => (
-          <div key={s} className="rounded-tile bg-surface px-4 py-3.5 shadow-ring">
-            <b className="block text-stat font-bold">{b}</b>
-            <span className="text-label text-muted">{s}</span>
-          </div>
-        ))}
-      </div>
+      <SummaryStrip
+        items={[
+          { value: p.rating != null ? p.rating.toFixed(1) : '–', label: t('Rating') },
+          { value: String(jobs.data?.length ?? '…'), label: t('Jobs for us') },
+          { value: String(done), label: t('Done') },
+          { value: String(techs.data?.length ?? '…'), label: t('Technicians') },
+        ]}
+      />
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
         <section className="card">
           <h3 className="mb-3 text-panel">{t('Company & contact')}</h3>

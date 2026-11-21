@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { SummaryStrip } from '../components/SummaryStrip'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { UnitDetail } from '../api/types'
@@ -132,20 +133,14 @@ export default function StaffUnit() {
           </p>
         </div>
       </div>
-      {/* TODO(slop:F34) KPI tiles -> one inline summary strip; share one component with StaffPartners */}
-      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {[
-          [String(u.cases.length), t('Cases')],
-          [String(openCases), t('Open now')],
-          [String(invoices.length), t('Invoices')],
-          [lease.rent_cold_eur != null ? fmtEur(lease.rent_cold_eur) : '–', t('Cold rent')],
-        ].map(([b, s]) => (
-          <div key={s} className="rounded-tile bg-surface px-4 py-3.5 shadow-ring">
-            <b className="block text-stat font-bold">{b}</b>
-            <span className="text-label text-muted">{s}</span>
-          </div>
-        ))}
-      </div>
+      <SummaryStrip
+        items={[
+          { value: String(u.cases.length), label: t('Cases') },
+          { value: String(openCases), label: t('Open now') },
+          { value: String(invoices.length), label: t('Invoices') },
+          { value: lease.rent_cold_eur != null ? fmtEur(lease.rent_cold_eur) : '–', label: t('Cold rent') },
+        ]}
+      />
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
         <section className="card">
           <h3 className="mb-3 text-panel">{t('Cases')}</h3>

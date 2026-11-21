@@ -1,6 +1,7 @@
 // v3 partner portal (docs/design/v3/partner-portal1.html): Overview, New jobs, Work in progress,
 // Availability, Done jobs & invoices, Profile, and a single job at /partner/:pid/jobs/:caseId.
 // Real data: /api/partner/{pid}, /jobs, /jobs/{id}, /technicians; live via SSE.
+import { SummaryStrip } from '../../components/SummaryStrip'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../../api/client'
@@ -124,13 +125,15 @@ function Overview({ ctx }: { ctx: Ctx }) {
         sub={`${new Date().toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })} · ${partner?.name ?? pid}`}
         right={<span className="pill bg-ok-tint text-ok"><Icon name="check" className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />{t('Verified partner')}</span>}
       />
-      {/* TODO(slop:F34) KPI tiles -> one inline summary strip (row, dividers, no tiles); keep click targets */}
-      <div className="mb-[18px] grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-        <Kpi label={t('New job requests')} value={fresh.length} onClick={() => go('new')} />
-        <Kpi label={t('Work in progress')} value={wip.length} onClick={() => go('wip')} />
-        <Kpi label={t('Waiting for your invoice')} value={waitInv.length} onClick={() => go('done')} />
-        <Kpi label={t('Invoiced this month')} value={eur0(monthSum)} onClick={() => go('done')} />
-      </div>
+      <SummaryStrip
+        className="mb-[18px]"
+        items={[
+          { label: t('New job requests'), value: fresh.length, onClick: () => go('new') },
+          { label: t('Work in progress'), value: wip.length, onClick: () => go('wip') },
+          { label: t('Waiting for your invoice'), value: waitInv.length, onClick: () => go('done') },
+          { label: t('Invoiced this month'), value: eur0(monthSum), onClick: () => go('done') },
+        ]}
+      />
       {ctx.loading && <Loading what={t('Loading jobs')} />}
       <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
         <OvCard title={t('Next appointment')} right={next ? <span className={`pill ${next.status === 'scheduled' ? 'bg-blue-tint text-blue' : ''}`}>{stageLabel(next)}</span> : null}>
@@ -186,12 +189,10 @@ function Overview({ ctx }: { ctx: Ctx }) {
               ))}
             </ul>
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-1 py-4 text-center">
-              {/* TODO(slop:F36) plain muted left-aligned sentence, no green circle; check as small <Icon> */}
-              <span className="mb-1 grid h-10 w-10 place-items-center rounded-full bg-ok-tint font-bold text-ok"><Icon name="check" className="h-5 w-5" /></span>
-              <b>{t('All caught up')}</b>
-              <span className="text-muted">{t('No new jobs, requests or missing invoices.')}</span>
-            </div>
+            <p className="m-0 flex items-start gap-2 py-2 text-muted">
+              <Icon name="check" className="mt-0.5 h-4 w-4 flex-none text-ok" />
+              {t('No new jobs, requests or missing invoices.')}
+            </p>
           )}
         </OvCard>
         <OvCard title={t('Coming up')}>
@@ -239,14 +240,6 @@ function Overview({ ctx }: { ctx: Ctx }) {
   )
 }
 
-function Kpi({ label, value, onClick }: { label: string; value: ReactNode; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="rounded-panel bg-surface p-[18px] text-left shadow-card hover:bg-beige/40">
-      <span className="text-label text-muted">{label}</span>
-      <b className="mt-1.5 block text-page font-bold">{value}</b>
-    </button>
-  )
-}
 function OvCard({ title: tt, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
   return (
     <section className="card flex min-h-full min-w-0 flex-col">
@@ -441,7 +434,6 @@ function Availability({ ctx }: { ctx: Ctx }) {
                         key={x.iso}
                         disabled={!!off}
                         onClick={() => toggleCell(x.iso, bi)}
-                        // TODO(slop:F15) availability cells: decide the 'off' look (stopgap: beige-d/50 + line-through, no hatching)
                         className={`h-[38px] rounded-[9px] text-[11px] font-semibold ${off ? 'cursor-default bg-beige-d/50 text-muted line-through' : on ? 'bg-ok text-cream' : 'bg-beige text-muted'}`}
                       >
                         {off ? t('Off') : on ? t('Free') : ''}
@@ -462,7 +454,7 @@ function Availability({ ctx }: { ctx: Ctx }) {
               {t('Busy')}
             </span>
             <span>
-              <i className="mr-1.5 inline-block h-3 w-3 rounded-[3px] bg-beige-d/50 align-[-2px]" /> {/* TODO(slop:F15) legend swatch must match the 'off' cell look */}
+              <i className="mr-1.5 inline-block h-3 w-3 rounded-[3px] bg-beige-d/50 align-[-2px]" />
               {t('Time off')}
             </span>
             <span className="sm:ml-auto">{t('{n} free blocks this week · click a block or a day to toggle', { n: nFree })}</span>
@@ -570,7 +562,7 @@ function SlotRequest({ job, ctx }: { job: JobDetail; ctx: Ctx }) {
   const who = firstName(job.tenant?.name) || t('the tenant')
   const slots = freeSlots(tech)
   return (
-    <section className="card mb-4 shadow-[0_0_0_1.5px_#6B1F33]">
+    <section className="card mb-4 shadow-[0_0_0_1.5px_theme(colors.wine)]">
       <CardTitle right={<span className="pill bg-wine-tint text-wine">{t('Please answer')}</span>} className="mb-1.5">
         {t('Slot request')}
       </CardTitle>

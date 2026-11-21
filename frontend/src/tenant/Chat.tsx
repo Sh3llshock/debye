@@ -212,7 +212,6 @@ export default function Chat() {
               {askPhoto && (
                 <div className="actions">
                   <button className="chip solid" onClick={() => photoInput.current?.click()}>
-                    {/* TODO(slop:F2) icon: camera, h-4 w-4 */}
                     <Icon name="camera" className="mr-1.5 inline h-4 w-4 align-[-3px]" />
                     {t('Upload photo')}
                   </button>
@@ -265,8 +264,7 @@ export default function Chat() {
               )}
               <div className="cin">
                 <label className="att" title={t('Add a photo')}>
-                  {/* TODO(slop:F3) icon: paperclip (new path in icons.tsx), 18px, text-muted */}
-                  <Icon name="file" className="h-[18px] w-[18px]" />
+                  <Icon name="paperclip" className="h-[18px] w-[18px]" />
                   <input
                     type="file"
                     accept="image/*"
@@ -319,7 +317,6 @@ function Bubble({ m }: { m: TMessage }) {
                   <img key={d.document_id} src={d.url} alt={t('Photo')} />
                 ) : (
                   <a key={d.document_id} href={d.url} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>
-                    {/* TODO(slop:F5) icon: mic for voice_note, file otherwise */}
                     <Icon name={d.kind === 'voice_note' ? 'mic' : 'file'} className="mr-1 inline h-4 w-4 align-[-3px]" />
                     {d.kind === 'voice_note' ? t('Voice note') : t('File')}
                   </a>
@@ -416,7 +413,6 @@ function Bubble({ m }: { m: TMessage }) {
               .map((d) => (
                 <div key={d.document_id}>
                   <a href={d.url} target="_blank" rel="noreferrer">
-                    {/* TODO(slop:F5) icon: file */}
                     <Icon name="file" className="mr-1 inline h-4 w-4 align-[-3px]" />
                     {d.filename}
                   </a>

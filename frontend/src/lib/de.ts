@@ -652,6 +652,7 @@ export const DE: Record<string, string> = {
   "What we found": "Was wir gefunden haben",
   "You pick a time": "Sie wählen einen Termin",
   "Your home": "Ihr Zuhause",
+  "Report a problem and follow the repair.": "Problem melden und die Reparatur verfolgen.",
   "Your home, your repairs, one place.": "Ihr Zuhause, Ihre Reparaturen, ein Ort.",
   "Your property manager is checking the repair": "Ihre Hausverwaltung prüft die Reparatur",
   "Your property manager will call you": "Ihre Hausverwaltung ruft Sie an",

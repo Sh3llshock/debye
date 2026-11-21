@@ -13,8 +13,8 @@
 @layer base {
   html { -webkit-text-size-adjust: 100%; }
   body { @apply bg-bg font-sans text-body text-ink antialiased; font-variant-numeric: tabular-nums; }
-  /* TODO(slop:F24) widen type contrast (bigger display size, lighter body weight, muted meta) once F22 lands */
-  h1, h2, h3, h4 { @apply font-semibold text-ink; letter-spacing: -0.02em; }
+  h1, h2, h3, h4 { @apply font-display font-semibold text-ink; letter-spacing: -0.015em; }
+  .text-page, .text-title, .text-stat { font-family: theme('fontFamily.display'); }
   a:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible, label:focus-within {
     outline: 2px solid theme('colors.wine');
     outline-offset: 2px;
@@ -30,12 +30,12 @@
   .btn-primary { @apply btn bg-wine text-cream hover:bg-wine-d; }
   .btn-secondary { @apply btn bg-beige hover:bg-beige-d; }
   .btn-ghost { @apply btn bg-transparent shadow-ring hover:bg-beige; }
-  .btn-success { @apply btn-primary; }
+  .btn-success { @apply btn bg-ok text-cream hover:bg-ok/90; }
   .btn-inverse { @apply btn bg-cream text-wine hover:bg-beige; }
   .btn-danger { @apply btn bg-red-tint text-red hover:bg-red hover:text-cream; }
   .link-btn { @apply text-label text-muted underline hover:text-wine; }
   .label { @apply text-meta font-medium text-muted; }
-  .field { @apply w-full rounded bg-surface px-3 py-2.5 text-body text-ink shadow-ring outline-none placeholder:text-muted focus:shadow-[0_0_0_2px_#6B1F33]; }
+  .field { @apply w-full rounded bg-surface px-3 py-2.5 text-body text-ink shadow-ring outline-none placeholder:text-muted focus:shadow-[0_0_0_2px_theme(colors.wine)]; }
   /* A card: surface, 16px radius, hairline ring, no border. */
   .panel { @apply rounded-panel bg-surface shadow-card; }
   .panel-head { @apply flex items-center justify-between gap-4 border-b border-line px-5 py-4; }

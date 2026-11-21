@@ -71,13 +71,11 @@ export default function Home() {
       <div className="app">
         <main>
           <div className="homewrap">
-            {/* TODO(slop:F25) left-align greeting, input under it; drop the extra 52px logo above the greeting (logo stays in the top bar) */}
             <div className="hello">
-              <div className="logo" />
               <h1>
                 {greet()}, {me.contact.first_name}.
               </h1>
-              <p>{t('I’m Debye. What problem do you have at home?')}</p>{/* TODO(slop:F27) say what it does, e.g. "Report a problem and follow the repair." */}
+              <p>{t('Report a problem and follow the repair.')}</p>
             </div>
             <div className="bigin">
               <textarea
