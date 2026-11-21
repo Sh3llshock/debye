@@ -270,7 +270,10 @@ async def _ask_question(ctx: TurnContext, question_id: str, lead_in: str | None 
     if forced and question_id != forced:
         raise ValueError(f"Ask {forced} now (it decides between the causes that fit)")
     cands = diagnosis.question_candidates(ctx.conv)
-    if cands and question_id not in cands[:2] and not (action == "ask" and ident == question_id):
+    from . import planner
+
+    planned = planner.next_question(d) if planner.enabled() else None
+    if cands and question_id not in cands[:2] and not (action == "ask" and ident == question_id)             and question_id != planned:
         raise ValueError(f"{question_id} doesn't help much now; ask {cands[0]} (it splits the causes that fit "
                          f"the answers so far)")
     if ctx.conv.step == st.DIAGNOSIS and diagnosis.open_question(d) and ctx.sent \

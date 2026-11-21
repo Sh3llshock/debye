@@ -336,6 +336,12 @@ def next_step(conv: st.Conversation) -> tuple[str, str, float]:
     return "conclude", (ranked[0]["id"] if ranked else "boiler_fault"), 0.4
 
 
+def _plan_guidance(d: dict) -> dict | None:
+    from . import planner
+
+    return planner.guidance(d)
+
+
 def context_block(conv: st.Conversation) -> dict:
     """What the model sees in <diagnosis>."""
     d = conv.diagnosis
@@ -353,6 +359,7 @@ def context_block(conv: st.Conversation) -> dict:
         "open_question": open_question(d),
         "clarifications_left": max(0, 2 - d.get("clarifications", 0)),
         "conflicts": {q: {"earlier": d["answers"].get(q), "now": k} for q, k in (d.get("conflicts") or {}).items()},
+        **({"plan": _plan_guidance(d)} if d.get("plan") else {}),
         "language": conv.lang,
         "questions_asked": len(d["asked"]),
         "max_questions": MAX_QUESTIONS,
@@ -580,7 +587,15 @@ async def begin(contact, conv: st.Conversation, complaint: str | None, images: l
     if code:  # "the display shows F.28" in the first message (or a photo of it) answers q_display
         conv.error_code = conv.error_code or code
         conv.diagnosis["answers"]["q_display"] = "code"
-    await extract_answers(conv, complaint)
+    from . import planner
+
+    if planner.enabled():  # experiment: holding message, then a stronger model plans (in parallel with extraction)
+        import asyncio
+
+        await out.text(contact, conv.case_id, say(conv, *planner.HOLDING))
+        await asyncio.gather(extract_answers(conv, complaint), planner.make_plan(contact, conv, "first message"))
+    else:
+        await extract_answers(conv, complaint)
     if await apply_centrix_shortcuts(contact, conv):
         return False
     return await loop.run_tenant_turn(

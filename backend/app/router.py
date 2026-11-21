@@ -214,7 +214,13 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
     if in_diagnosis and conv.diagnosis.get("conflict_open"):
         diagnosis.resolve_conflict_reply(conv, text)  # "no", "everything": resolved or moved on, never looped
     if in_diagnosis and text:
+        before = dict(conv.diagnosis["answers"])
         await diagnosis.extract_answers(conv, text)  # evidence first; the agent then asks/concludes
+        from app.agent import planner
+
+        if planner.enabled() and planner.should_replan(conv, before):
+            conv.diagnosis["replanned"] = True  # once: the answers left the plan
+            await planner.make_plan(contact, conv, f"re-plan after: {text[:80]}")
     if in_diagnosis:
         settled = diagnosis.decisive_self_help(conv.diagnosis, conv.error_code)
         if settled:
