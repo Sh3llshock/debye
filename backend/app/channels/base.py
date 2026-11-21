@@ -178,9 +178,33 @@ def remember(phone: str, channel_name: str) -> None:
     _last_channel[normalize_phone(phone)] = channel_name
 
 
+def _last_inbound_channel(phone: str) -> str | None:
+    """After a restart: the channel of the contact's latest inbound message (e.g. "web")."""
+    try:
+        from sqlmodel import select
+
+        from app.db import get_session
+        from app.models import Contact, Message
+
+        with get_session() as s:
+            c = s.exec(select(Contact).where(Contact.phone_e164 == phone)).first()
+            if not c:
+                return None
+            m = s.exec(select(Message).where(Message.contact_id == c.id, Message.direction == "in")
+                       .order_by(Message.ts.desc(), Message.id.desc())).first()  # type: ignore[attr-defined]
+            return m.channel if m else None
+    except Exception:
+        return None
+
+
 def channel_for(phone: str) -> Channel:
     """Channel the contact last used; WhatsApp by default."""
-    name = _last_channel.get(normalize_phone(phone), "whatsapp")
+    phone = normalize_phone(phone)
+    if phone not in _last_channel:
+        last = _last_inbound_channel(phone)
+        if last in _channels and last != "whatsapp":
+            _last_channel[phone] = last
+    name = _last_channel.get(phone, "whatsapp")
     if name not in _channels:
         name = "whatsapp"
     return _channels[name]
