@@ -22,7 +22,7 @@
   "follow_up_no": "Still wet",
   "resolved_message": "Good to hear. Message me any time if it starts again.",
   "resolved_message_de": "Schön. Melde dich jederzeit, wenn es wieder anfängt.",
-  "extraction_hints": "'from the ceiling' → rf_where=ceiling; 'around the window frame' / 'under the window' → rf_where=window; 'through the wall' → rf_where=wall; 'only when it rains' / 'since the storm' → rf_rain=yes; 'it's dry outside' / 'not raining' → rf_rain=no; 'top floor' / 'under the roof' / 'attic flat' → rf_top=yes; 'there's a flat above me' → rf_top=no.",
+  "extraction_hints": "'from the ceiling' → rf_where=ceiling; 'around the window frame' / 'under the window' → rf_where=window; 'through the wall' → rf_where=wall; 'only when it rains' / 'since the storm' → rf_rain=yes; 'it's dry outside' / 'not raining' → rf_rain=no; 'top floor' / 'under the roof' / 'attic flat' → rf_top=yes; 'there's a flat above me' → rf_top=no. rf_where=wall only when the tenant says outside or exterior wall (or Außenwand); 'my living room wall' alone is unknown.",
   "questions": [
     {
       "id": "rf_rain",

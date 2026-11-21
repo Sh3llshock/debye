@@ -250,7 +250,15 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
                 return False
     if text and not images and not in_diagnosis and await flow.answer_open_question(contact, conv, text):
         return False  # answer to a partner's question (feature 4, needs_info)
-    return bool(await loop.run_tenant_turn(contact, text, images))
+    consent_open = conv.step == st.CONSENT and conv.case_id and text and "?" in text \
+        and diagnosis.area_of(conv) != diagnosis.HOT_WATER and bool(conv.diagnosis)
+    case_id = conv.case_id
+    interrupted = bool(await loop.run_tenant_turn(contact, text, images))
+    if consent_open and not interrupted and conv.step == st.CONSENT and conv.case_id == case_id:
+        # a question back ("how long will that take?") at the consent step: answered, then ask consent again
+        conv.asked_at[st.CONSENT] = 0
+        await flow.request_consent(contact, case_id)
+    return interrupted
 
 
 def _attach(case_id: str, kind: str, path: str, mime: str, filename: str | None = None) -> str | None:

@@ -96,7 +96,7 @@
       ]
     },
     {
-      "id": "ot_alarm",
+      "id": "ot_alarm", "ask_only": true,
       "text": "Is the smoke alarm beeping briefly every minute or so, or sounding a loud continuous alarm?",
       "text_de": "Piept der Rauchmelder etwa jede Minute kurz, oder gibt er einen lauten Daueralarm?",
       "answers": {

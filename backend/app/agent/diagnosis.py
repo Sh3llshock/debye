@@ -879,6 +879,10 @@ def explicit_enough(qid: str, key: str, text: str | None) -> bool:
     return bool(_ONLY_SHOWER_RE.search(t)) if key == "only_shower" else bool(_EVERYWHERE_RE.search(t))
 
 
+SELF_CONTRA_RE = re.compile(r"^\W*(no|nope|nah|nein)\b.{0,80}\b(although|though|but|actually|then again|aber|obwohl|"
+                            r"allerdings)\b", re.IGNORECASE | re.DOTALL)
+
+
 async def extract_answers(conv: st.Conversation, text: str | None) -> dict:
     """Records what a free-text message already answers (only questions not answered yet)."""
     d = conv.diagnosis
@@ -886,7 +890,9 @@ async def extract_answers(conv: st.Conversation, text: str | None) -> dict:
         return {}
     use_area(d)
     d["last_text"] = text
-    open_qs = [q for q in kb()["questions"] if q["id"] not in d["answers"] or q["id"] in ("q_hot_water_use", "q_scope")]
+    asked_open = open_question(d)
+    open_qs = [q for q in kb()["questions"] if (q["id"] not in d["answers"] or q["id"] in ("q_hot_water_use", "q_scope"))
+               and (not q.get("ask_only") or q["id"] == asked_open)]  # ask_only: never inferred before it's asked
     if not open_qs:
         return {}
     found = await _classify_answers(text, open_qs)
@@ -897,6 +903,11 @@ async def extract_answers(conv: st.Conversation, text: str | None) -> dict:
         if qid in d["answers"] and key in (questions().get(qid) or {}).get("answers", {}) and key != d["answers"][qid]:
             record(conv, qid, key)
     open_q = open_question(d)
+    if not is_hot_water() and open_q in valid and valid[open_q] != "no" \
+            and "no" in (questions().get(open_q) or {}).get("answers", {}) and SELF_CONTRA_RE.search(text):
+        # "No, only the sink. Although when I flush, it comes up in the shower": both in one message, clarify
+        d["answers"][open_q] = "no"
+        d.setdefault("conflicts", {})[open_q] = valid.pop(open_q)
     d["answers"].update(valid)
     if open_q in valid:  # the answer to the open question is explicit (a later inference can't flip it)
         d.setdefault("explicit", []).append(open_q)

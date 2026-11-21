@@ -16,7 +16,7 @@
   "fallback_cause": "other_request",
   "neutral_message": "I'll pass it to your property manager.",
   "neutral_message_de": "Ich gebe das an deine Hausverwaltung weiter.",
-  "extraction_hints": "'rent' / 'deposit' / 'utility bill' / 'payment' → mg_topic=rent; 'lease' / 'contract' / 'move out' / 'notice' / 'new flatmate' → mg_topic=contract; 'loud music' / 'noise' / 'party' / 'barking' → mg_topic=noise; 'my neighbour keeps' / 'argument with the neighbour' / 'their bikes in the hallway' → mg_topic=neighbour; anything else administrative → mg_topic=other.",
+  "extraction_hints": "'rent' / 'deposit' / 'utility bill' / 'payment' → mg_topic=rent; 'lease' / 'contract' / 'move out' / 'notice' / 'new flatmate' → mg_topic=contract; 'loud music' / 'noise' / 'party' / 'barking' → mg_topic=noise; 'my neighbour keeps' / 'argument with the neighbour' / 'their bikes in the hallway' → mg_topic=neighbour; anything else administrative → mg_topic=other. 'A problem with my neighbour' alone does not say what happened (noise, parking, a dispute): mg_topic is unknown until the tenant says what it is about.",
   "questions": [
     {
       "id": "mg_topic",
