@@ -257,6 +257,7 @@ export const DE_PARTNER: Record<string, string> = {
   'What the tenant told us': 'Was uns der Mieter gesagt hat',
   'No summary yet.': 'Noch keine Zusammenfassung.',
   'Show the case history ({n} steps)': 'Fallverlauf anzeigen ({n} Schritte)',
+  'Show the case history (1 step)': 'Fallverlauf anzeigen (1 Schritt)',
   'How we got to the diagnosis': 'Wie wir zur Diagnose kamen',
   'Display shows {code}': 'Display zeigt {code}',
   'Device known from the records': 'Gerät aus den Stammdaten bekannt',
