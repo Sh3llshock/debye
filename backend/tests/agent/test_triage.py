@@ -386,3 +386,11 @@ def test_emergency_follow_ups_acknowledge_once_without_repeating_112(client, svc
     assert t[2].startswith("Noted.") and sum("112" in x for x in t) == 1
     client.post("/webhooks/whatsapp", json=wa("now there is smoke coming out"))
     assert "112" in texts(client)[-1]  # danger again: the safety step again
+
+
+def test_model_first_one_question_per_message(client, svc, monkeypatch):
+    from app.agent import tools
+
+    conv, ctx = _mf(svc, monkeypatch, "electrics", "no power in kitchen")
+    with pytest.raises(ValueError, match="ONE question"):
+        asyncio.run(tools._ask_free(ctx, "Is the power out in the whole flat? Are the neighbours dark too?", []))
