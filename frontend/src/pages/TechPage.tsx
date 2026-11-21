@@ -4,7 +4,7 @@ import { api } from '../api/client'
 import type { JobDetail } from '../api/types'
 import { TechLayout } from '../components/Layout'
 import { Icon } from '../components/icons'
-import { Chip, ErrorBox, Loading, Mascot, StatusChip } from '../components/ui'
+import { Chip, ErrorBox, Loading, StatusChip } from '../components/ui'
 import { jobTitle } from '../lib/errors'
 import { floorLabel, fmtSlot } from '../lib/format'
 import { t } from '../lib/i18n'
@@ -47,17 +47,16 @@ export default function TechPage() {
       <div className="mx-auto max-w-2xl">
         {caseId ? (
           <>
-            <Link to={`/tech/${techId}`} className="mb-3 inline-block font-semibold text-action">
+            <Link to={`/tech/${techId}`} className="crumb mb-3 inline-block no-underline hover:text-wine">
               ← {t('My jobs')}
             </Link>
             <TechJob key={caseId} techId={techId} caseId={caseId} />
           </>
         ) : (
           <>
-            <div className="mb-4 flex items-center gap-4">
-              <Mascot pose="waving" alt="Debye" className="h-20 w-20" />
+            <div className="mb-[18px] flex items-center gap-4">
               <div>
-                <h1 className="text-page">{first ? t('Hi {name}', { name: first }) : t('My jobs')}</h1>
+                <h1 className="text-page font-bold">{first ? t('Hi {name}', { name: first }) : t('My jobs')}</h1>
                 <p className="text-body-sm text-secondary">{t('Jobs your dispatcher assigned to you. Debye keeps the resident informed.')}</p>
               </div>
             </div>
@@ -70,7 +69,7 @@ export default function TechPage() {
                   const step = techStep(j.status)
                   return (
                     <li key={j.case_id} className="border-b border-line last:border-b-0">
-                      <Link to={`/tech/${techId}/jobs/${j.case_id}`} className={`block px-5 py-4 hover:bg-sub ${isNew(j.case_id + j.status) ? 'animate-enter' : ''}`}>
+                      <Link to={`/tech/${techId}/jobs/${j.case_id}`} className={`block px-5 py-4 hover:bg-[rgba(107,31,51,.035)] ${isNew(j.case_id + j.status) ? 'animate-enter' : ''}`}>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold">{jobTitle(j.title, j.error_code, j.error_label)}</span>
                           {j.priority === 'urgent' && <Chip tone="negative">{t('Urgent')}</Chip>}
@@ -154,7 +153,7 @@ function ConfirmBlock({ techId, job, onChange }: { techId: string; job: JobDetai
         <>
           <p className="mt-2 text-body-sm text-secondary">{t('{who} picked this time on WhatsApp. Confirm, and Debye confirms the visit to {who}.', { who })}</p>
           <button
-            className="btn-primary mt-4 h-14 w-full text-panel"
+            className="btn-primary mt-4 min-h-[52px] w-full text-panel"
             disabled={busy}
             onClick={async () => {
               setBusy(true)
@@ -173,7 +172,7 @@ function ConfirmBlock({ techId, job, onChange }: { techId: string; job: JobDetai
           <Err err={err} />
         </>
       ) : ['scheduled', 'in_progress'].includes(job.status) ? (
-        <p className="mt-3 flex items-center gap-2 rounded border border-positive bg-positive-soft px-3 py-2 text-positive">
+        <p className="mt-3 flex items-center gap-2 rounded bg-ok-tint px-3 py-2 text-ok">
           <Icon name="check" className="h-5 w-5" /> {t('Confirmed. Debye told {who}.', { who })}
         </p>
       ) : ['completed', 'invoiced', 'closed'].includes(job.status) ? (

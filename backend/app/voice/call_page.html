@@ -5,40 +5,49 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Call Debye</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=Libre+Baskerville&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="/favicon.png" type="image/png">
 <style>
-  /* colours from frontend/src/theme.ts */
-  :root { --bg:#FAF6F2; --surface:#FFFFFF; --line:#E7DFD7; --ink:#1A1A1A; --heading:#330933;
-          --muted:#6B6B6B; --plum:#330933; --violet:#8332AC; --violet-soft:#F1E6F7;
-          --danger:#B42318; --success:#1E7A46; }
+  /* v3 tokens, same values as frontend/src/theme.ts */
+  :root { --bg:#FAF8F5; --surface:#FDFCFA; --ink:#2B1018; --body:#5A4744; --muted:#8E807A; --line:rgba(74,20,36,.10);
+          --wine:#6B1F33; --wine-d:#571828; --wine-tint:#F5EBED; --beige:#EFE8DF; --beige-d:#E2D8CB;
+          --ok:#2F7D4F; --red:#C0262D; --cream:#FDFAF7; }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 "IBM Plex Sans", system-ui, sans-serif;
-         min-height:100vh; display:flex; justify-content:center; padding:32px 16px; }
-  main { width:100%; max-width:440px; background:var(--surface); border:1px solid var(--line);
-         border-radius:20px; padding:28px 24px; text-align:center; }
-  img.mascot { width:132px; height:132px; object-fit:contain; }
-  h1 { font-family:"Libre Baskerville", Georgia, serif; color:var(--heading); font-size:26px; margin:8px 0 2px; }
-  .sub { color:var(--muted); margin:0 0 20px; }
-  button { font:inherit; font-weight:600; border:0; border-radius:999px; padding:14px 28px; cursor:pointer;
-           color:#fff; background:var(--plum); min-width:200px; }
-  button.end { background:var(--danger); }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+         -webkit-font-smoothing:antialiased; min-height:100vh; display:flex; flex-direction:column; align-items:center; }
+  header { width:100%; display:flex; align-items:center; gap:9px; padding:12px 28px; border-bottom:1px solid var(--line);
+           font:600 19px Inter, sans-serif; letter-spacing:-.02em; }
+  header img { width:28px; height:28px; }
+  header small { font:500 12px Inter, sans-serif; color:var(--muted); margin-left:2px; letter-spacing:0; }
+  main { width:calc(100% - 32px); max-width:440px; margin:32px 16px; background:var(--surface); border-radius:16px;
+         box-shadow:0 0 0 1px var(--line), 0 1px 3px rgba(43,16,24,.03); padding:28px 24px; text-align:center; }
+  img.logo { width:72px; height:72px; border-radius:50%; }
+  h1 { color:var(--ink); font-size:30px; font-weight:700; letter-spacing:-.02em; margin:12px 0 2px; }
+  .sub { color:var(--body); margin:0 0 20px; }
+  button { font:inherit; font-weight:500; font-size:15px; border:0; border-radius:980px; padding:13px 28px; cursor:pointer;
+           color:var(--cream); background:var(--wine); min-width:200px; }
+  button:hover { background:var(--wine-d); }
+  button.end { background:var(--red); }
   button:disabled { opacity:.5; cursor:default; }
   #status { margin:14px 0 0; color:var(--muted); min-height:24px; }
-  #status.live { color:var(--success); }
-  .pulse { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--success);
+  #status.live { color:var(--ok); }
+  .pulse { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--ok);
            margin-right:6px; animation:p 1.2s infinite; vertical-align:middle; }
   @keyframes p { 50% { opacity:.25; } }
-  #log { text-align:left; margin-top:20px; max-height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
-  .msg { padding:8px 12px; border-radius:14px; max-width:85%; font-size:15px; }
-  .ai { background:var(--violet-soft); align-self:flex-start; }
-  .user { background:#EFEAE2; align-self:flex-end; }
-  .who { margin-top:18px; font-size:14px; color:var(--muted); }
-  select { font:inherit; padding:4px 8px; border-radius:8px; border:1px solid var(--line); }
+  #log { text-align:left; margin-top:20px; max-height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;
+         background:#EFEAE2; border-radius:16px; padding:0; }
+  #log:not(:empty) { padding:16px; }
+  .msg { padding:8px 12px; border-radius:12px; max-width:78%; font-size:14px; box-shadow:0 1px .5px rgba(0,0,0,.1); }
+  .ai { background:var(--surface); align-self:flex-start; }
+  .user { background:#D9FDD3; align-self:flex-end; }
+  .who { margin-top:18px; font-size:13px; color:var(--muted); }
+  select { font:inherit; padding:5px 10px; border-radius:980px; border:0; background:var(--beige); color:var(--ink); }
 </style>
 </head>
 <body>
+<header><img src="/brand/debye-logo.png" alt="" onerror="this.style.display='none'">Debye<small>Tenant line</small></header>
 <main>
-  <img class="mascot" src="/mascot/debye-mascot-waving.png" alt="" onerror="this.style.display='none'">
+  <img class="logo" src="/brand/debye-avatar.png" alt="" onerror="this.style.display='none'">
   <h1>Call Debye</h1>
   <p class="sub">AI assistant by reltix · same case as on WhatsApp</p>
   <button id="btn">📞 Call</button>

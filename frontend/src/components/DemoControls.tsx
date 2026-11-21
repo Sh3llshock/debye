@@ -10,13 +10,13 @@ function TextSize() {
   return (
     <div className="flex items-center gap-2">
       <span className="text-label text-muted">Text</span>
-      <button className="btn-ghost h-8 px-3" disabled={scale <= STAGE_MIN} onClick={() => step(-0.05)} aria-label="Smaller text">
+      <button className="btn-ghost min-h-0 px-3 py-1" disabled={scale <= STAGE_MIN} onClick={() => step(-0.05)} aria-label="Smaller text">
         A−
       </button>
       <button className="min-w-[3.5rem] text-label font-semibold" onClick={() => setScale(setStageScale(1))} title="Reset to 100 %">
         {Math.round(scale * 100)}%
       </button>
-      <button className="btn-ghost h-8 px-3" disabled={scale >= STAGE_MAX} onClick={() => step(0.05)} aria-label="Bigger text">
+      <button className="btn-ghost min-h-0 px-3 py-1" disabled={scale >= STAGE_MAX} onClick={() => step(0.05)} aria-label="Bigger text">
         A+
       </button>
     </div>
@@ -60,12 +60,12 @@ export function DemoControls() {
   }
 
   if (!open)
-    return <button aria-label="Demo controls" onClick={() => setOpen(true)} className="fixed bottom-20 md:bottom-3 right-3 z-50 h-4 w-4 rounded-full bg-line opacity-40 hover:opacity-100" />
+    return <button aria-label="Demo controls" onClick={() => setOpen(true)} className="fixed bottom-3 right-3 z-50 h-4 w-4 rounded-full bg-beige-d opacity-50 hover:bg-wine hover:opacity-100" />
 
   return (
-    <div className="fixed bottom-20 right-3 z-50 w-80 rounded-panel border border-line bg-surface p-4 shadow-pop md:bottom-3">
+    <div className="fixed bottom-3 right-3 z-50 w-80 max-w-[calc(100vw-24px)] rounded-panel bg-surface p-4 shadow-pop ring-1 ring-line">
       <div className="mb-3 flex items-center justify-between">
-        <span className="label">Demo controls</span>
+        <span className="flex items-center gap-2 text-panel font-semibold"><img src="/brand/debye-logo.png" alt="" className="h-5 w-5" />Demo controls</span>
         <button className="text-muted" onClick={() => setOpen(false)}>✕</button>
       </div>
       <div className="flex flex-col gap-2">

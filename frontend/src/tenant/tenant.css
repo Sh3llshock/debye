@@ -1,0 +1,185 @@
+/* Tenant portal, from docs/design/v3/tenant-portal1.html. Everything is scoped under .tp so the staff
+   and partner pages are untouched. */
+.tp {
+  /* colours come from the shared v3 tokens in src/index.css (:root); only the mockup's font stacks are local */
+  --sys: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif;
+  --sysd: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--sys); background: var(--bg); color: var(--ink); font-size: 15px; -webkit-font-smoothing: antialiased;
+  height: 100vh; height: 100dvh; overflow: hidden; font-variant-numeric: normal;
+}
+.tp *, .tp *::before, .tp *::after { box-sizing: border-box; }
+.tp h1, .tp h2, .tp h3 { font-family: var(--sysd); margin: 0; letter-spacing: -0.02em; color: var(--ink); }
+.tp button, .tp input, .tp textarea { font-family: var(--sys); }
+.tp button { cursor: pointer; }
+.tp button:disabled { cursor: default; }
+.tp :focus-visible { outline: 2px solid var(--wine); outline-offset: 2px; }
+.tp .logo { width: 28px; height: 28px; background: url("/brand/debye-logo.png") center / contain no-repeat; flex: none; }
+
+/* ---------- login ---------- */
+.tp .login { min-height: 100%; display: grid; place-items: center; padding: 24px; overflow-y: auto; height: 100%; }
+.tp .lbox { width: 100%; max-width: 380px; text-align: center; }
+.tp .lbox .logo { width: 64px; height: 64px; margin: 0 auto 18px; }
+.tp .lbox h1 { font-size: 28px; font-weight: 600; margin-bottom: 6px; }
+.tp .lbox p { color: var(--body); margin: 0 0 22px; }
+.tp .lbox input { width: 100%; padding: 13px 15px; border-radius: 12px; border: 1px solid var(--beige-d); background: var(--surface); font-size: 15px; margin-bottom: 10px; outline: none; color: var(--ink); }
+.tp .lbox input:focus { border-color: var(--wine); box-shadow: 0 0 0 3px rgba(107,31,51,.15); }
+.tp .primary { width: 100%; padding: 13px; border-radius: 12px; border: 0; background: var(--wine); color: var(--cream); font-size: 15px; font-weight: 600; }
+.tp .primary:hover { background: var(--wine-d); }
+.tp .primary:disabled { opacity: .6; }
+.tp .err { color: var(--red); font-size: 14px; margin: 4px 0 10px; }
+.tp .lnote { font-size: 13px; color: var(--muted); margin-top: 16px; }
+.tp .lang { display: inline-flex; gap: 2px; background: var(--beige); border-radius: 980px; padding: 2px; }
+.tp .lang button { border: 0; background: transparent; color: var(--body); font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 980px; }
+.tp .lang button.on { background: var(--surface); color: var(--wine); box-shadow: 0 1px 2px rgba(43,16,24,.08); }
+.tp .login .lang { margin-top: 18px; }
+
+/* ---------- app shell ---------- */
+.tp .shell { display: flex; flex-direction: column; height: 100%; }
+.tp .top { display: flex; align-items: center; gap: 16px; padding: 12px 28px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.tp .tbrand { display: flex; align-items: center; gap: 9px; font: 600 19px var(--sysd); border: 0; background: none; color: var(--ink); padding: 0; flex: none; }
+.tp .tabs { display: flex; gap: 6px; margin-left: 18px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+.tp .tabs::-webkit-scrollbar { display: none; }
+.tp .tab { border: 0; background: transparent; color: var(--body); padding: 7px 13px; border-radius: 980px; font-size: 13.5px; font-weight: 500; white-space: nowrap; display: flex; align-items: center; gap: 7px; }
+.tp .tab:hover { background: var(--beige); }
+.tp .tab.on { background: var(--wine-tint); color: var(--wine); }
+.tp .tab .dotst { width: 7px; height: 7px; }
+.tp .tuser { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 14px; white-space: nowrap; }
+.tp .tuser span { color: var(--muted); font-size: 12.5px; }
+.tp .tuser .logout { margin-left: 4px; }
+.tp .app { display: grid; grid-template-columns: 1fr; flex: 1; min-height: 0; }
+.tp .app.withpanel { grid-template-columns: 1fr 340px; }
+.tp .dotst { width: 7px; height: 7px; border-radius: 50%; background: var(--wine); flex: none; }
+.tp .dotst.ok { background: var(--ok); } .tp .dotst.wait { background: #C9B9A6; }
+.tp .uav { width: 32px; height: 32px; border-radius: 50%; background: var(--wine); color: var(--cream); display: grid; place-items: center; font-weight: 600; font-size: 14px; flex: none; }
+.tp .logout { margin-left: auto; border: 0; background: transparent; color: var(--muted); font-size: 12px; }
+.tp .logout:hover { color: var(--wine); }
+
+.tp main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.tp .topline { display: flex; align-items: center; gap: 12px; padding: 16px 28px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.tp .topline > div { min-width: 0; }
+.tp .back { border: 0; background: var(--beige); color: var(--body); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; flex: none; }
+.tp .topline b { font: 600 18px var(--sysd); }
+.tp .topline span { color: var(--muted); font-size: 13px; }
+.tp .topline .tmini { display: none; }
+.tp .mini { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin-top: 12px; }
+.tp .mini i { height: 4px; border-radius: 2px; background: var(--beige-d); } .tp .mini i.d { background: var(--ok); } .tp .mini i.n { background: var(--wine); }
+.tp .closedlist { margin-top: 26px; }
+.tp .closedlist .cl { display: flex; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: 12px; font-size: 14px; border: 0; background: transparent; width: 100%; text-align: left; color: var(--ink); }
+.tp .closedlist .cl:hover { background: var(--beige); } .tp .closedlist .cl span { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.tp .stpill { margin-left: auto; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 980px; background: var(--wine-tint); color: var(--wine); white-space: nowrap; flex: none; }
+.tp .stpill.ok { background: var(--ok-tint); color: var(--ok); }
+.tp .stpill.red { background: var(--red-tint); color: var(--red); }
+
+/* ---------- home ---------- */
+.tp .homewrap { flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 9vh 24px 40px; }
+.tp .hello { text-align: center; margin-bottom: 26px; }
+.tp .hello .logo { width: 52px; height: 52px; margin: 0 auto 16px; }
+.tp .hello h1 { font-size: 32px; font-weight: 600; }
+.tp .hello p { color: var(--body); margin: 8px 0 0; font-size: 16px; }
+.tp .bigin { width: 100%; max-width: 720px; background: var(--surface); border-radius: 24px; box-shadow: 0 0 0 1px var(--line), 0 6px 24px rgba(43,16,24,.06); padding: 14px 14px 10px 20px; }
+.tp .bigin textarea { width: 100%; border: 0; resize: none; background: transparent; font-size: 16px; color: var(--ink); outline: none; min-height: 56px; }
+.tp .bigin textarea::placeholder, .tp .cin textarea::placeholder { color: var(--muted); }
+.tp .binrow { display: flex; align-items: center; gap: 8px; }
+.tp .binrow .hint { font-size: 12px; color: var(--muted); }
+.tp .sendc { margin-left: auto; width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--wine); color: var(--cream); font-size: 16px; flex: none; }
+.tp .sendc:disabled { opacity: .35; cursor: default; }
+.tp .att { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); cursor: pointer; font-size: 17px; flex: none; }
+.tp .att:hover { background: var(--beige); }
+.tp .sugg { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; max-width: 720px; }
+.tp .sugg button { border: 1px solid var(--beige-d); background: transparent; color: var(--body); padding: 8px 14px; border-radius: 980px; font-size: 13px; }
+.tp .sugg button:hover { border-color: var(--wine); color: var(--wine); }
+.tp .opencases { width: 100%; max-width: 720px; margin-top: 40px; }
+.tp .opencases h3 { font-size: 14px; color: var(--muted); font-weight: 600; letter-spacing: 0; margin-bottom: 10px; }
+.tp .ocgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.tp .oc { text-align: left; border: 0; background: var(--surface); border-radius: 16px; padding: 14px 16px; box-shadow: 0 0 0 1px var(--line); color: var(--ink); }
+.tp .oc:hover { box-shadow: 0 0 0 1.5px var(--wine); }
+.tp .oc b { display: block; font-size: 15px; margin-bottom: 4px; } .tp .oc span { font-size: 13px; color: var(--muted); }
+.tp .oc .ostep { display: inline-block; margin-top: 10px; font-size: 12px; font-weight: 600; color: var(--wine); background: var(--wine-tint); padding: 3px 9px; border-radius: 980px; }
+.tp .oc .ostep.ok { color: var(--ok); background: var(--ok-tint); }
+
+/* ---------- chat ---------- */
+.tp .thread { flex: 1; overflow-y: auto; padding: 26px 24px 8px; }
+.tp .inner { max-width: 740px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+.tp .row { display: flex; gap: 14px; }
+.tp .row.me { justify-content: flex-end; }
+.tp .row > div:last-child { min-width: 0; }
+.tp .bav { width: 30px; height: 30px; border-radius: 50%; background: var(--surface) url("/brand/debye-logo.png") center / 70% no-repeat; box-shadow: 0 0 0 1px var(--line); flex: none; }
+.tp .btext { line-height: 1.58; min-width: 0; max-width: 82%; background: var(--surface); padding: 12px 16px; border-radius: 4px 18px 18px 18px; box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgba(43,16,24,.04); white-space: pre-wrap; overflow-wrap: anywhere; display: inline-block; }
+.tp .row > div:last-child > .btext { max-width: 100%; }
+.tp .bname { font-size: 12px; font-weight: 600; color: var(--wine); margin-bottom: 3px; white-space: normal; }
+.tp .ubub { background: var(--wine); color: var(--cream); padding: 10px 16px; border-radius: 18px 4px 18px 18px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tp .ubub img, .tp .btext img { display: block; max-width: 220px; max-height: 220px; border-radius: 12px; object-fit: cover; }
+.tp .ubub img + span { display: block; margin-top: 8px; }
+.tp .meta { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+.tp .row.me .meta { text-align: right; }
+.tp .via { font-size: 10.5px; font-weight: 600; color: #1E7A35; background: #E6F4EA; border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
+.tp .card { margin-top: 12px; background: var(--surface); border-radius: 14px; padding: 13px 15px; box-shadow: 0 0 0 1px var(--line); }
+.tp .card h4 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; }
+.tp .bar { height: 6px; border-radius: 980px; background: var(--beige-d); overflow: hidden; margin: 6px 0 10px; } .tp .bar i { display: block; height: 100%; background: var(--wine); }
+.tp .big { display: flex; gap: 12px; align-items: center; } .tp .tav { width: 42px; height: 42px; border-radius: 50%; background: var(--wine); color: var(--cream); display: grid; place-items: center; font-weight: 600; flex: none; }
+.tp .big b { display: block; font-size: 16px; } .tp .big span { color: var(--body); font-size: 14px; }
+.tp .card.good { background: var(--ok-tint); box-shadow: none; } .tp .card.emerg { background: var(--red-tint); box-shadow: none; }
+.tp .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: 44px; }
+.tp .chip { border: 1.5px solid var(--wine); background: transparent; color: var(--wine); padding: 8px 15px; border-radius: 980px; font-weight: 500; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+.tp .chip:hover { background: var(--wine-tint); } .tp .chip.on, .tp .chip.solid { background: var(--wine); color: var(--cream); }
+.tp .chip.solid:hover { background: var(--wine-d); }
+.tp .chip:disabled { opacity: .45; }
+.tp .typing { display: inline-flex; gap: 4px; padding: 4px 0; }
+.tp .typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: tp-blink 1.2s infinite ease-in-out both; }
+.tp .typing i:nth-child(2) { animation-delay: .15s; } .tp .typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes tp-blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+.tp .composer { padding: 10px 24px 18px; }
+.tp .cin { max-width: 740px; margin: 0 auto; display: flex; gap: 8px; align-items: flex-end; background: var(--surface); border-radius: 24px; padding: 6px 6px 6px 10px; box-shadow: 0 0 0 1px var(--line), 0 4px 16px rgba(43,16,24,.05); }
+.tp .cin textarea { flex: 1; border: 0; resize: none; background: transparent; font-size: 15px; color: var(--ink); padding: 9px 4px; max-height: 140px; outline: none; min-width: 0; }
+.tp .cnote { max-width: 740px; margin: 8px auto 0; text-align: center; font-size: 12px; color: var(--muted); }
+.tp .cfile { max-width: 740px; margin: 0 auto 8px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--body); }
+.tp .cfile img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; }
+.tp .cfile button { border: 0; background: transparent; color: var(--muted); font-size: 13px; }
+.tp .closedbar { max-width: 740px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface); border-radius: 16px; padding: 12px 16px; box-shadow: 0 0 0 1px var(--line); color: var(--body); }
+.tp .closedbar button { border: 0; background: var(--wine); color: var(--cream); padding: 9px 16px; border-radius: 980px; font-weight: 500; white-space: nowrap; }
+.tp .sendfail { max-width: 740px; margin: 0 auto 8px; color: var(--red); font-size: 13px; text-align: center; }
+
+/* ---------- right: progress ---------- */
+.tp .tp-panel { border-left: 1px solid var(--line); padding: 22px 22px 30px; overflow-y: auto; }
+.tp .tp-panel h2 { font-size: 18px; font-weight: 600; margin-bottom: 2px; } .tp .psub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+.tp .flow { list-style: none; margin: 0; padding: 0; }
+.tp .flow li { display: grid; grid-template-columns: 26px 1fr; gap: 12px; position: relative; padding-bottom: 20px; }
+.tp .flow li:last-child { padding-bottom: 0; }
+.tp .flow li::before { content: ""; position: absolute; left: 12px; top: 28px; bottom: 2px; width: 2px; border-radius: 2px; background: var(--beige-d); }
+.tp .flow li:last-child::before { display: none; }
+.tp .flow li.done::before { background: var(--ok-line); }
+.tp .fd { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; background: var(--bg); color: var(--muted); border: 1.5px solid var(--beige-d); position: relative; z-index: 1; }
+.tp .done .fd { background: var(--ok); border-color: var(--ok); color: #fff; }
+.tp .now .fd { background: var(--wine); border-color: var(--wine); color: #fff; box-shadow: 0 0 0 5px var(--wine-tint); }
+.tp .ft b { display: block; font-size: 14px; font-weight: 600; padding-top: 3px; } .tp .ft small { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+.tp .pending .ft b { color: var(--muted); font-weight: 500; }
+.tp .skip .ft b { color: var(--muted); text-decoration: line-through; font-weight: 400; }
+.tp .pbox { margin-top: 24px; background: var(--surface); border-radius: 14px; padding: 14px; box-shadow: 0 0 0 1px var(--line); font-size: 14px; }
+.tp .pbox h4 { margin: 0 0 8px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.tp .pbox dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; } .tp .pbox dt { color: var(--muted); } .tp .pbox dd { margin: 0; text-align: right; }
+.tp .pbox.good { background: var(--ok-tint); box-shadow: none; }
+.tp .pbox a { color: var(--wine); }
+
+@media (max-width: 1050px) {
+  .tp .app.withpanel { grid-template-columns: 1fr; } .tp .tp-panel { display: none; } .tp .tuser span { display: none; }
+  .tp .topline .tmini { display: block; } .tp .topline .tmini .mini { margin-top: 8px; }
+}
+/* phones (not in the mockup, which is desktop-first) */
+@media (max-width: 640px) {
+  .tp .top { padding: 10px 16px; gap: 10px; }
+  .tp .tbrand { font-size: 17px; }
+  /* no room for tabs: home lists the open cases and the case view has a back button */
+  .tp .tabs { display: none; }
+  .tp .tuser .tname { display: none; }
+  .tp .tuser .uav { width: 28px; height: 28px; font-size: 13px; }
+  .tp .topline { padding: 12px 16px; }
+  .tp .topline b { font-size: 16px; }
+  .tp .homewrap { padding: 6vh 16px 32px; }
+  .tp .hello h1 { font-size: 26px; }
+  .tp .thread { padding: 18px 16px 8px; }
+  .tp .row { gap: 10px; }
+  .tp .actions { margin-left: 40px; }
+  .tp .composer { padding: 8px 12px 12px; }
+  .tp .btext { max-width: 100%; }
+  .tp .closedbar { flex-direction: column; align-items: stretch; text-align: center; }
+}
