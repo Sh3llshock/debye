@@ -405,6 +405,13 @@ async def _schmidt_past_job(contact_id: str, asset_id: str | None, title: str, s
                                trade="heating",
                                diagnosis={"cause_id": cause_id, "confidence": 0.8, "reasoning": reasoning,
                                           "questions_asked": []})
+        from .db import get_session
+        from .models import Case
+        with get_session() as ses:  # keep the specific title (open_case derives a generic one from the type)
+            row = ses.get(Case, c.id)
+            row.title = title
+            ses.add(row)
+            ses.commit()
         _chat(contact_id, c.id, chat)
         _consent_and_approve(c.id, contact_id, "heizung-schmidt")
         base = now()
