@@ -296,7 +296,7 @@ def test_no_plain_text_repeat_of_open_question(client, svc, gpt):
     client.post("/webhooks/whatsapp", json=wa("here is a photo of it"))
     t = texts(client)
     # the plain-text repeat was refused; after the side remark the open question is shown again (as buttons)
-    assert t[-2] == "Thanks for the photo." and t[-1].startswith("Is it only the shower")
+    assert t[-2] == "Thanks for the photo." and t[-1] == "And is it only the shower, or the sinks too?"
     assert sum("only the shower" in x for x in t) == 2 and last_ids(client)[0] == "diag:q_scope:only_shower"
 
 

@@ -255,7 +255,7 @@ async def _ask_question(ctx: TurnContext, question_id: str, lead_in: str | None 
     if question_id == diagnosis.open_question(d):  # re-asking the open question (after "hello?", "lol", a side question)
         if {"ask_question", "clarify"} & set(ctx.calls[:-1]):
             raise ValueError("A question was already sent this turn. Stop now.")
-        await diagnosis.ask(ctx.contact, ctx.conv, question_id, lead=(lead_in or "").split("?")[0].strip(),
+        await diagnosis.ask(ctx.contact, ctx.conv, question_id, lead=(lead_in or "").split("?")[0].strip() or None,
                             text=translation)
         ctx.sent += 1
         return {"ok": True, "delivered": True, "note": "Open question repeated. Wait for the answer."}
@@ -289,6 +289,11 @@ async def _record_answer(ctx: TurnContext, question_id: str, answer_key: str) ->
 
     if not diagnosis.active(ctx.conv):
         raise ValueError("no diagnosis running")
+    d = ctx.conv.diagnosis
+    if diagnosis.open_question(d) != question_id and \
+            not diagnosis.explicit_enough(question_id, answer_key, d.get("last_text") or d.get("complaint")):
+        raise ValueError(f"The resident didn't say that explicitly ('{(d.get('last_text') or '')[:60]}'); "
+                         f"don't record {question_id} from it")
     diagnosis.record(ctx.conv, question_id, answer_key)
     action, ident, conf = diagnosis.next_step(ctx.conv)
     return {"ok": True, "answers_so_far": ctx.conv.diagnosis["answers"],
@@ -301,6 +306,8 @@ async def _conclude(ctx: TurnContext, cause_id: str, confidence: float, reasonin
 
     if not diagnosis.active(ctx.conv):
         raise ValueError("no diagnosis running")
+    if not diagnosis.question_slot_free(ctx.conv.diagnosis):
+        raise ValueError("A question was sent this turn: wait for the answer before concluding.")
     res = await diagnosis.conclude(ctx.contact, ctx.conv, cause_id, max(0.0, min(1.0, confidence)), reasoning,
                                    translation=translation)
     ctx.sent += 1
@@ -319,11 +326,16 @@ async def _clarify(ctx: TurnContext, text: str) -> dict:
         raise ValueError("A message was already sent this turn: stop now.")
     if not (text or "").strip() or "?" not in text:
         raise ValueError("a clarifying question must be one short question")
-    if d.get("asked") and not diagnosis.open_question(d):
+    if d.get("asked") and not diagnosis.open_question(d) and not d.get("conflicts"):
         last = d["asked"][-1]
         raise ValueError(f"The answer is clear ({last}={d['answers'].get(last, 'unknown')}); don't clarify, "
                          "continue with the next question or conclude")
     d["clarifications"] = d.get("clarifications", 0) + 1
+    if d.get("conflicts"):  # the conflict question goes out with both answers as buttons
+        await diagnosis.ask_conflict(ctx.contact, ctx.conv)
+        d["clarifications"] -= 1  # (ask_conflict counted it)
+        ctx.sent += 1
+        return {"ok": True, "delivered": True, "note": "Asked which answer is right. Wait for it."}
     await out.text(ctx.contact, ctx.conv.case_id, text.strip())
     ctx.sent += 1
     return {"ok": True, "delivered": True, "note": "Wait for the tenant's answer."}
