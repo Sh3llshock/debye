@@ -72,7 +72,7 @@ def build_user_content(contact, conv: st.Conversation, text: str | None, image_p
     ctx = flow.unit_context_for(contact)
     facts = {
         "contact": {"id": be.attr(contact, "id"), "name": be.attr(contact, "name"),
-                    "language": be.attr(contact, "language", "de")},
+                    "reply_language": conv.lang},  # from the resident's own messages, not the profile
         "unit_context": ctx,
     }
     status = {"case_id": conv.case_id, "step": conv.step}
@@ -177,6 +177,9 @@ async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | No
             if not open_q:  # the model only chatted: keep the diagnosis moving (next question or conclusion)
                 log.info("diagnosis: no open question after the turn; code continues")
                 await flow.diagnosis_fallback(contact, conv)
+                return False
+            if conv.diagnosis.get("conflicts") and "clarify" not in ctx.calls:
+                await diagnosis.ask_conflict(contact, conv)  # contradiction: ask which answer is right
                 return False
             settled = diagnosis.decisive_self_help(conv.diagnosis, conv.error_code)
             if settled:

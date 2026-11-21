@@ -76,8 +76,22 @@ def start(conv: st.Conversation, complaint: str | None) -> dict:
     return conv.diagnosis
 
 
-def record(conv: st.Conversation, qid: str, key: str) -> dict:
+def record(conv: st.Conversation, qid: str, key: str, authoritative: bool = False) -> dict:
+    """Stores an answer. A different answer to an already answered question is a conflict (kept apart
+    until the resident confirms it: a tap, or the same answer again); never silently overwritten."""
     d = conv.diagnosis
+    conflicts = d.setdefault("conflicts", {})
+    if not authoritative and qid in d["answers"] and key in (questions().get(qid) or {}).get("answers", {}):
+        if key == d["answers"][qid]:
+            conflicts.pop(qid, None)  # confirmed the earlier answer
+            return d
+        if conflicts.get(qid) != key:
+            conflicts[qid] = key
+            log.info("conflict on %s: %s vs %s", qid, d["answers"][qid], key)
+            return d
+        conflicts.pop(qid, None)  # said it twice: it's a correction
+    if authoritative:
+        conflicts.pop(qid, None)
     if key in ("unknown", "dont_know", "cant_check") and qid in questions() \
             and key not in questions()[qid]["answers"]:
         d.setdefault("dont_know", [])
@@ -254,6 +268,8 @@ def decisive_self_help(d: dict, error_code: str | None = None) -> str | None:
     q_gas_stove=no) and that nothing contradicts: conclude at once."""
     boiler_problem = error_code or d["answers"].get("q_display") in ("code", "dark") \
         or d["answers"].get("q_radiators") == "yes"
+    if d.get("conflicts"):
+        return None  # an answer contradicts an earlier one: clarify first
     failed = set(d.get("failed_tips", []))
     by_code = code_settles(d, error_code)
     if by_code:
@@ -327,6 +343,8 @@ def context_block(conv: st.Conversation) -> dict:
         "tenant_doesnt_know": d.get("dont_know", []),
         "open_question": open_question(d),
         "clarifications_left": max(0, 2 - d.get("clarifications", 0)),
+        "conflicts": {q: {"earlier": d["answers"].get(q), "now": k} for q, k in (d.get("conflicts") or {}).items()},
+        "language": conv.lang,
         "questions_asked": len(d["asked"]),
         "max_questions": MAX_QUESTIONS,
         "facts": d.get("facts", []),
@@ -341,7 +359,7 @@ _SHORT_DE = {"only_shower": "Nur die Dusche", "everywhere": "Überall", "yes": "
              "low": "Unter 1 bar", "ok": "1 bar oder mehr", "before": "Ja, kurz vorher", "same_time": "Ja, gleichzeitig",
              "found_off": "Etwas war aus", "all_on": "Alles an", "cant_check": "Kann ich nicht sehen",
              "not_tried": "Noch nicht probiert", "warms_slowly": "Wird langsam warm", "stays_cold": "Bleibt kalt",
-             "certain_times": "Nur zu bestimmten Zeiten", "set_wrong": "Stoppt bei 38 °C", "stops_early": "Rutscht/klemmt"}
+             "set_wrong": "Stoppt bei 38 °C"}
 
 
 def code_sentence(conv: st.Conversation) -> str:
@@ -359,37 +377,54 @@ def code_sentence(conv: st.Conversation) -> str:
 def _options(qid: str, lang: str = "en") -> list[Option]:
     q = questions()[qid]
     if lang == "de":
-        return [Option(f"diag:{qid}:{k}", _SHORT_DE.get(k, k)[:20]) for k in q["answers"]]
+        de = {**_SHORT_DE, **({"normal": "Ganz auf heiß"} if qid == "q_shower_handle" else {}),
+              **({"yes": "Nur ein Rinnsal", "no": "Normaler Durchfluss"} if qid == "q_weather_pipe" else {})}
+        return [Option(f"diag:{qid}:{k}", de.get(k, k)[:20]) for k in q["answers"]]
     short = {"only_shower": "Only the shower", "everywhere": "Everywhere", "yes": "Yes", "no": "No",
              "code": "Shows a code", "normal": "Looks normal", "dark": "It's dark", "none": "No gas stove",
              "low": "Below 1 bar", "ok": "1 bar or more",
              "before": "Yes, just before", "same_time": "Yes, at the same time",
              "found_off": "Something was off", "all_on": "All on", "cant_check": "Can't check",
              "not_tried": "Haven't tried", "warms_slowly": "Warms up slowly", "stays_cold": "Stays cold",
-             "certain_times": "At certain times", "set_wrong": "Stops at 38°C", "stops_early": "Slips or stuck"}
+             "set_wrong": "Stops at 38°C"}
     if qid == "q_shower_handle":
-        short = {**short, "normal": "Fully hot, normal"}
+        short = {**short, "normal": "Fully on hot"}
+    if qid == "q_weather_pipe":
+        short = {**short, "yes": "Only a trickle", "no": "Normal flow"}
     return [Option(f"diag:{qid}:{k}", short.get(k, k.replace("_", " ").capitalize())[:20]) for k in q["answers"]]
 
 
 LEAD_INS = ("Let's fix it.", "Ok.", "Got it.")
 LEAD_INS_DE = ("Schauen wir mal.", "Okay.", "Verstanden.")
 _DE_WORDS = re.compile(r"\b(ich|nicht|kein|keine|ist|und|bei|mir|das|die|der|ja|nein|danke|bitte|wasser|heizung|"
-                       r"dusche|kalt|warm|geht|immer|noch|schon|auch|nur|habe|hat|wieder|deutsch|weiß|heiß)\b",
+                       r"dusche|kalt|geht|immer|noch|schon|auch|nur|habe|hat|wieder|deutsch|weiß|heiß|alles|überall|"
+                       r"hähne|waschbecken|heizkörper|niemand|weiss|gar|sind|es|wird|okay danke)\b",
                        re.IGNORECASE)
-_EN_WORDS = re.compile(r"\b(the|is|and|my|it|not|no|yes|water|shower|cold|hot|have|has|only|too|just|thanks)\b",
+_EN_WORDS = re.compile(r"\b(the|is|and|my|it|not|no|nope|yes|yeah|yep|water|shower|cold|hot|have|has|only|too|just|"
+                       r"thanks|everything|everywhere|all|taps?|sinks?|kitchen|radiators?|nobody|none|was|were|i|"
+                       r"idk|still|works?|what|why|how|send|someone|please|lol|sure|also|both)\b",
                        re.IGNORECASE)
 
 
 def update_lang(conv: st.Conversation, text: str | None) -> str:
-    """The resident's language from their latest message (a clear switch wins); English by default."""
+    """The resident's language from the message itself, short ones too ('no', 'all taps' → English).
+    Unclear (an emoji, 'ok', a code) keeps the current one; English by default. The stored contact
+    language is never used for this."""
     if text:
         de, en = len(_DE_WORDS.findall(text)), len(_EN_WORDS.findall(text))
-        if de >= 2 and de > en:
-            conv.lang = "de"
-        elif en >= 2 and en > de:
+        if en and en >= de:
             conv.lang = "en"
+        elif de and de > en:
+            conv.lang = "de"
     return conv.lang
+
+
+def _looks_german(s: str | None) -> bool:
+    return bool(s) and len(_DE_WORDS.findall(s)) > len(_EN_WORDS.findall(s))
+
+
+def _looks_english(s: str | None) -> bool:
+    return bool(s) and len(_EN_WORDS.findall(s)) > len(_DE_WORDS.findall(s))
 
 
 def say(conv: st.Conversation, en: str, de: str) -> str:
@@ -404,19 +439,41 @@ def open_question(d: dict) -> str | None:
     return None if last in d["answers"] or last in d.get("dont_know", []) else last
 
 
+async def ask_conflict(contact, conv: st.Conversation) -> None:
+    """'Earlier you said X, now it sounds like Y. Which is right?' with both answers as buttons."""
+    d = conv.diagnosis
+    qid, new = next(iter(d["conflicts"].items()))
+    q, old = questions()[qid], d["answers"][qid]
+    d["clarifications"] = d.get("clarifications", 0) + 1
+    if conv.lang == "de":
+        body = "Nur zur Sicherheit, was stimmt?"
+    else:
+        body = f"Just to check: earlier it sounded like {q['answers'][old]}, now like {q['answers'][new]}. Which is right?"
+    opts = [o for o in _options(qid, conv.lang) if o.id.split(":")[2] in (old, new)]
+    await out.buttons(contact, conv.case_id, body, opts)
+
+
 async def ask(contact, conv: st.Conversation, qid: str, lead: str | None = None, text: str | None = None) -> None:
     d = conv.diagnosis
     reask = open_question(d) == qid  # repeating the open question ("hello?") doesn't count as a new one
     if not reask and len(d["asked"]) >= MAX_QUESTIONS:
         raise ValueError("max questions reached; conclude now")
     q = questions()[qid]
-    text = (text or "").strip() or (q.get("text_de") if conv.lang == "de" else None) or q["text"]
+    de = conv.lang == "de"
+    if not de or not _looks_german(text):
+        text = None  # English resident: never the model's translation; German: only a real German one
+    if reask:  # never the same words twice: the short re-ask wording
+        text = q.get("reask_de" if de else "reask") or text
+    text = (text or "").strip() or (q.get("text_de") if de else None) or q["text"]
     opts = _options(qid, conv.lang)
+    if lead and ((de and _looks_english(lead)) or (not de and _looks_german(lead))):
+        lead = None  # a lead-in in the other language: use the default one
     if not reask:
         d["asked"].append(qid)
     if lead is None:  # a few words of lead-in, never filler
         leads = LEAD_INS_DE if conv.lang == "de" else LEAD_INS
-        lead = leads[0] if len(d["asked"]) == 1 and not reask else leads[1 + len(d["asked"]) % 2]
+        lead = ("Danke." if de else "Thanks.") if reask else \
+            leads[0] if len(d["asked"]) == 1 else leads[1 + len(d["asked"]) % 2]
     lead = (lead or "").strip()
     q_words = set(questions()[qid]["text"].lower().split())
     if lead and len(set(lead.lower().split()) & q_words) >= 6:
@@ -616,12 +673,15 @@ async def extract_answers(conv: st.Conversation, text: str | None) -> dict:
     d = conv.diagnosis
     if not text or not d:
         return {}
-    open_qs = [q for q in kb()["questions"] if q["id"] not in d["answers"]]
+    open_qs = [q for q in kb()["questions"] if q["id"] not in d["answers"] or q["id"] in ("q_hot_water_use", "q_scope")]
     if not open_qs:
         return {}
     found = await _classify_answers(text, open_qs)
     valid = {qid: key for qid, key in found.items()
              if qid in questions() and key in questions()[qid]["answers"] and qid not in d["answers"]}
+    for qid, key in found.items():  # a definite answer that contradicts an earlier one: clarify, don't overwrite
+        if qid in d["answers"] and key in (questions().get(qid) or {}).get("answers", {}) and key != d["answers"][qid]:
+            record(conv, qid, key)
     d["answers"].update(valid)
     if valid:
         log.info("extracted from free text: %s", valid)
@@ -652,7 +712,7 @@ async def on_answer(contact, qid: str, key: str) -> None:
             f"[No gas smell. The resident's first message was: \"{complaint}\". Record every answer that message "
             "already gives (e.g. only the shower → q_scope=only_shower), then ask the next question.]")
         return
-    record(conv, qid, key)
+    record(conv, qid, key, authoritative=True)  # a tap is unambiguous
     be.add_tenant_input(conv.case_id, f"answer: {qid}={key}") if conv.case_id else None
     q = questions()[qid]
     await loop.run_tenant_turn(contact, f"[Answer to '{q['text']}': {q['answers'][key]}]")
@@ -709,6 +769,8 @@ def conclusion_text(conv: st.Conversation, c: dict, translation: str | None = No
     from . import error_codes
 
     own = c.get("tenant_message_de") if conv.lang == "de" else None
+    if translation and translation not in NEUTRAL_TECHS and (conv.lang != "de" or not _looks_german(translation)):
+        translation = None  # never a translated message for an English resident
     text = (translation or "").strip() or own or c["tenant_message"]
     d = conv.diagnosis or {}
     if conv.error_code and not d.get("code_explained") and (not translation or translation in NEUTRAL_TECHS) \
@@ -728,6 +790,10 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         return {"ok": True, "note": "already concluded"}
     if cause_id != "gas_smell" and cause_id not in causes():
         raise ValueError(f"unknown cause {cause_id}")
+    if cause_id != "gas_smell" and not force and d.get("conflicts"):
+        q, new = next(iter(d["conflicts"].items()))
+        raise ValueError(f"{q}: the resident said {d['answers'].get(q)} earlier and now {new}. Ask which is right "
+                         "(clarify) before concluding.")
     if cause_id != "gas_smell" and not force:
         settled = decisive_self_help(d, conv.error_code)
         if settled and settled != cause_id:

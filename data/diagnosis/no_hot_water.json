@@ -33,7 +33,9 @@
         "only_shower": "only the shower is cold, sinks are hot",
         "everywhere": "cold or lukewarm everywhere"
       },
-      "text_de": "Ist es nur die Dusche, oder ist das Wasser auch an den Waschbecken kalt?"
+      "text_de": "Ist es nur die Dusche, oder ist das Wasser auch an den Waschbecken kalt?",
+      "reask": "And is it only the shower, or the sinks too?",
+      "reask_de": "Und ist es nur die Dusche oder auch die Waschbecken?"
     },
     {
       "id": "q_hot_water_use",
@@ -43,7 +45,9 @@
         "same_time": "something else was using hot water at the same time",
         "no": "nobody used hot water"
       },
-      "text_de": "Hat jemand kurz vorher oder gleichzeitig warmes Wasser benutzt, zum Beispiel eine andere Dusche, die Spülmaschine oder den Küchenhahn?"
+      "text_de": "Hat jemand kurz vorher oder gleichzeitig warmes Wasser benutzt, zum Beispiel eine andere Dusche, die Spülmaschine oder den Küchenhahn?",
+      "reask": "And had anyone used hot water just before, or was something else running at the same time?",
+      "reask_de": "Und hatte jemand kurz vorher warmes Wasser benutzt, oder lief gleichzeitig etwas anderes?"
     },
     {
       "id": "q_switch_check",
@@ -53,18 +57,32 @@
         "all_on": "everything is on and open",
         "cant_check": "can't check right now"
       },
-      "text_de": "Kurzer Check: Ist etwas ausgeschaltet, etwa der Schalter oder die Sicherung des Warmwasserbereiters, der Warmwasser-Modus der Heizung, ein Urlaubs- oder Timer-Modus oder ein Ventil unter dem Waschbecken?"
+      "text_de": "Kurzer Check: Ist etwas ausgeschaltet, etwa der Schalter oder die Sicherung des Warmwasserbereiters, der Warmwasser-Modus der Heizung, ein Urlaubs- oder Timer-Modus oder ein Ventil unter dem Waschbecken?",
+      "reask": "Could you check if a switch, fuse or valve for the hot water is off?",
+      "reask_de": "Kannst du nachsehen, ob ein Schalter, eine Sicherung oder ein Ventil fürs Warmwasser aus ist?"
     },
     {
       "id": "q_wait_result",
-      "text": "If you let the hot tap run for two minutes, does it warm up slowly, stay cold, or is it only cold at certain times of day?",
+      "text": "If you let the hot tap run for about two minutes, does it get warm?",
       "answers": {
         "not_tried": "hasn't let it run that long yet",
-        "warms_slowly": "gets warm only slowly or stays lukewarm",
-        "stays_cold": "stays cold even after running",
-        "certain_times": "only cold or lukewarm at certain times of day"
+        "warms_slowly": "it gets warm only slowly or stays lukewarm",
+        "stays_cold": "it stays cold even after running"
       },
-      "text_de": "Wenn du den Warmwasserhahn zwei Minuten laufen lässt: Wird es langsam warm, bleibt es kalt, oder ist es nur zu bestimmten Tageszeiten kalt?"
+      "text_de": "Wenn du den Warmwasserhahn etwa zwei Minuten laufen lässt, wird es dann warm?",
+      "reask": "And after two minutes of running, does the hot tap get warm?",
+      "reask_de": "Und wird der Hahn nach zwei Minuten Laufen warm?"
+    },
+    {
+      "id": "q_timing",
+      "text": "Is it only cold at certain times of day, for example in the morning?",
+      "text_de": "Ist es nur zu bestimmten Tageszeiten kalt, zum Beispiel morgens?",
+      "answers": {
+        "yes": "only cold or lukewarm at certain times of day",
+        "no": "cold all the time"
+      },
+      "reask": "And is it only cold at certain times of day?",
+      "reask_de": "Und ist es nur zu bestimmten Tageszeiten kalt?"
     },
     {
       "id": "q_radiators",
@@ -73,17 +91,20 @@
         "yes": "radiators cold too",
         "no": "radiators are warm"
       },
-      "text_de": "Sind die Heizkörper auch kalt?"
+      "text_de": "Sind die Heizkörper auch kalt?",
+      "reask": "And the radiators, are they cold too?",
+      "reask_de": "Und die Heizkörper, sind die auch kalt?"
     },
     {
       "id": "q_shower_handle",
-      "text": "Is the shower knob turned fully to hot (some stop at 38°C until you press a small button), and does it turn normally?",
+      "text": "Is the shower knob turned fully to hot? Some stop at 38°C until you press a small button.",
       "answers": {
         "set_wrong": "it stops at 38°C (the limiter button) or wasn't turned fully to hot",
-        "stops_early": "the knob slips, spins freely or is stuck",
-        "normal": "fully on hot and it turns normally"
+        "normal": "it's turned fully to hot"
       },
-      "text_de": "Steht der Duschregler ganz auf heiß (manche stoppen bei 38 °C, bis man einen kleinen Knopf drückt), und lässt er sich normal drehen?"
+      "text_de": "Steht der Duschregler ganz auf heiß? Manche stoppen bei 38 °C, bis man einen kleinen Knopf drückt.",
+      "reask": "And the shower knob, is it turned fully to hot?",
+      "reask_de": "Und der Duschregler, steht er ganz auf heiß?"
     },
     {
       "id": "q_display",
@@ -93,7 +114,9 @@
         "normal": "display looks normal",
         "dark": "display is dark / off"
       },
-      "text_de": "Kannst du ein Foto vom Display des Heizkessels schicken? Bei einer Störung zeigt es meist einen Fehlercode."
+      "text_de": "Kannst du ein Foto vom Display des Heizkessels schicken? Bei einer Störung zeigt es meist einen Fehlercode.",
+      "reask": "And what does the boiler's display show?",
+      "reask_de": "Und was zeigt das Display am Kessel?"
     },
     {
       "id": "q_power",
@@ -102,7 +125,9 @@
         "yes": "power is on",
         "no": "power is off"
       },
-      "text_de": "Funktionieren das Licht und der übrige Strom in deiner Wohnung?"
+      "text_de": "Funktionieren das Licht und der übrige Strom in deiner Wohnung?",
+      "reask": "And do the lights work in your flat?",
+      "reask_de": "Und funktioniert das Licht in deiner Wohnung?"
     },
     {
       "id": "q_pressure",
@@ -111,7 +136,9 @@
         "low": "pressure below 1 bar",
         "ok": "pressure 1–2 bar"
       },
-      "text_de": "Am Kessel gibt es ein kleines Manometer. Steht die Nadel unter 1 bar?"
+      "text_de": "Am Kessel gibt es ein kleines Manometer. Steht die Nadel unter 1 bar?",
+      "reask": "And the pressure gauge on the boiler, is the needle below 1 bar?",
+      "reask_de": "Und das Manometer am Kessel, steht die Nadel unter 1 bar?"
     },
     {
       "id": "q_gas_stove",
@@ -122,16 +149,20 @@
         "none": "no gas stove"
       },
       "text_de": "Falls du einen Gasherd hast: Zündet er normal?",
-      "ask": false
+      "ask": false,
+      "reask": "And does a gas stove light normally?",
+      "reask_de": "Und zündet ein Gasherd normal?"
     },
     {
       "id": "q_weather_pipe",
-      "text": "Is the flow from the shower very weak, and is it on an outside wall?",
+      "text": "Is only a weak trickle coming out of the shower?",
       "answers": {
-        "yes": "one tap, weak flow, outside wall",
-        "no": "flow is normal"
+        "yes": "only a weak trickle comes out",
+        "no": "the flow is normal"
       },
-      "text_de": "Kommt aus der Dusche nur sehr wenig Wasser, und liegt sie an einer Außenwand?"
+      "text_de": "Kommt aus der Dusche nur ein schwaches Rinnsal?",
+      "reask": "And is only a weak trickle coming out?",
+      "reask_de": "Und kommt nur ein schwaches Rinnsal?"
     },
     {
       "id": "q_recent_work",
@@ -140,7 +171,9 @@
         "yes": "plumbing work happened recently",
         "no": "no recent work"
       },
-      "text_de": "Hat in letzter Zeit ein Installateur oder jemand anderes im Bad oder an den Leitungen gearbeitet?"
+      "text_de": "Hat in letzter Zeit ein Installateur oder jemand anderes im Bad oder an den Leitungen gearbeitet?",
+      "reask": "And has anyone worked on the pipes recently?",
+      "reask_de": "Und hat in letzter Zeit jemand an den Leitungen gearbeitet?"
     },
     {
       "id": "q_heater_type",
@@ -149,7 +182,9 @@
         "yes": "electric instantaneous heater in the flat",
         "no": "no heater box"
       },
-      "text_de": "Hängt in Bad oder Küche ein kleiner elektrischer Durchlauferhitzer an der Wand?"
+      "text_de": "Hängt in Bad oder Küche ein kleiner elektrischer Durchlauferhitzer an der Wand?",
+      "reask": "And is there a small electric water heater on the wall?",
+      "reask_de": "Und hängt ein kleiner Durchlauferhitzer an der Wand?"
     }
   ],
   "causes": [
@@ -500,13 +535,13 @@
       "label": "Boiler hot-water timer, holiday mode or temperature set too low",
       "signals": [
         "q_scope=everywhere",
-        "q_wait_result=certain_times",
+        "q_timing=yes",
         "q_display=normal",
         "centrix: building recently vacant/maintenance"
       ],
       "ask_order": [
         "q_scope",
-        "q_wait_result"
+        "q_timing"
       ],
       "outcome": "caretaker",
       "trade": "caretaker",
@@ -515,7 +550,7 @@
       "escalate_if": "settings are correct but still lukewarm",
       "tenant_message": "It sounds like the boiler's hot-water schedule or temperature is set wrong. Our caretaker can fix that in a few minutes, so no technician needed. I've let them know.",
       "requires": [
-        "q_wait_result"
+        "q_timing"
       ],
       "tenant_message_de": "Es klingt, als wären der Warmwasser-Zeitplan oder die Temperatur am Kessel falsch eingestellt. Unser Hausmeister kann das in ein paar Minuten beheben, ein Techniker ist nicht nötig. Ich habe ihm Bescheid gegeben."
     },
@@ -570,7 +605,7 @@
     "Use centrix context first, without asking: a neighbour's open case on the same central boiler → boiler_fault; an active building notice → planned_maintenance; the unit's hot water source decides electric_instant_heater.",
     "Take everything the first message already says (e.g. 'only the shower', 'roommate just showered').",
     "Ask the ONE question that best splits the most likely remaining causes (follow likelihood_order): usually q_scope first, then q_hot_water_use or q_radiators.",
-    "Ask at most 3 diagnostic questions in total, one per message. Questions are already combined where natural (q_hot_water_use = just before OR at the same time; q_wait_result = slow / stays cold / only at certain times; q_shower_handle = setting + feel). A clarifying question about an unclear answer does not count.",
+    "Ask at most 3 diagnostic questions in total, one per message. Questions are already combined where natural (q_hot_water_use = just before OR at the same time; q_wait_result = warms slowly / stays cold; q_timing = only at certain times). A clarifying question about an unclear answer does not count.",
     "Cheap self-help checks come early: hot water used just before or at the same time, something switched off or closed (q_switch_check), not run long enough, the shower knob. Give a simple 'try this' and ask the tenant to tell you if it works; no technician if it does.",
     "Stop as soon as one cause is clearly most likely; if still unclear after 3 questions, pick the most likely technician outcome and let staff approve.",
     "Self-help outcomes: give the tip, schedule a follow-up check, do NOT dispatch anyone.",
@@ -580,7 +615,8 @@
     "Never state a fact the tenant didn't give: explanations may only use answers_so_far and centrix facts. If a cause needs an answer you don't have (e.g. q_radiators for diverter_valve_stuck), ask it first.",
     "Ambiguous answers ('everything', 'idk', 'kinda'): ask one short clarifying question instead of guessing; 'I don't know' / 'can't check' moves on to the next best question.",
     "If a self-help tip didn't work, the diagnosis continues (the failed tip is an answer), with the questions left; then the likeliest technician cause.",
-    "Heating off too (q_radiators=yes): ask q_display first. F.22 → q_pressure; any other code → boiler_fault (heating technician); a dark display → q_power. Never ask about the gas stove: gas_supply_interrupted only if the tenant says the stove won't light either. Back from holiday or an electric heater in the flat: q_switch_check first."
+    "Heating off too (q_radiators=yes): ask q_display first. F.22 → q_pressure; any other code → boiler_fault (heating technician); a dark display → q_power. Never ask about the gas stove: gas_supply_interrupted only if the tenant says the stove won't light either. Back from holiday or an electric heater in the flat: q_switch_check first.",
+    "One topic per question. If an answer contradicts an earlier one ('nobody used hot water', then 'as I was cooking'), clarify which is right before concluding."
   ],
   "sources": [
     "Team troubleshooting sheet (33 situations, adapted from hotel to rental-flat context)",

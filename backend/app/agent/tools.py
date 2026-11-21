@@ -255,7 +255,7 @@ async def _ask_question(ctx: TurnContext, question_id: str, lead_in: str | None 
     if question_id == diagnosis.open_question(d):  # re-asking the open question (after "hello?", "lol", a side question)
         if {"ask_question", "clarify"} & set(ctx.calls[:-1]):
             raise ValueError("A question was already sent this turn. Stop now.")
-        await diagnosis.ask(ctx.contact, ctx.conv, question_id, lead=(lead_in or "").split("?")[0].strip(),
+        await diagnosis.ask(ctx.contact, ctx.conv, question_id, lead=(lead_in or "").split("?")[0].strip() or None,
                             text=translation)
         ctx.sent += 1
         return {"ok": True, "delivered": True, "note": "Open question repeated. Wait for the answer."}
@@ -319,11 +319,16 @@ async def _clarify(ctx: TurnContext, text: str) -> dict:
         raise ValueError("A message was already sent this turn: stop now.")
     if not (text or "").strip() or "?" not in text:
         raise ValueError("a clarifying question must be one short question")
-    if d.get("asked") and not diagnosis.open_question(d):
+    if d.get("asked") and not diagnosis.open_question(d) and not d.get("conflicts"):
         last = d["asked"][-1]
         raise ValueError(f"The answer is clear ({last}={d['answers'].get(last, 'unknown')}); don't clarify, "
                          "continue with the next question or conclude")
     d["clarifications"] = d.get("clarifications", 0) + 1
+    if d.get("conflicts"):  # the conflict question goes out with both answers as buttons
+        await diagnosis.ask_conflict(ctx.contact, ctx.conv)
+        d["clarifications"] -= 1  # (ask_conflict counted it)
+        ctx.sent += 1
+        return {"ok": True, "delivered": True, "note": "Asked which answer is right. Wait for it."}
     await out.text(ctx.contact, ctx.conv.case_id, text.strip())
     ctx.sent += 1
     return {"ok": True, "delivered": True, "note": "Wait for the tenant's answer."}

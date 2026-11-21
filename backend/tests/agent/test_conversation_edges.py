@@ -109,7 +109,7 @@ def test_question_back_short_answer_then_open_question(client, svc, gpt):
     client.post("/webhooks/whatsapp", json=wa("is it dangerous?"))
     t = texts(client)
     assert t[-2] == "Cold water alone isn't dangerous."
-    assert t[-1].startswith("Is it only the shower")  # no extra lead-in after the answer
+    assert t[-1] == "And is it only the shower, or the sinks too?"  # re-worded, no extra lead-in
 
 
 def test_dont_know_moves_on():
@@ -148,7 +148,10 @@ def test_correction_replaces_earlier_answer():
     diagnosis.start(conv, "cold")
     diagnosis.record(conv, "q_scope", "only_shower")
     diagnosis.record(conv, "q_scope", "everywhere")  # "sorry, actually the kitchen is cold too"
-    assert conv.diagnosis["answers"]["q_scope"] == "everywhere"
+    assert conv.diagnosis["answers"]["q_scope"] == "only_shower"  # held as a conflict, clarified first
+    assert conv.diagnosis["conflicts"] == {"q_scope": "everywhere"}
+    diagnosis.record(conv, "q_scope", "everywhere")  # said again (or tapped): it's a correction
+    assert conv.diagnosis["answers"]["q_scope"] == "everywhere" and not conv.diagnosis["conflicts"]
 
 
 # ---------------------------------------------------------------- it works / still cold / frustrated
@@ -350,3 +353,72 @@ def test_german_tenant_gets_german_questions_and_consent(client, svc, claude):
     client.post("/webhooks/whatsapp", json=wa("Die Heizung ist auch kalt und das Display zeigt F.28"))
     t = texts(client)
     assert any("Fehlercode F.28" in x for x in t) and "deinen Namen" in t[-1]
+
+
+# ---------------------------------------------------------------- PR 105 follow-up (Luka's live replay)
+def test_language_follows_short_english_messages_not_profile():
+    from app.agent import diagnosis, state
+
+    conv = state.Conversation(contact_id="c_202")  # (the contact's stored language is "de")
+    for msg in ("my shower is cold", "sinks too", "no", "everything", "all taps"):
+        assert diagnosis.update_lang(conv, msg) == "en", msg
+    assert diagnosis.update_lang(conv, "👍") == "en"  # unclear keeps the current one
+    assert diagnosis.update_lang(conv, "Nein, niemand hat Wasser benutzt") == "de"
+    assert diagnosis.update_lang(conv, "ok") == "de"
+
+
+def test_de_profile_contact_writing_english_gets_english_only(client, svc, gpt):
+    from app.agent import state
+
+    assert svc.contacts["c_202"].language == "de"
+    gpt([[oa_call("ask_question", question_id="q_scope", lead_in="Lass uns das prüfen.",
+                  translation="Ist es nur die Dusche, oder sind auch die Waschbecken kalt?")], ""])
+    client.post("/webhooks/whatsapp", json=wa("my shower is cold"))
+    t = texts(client)[-1]
+    assert t == "Let's fix it. Is it only the shower, or is the hot water cold at the sinks too?"  # never mixed
+    assert last_ids(client)[0] == "diag:q_scope:only_shower" and state.conversation("c_202").lang == "en"
+
+
+def test_answer_to_another_question_then_reworded_reask(client, svc, gpt):
+    gpt([[oa_call("ask_question", question_id="q_hot_water_use", lead_in=None, translation=None)], "",
+         [oa_call("record_answer", question_id="q_scope", answer_key="everywhere"),
+          oa_call("ask_question", question_id="q_hot_water_use", lead_in=None, translation=None)], ""])
+    client.post("/webhooks/whatsapp", json=wa("no hot water at all"))
+    first = texts(client)[-1]
+    client.post("/webhooks/whatsapp", json=wa("all taps"))
+    again = texts(client)[-1]
+    from app.agent import diagnosis, state
+
+    q = diagnosis.questions()["q_hot_water_use"]
+    assert q["text"] in first and q["text"] not in again  # never the same words twice
+    assert again == "Thanks. " + q["reask"]
+    d = state.conversation("c_202").diagnosis
+    assert d["answers"]["q_scope"] == "everywhere" and d["asked"].count("q_hot_water_use") == 1
+
+
+def test_contradiction_is_clarified_not_concluded(client, svc, gpt):
+    from app.agent import diagnosis, state
+
+    gpt([[oa_call("ask_question", question_id="q_hot_water_use", lead_in=None, translation=None)], "",
+         [oa_call("record_answer", question_id="q_hot_water_use", answer_key="no")], "",
+         [oa_call("record_answer", question_id="q_hot_water_use", answer_key="same_time"),
+          oa_call("conclude_diagnosis", cause_id="simultaneous_use", confidence=0.8,
+                  reasoning="Cooking while showering.", translation=None)], ""])
+    client.post("/webhooks/whatsapp", json=wa("the hot water just stopped"))
+    client.post("/webhooks/whatsapp", json=wa("no"))
+    client.post("/webhooks/whatsapp", json=wa("as I was cooking just now"))
+    d = state.conversation("c_202").diagnosis
+    assert not d.get("concluded") and d["answers"]["q_hot_water_use"] == "no"
+    assert set(last_ids(client)) == {"diag:q_hot_water_use:same_time", "diag:q_hot_water_use:no"}
+    assert texts(client)[-1].startswith("Just to check:")
+    client.post("/webhooks/whatsapp", json=tap("diag:q_hot_water_use:no"))  # the tap settles it
+    assert not d.get("conflicts")
+    _cancel_followups()
+
+
+def test_questions_are_single_topic():
+    from app.agent import diagnosis
+
+    qs = diagnosis.questions()
+    assert "certain times" not in qs["q_wait_result"]["text"] and "turn normally" not in qs["q_shower_handle"]["text"]
+    assert all(q["text"].count("?") == 1 for q in qs.values())
