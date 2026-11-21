@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 
+import os
 import uuid
 from datetime import timedelta
 from pathlib import Path
@@ -117,7 +118,8 @@ async def skip_to_tomorrow() -> dict:
     record_event(None, "system", "clock.skipped", "Demo clock moved to tomorrow", {"now": now_iso()})
     from . import services
     suspended = services.check_partner_expiry()  # feature 1: expired insurance / gas registration
-    redispatched = services.check_sla()  # feature 2: jobs not accepted in time go to the next partner
+    # Job time limits are off unless PARTNER_SLA_ENABLED=1 (full feature on the partner-features branch).
+    redispatched = services.check_sla() if os.getenv("PARTNER_SLA_ENABLED") == "1" else []
     for r in redispatched:
         await notify.notify_tenant(r["case_id"], "partner_declined", r)
     return {"ok": True, "now": now_iso(), "suspended_partners": [p["partner_id"] for p in suspended],

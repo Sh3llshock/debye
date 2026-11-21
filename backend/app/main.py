@@ -5,6 +5,7 @@ Run from backend/:  uvicorn app.main:app --reload
 from __future__ import annotations
 
 import asyncio
+import os
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -28,9 +29,12 @@ log = logging.getLogger("debye")
 async def lifespan(app: FastAPI):
     events.bind_loop(asyncio.get_running_loop())
     seed(reset=settings.reseed_on_boot)
-    checker = asyncio.create_task(_periodic_checks())
+    # Background loop (job time limits, document expiry) is off unless PARTNER_SLA_ENABLED=1;
+    # the full feature lives on the partner-features branch.
+    checker = asyncio.create_task(_periodic_checks()) if os.getenv("PARTNER_SLA_ENABLED") == "1" else None
     yield
-    checker.cancel()
+    if checker:
+        checker.cancel()
 
 
 async def _periodic_checks(interval_s: float = 60.0) -> None:
