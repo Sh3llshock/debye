@@ -16,6 +16,7 @@ import StaffPartners, { StaffPartner } from './pages/StaffPartners'
 import PartnerJoin from './pages/PartnerJoin'
 import { getSession } from './pages/partner/shared'
 import TenantApp from './tenant/TenantApp'
+import TryDebye from './pages/TryDebye'
 import { t, useLang } from './lib/i18n'
 
 function Staff() {
@@ -79,6 +80,10 @@ function App() {
         <Route path="/partner/:partnerId/profile" element={<PartnerPage tab="profile" />} />
         <Route path="/partner/:partnerId/jobs/:caseId" element={<PartnerPage />} />
         <Route path="/tenant/*" element={<TenantApp />} />
+        <Route path="/tryDebye" element={<TryDebye />} />
+        <Route path="/trydebye" element={<TryDebye />} />
+        <Route path="/tryDebie" element={<TryDebye />} />
+        <Route path="/try" element={<TryDebye />} />
         <Route path="/tech/:techId" element={<TechPage />} />
         <Route path="/tech/:techId/jobs/:caseId" element={<TechPage />} />
         <Route path="*" element={<NotFound />} />
