@@ -2,6 +2,14 @@
 // API data (case titles, event summaries) and WhatsApp messages are not translated here.
 export const DE: Record<string, string> = {
   // shell
+  // v3 shell
+  Inbox: 'Posteingang',
+  Properties: 'Objekte',
+  'Property management': 'Hausverwaltung',
+  'Search cases, flats, tenants…': 'Fälle, Wohnungen, Mieter suchen…',
+  Search: 'Suche',
+  'Fields typed by tenants': 'Von Mietern getippte Felder',
+  Calls: 'Anrufe',
   Cases: 'Fälle',
   Units: 'Einheiten',
   Jobs: 'Aufträge',

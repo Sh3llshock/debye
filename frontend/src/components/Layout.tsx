@@ -1,14 +1,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { Link, NavLink } from 'react-router-dom'
-import { onStreamStatus } from '../lib/stream'
-import { DEMO, USE_FIXTURES } from '../api/client'
-import { initials } from '../lib/format'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { api, DEMO, USE_FIXTURES } from '../api/client'
+import { onStreamStatus, useStream } from '../lib/stream'
+import { needsApproval } from '../lib/lifecycle'
+import { useDebounced, useResource } from '../lib/useResource'
 import { t, useLang } from '../lib/i18n'
 import { DemoControls } from './DemoControls'
 import { Icon } from './icons'
-import { Mascot } from './ui'
 
-// ---------- breadcrumb: pages set it, the shell header shows it ----------
+// ---------- breadcrumb: pages set it, the shell shows it above the page title ----------
 export type Crumb = { label: string; to?: string }
 const CrumbCtx = createContext<(c: Crumb[]) => void>(() => {})
 export function useCrumbs(crumbs: Crumb[]) {
@@ -17,28 +17,54 @@ export function useCrumbs(crumbs: Crumb[]) {
   useEffect(() => set(crumbs), [key]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
+// ---------- full-bleed pages (the inbox fills the window under the top bar) ----------
+const BleedCtx = createContext<(on: boolean) => void>(() => {})
+export function useFullBleed() {
+  const set = useContext(BleedCtx)
+  useEffect(() => {
+    set(true)
+    return () => set(false)
+  }, [set])
+}
+
+/** The Debye line logo (docs/design/v3, public/brand). */
+export function Logo({ className = 'h-7 w-7' }: { className?: string }) {
+  return <img src="/brand/debye-logo.png" alt="" aria-hidden draggable={false} className={`flex-none select-none object-contain ${className}`} />
+}
+
+/** Logo + "Debye" + small role label, as in the v3 top bar. */
+export function Brand({ to, sub }: { to: string; sub?: string }) {
+  return (
+    <Link to={to} className="flex min-w-0 items-center gap-[9px] text-[19px] font-semibold tracking-[-0.02em] text-ink no-underline">
+      <Logo />
+      Debye
+      {sub && <small className="ml-0.5 hidden truncate text-meta font-medium tracking-normal text-muted sm:inline">{sub}</small>}
+    </Link>
+  )
+}
+
 export function LiveDot() {
   const [on, setOn] = useState(false)
   useEffect(() => onStreamStatus(setOn), [])
   return (
-    <span className="inline-flex items-center gap-2 text-label text-secondary" title={on ? t('Live updates connected') : t('Reconnecting…')}>
-      <span className={`h-2 w-2 rounded-full ${on ? 'animate-pulse-dot bg-positive' : 'bg-negative'}`} />
+    <span className="inline-flex items-center gap-2 text-meta text-muted" title={on ? t('Live updates connected') : t('Reconnecting…')}>
+      <span className={`h-2 w-2 rounded-full ${on ? 'animate-pulse-dot bg-ok' : 'bg-red'}`} />
       <span className="hidden sm:inline">{on ? t('Live') : t('Offline')}</span>
     </span>
   )
 }
 
-/** EN / DE segmented toggle (top right of every page). */
+/** EN / DE pill toggle (top right of every page). */
 export function LangToggle() {
   const [lang, setLang] = useLang()
   return (
-    <div className="inline-flex rounded border border-line p-0.5" role="group" aria-label={t('Language')}>
+    <div className="inline-flex rounded-full bg-surface p-0.5 shadow-ring" role="group" aria-label={t('Language')}>
       {(['en', 'de'] as const).map((l) => (
         <button
           key={l}
           onClick={() => setLang(l)}
           aria-pressed={lang === l}
-          className={`rounded-chip px-2 py-0.5 text-meta font-semibold uppercase transition-colors ${lang === l ? 'bg-ink text-on-action' : 'text-secondary hover:bg-sub'}`}
+          className={`rounded-full px-2.5 py-0.5 text-meta font-semibold uppercase transition-colors ${lang === l ? 'bg-wine text-cream' : 'text-secondary hover:bg-beige'}`}
         >
           {l}
         </button>
@@ -47,80 +73,163 @@ export function LangToggle() {
   )
 }
 
-type RailItem = { to: string; label: string; icon: string; end?: boolean }
+/** Round initial avatar + name (the signed-in person). */
+export function Me({ name, onClick }: { name: string; onClick?: () => void }) {
+  const inner = (
+    <>
+      <span className="uav">{name.charAt(0).toUpperCase()}</span>
+      <span className="hidden lg:inline">{name}</span>
+    </>
+  )
+  const cls = 'flex items-center gap-[9px] whitespace-nowrap font-medium text-ink'
+  return onClick ? (
+    <button className={cls} onClick={onClick} title={name}>
+      {inner}
+    </button>
+  ) : (
+    <span className={cls} title={name}>
+      {inner}
+    </span>
+  )
+}
 
-function Shell({ logo, items, crumbs, right, children, phoneCrumb }: { logo: ReactNode; items: RailItem[]; crumbs: Crumb[]; right: ReactNode; children: ReactNode; phoneCrumb?: number }) {
-  const keep = phoneCrumb ?? crumbs.length - 1
+export type TabItem = { to: string; label: string; count?: number; soft?: boolean; end?: boolean; match?: (path: string) => boolean }
+
+function Tabs({ items }: { items: TabItem[] }) {
+  const { pathname } = useLocation()
   return (
-    <div className="min-h-screen md:pl-rail">
-      <aside className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around bg-rail md:inset-y-0 md:left-0 md:right-auto md:h-auto md:w-rail md:flex-col md:justify-start md:gap-2 md:py-4">
-        <div className="hidden md:mb-4 md:block">{logo}</div>
-        {items.map((it) => (
-          <NavLink
-            key={it.to}
-            to={it.to}
-            end={it.end}
-            className={({ isActive }) =>
-              `flex w-16 flex-col items-center gap-1 rounded py-2 text-center text-tiny transition-colors ${isActive ? 'bg-rail-active text-rail-text-active' : 'text-rail-text hover:text-rail-text-active'}`
-            }
-          >
-            <Icon name={it.icon} className="h-5 w-5" />
-            {it.label}
-          </NavLink>
-        ))}
-      </aside>
-      <header className="sticky top-0 z-20 flex h-header items-center gap-3 border-b border-line bg-surface px-4 md:gap-4 md:px-work">
-        <div className="shrink-0 md:hidden">{logo}</div>
-        <nav className="flex min-w-0 items-center gap-2 text-body">
-          {crumbs.map((c, i) => (
-            <span key={i} className={`min-w-0 items-center gap-2 ${i === keep ? 'flex' : 'hidden sm:flex'}`}>
-              {i > 0 && <Icon name="chevron" className={`h-4 w-4 shrink-0 text-muted ${i === keep ? 'hidden sm:block' : ''}`} />}
-              {c.to ? (
-                <Link to={c.to} className={`truncate ${i === 0 ? 'font-semibold text-ink' : 'text-action'} hover:underline`}>
-                  {c.label}
-                </Link>
-              ) : (
-                <span className={`truncate ${i === 0 ? 'font-semibold text-ink' : 'text-secondary'}`}>{c.label}</span>
-              )}
-            </span>
-          ))}
-        </nav>
-        <div className="ml-auto flex shrink-0 items-center gap-3 md:gap-4">
-          {right}
-          <LangToggle />
-        </div>
-      </header>
-      <main className="px-4 pb-24 pt-work md:px-work md:pb-work">{children}</main>
-      {DEMO && <DemoControls />}
+    <nav className="no-scrollbar flex gap-1 overflow-x-auto">
+      {items.map((it) => (
+        <NavLink
+          key={it.to}
+          to={it.to}
+          end={it.end}
+          className={({ isActive }) => `tab ${isActive || it.match?.(pathname) ? 'tab-on' : ''}`}
+        >
+          {it.label}
+          {!!it.count && <span className={`cnt ${it.soft ? 'cnt-soft' : ''}`}>{it.count}</span>}
+        </NavLink>
+      ))}
+    </nav>
+  )
+}
+
+/** Crumbs above the page title ("Cases › 7781"); hidden when there is only one level. */
+function Crumbs({ crumbs }: { crumbs: Crumb[] }) {
+  if (crumbs.length < 2) return null
+  return (
+    <div className="crumb flex min-w-0 flex-wrap items-center gap-1">
+      {crumbs.map((c, i) => (
+        <span key={i} className="flex min-w-0 items-center gap-1">
+          {i > 0 && <span aria-hidden>›</span>}
+          {c.to ? <Link to={c.to}>{c.label}</Link> : <span className="truncate">{c.label}</span>}
+        </span>
+      ))}
     </div>
   )
 }
 
-function MascotLogo({ to = '/staff' }: { to?: string }) {
+/**
+ * The v3 shell: a top bar (brand, pill tabs, extras, language, person) and a centred page
+ * (max 1320px, 26/28px padding). On phones the tabs move to a second, scrollable row.
+ */
+export function Shell({ brand, tabs, extra, right, crumbs = [], children, bleed: bleedProp }: { brand: ReactNode; tabs?: TabItem[]; extra?: ReactNode; right?: ReactNode; crumbs?: Crumb[]; children: ReactNode; bleed?: boolean }) {
+  const [bleedState, setBleed] = useState(false)
+  const bleed = bleedProp ?? bleedState
   return (
-    <Link to={to} className="block h-11 w-11 overflow-hidden rounded-full bg-surface" title="Debye · AI assistant">
-      <Mascot pose="avatar" alt="Debye" className="h-full w-full object-cover" />
-    </Link>
+    <BleedCtx.Provider value={setBleed}>
+      <div className={`flex flex-col ${bleed ? 'h-[100dvh]' : 'min-h-[100dvh]'}`}>
+        <header className="sticky top-0 z-20 flex-none border-b border-line bg-bg">
+          <div className="flex items-center gap-4 px-4 py-3 md:px-7">
+            {brand}
+            {tabs && tabs.length > 0 && (
+              <div className="ml-5 hidden min-w-0 md:block">
+                <Tabs items={tabs} />
+              </div>
+            )}
+            <div className="ml-auto flex min-w-0 items-center gap-3 md:gap-4">
+              {extra}
+              {right}
+              <LangToggle />
+            </div>
+          </div>
+          {tabs && tabs.length > 0 && (
+            <div className="-mt-1 px-3 pb-2 md:hidden">
+              <Tabs items={tabs} />
+            </div>
+          )}
+        </header>
+        <main className={bleed ? 'min-h-0 flex-1 overflow-hidden' : 'flex-1'}>
+          {bleed ? (
+            children
+          ) : (
+            <div className="mx-auto w-full max-w-[1320px] px-4 pb-[60px] pt-[26px] md:px-7">
+              <Crumbs crumbs={crumbs} />
+              {children}
+            </div>
+          )}
+        </main>
+        {DEMO && <DemoControls />}
+      </div>
+    </BleedCtx.Provider>
+  )
+}
+
+/** Staff search: Enter jumps to the cases table filtered by the text. */
+function StaffSearch() {
+  const nav = useNavigate()
+  const [q, setQ] = useState('')
+  return (
+    <form
+      className="hidden xl:block"
+      onSubmit={(e) => {
+        e.preventDefault()
+        nav(`/staff/cases${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`)
+      }}
+    >
+      <input
+        type="search"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder={t('Search cases, flats, tenants…')}
+        aria-label={t('Search')}
+        className="w-[260px] rounded-full bg-surface px-3.5 py-2 text-label text-ink shadow-ring outline-none placeholder:text-muted focus:shadow-[0_0_0_2px_#6B1F33]"
+      />
+    </form>
   )
 }
 
 export function StaffLayout({ children }: { children: ReactNode }) {
-  const [crumbs, setCrumbs] = useState<Crumb[]>([{ label: t('Cases') }])
+  const [crumbs, setCrumbs] = useState<Crumb[]>([])
+  const { data, reload } = useResource(() => api.staffCases(), [])
+  const refetch = useDebounced(reload, 400)
+  useStream(() => refetch())
+  const needs = data?.filter((c) => needsApproval(c.status)).length ?? 0
+  const running = data?.filter((c) => !['closed', 'rejected'].includes(c.status)).length ?? 0
   return (
     <CrumbCtx.Provider value={setCrumbs}>
       <Shell
-        logo={<MascotLogo />}
-        items={[
-          { to: '/staff', label: t('Cases'), icon: 'cases', end: true },
-          { to: '/staff/units', label: t('Units'), icon: 'building' },
-          { to: '/staff/partners', label: t('Partners'), icon: 'wrench' },
+        brand={<Brand to="/staff" sub={t('Property management')} />}
+        tabs={[
+          { to: '/staff', label: t('Inbox'), count: needs, end: true },
+          { to: '/staff/cases', label: t('Cases'), count: running, soft: true },
+          { to: '/staff/units', label: t('Properties') },
+          { to: '/staff/partners', label: t('Partners'), match: (p) => p.startsWith('/partners/') },
         ]}
         crumbs={crumbs}
+        extra={
+          <>
+            <StaffSearch />
+            <span className="hidden whitespace-nowrap text-meta text-muted 2xl:inline">
+              {t('Fields typed by tenants')} <b className="text-wine">0</b> · {t('Calls')} <b className="text-wine">0</b>
+            </span>
+          </>
+        }
         right={
           <>
-            {USE_FIXTURES && <span className="rounded-chip bg-warning-soft px-2 py-0.5 text-meta font-semibold text-warning">fixtures</span>}
+            {USE_FIXTURES && <span className="pill bg-warn-tint text-warn">fixtures</span>}
             <LiveDot />
-            <span className="hidden text-body text-secondary lg:inline">Anna Becker · reltix</span>
+            <Me name="Anna Becker" />
           </>
         }
       >
@@ -130,25 +239,10 @@ export function StaffLayout({ children }: { children: ReactNode }) {
   )
 }
 
-export function PartnerLayout({ partnerName, partnerId, staffName, children }: { partnerName?: string; partnerId: string; staffName?: string; children: ReactNode }) {
-  const logo = (
-    <Link to={`/partner/${partnerId}`} className="flex h-11 w-11 items-center justify-center rounded bg-surface text-label font-semibold text-ink" title={partnerName}>
-      {initials(partnerName ?? partnerId)}
-    </Link>
-  )
+/** Simple shell for pages without tabs of their own (technician phone pages, call page). */
+export function PlainLayout({ to, sub, right, crumbs = [], children }: { to: string; sub?: string; right?: ReactNode; crumbs?: Crumb[]; children: ReactNode }) {
   return (
-    <Shell
-      logo={logo}
-      items={[{ to: `/partner/${partnerId}`, label: t('Jobs'), icon: 'jobs' }]}
-      crumbs={[{ label: partnerName ?? partnerId, to: `/partner/${partnerId}` }, { label: t('Jobs from reltix, sent by Debye') }]}
-      phoneCrumb={0}
-      right={
-        <>
-          <LiveDot />
-          {staffName && <span className="hidden text-body text-secondary lg:inline">{staffName}</span>}
-        </>
-      }
-    >
+    <Shell brand={<Brand to={to} sub={sub} />} right={right} crumbs={crumbs}>
       {children}
     </Shell>
   )
@@ -156,12 +250,34 @@ export function PartnerLayout({ partnerName, partnerId, staffName, children }: {
 
 export function TechLayout({ techId, name, partnerName, children }: { techId: string; name?: string; partnerName?: string; children: ReactNode }) {
   return (
+    <PlainLayout
+      to={`/tech/${techId}`}
+      sub={partnerName ? `${t('Technician')} · ${partnerName}` : t('Technician')}
+      right={
+        <>
+          <LiveDot />
+          {name && <Me name={name} />}
+        </>
+      }
+    >
+      {children}
+    </PlainLayout>
+  )
+}
+
+export { Icon }
+
+export function PartnerLayout({ partnerName, partnerId, staffName, children }: { partnerName?: string; partnerId: string; staffName?: string; children: ReactNode }) {
+  return (
     <Shell
-      logo={<MascotLogo to={`/tech/${techId}`} />}
-      items={[{ to: `/tech/${techId}`, label: t('My jobs'), icon: 'jobs' }]}
-      crumbs={[{ label: name ?? techId, to: `/tech/${techId}` }, ...(partnerName ? [{ label: partnerName }] : [])]}
-      phoneCrumb={0}
-      right={<LiveDot />}
+      brand={<Brand to={`/partner/${partnerId}`} sub={partnerName ?? t('Partner portal')} />}
+      tabs={[{ to: `/partner/${partnerId}`, label: t('Jobs'), end: false }]}
+      right={
+        <>
+          <LiveDot />
+          {staffName && <Me name={staffName} />}
+        </>
+      }
     >
       {children}
     </Shell>
