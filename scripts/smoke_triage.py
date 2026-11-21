@@ -56,6 +56,11 @@ def run(names: list[str]) -> int:
     et.instrument(track_ref)
     fails = 0
     with TestClient(app) as client:
+        # warm-up (not timed): the first request of a fresh process pays imports, connections and TLS once;
+        # a running server is warm, so first-reply times are measured from the second request on
+        seed(reset=True)
+        state.reset_all()
+        client.post("/webhooks/whatsapp", json=et.ev.wa_text(PHONE, "my tap is dripping"))
         for name in names:
             text, expect = OPENERS[name]
             seed(reset=True)

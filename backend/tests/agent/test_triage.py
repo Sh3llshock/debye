@@ -253,3 +253,28 @@ def test_ask_only_question_is_never_inferred_from_the_first_message(svc, monkeyp
     monkeypatch.setattr(diagnosis, "_classify_answers", fake)
     asyncio.run(diagnosis.extract_answers(conv, "my smoke alarm is going off and won't stop"))
     assert "ot_alarm" not in seen
+
+
+# ---------------------------------------------------------------- anti-loop (Luka's chat on live)
+def test_luka_ceiling_typo_reroutes_instead_of_looping(client, svc, claude):
+    claude([RuntimeError("down")] * 20)
+    from app.agent import diagnosis, state
+
+    client.post("/webhooks/whatsapp", json=wa("Water is dripping from my ceeling"))
+    client.post("/webhooks/whatsapp", json=wa("I said the ceeling"))
+    conv = state.conversation("c_202")
+    assert diagnosis.area_of(conv) == "roof_ceiling_leak"
+    qs = [t for t in texts(client) if "?" in t]
+    assert len(qs) == len(set(qs))  # no question twice
+
+
+def test_every_question_outside_hot_water_has_an_escape(client, svc, claude):
+    claude([RuntimeError("down")] * 10)
+    client.post("/webhooks/whatsapp", json=wa("my kitchen tap is dripping"))
+    assert last_ids(client)[-1].endswith(":_other")
+
+
+def test_hot_water_questions_have_no_escape(client, svc, claude):
+    claude([RuntimeError("down")] * 10)
+    client.post("/webhooks/whatsapp", json=wa("My shower is cold"))
+    assert not any(i.endswith(":_other") for i in last_ids(client))
