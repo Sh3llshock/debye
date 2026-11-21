@@ -32,6 +32,7 @@
   "units": [
     {
       "id": "unit_4b",
+      "access": {"key_safe_code": "4711", "intercom_name": "Luka, 4B (2nd floor)", "parking_note": "Visitor spaces in the courtyard, gate code 2580. Boiler is in the bathroom, 2nd door left."},
       "property_id": "prop_12",
       "floor": 2,
       "size_sqm": 68,
@@ -301,6 +302,17 @@
       "id": "ct_fw_schmidt",
       "type": "framework",
       "partner_id": "heizung-schmidt",
+      "data": {
+        "auto_approve_limit_eur": 500,
+        "callout_fee_eur": 89,
+        "hourly_eur": 72,
+        "valid_until": "2027-12-31"
+      }
+    },
+    {
+      "id": "ct_fw_heiztechnik_api",
+      "type": "framework",
+      "partner_id": "heiztechnik-api",
       "data": {
         "auto_approve_limit_eur": 500,
         "callout_fee_eur": 89,

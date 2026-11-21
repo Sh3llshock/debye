@@ -5,6 +5,7 @@ Run from backend/:  uvicorn app.main:app --reload
 from __future__ import annotations
 
 import asyncio
+import os
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -13,7 +14,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from . import demo, events, onboard_api, partner_api, staff_api, tech_api
+from . import centrix_events, demo, events, onboard_api, partner_api, partner_events_api, staff_api, tech_api
 from .config import settings
 from .db import get_session
 from .models import Document
@@ -28,7 +29,26 @@ log = logging.getLogger("debye")
 async def lifespan(app: FastAPI):
     events.bind_loop(asyncio.get_running_loop())
     seed(reset=settings.reseed_on_boot)
+    # Background loop (job time limits, document expiry) is off unless PARTNER_SLA_ENABLED=1;
+    # the full feature lives on the partner-features branch.
+    checker = asyncio.create_task(_periodic_checks()) if os.getenv("PARTNER_SLA_ENABLED") == "1" else None
     yield
+    if checker:
+        checker.cancel()
+
+
+async def _periodic_checks(interval_s: float = 60.0) -> None:
+    """Small background loop: partner document expiry (daily) and job SLAs (services.periodic_checks)."""
+    from . import services
+    while True:
+        await asyncio.sleep(interval_s)
+        try:
+            result = await asyncio.to_thread(services.periodic_checks)
+            from . import notify
+            for r in result.get("redispatched") or []:  # SLA ran out → tell the tenant
+                await notify.notify_tenant(r["case_id"], "partner_declined", r)
+        except Exception:  # never let the loop die
+            log.exception("periodic checks failed")
 
 
 app = FastAPI(title="Debye (AI assistant)", lifespan=lifespan)
@@ -39,8 +59,11 @@ app.include_router(staff_api.router)
 app.include_router(onboard_api.router)
 app.include_router(partner_api.list_router)
 app.include_router(partner_api.router)
+app.include_router(partner_events_api.router)  # POST /api/partners/{id}/events (API partners)
 app.include_router(tech_api.router)
 app.include_router(demo.router)
+app.include_router(centrix_events.router)  # POST /api/centrix/events (asset.error_reported)
+
 
 # Agent-whatsapp routers (interfaces §3.3b). Guarded until the agent PR lands.
 try:

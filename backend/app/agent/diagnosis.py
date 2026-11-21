@@ -995,6 +995,10 @@ def conclusion_text(conv: st.Conversation, c: dict, translation: str | None = No
             return code_sentence(conv) + " " + override
         return override
     own = c.get("tenant_message_de") if conv.lang == "de" else None
+    if c.get("tenant_message_unconfirmed") and (conv.diagnosis or {}).get("answers", {}).get("q_radiators") != "yes":
+        # the usual message states facts ("heating and hot water both off") the resident didn't give
+        own = c.get("tenant_message_unconfirmed_de") if conv.lang == "de" else c["tenant_message_unconfirmed"]
+        translation = None
     if translation and translation not in neutral_messages() and (conv.lang != "de" or not _looks_german(translation)):
         translation = None  # never a translated message for an English resident
     text = (translation or "").strip() or own or c["tenant_message"]

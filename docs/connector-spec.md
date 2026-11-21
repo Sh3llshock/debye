@@ -67,6 +67,13 @@ Each transition is a `status_event`:
 
 Documents are sent as URLs or base64 with `{kind, filename, mime}`.
 
+### 4.1 What is built (Heiztechnik API GmbH, `partners/heiztechnik-api.json`)
+
+- **Order out** (`backend/app/partners/transport.py`): when `services.dispatch_job` passes its gates (consent + staff approval, unchanged) and `transport.type` is `api`, centrix POSTs `{base_url}/orders` with `{order_ref: "ord_<case_id>", partner_id, case{case_id, type, title, summary, error_code}, trade, priority, cost_cap_eur, slot_hints[{start,end}], context, consent{data_shared, given_at, channel, purpose}, events_webhook}`. `context` holds the manifest's `required_context` keys, and keys with `consent_required` only when the tenant consented for this partner and case. The raw body is signed: `X-Centrix-Signature: sha256=<hex HMAC-SHA256>` with the secret from the env var named in `transport.auth.secret_env`. The answer's `partner_order_id` is stored on the case (`data.partner_order`). If the partner is unreachable or the secret is missing, the case keeps status `requested` and a `job.send_failed` event shows it to staff; nothing crashes. `portal` partners behave exactly as before.
+- **Events in** (`backend/app/partner_events_api.py`): `POST /api/partners/{partner_id}/events` with a status_event (§3), signed the same way. 401 bad/missing signature, 422 wrong shape or unknown status, 404 unknown `order_ref`, 409 transition not allowed by the lifecycle. Each event calls the same services as the partner page: `accepted` → `partner_accept` (with `data.slots: [{start,end}]` → `propose_slots`, may repeat to re-propose), `scheduled` (`data.slot_start` of a proposed slot) → `confirm_slot`, `in_progress` → event only, `completed` (+ documents `photo`, `invoice`, `visit_report`; `data.invoice` may carry the invoice fields so no OCR is needed) → `record_completion` with the price check, `invoiced` → invoice + price check, `declined`/`cancelled` → `partner_decline`, `needs_info` (`data.question`) → `job.needs_info` + `case.data.open_question`. Documents come as `base64` or as a `url` on the partner's own `base_url` host (no other hosts are fetched), max 10 MB.
+- **Lifecycle check**: the partner-side state is derived from the case status (`slots_proposed` counts as `accepted`); `in_progress` is optional between `scheduled` and `completed`; nothing moves after `declined`, `cancelled` or `closed`.
+- **Fake partner**: `python scripts/fake_partner.py --port 8100 --debye http://localhost:8000` (needs `PARTNER_API_SECRET` in `.env`). It accepts after ~3 s, proposes the first two `slot_hints` after ~3 s more, and posts `completed` + the demo invoice from its page (`http://localhost:8100`) or with `--auto-complete 10`.
+
 ## 5. Conversational transport
 
 For partners without an API. Debye:
@@ -116,3 +123,37 @@ On save the partner is a DB row (active), its technicians get calendars (free sl
 
 `service_area` with `radius_km` + `base_postcode` is evaluated without a geocoder in the demo: within 10 km the first 4 postcode digits must match, within 30 km the first 3, beyond that the first 2. A real deployment swaps in a distance lookup; the manifest stays the same.
 
+
+## 10. Partner review (built)
+
+A partner that onboards on `/partners/join` is saved with `status: "pending_review"` and is **not** ranked
+or dispatched until reltix staff approve it. Partner states: `pending_review | active | rejected | suspended`
+(`Partner.status`, with `Partner.review = {reviewer, decided_at, reason, checks}`); seeded partners are `active`.
+
+- The join form sends its documents (trade licence, liability insurance, gas registration, VAT certificate,
+  with numbers and valid-until dates). They are stored as `Document(kind="partner_doc", partner_id=…)`.
+- `partners/verification.py` pre-checks every application: all documents present, valid-until dates in the
+  future, insurance cover ≥ €1,000,000, company name the same in manifest and documents, base postcode inside
+  the service area, gas registration present for the heating trade. Each row is `pass | warn | fail`.
+- Staff API: `GET /api/staff/partners/applications`, `POST /api/staff/partners/{id}/approve`,
+  `POST /api/staff/partners/{id}/reject {reason}` (reason required). The Partners page shows a "New partners"
+  section; the inbox shows a banner.
+- `services.rank_partners` and `dispatch_job` use only `active` partners (`dispatch_job` raises
+  `partner_not_active` otherwise).
+- Expiry: `/demo/skip-to-tomorrow` and a daily background check suspend active partners whose insurance or
+  gas registration has expired (`partner.suspended` event).
+
+## 11. Decline or no response → next partner (built)
+
+`services.partner_decline` now calls `redispatch(case_id, reason)`. It ranks again without the partners in
+`case.data.declined_by` and without non-active partners, then:
+- the new partner needs consent the tenant hasn't given → status `awaiting_consent`; the agent sends one message
+  ("Heizung Schmidt can't take it. I'm asking Wärme Wagner instead.") with consent buttons;
+- consent is already there (or nothing personal is shared) → staff approval (`rules.approval_status`) and
+  `dispatch_job`; an earlier staff approval was for the previous partner, so it is asked again;
+- nobody is left → status `needs_staff` ("Needs you" in the staff inbox), and the tenant is told the
+  property manager takes over.
+SLA: `dispatch_job` stores `case.data.sla = {hours, sent_at, due_at}` from the manifest's
+`sla.urgent_response_hours` / `standard_response_hours` (by case priority). A job still `requested` after
+`due_at` counts as a decline with reason "no response within X h". This is checked on `/demo/skip-to-tomorrow`
+and by a 60 s background loop. The declined job leaves the partner's inbox.

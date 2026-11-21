@@ -16,6 +16,8 @@ export type CaseStatus =
   | 'declined'
   | 'slots_proposed'
   | 'partner_declined'
+  | 'awaiting_consent'
+  | 'needs_staff'
   | 'reopened'
   | 'awaiting_technician'
   | (string & {})
@@ -29,6 +31,8 @@ export interface PartnerRef {
 }
 
 export interface CaseSummary {
+  /** the invoice is above the approved amount or the price list */
+  price_flagged?: boolean
   case_id: string
   type: string
   title: string
@@ -237,9 +241,43 @@ export interface PartnerProfile {
   capabilities?: { trades?: string[]; brands_certified?: string[]; [k: string]: unknown }
   service_area?: { postcodes?: string[]; base_postcode?: string; radius_km?: number }
   active?: boolean
+  /** feature 1: self-onboarded partners wait for a staff review */
+  status?: PartnerStatus
+  review?: { reviewer?: string | null; decided_at?: string | null; reason?: string | null }
   staff?: { contact_id: string; name: string }[]
   open_jobs?: number
   [k: string]: unknown
+}
+
+export type PartnerStatus = 'pending_review' | 'active' | 'rejected' | 'suspended'
+
+export interface PrecheckRow {
+  id: string
+  label: string
+  status: 'pass' | 'warn' | 'fail'
+  detail: string
+}
+
+export interface PartnerApplication {
+  partner_id: string
+  name: string
+  status: PartnerStatus
+  applied_at?: string | null
+  company: { name?: string; street?: string; postcode?: string; city?: string; vat_id?: string }
+  manifest: PartnerProfile
+  documents: { document_id: string; doc_type?: string; label: string; filename: string; url: string; extracted: Record<string, unknown> }[]
+  precheck: PrecheckRow[]
+  precheck_result: 'pass' | 'warn' | 'fail'
+}
+
+export interface OnboardDocument {
+  doc_type: 'trade_licence' | 'insurance' | 'gas_registry' | 'vat'
+  filename: string
+  number?: string
+  valid_until?: string
+  coverage_eur?: number
+  issuer?: string
+  company_name?: string
 }
 
 export interface OnboardCheck {
@@ -284,6 +322,7 @@ export interface OnboardResult {
   manifest: Record<string, unknown>
   file: string | null
   checks: OnboardCheck[]
+  status?: PartnerStatus
 }
 
 export interface JobSummary {
@@ -336,6 +375,31 @@ export interface JobDetail extends JobSummary {
   events?: CaseEvent[]
   /** backend: who released the job, e.g. text "Approved by reltix staff (Anna Becker)" */
   approval?: JobApproval | null
+  /** needs_info: questions the partner asked the tenant (newest last) */
+  questions?: JobQuestion[]
+  open_question?: JobQuestion | null
+  /** just-in-time access details: only with consent and on the visit day */
+  access?: JobAccess | null
+}
+
+export interface JobQuestion {
+  id: string
+  text: string
+  asked_by?: string
+  asker_name?: string | null
+  asked_at: string
+  answer?: string | null
+  answered_at?: string | null
+}
+
+export interface JobAccess {
+  consented: boolean
+  released: boolean
+  /** visit day (YYYY-MM-DD) while the details are still held back */
+  available_on?: string | null
+  key_safe_code?: string | null
+  intercom_name?: string | null
+  parking_note?: string | null
 }
 
 export interface JobApproval {

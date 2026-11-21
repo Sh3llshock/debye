@@ -43,6 +43,7 @@ async def handle_inbound(msg: InboundMessage) -> None:
         return
     cid = be.attr(contact, "id")
     conv = st.conversation(cid)
+    conv.channel = "web" if msg.channel in ("web", "webchat") else (msg.channel or "whatsapp")
 
     # ---- media: download, transcribe voice, keep photos
     text = msg.text
@@ -247,6 +248,8 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
             log.info("free text %r understood as %s", text[:40], opt.id)
             if await handle_button(contact, opt.id):
                 return False
+    if text and not images and not in_diagnosis and await flow.answer_open_question(contact, conv, text):
+        return False  # answer to a partner's question (feature 4, needs_info)
     return bool(await loop.run_tenant_turn(contact, text, images))
 
 
@@ -312,6 +315,12 @@ async def handle_button(contact, button_id: str) -> bool:
                     await flow.send_duplicate_notice(contact, case_id)
                     return True
             await flow.on_cold(contact, case_id, kind == "cold_all")
+        elif kind in ("aerr_heat", "aerr_water", "aerr_fine"):  # answer to the proactive boiler-error message
+            from app.agent import proactive
+
+            await proactive.on_answer(contact, case_id, kind)
+        elif kind in ("oneroom_ok", "oneroom_no"):
+            await flow.on_one_room(contact, case_id, kind == "oneroom_ok")
         elif kind in ("consent_yes", "consent_no"):
             await flow.on_consent(contact, case_id, kind == "consent_yes")
         elif kind == "slot" and n is not None:
@@ -325,5 +334,6 @@ async def handle_button(contact, button_id: str) -> bool:
     except Exception:
         log.exception("button %s failed", button_id)
         if outbound.sent_count == sent_before:  # only if the resident got no reply yet
-            await outbound.text(contact, case_id, "Thanks. I'm on it and will get back to you shortly.")
+            be.record_event(case_id, "system", "staff.attention", f"Button {button_id} failed: staff follow up", {})
+            await outbound.text(contact, case_id, "Thanks. I've flagged this for your property management; they'll pick it up and get in touch.")
     return True

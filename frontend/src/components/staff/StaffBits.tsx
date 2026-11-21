@@ -32,6 +32,8 @@ const STAGE: Record<string, [string, Tone]> = {
   requested: ['Waiting for partner', 'wait'],
   accepted: ['Partner picking times', 'wait'],
   partner_declined: ['Finding another partner', 'warn'],
+  awaiting_consent: ['Asking tenant for next partner', 'wait'],
+  needs_staff: ['No partner left · needs you', 'hot'],
   slots_proposed: ['Tenant confirming time', 'wait'],
   awaiting_technician: ['Technician confirming', 'wait'],
   scheduled: ['Booked', 'blue'],
@@ -44,6 +46,7 @@ const STAGE: Record<string, [string, Tone]> = {
 export function stageOf(c: CaseSummary | CaseDetail): [string, Tone] {
   if (c.priority === 'urgent' && (c as CaseDetail).diagnosis?.outcome === 'emergency') return [t('Emergency'), 'red']
   if (c.status === 'closed' && ('diagnosis' in c ? isNoTechnician(c as CaseDetail) : isNoTechnicianSummary(c))) return [t('Fixed by tenant'), 'ok']
+  if (c.price_flagged && (c.status === 'invoiced' || c.status === 'closed')) return [t('Invoice above approved amount'), 'warn']
   const s = STAGE[c.status]
   return s ? [t(s[0]), s[1]] : [c.status.replace(/_/g, ' '), '']
 }
@@ -53,7 +56,7 @@ export function Pill({ tone = '', children, className = '' }: { tone?: Tone; chi
 }
 
 export const isOpen = (c: CaseSummary) => !['closed', 'rejected'].includes(c.status)
-export const needsMe = (c: CaseSummary) => needsApproval(c.status)
+export const needsMe = (c: CaseSummary) => needsApproval(c.status) || c.status === 'needs_staff' || (c.status === 'invoiced' && !!c.price_flagged)
 
 /** Status pill; cases waiting for approval say "Needs you" in the inbox. */
 export function StagePill({ c, inbox = false }: { c: CaseSummary | CaseDetail; inbox?: boolean }) {

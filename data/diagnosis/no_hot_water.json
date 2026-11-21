@@ -288,7 +288,7 @@
     },
     {
       "id": "boiler_fault",
-      "label": "Boiler fault (e.g. F.28 ignition failed)",
+      "label": "Boiler fault (ignition or no flame)",
       "signals": [
         "q_radiators=yes",
         "q_display=code",
@@ -305,7 +305,9 @@
       "estimated_cost_eur": 263,
       "tenant_message": "Since the heating and the hot water are both off, it's most likely a fault in the boiler. That needs a heating technician.",
       "requires": [],
-      "tenant_message_de": "Da Heizung und Warmwasser beide aus sind, ist es höchstwahrscheinlich eine Störung am Kessel. Das muss sich ein Heizungstechniker ansehen."
+      "tenant_message_de": "Da Heizung und Warmwasser beide aus sind, ist es höchstwahrscheinlich eine Störung am Kessel. Das muss sich ein Heizungstechniker ansehen.",
+      "tenant_message_unconfirmed": "That points to a fault in the boiler itself. That needs a heating technician.",
+      "tenant_message_unconfirmed_de": "Das deutet auf eine Störung am Kessel selbst hin. Das muss sich ein Heizungstechniker ansehen."
     },
     {
       "id": "low_system_pressure",
