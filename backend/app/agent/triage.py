@@ -99,6 +99,8 @@ _GAS_APPLIANCE_RE = re.compile(r"\b(gas )?(stove|hob|cooker|herd|gasherd)\b", re
 PROBLEM_RE = re.compile(
     r"\b(broken|not working|isn'?t working|is not working|doesn'?t work|does not work|won'?t|can'?t|stopped|problem|issue|help|repair|fix|damaged|"
     r"faulty|stuck|leak|kaputt|funktioniert nicht|geht nicht|defekt|reparatur|problem|hilfe|beschädigt)", re.I)
+GREETING_RE = re.compile(r"(hi|hey|hello|hallo|moin|servus|good (morning|evening)|guten (morgen|tag|abend)|thanks?|"
+                         r"thank you|danke|ok(ay)?|yes|no|ja|nein|lol|\?+|[^\w]*)[\s!.?]*", re.I)
 MENU_AREAS = ("water_leak", "blocked_drain", "electrics", "windows_doors", "appliances", "mold_damp", "management",
               "other")  # plus hot water and heating: 10 rows, the WhatsApp list maximum
 
@@ -171,7 +173,8 @@ def classify_keywords(text: str | None) -> tuple[str | None, str | None, bool]:
         return top, None, bool(top)  # only weak words ("the door", "broken"): a guess the LLM may correct
     ranked = list(s)
     if len(ranked) == 1:
-        return ranked[0], None, False
+        weak_hw = ranked[0] == HOT_WATER and not HOT_WATER_STRONG_RE.search(t)  # "shower water stays in the tray"
+        return ranked[0], None, weak_hw
     if HOT_WATER in s and HOT_WATER_STRONG_RE.search(t) and not SECOND_PROBLEM_RE.search(t)             and not any(rx.search(t) for _, _, _, rx in EMERGENCIES):
         return HOT_WATER, None, False  # "since the plumber fixed the leak, the shower only runs cold": hot water
     if HOT_WATER in s and "appliances" in s and _GAS_APPLIANCE_RE.search(t) and not SECOND_PROBLEM_RE.search(t):
@@ -321,7 +324,7 @@ async def classify(text: str | None) -> tuple[str | None, str | None]:
     primary, second, ambiguous = classify_keywords(text)
     # the model decides the area (typos, slang, German); keywords are the fast path only for hot water / heating
     # (their flows are unchanged) and the fallback when the model is down
-    if text and (ambiguous or primary not in PASSTHROUGH) and (primary is not None or PROBLEM_RE.search(text)):
+    if text and (ambiguous or primary not in PASSTHROUGH) and not GREETING_RE.fullmatch(text.strip()):
         llm = await classify_llm(text)
         if llm is not None and llm[0] is not None:
             return llm
@@ -549,6 +552,8 @@ REJECT_RE = re.compile(
     r"something else|nothing like that|wrong|no,? it'?s (the|my|from)|it'?s (coming )?from (the )?|"
     r"hab(e)? ich (doch )?(schon )?gesagt|nichts davon|keins davon|keine davon|etwas anderes|was anderes)", re.I)
 MAX_REROUTES = 2
+ALREADY_RE = re.compile(r"\b(already (said|told|answered)|i said (that|it)|told you|said that|hab(e)? ich (doch )?"
+                        r"(schon )?gesagt)", re.I)
 
 
 async def reroute_llm(current: str, question: str | None, complaint: str, reply: str) -> str | None:
@@ -600,10 +605,12 @@ async def maybe_reroute(contact, conv: st.Conversation, text: str | None, force:
     Switch to the right area (the first message plus this reply as the complaint) instead of asking again."""
     d = conv.diagnosis or {}
     cur = dg.area_of(conv)
-    if not text or not d or d.get("concluded") or cur == HOT_WATER or conv.case_id:
+    if not text or not d or d.get("concluded") or conv.case_id:
         return False
     t = _t(conv)
     if t.get("reroutes", 0) >= MAX_REROUTES or not (force or _reroute_trigger(conv, text)):
+        return False
+    if cur == HOT_WATER and not force and not REJECT_RE.search(text)             and not any(v >= 1 for a, v in scores(text).items() if a not in PASSTHROUGH):
         return False
     q = dg.open_question(d)
     qtext = (dg.questions().get(q) or {}).get("text") if q else None
@@ -613,6 +620,9 @@ async def maybe_reroute(contact, conv: st.Conversation, text: str | None, force:
         kw = [a for a, v in scores(text).items() if a != cur and v >= 1]
         new = kw[0] if kw else ("roof_ceiling_leak" if _CEILING_RE.search(text) and cur != "roof_ceiling_leak" else None)
     if not new:
+        if cur != HOT_WATER and q and ALREADY_RE.search(text) and q not in d["answers"]:
+            d.setdefault("dont_know", []).append(q)  # never ask it again; the model moves on
+            d.setdefault("reasked", []).append(q)
         return False
     log.info("triage: re-routing %s -> %s after %r", cur, new, text[:60])
     t["reroutes"] = t.get("reroutes", 0) + 1
