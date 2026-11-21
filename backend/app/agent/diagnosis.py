@@ -1463,3 +1463,31 @@ def partner_has_trade(partner_id: str | None, trade: str) -> bool:
         pass
     trades = _manifest_trades(partner_id)
     return trades is None or trade in trades
+
+
+DANGER_AGAIN_RE = re.compile(r"(smoke|smoking|fire|flame|burn|spark|smell|qualm|rauch|feuer|brennt|funken|"
+                             r"flood|spreading|everywhere|someone (is )?inside|still (there|stuck)|trapped)", re.I)
+
+
+def outcome_of_cause(d: dict) -> str | None:
+    c = {c["id"]: c for c in load_kb(area_of(d))["causes"]}.get(d.get("concluded") or "")
+    return c.get("outcome") if c else None
+
+
+def emergency_follow_up(conv: st.Conversation, text: str) -> str:
+    """One calm acknowledgement after the safety message; the safety step only if they report danger again."""
+    d = conv.diagnosis
+    c = {c["id"]: c for c in load_kb(area_of(d))["causes"]}.get(d.get("concluded") or "") or {}
+    de = conv.lang == "de"
+    if DANGER_AGAIN_RE.search(text or ""):
+        return (c.get("tenant_message_de") if de else None) or c.get("tenant_message") or ""
+    n = d["followups"] = d.get("followups", 0) + 1
+    who = trade_label(c.get("trade"), conv.lang) if c.get("trade") else None
+    if n == 1:
+        if de:
+            return "Verstanden, danke. " + (f"{who[0].upper()}{who[1:]} wird organisiert, " if who else "") + \
+                "deine Hausverwaltung ist informiert."
+        return "Got it, thanks. " + (f"{who[0].upper()}{who[1:]} is being arranged and " if who else "") + \
+            "your property manager has been informed."
+    return "Notiert. Ich melde mich, sobald es Neuigkeiten gibt." if de else \
+        "Noted. I'll update you as soon as there's news."
