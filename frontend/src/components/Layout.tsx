@@ -267,15 +267,47 @@ export function TechLayout({ techId, name, partnerName, children }: { techId: st
 
 export { Icon }
 
-export function PartnerLayout({ partnerName, partnerId, staffName, children }: { partnerName?: string; partnerId: string; staffName?: string; children: ReactNode }) {
+/** v3 partner portal top bar: "Debye Partners", tabs with counts, WhatsApp note, company + contact. */
+export function PartnerLayout({
+  partnerName,
+  partnerId,
+  contact,
+  counts = {},
+  crumbs = [],
+  children,
+}: {
+  partnerName?: string
+  partnerId: string
+  contact?: string
+  counts?: { new?: number; wip?: number; availability?: number; done?: number }
+  crumbs?: Crumb[]
+  children: ReactNode
+}) {
+  const base = `/partner/${partnerId}`
+  const name = partnerName ?? partnerId
   return (
     <Shell
-      brand={<Brand to={`/partner/${partnerId}`} sub={partnerName ?? t('Partner portal')} />}
-      tabs={[{ to: `/partner/${partnerId}`, label: t('Jobs'), end: false }]}
+      brand={<Brand to={base} sub={t('Partners')} />}
+      tabs={[
+        { to: base, label: t('Overview'), end: true },
+        { to: `${base}/new`, label: t('New jobs'), count: counts.new },
+        { to: `${base}/wip`, label: t('Work in progress'), count: counts.wip, match: (p) => p.startsWith(`${base}/jobs/`) },
+        { to: `${base}/availability`, label: t('Availability'), count: counts.availability },
+        { to: `${base}/done`, label: t('Done & invoices'), count: counts.done },
+        { to: `${base}/profile`, label: t('Profile') },
+      ]}
+      crumbs={crumbs}
+      extra={<span className="hidden whitespace-nowrap text-meta text-muted 2xl:inline">{t('Jobs also arrive on WhatsApp')}</span>}
       right={
         <>
           <LiveDot />
-          {staffName && <Me name={staffName} />}
+          <Link to={`${base}/profile`} className="flex items-center gap-[9px] whitespace-nowrap" title={name}>
+            <span className="uav">{name.charAt(0).toUpperCase()}</span>
+            <span className="hidden leading-tight lg:block">
+              <b className="block text-label font-semibold text-ink">{name}</b>
+              {contact && <span className="text-meta text-muted">{contact.split(' ')[0]}</span>}
+            </span>
+          </Link>
         </>
       }
     >
