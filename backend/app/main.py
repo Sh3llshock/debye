@@ -41,6 +41,9 @@ app.include_router(partner_api.list_router)
 app.include_router(partner_api.router)
 app.include_router(tech_api.router)
 app.include_router(demo.router)
+from . import centrix_events  # noqa: E402
+
+app.include_router(centrix_events.router)
 
 # Agent-whatsapp routers (interfaces §3.3b). Guarded until the agent PR lands.
 try:

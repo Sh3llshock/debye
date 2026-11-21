@@ -44,9 +44,10 @@ def _chat(contact_id: str, case_id: str | None, lines: list[tuple[str, str]]) ->
 
 def _consent_and_approve(case_id: str, contact_id: str, partner_id: str) -> None:
     """Consent → dispatch (stops at approval_pending under APPROVAL_POLICY=always) → staff approve."""
-    m: Manifest = services.get_partner_manifest(partner_id)
-    fields = [rules.norm_field(f) for f in m.consent_fields] or ["name", "phone", "address"]
-    services.record_consent(contact_id, partner_id, case_id, fields, "repair visit", "whatsapp")
+    fields = services.consent_fields_for(case_id, partner_id) or ["name", "phone", "address"]
+    case = services.get_case(case_id)
+    services.record_consent(contact_id, partner_id, case_id, fields,
+                            f"On-site repair visit: {case.title or case.type}", "whatsapp")
     services.add_tenant_input(case_id, "tap: consent")
     try:
         services.dispatch_job(case_id, partner_id)

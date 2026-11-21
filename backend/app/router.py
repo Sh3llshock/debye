@@ -289,6 +289,10 @@ async def handle_button(contact, button_id: str) -> bool:
                     await flow.send_duplicate_notice(contact, case_id)
                     return True
             await flow.on_cold(contact, case_id, kind == "cold_all")
+        elif kind in ("aerr_heat", "aerr_water", "aerr_fine"):  # answer to the proactive boiler-error message
+            from app.agent import proactive
+
+            await proactive.on_answer(contact, case_id, kind)
         elif kind in ("oneroom_ok", "oneroom_no"):
             await flow.on_one_room(contact, case_id, kind == "oneroom_ok")
         elif kind in ("consent_yes", "consent_no"):

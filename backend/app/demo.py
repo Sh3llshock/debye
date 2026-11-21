@@ -249,10 +249,9 @@ async def t_consent(body: dict) -> dict:
         if not ranking:
             raise HTTPException(409, "no eligible partner")
         partner_id = ranking[0]["partner_id"]
-    m: Manifest = services.get_partner_manifest(partner_id)
-    fields = body.get("fields") or [rules.norm_field(f) for f in m.consent_fields]
+    fields = body.get("fields") or services.consent_fields_for(case_id, partner_id)
     services.record_consent(case.reporter_contact_id, partner_id, case_id, fields,
-                            body.get("purpose", "heating repair visit"), "whatsapp")
+                            body.get("purpose") or f"On-site repair visit: {case.title or case.type}", "whatsapp")
     services.add_tenant_input(case_id, "tap: consent")
     services.log_message(case.reporter_contact_id, case_id, "whatsapp", "in", "✅ Yes, go ahead")
     try:
@@ -331,6 +330,18 @@ TRIGGERS = {
     "notify": t_notify,
     "maintenance_notice": t_maintenance_notice,
 }
+
+
+async def t_boiler_error(body: dict) -> dict:
+    """centrix event asset.error_reported → Debye writes the tenant first. Body: unit_id, code, asset_id."""
+    from .centrix_events import AssetErrorReported, handle
+
+    ev = AssetErrorReported(unit_id=body.get("unit_id", "unit_4b"), code=body.get("code", "F.28"),
+                            asset_id=body.get("asset_id"))
+    return await handle(ev)
+
+
+TRIGGERS["boiler_error"] = t_boiler_error
 
 
 @router.post("/trigger/{name}")

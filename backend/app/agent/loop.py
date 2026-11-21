@@ -98,6 +98,11 @@ def build_user_content(contact, conv: st.Conversation, text: str | None, image_p
         status["waiting_for"] = "resident's tap on 'All cold' / 'Just one room' (already asked, do not repeat)"
     elif conv.step == st.CONSENT:
         status["waiting_for"] = "resident's consent tap (already asked, do not repeat)"
+    elif conv.step == "proactive_check":
+        status["waiting_for"] = (f"answer to OUR first message: the boiler reported {conv.error_code} and we asked "
+                                 "whether the heating or the hot water is off (buttons aerr_heat / aerr_water / "
+                                 "aerr_fine, already asked, do not repeat). Heating off → record_triage all cold; "
+                                 "hot water off → diagnosis.")
     if conv.error_code:
         status["error_code_already_explained"] = conv.error_code
     from . import diagnosis

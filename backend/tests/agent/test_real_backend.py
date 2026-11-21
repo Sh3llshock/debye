@@ -194,8 +194,33 @@ def test_llm_context_is_minimised(real):
     full = flow.unit_context_for(contact)
     tenant, lease, prop = full.get("tenant") or {}, full.get("lease") or {}, full.get("property") or {}
     for secret in (be.attr(contact, "phone_e164"), tenant.get("email"), prop.get("address"),
-                   *(str(v) for k, v in lease.items() if "rent" in k and v)):
+                   *(str(v) for k, v in (lease.get("data") or {}).items() if "rent" in k and v)):
         if secret:
             assert str(secret) not in blob, secret
-    assert '"lease"' not in blob and '"tenant"' not in blob
+    assert (lease.get("data") or {}).get("rent_cold_eur")  # the seed has a rent, so the check is real
+    assert '"lease"' not in blob and '"tenant"' not in blob and "rent_cold" not in blob
     assert "Luka" in blob and "gas_boiler" in blob  # first name and the boiler stay
+
+
+def test_boiler_error_writes_tenant_first(real, claude):
+    """centrix asset.error_reported → Debye messages the tenant first, code known; 'heating off' goes on to
+    the company and consent, 'hot water off' to the diagnosis; a second report doesn't message again."""
+    claude([RuntimeError("down")] * 6)
+    r = real.post("/demo/trigger/boiler_error", json={"unit_id": "unit_4b", "code": "F28"})
+    assert r.status_code == 200, r.text
+    res = r.json()
+    assert res["messaged"] and res["code"] == "F.28"
+    p = last(real, LUKA)
+    body = p["interactive"]["body"]["text"]
+    assert "boiler reported a fault (ignition failed, F.28)" in body and "heating or hot water off" in body
+    cid = res["case_id"]
+    assert ids(p) == [f"aerr_heat:{cid}", f"aerr_water:{cid}", f"aerr_fine:{cid}"]
+    detail = real.get(f"/api/staff/cases/{cid}").json()
+    assert detail["error_code"] == "F.28"
+    assert "asset.error_reported" in [e["kind"] for e in detail.get("events", [])]
+    again = real.post("/api/centrix/events", json={"type": "asset.error_reported", "unit_id": "unit_4b",
+                                                   "code": "F.28"}).json()
+    assert again["duplicate"] and not again["messaged"]
+    real.post("/webhooks/whatsapp", json=tap(LUKA, f"aerr_heat:{cid}", "Heating is off"))
+    consent = last(real, LUKA)["interactive"]["body"]["text"]
+    assert "Is it okay if I share" in consent and "photos" not in consent  # no photos sent

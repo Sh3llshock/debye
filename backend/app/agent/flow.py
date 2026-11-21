@@ -197,6 +197,13 @@ CONSENT_FIELD_TEXT = {
 DEFAULT_CONSENT_FIELDS = ["name", "phone", "address", "photos"]  # company not chosen yet (staff pick)
 
 
+def _case_has_photos(case_id: str) -> bool:
+    try:
+        return bool(be._call("case_has_photos", case_id))
+    except Exception:  # older services / fakes
+        return False
+
+
 def consent_scope(case_id: str, conv) -> tuple[list[str], str]:
     """(fields, purpose) the tenant is asked to agree to, which is also what the consent record stores:
     the chosen partner's manifest fields that need consent (photos only if the tenant sent any), and a
@@ -213,7 +220,7 @@ def consent_scope(case_id: str, conv) -> tuple[list[str], str]:
     raw = list(manifest.consent_fields) if manifest is not None else DEFAULT_CONSENT_FIELDS
     fields: list[str] = []
     for f in map(norm_field, raw):
-        if (f != "photos" or conv.photos) and f not in fields:
+        if (f != "photos" or conv.photos or _case_has_photos(case_id)) and f not in fields:
             fields.append(f)
     order = list(CONSENT_FIELD_TEXT)
     fields.sort(key=lambda f: order.index(f) if f in order else len(order))
