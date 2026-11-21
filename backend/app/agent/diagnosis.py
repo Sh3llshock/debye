@@ -265,6 +265,8 @@ def forced_question(conv: st.Conversation) -> str | None:
             return "q_power"
     if (a.get("q_heater_type") == "yes" or HOLIDAY_RE.search(d.get("complaint") or "")) and open_("q_switch_check"):
         return "q_switch_check"
+    if ("q_scope" in a or "q_scope" in d["asked"]) and a.get("q_scope") != "only_shower"             and open_("q_hot_water_use") and a.get("q_radiators") != "yes":
+        return "q_hot_water_use"  # the cheap check right after the scope (someone just showered / dishwasher)
     if a.get("q_scope") == "everywhere" and a.get("q_hot_water_use") == "no" and open_("q_radiators"):
         return "q_radiators"  # whole flat cold, nobody used it: heating on or off splits boiler vs. hot-water side
     return None
@@ -653,8 +655,8 @@ def likeliest_technician(d: dict, error_code: str | None = None) -> tuple[str, b
     return "boiler_fault", d["answers"].get("q_radiators") == "yes" or bool(error_code)
 
 
-NEUTRAL_TECH = "A heating technician needs to look at it."
-NEUTRAL_TECH_DE = "Das sollte sich ein Heizungstechniker ansehen."
+NEUTRAL_TECH = "A technician needs to look at it."
+NEUTRAL_TECH_DE = "Das sollte sich ein Techniker ansehen."
 NEUTRAL_TECHS = (NEUTRAL_TECH, NEUTRAL_TECH_DE)
 
 
@@ -662,10 +664,12 @@ async def escalate_now(contact, conv: st.Conversation, text: str) -> None:
     """Frustrated tenant: no more questions, send the likeliest technician (staff approve)."""
     d = conv.diagnosis
     tech, supported = likeliest_technician(d, conv.error_code)
-    await out.text(contact, conv.case_id, say(conv, "Understood. I'll get a technician to look at it.", "Verstanden. Ich schicke einen Techniker vorbei."))
+    # one short acknowledgement, then the consent question (two messages); no cause explained
     await conclude(contact, conv, tech, 0.5, f"Tenant asked for a technician instead of more questions: "
                    f"\"{text[:100]}\". Best guess from the answers so far.", force=True,
-                   message=None if supported else "")
+                   message=say(conv, "Understood, I'll get a technician to look at it.",
+                               "Verstanden, ich schicke einen Techniker vorbei."),
+                   trade_unknown=not supported)
 
 
 # ------------------------------------------------------------------ evidence extraction (free text → answers)
@@ -843,11 +847,18 @@ def diagnosis_record(conv: st.Conversation, cause_id: str, confidence: float, re
             "answers": d.get("answers", {}), "facts": d.get("facts", [])}
 
 
-def conclusion_text(conv: st.Conversation, c: dict, translation: str | None = None) -> str:
+def conclusion_text(conv: st.Conversation, c: dict, translation: str | None = None,
+                    override: str | None = None) -> str:
     """The cause's tenant message (or the model's translation of it), with the error code's meaning first
     if the resident hasn't heard it yet."""
     from . import error_codes
 
+    if override:  # code-written text (escalation, neutral technician sentence); the code meaning still comes first
+        d = conv.diagnosis or {}
+        if conv.error_code and not d.get("code_explained") and override in NEUTRAL_TECHS:
+            d["code_explained"] = True
+            return code_sentence(conv) + " " + override
+        return override
     own = c.get("tenant_message_de") if conv.lang == "de" else None
     if translation and translation not in NEUTRAL_TECHS and (conv.lang != "de" or not _looks_german(translation)):
         translation = None  # never a translated message for an English resident
@@ -862,7 +873,8 @@ def conclusion_text(conv: st.Conversation, c: dict, translation: str | None = No
 
 
 async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: float, reasoning: str,
-                   force: bool = False, translation: str | None = None, message: str | None = None) -> dict:
+                   force: bool = False, translation: str | None = None, message: str | None = None,
+                   trade_unknown: bool = False) -> dict:
     from . import flow
 
     d = conv.diagnosis or start(conv, None)
@@ -901,11 +913,15 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         if contra and cause_id not in {r["id"] for r in score(d, conv.error_code)}:
             raise ValueError(f"{cause_id} contradicts the answers ({', '.join(contra)}); pick another cause "
                              "or ask a question")
-    if message is None and cause_id != "gas_smell" and missing_core(d, cause_id):
+    if cause_id != "gas_smell" and missing_core(d, cause_id) and causes()[cause_id]["outcome"] == "technician" \
+            and not (cause_id == "boiler_fault" and (conv.error_code or d["answers"].get("q_radiators") == "yes")):
+        trade_unknown = True  # the answers don't say which trade: staff pick the company at approval
+    if message is None and cause_id != "gas_smell" and (missing_core(d, cause_id) or trade_unknown):
         message = ""  # never explain a cause whose required answers are missing (e.g. 'radiators are warm')
     d["concluded"] = cause_id
-    if message is not None:  # escalation without enough answers: no explanation of a cause we can't support
-        translation = message or say(conv, NEUTRAL_TECH, NEUTRAL_TECH_DE)
+    override = None
+    if message is not None:  # escalation / not enough answers: no explanation of a cause we can't support
+        override = message or say(conv, NEUTRAL_TECH, NEUTRAL_TECH_DE)
     rec = diagnosis_record(conv, cause_id, confidence, reasoning)
     complaint = d.get("complaint") or "No hot water"
 
@@ -931,30 +947,38 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
             if not res.get("duplicate"):
                 _store(res["case_id"], None, rec, opened=not res.get("already_open"))
             conv.step = st.SELF_HELP
-        await out.text(contact, conv.case_id, conclusion_text(conv, c, translation))
+        await out.text(contact, conv.case_id, conclusion_text(conv, c, translation, override))
         minutes = 2 if _demo_mode() else (c.get("follow_up_minutes") or 60)
         schedule_follow_up(contact, cause_id, minutes)
         return {"ok": True, "outcome": "self_help", "follow_up_minutes": minutes,
                 "note": "Tip sent; no case dispatched. Do not send another message."}
 
     if outcome == "technician":
-        type_ = "repair.heating" if c.get("trade") == "heating" else f"repair.{c.get('trade') or 'general'}"
-        res = await flow.ensure_case(contact, summary=_title(c, conv), symptoms=complaint,
-                                     error_code=conv.error_code, type_=type_, trade=c.get("trade"), diagnosis=rec)
+        trade = None if trade_unknown else c.get("trade")
+        type_ = "repair.hot_water" if trade_unknown else \
+            "repair.heating" if trade == "heating" else f"repair.{trade or 'general'}"
+        res = await flow.ensure_case(contact, summary=_title(c, conv) if not trade_unknown else "No hot water",
+                                     symptoms=complaint, error_code=conv.error_code, type_=type_, trade=trade,
+                                     diagnosis=rec)
         cid = res["case_id"]
         if not res.get("duplicate"):
-            _store(cid, c.get("trade"), rec, opened=not res.get("already_open"))
+            _store(cid, trade, rec, opened=not res.get("already_open"))
         if res.get("duplicate"):
             await flow.send_duplicate_notice(contact, cid)
             return {"ok": True, "outcome": "technician", "case_id": cid, "duplicate": True}
-        await out.text(contact, cid, conclusion_text(conv, c, translation))
+        await out.text(contact, cid, conclusion_text(conv, c, translation, override))
         cs = st.case_state(cid)
-        try:
-            ranking = be.rank_partners(cid)  # backend-core ranks by the case's trade
-            if ranking:
-                cs.partner_id, cs.partner_name = be.attr(ranking[0], "partner_id"), be.attr(ranking[0], "name")
-        except Exception:
-            log.exception("rank_partners failed")
+        cs.trade_unknown = trade_unknown
+        if trade_unknown:
+            be.record_event(cid, "debye", "staff.pick_trade", "Tenant wants a technician; the answers don't show "
+                            "which trade. Please pick the company at approval.", {"best_guess": cause_id})
+        else:
+            try:
+                ranking = be.rank_partners(cid)  # backend-core ranks by the case's trade
+                if ranking:
+                    cs.partner_id, cs.partner_name = be.attr(ranking[0], "partner_id"), be.attr(ranking[0], "name")
+            except Exception:
+                log.exception("rank_partners failed")
         await flow.request_consent(contact, cid)
         return {"ok": True, "outcome": "technician", "case_id": cid,
                 "note": "Consent question sent. Do not send another message."}
@@ -978,7 +1002,7 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         be.record_event(cid, "debye", "staff.utility_contact", f"Staff to contact the gas supplier: {c['label']}",
                         {"cause_id": cause_id})
     conv.step = st.DISPATCHED
-    await out.text(contact, cid, conclusion_text(conv, c, translation))
+    await out.text(contact, cid, conclusion_text(conv, c, translation, override))
     return {"ok": True, "outcome": outcome, "case_id": cid, "note": "Message sent. Do not send another message."}
 
 

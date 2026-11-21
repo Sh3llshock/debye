@@ -25,6 +25,11 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+for _s in (sys.stdout, sys.stderr):  # ✓/✗ on Windows cp1252 consoles
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
 PHONE = "490000000001"  # c_202 (Luka; stored language "de" in some setups)
 
 CHATS = {
@@ -38,6 +43,8 @@ CHATS = {
     "contradiction": ["the hot water just stopped", "everywhere", "no", "actually my flatmate just had a long shower"],
     "rude": ["no hot water", "this is useless, just send someone"],
     "knob": ["only the shower is cold, the sink is hot", "it stops at 38", "that worked, it's hot now"],
+    "roommate": ["no hot water", "only the shower", "my roommate showered for ages just before"],
+    "frustrated": ["shower cold again, this is useless just send someone"],
 }
 
 FACTS = {"radiator": "radiat", "display": "display", "pressure": "pressure", "error code": "code",
@@ -48,6 +55,10 @@ FACTS = {"radiator": "radiat", "display": "display", "pressure": "pressure", "er
 def run_chat(name: str) -> dict:
     sys.path.insert(0, str(REPO / "backend"))
     tmp = Path(tempfile.mkdtemp(prefix="debye-smoke-"))
+    import atexit
+    import shutil
+
+    atexit.register(shutil.rmtree, tmp, True)  # temp DB + storage: removed at exit
     os.environ["DATABASE_URL"] = f"sqlite:///{(tmp / 'smoke.db').as_posix()}"
     os.environ["STORAGE_DIR"] = str(tmp / "storage")
     os.environ.update({"DEMO_MODE": "1", "WA_FAKE_SEND": "1", "WA_PROVIDER": "meta", "ROUTER_DEBOUNCE": "0",
@@ -169,8 +180,21 @@ def check(r: dict) -> list[str]:
             fails.append("burst: asked the scope although 'in the kitchen too' answered it")
     if n == "fuse" and _tech(r["cases"]):
         fails.append("fuse chat: a technician case was opened although it works again")
-    if n == "rude" and not _tech(r["cases"]):
-        fails.append("rude chat: no technician case")
+    if n == "rude" and not [c for c in r["cases"] if c["status"] != "closed"]:
+        fails.append("rude chat: no case for a technician")
+    if n == "roommate":
+        if r["concluded"] != "hot_water_used_up":
+            fails.append(f"roommate chat: concluded {r['concluded']} instead of the used-up tip")
+        if any("knob" in m["text"].lower() for m in r["turns"][-1]["debye"]):
+            fails.append("roommate chat: re-asked the knob after the volunteered answer")
+    if n == "frustrated":
+        last = r["turns"][-1]["debye"]
+        if len(last) > 2:
+            fails.append(f"frustrated: {len(last)} messages (max 2): " + " / ".join(m["text"][:40] for m in last))
+        if any("heating" in m["text"].lower() for m in last):
+            fails.append("frustrated: assumed 'heating' although the trade is unknown")
+        if not [c for c in r["cases"] if c["status"] != "closed"]:
+            fails.append("frustrated: no case")
     if n == "knob" and (r["concluded"] not in (None, "shower_knob_or_limiter") or _tech(r["cases"])):
         fails.append(f"knob chat: concluded {r['concluded']} / cases {r['cases']}")
     return fails

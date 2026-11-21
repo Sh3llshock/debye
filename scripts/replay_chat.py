@@ -10,13 +10,21 @@ from __future__ import annotations
 
 import os
 import sys
+import atexit
+import shutil
 import tempfile
 import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+for _s in (sys.stdout, sys.stderr):  # ✓/✗ on Windows cp1252 consoles
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
 sys.path.insert(0, str(REPO / "backend"))
 _tmp = Path(tempfile.mkdtemp(prefix="debye-replay-"))
+atexit.register(shutil.rmtree, _tmp, True)  # temp DB + storage: removed at exit
 os.environ.setdefault("DATABASE_URL", f"sqlite:///{(_tmp / 'replay.db').as_posix()}")
 os.environ.setdefault("STORAGE_DIR", str(_tmp / "storage"))
 os.environ.update({"DEMO_MODE": "1", "WA_FAKE_SEND": "1", "WA_PROVIDER": "meta", "ROUTER_DEBOUNCE": "0",
