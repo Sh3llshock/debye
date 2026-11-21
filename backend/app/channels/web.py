@@ -372,14 +372,45 @@ class LoginBody(BaseModel):
     password: str = ""
 
 
+def _demo_creds() -> tuple[str, str]:
+    """Shared demo login for a hosted demo (env only, never in the repo). Unset = old behaviour."""
+    return os.environ.get("DEMO_LOGIN", "").strip(), os.environ.get("DEMO_PASSWORD", "")
+
+
 @router.post("/login")
 def login(body: LoginBody) -> dict:
+    demo_login, demo_pw = _demo_creds()
+    if demo_login and (body.login or "").strip() == demo_login:
+        if not hmac.compare_digest(body.password or "", demo_pw):
+            raise HTTPException(401, "wrong password")
+        c = find_contact(os.environ.get("DEMO_TENANT", "jonas@example.com"))
+        if c is None:
+            raise HTTPException(404, "demo tenant not found")
+        return {"token": make_token(c.id), "contact": _contact_view(c)}
     c = find_contact(body.login)
     if c is None:
         raise HTTPException(404, "no tenancy with that email or phone number")
     if not (body.password or "").strip():
         raise HTTPException(400, "password required")
+    if demo_pw and not hmac.compare_digest(body.password, demo_pw):
+        raise HTTPException(401, "wrong password")
     return {"token": make_token(c.id), "contact": _contact_view(c)}
+
+
+auth_router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+
+@auth_router.post("/partner-login")
+def partner_login(body: LoginBody) -> dict:
+    """Server-side check for the partner login page. {"demo": {...}} for the shared demo login,
+    {"demo": null} to let the page look the partner up itself; 401 on a wrong password."""
+    demo_login, demo_pw = _demo_creds()
+    if demo_pw and not hmac.compare_digest(body.password or "", demo_pw):
+        raise HTTPException(401, "wrong password")
+    if demo_login and (body.login or "").strip() == demo_login:
+        pid = os.environ.get("DEMO_PARTNER", "heizung-schmidt")
+        return {"demo": {"to": f"/partner/{pid}", "pid": pid}}
+    return {"demo": None}
 
 
 @router.get("/me")

@@ -19,6 +19,7 @@ export default function Login({ onLogin }: { onLogin: (token: string) => void })
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) setErr(t('We couldn’t find a tenancy with that email or phone number.'))
       else if (e instanceof ApiError && e.status === 400) setErr(t('Please enter your password.'))
+      else if (e instanceof ApiError && e.status === 401) setErr(t('Wrong password.'))
       else setErr(t('Could not reach Debye. Please try again.'))
     } finally {
       setBusy(false)

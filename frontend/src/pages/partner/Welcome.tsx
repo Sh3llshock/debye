@@ -137,7 +137,23 @@ export function PartnerLogin() {
     if (!email.trim()) return setErr(t('Enter your email address or mobile number.'))
     if (!pass) return setErr(t('Enter your password.'))
     setBusy(true)
-    const hit = await findLogin(email)
+    // Hosted demo: the server checks the password and knows the shared demo login (env, not in the repo).
+    let hit: { to: string; pid: string } | null = null
+    try {
+      const r = await fetch('/api/auth/partner-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ login: email.trim(), password: pass }),
+      })
+      if (r.status === 401) {
+        setBusy(false)
+        return setErr(t('Wrong password.'))
+      }
+      if (r.ok) hit = ((await r.json()) as { demo: { to: string; pid: string } | null }).demo
+    } catch {
+      /* no backend (fixtures): fall back to the local lookup */
+    }
+    if (!hit) hit = await findLogin(email)
     setBusy(false)
     if (!hit) return setErr(t('No partner account with this email or number.'))
     setSession({ pid: hit.pid })
@@ -179,7 +195,7 @@ export function PartnerLogin() {
           </Link>
         </p>
         <div className="mt-6 max-w-[420px] rounded-tile bg-beige/60 p-4 text-label text-secondary shadow-ring">
-          <b className="text-ink">{t('Demo logins')}</b> · {t('any password works')}
+          <b className="text-ink">{t('Demo logins')}</b>
           <ul className="mt-2 flex flex-col gap-1">
             {DEMO_LOGINS.map((x) => (
               <li key={x.who}>
@@ -188,7 +204,6 @@ export function PartnerLogin() {
                   className="text-left hover:text-wine"
                   onClick={() => {
                     setEmail(x.email ?? x.phone ?? '')
-                    setPass('demo')
                   }}
                 >
                   <span className="font-medium text-ink">{x.email ?? x.phone}</span> · {x.who}

@@ -54,8 +54,9 @@ try:
 except ImportError as e:
     log.warning("webchat router not mounted: %s", e)
 try:
-    from app.channels.web import router as web_router  # /api/tenant/* (tenant web portal)
+    from app.channels.web import auth_router, router as web_router  # /api/tenant/* (tenant web portal)
     app.include_router(web_router)
+    app.include_router(auth_router)  # /api/auth/partner-login (hosted demo login)
 except ImportError as e:
     log.warning("tenant web router not mounted: %s", e)
 try:

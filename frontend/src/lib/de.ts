@@ -629,6 +629,7 @@ export const DE: Record<string, string> = {
   "No open cases. Anything you report here or on WhatsApp shows up here.": "Keine offenen Fälle. Alles, was Sie hier oder per WhatsApp melden, erscheint hier.",
   "Password": "Passwort",
   "Please enter your password.": "Bitte geben Sie Ihr Passwort ein.",
+  "Wrong password.": "Falsches Passwort.",
   "Please enter your problem, e.g. “My shower only runs cold.”": "Beschreiben Sie Ihr Problem, z. B. „Meine Dusche läuft nur kalt.“",
   "Problem reported": "Problem gemeldet",
   "Property manager approves": "Hausverwaltung gibt frei",
