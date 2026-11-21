@@ -14,7 +14,8 @@
     { "key": "address", "source": "property.address", "pii": true, "consent_required": true },
     { "key": "unit_floor", "source": "unit.floor", "pii": false, "consent_required": false },
     { "key": "tenant_name", "source": "tenant.name", "pii": true, "consent_required": true },
-    { "key": "tenant_phone", "source": "tenant.phone", "pii": true, "consent_required": true }
+    { "key": "tenant_phone", "source": "tenant.phone", "pii": true, "consent_required": true },
+    {"key": "photos", "source": "case.documents[kind=photo]", "pii": true, "consent_required": true}
   ],
   "availability": { "mode": "conversational" },
   "transport": { "type": "portal", "url": "/partner/elektro-klein", "notify": { "channel": "email", "address": "jobs@elektro-klein.example" } },

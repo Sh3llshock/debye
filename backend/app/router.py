@@ -157,6 +157,18 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
             diagnosis.start(conv, text)
         await diagnosis.conclude(contact, conv, "gas_smell", 1.0, f"Tenant mentions a gas smell: \"{text[:120]}\"")
         return False
+    from app.agent import triage
+
+    # Flooding, a burning smell, fire, a break-in, someone stuck in the lift: safety steps at once
+    if text and not conv.case_id and conv.step != st.CLOSED:
+        em = triage.emergency_from_text(text)
+        if em:
+            return await triage.start_emergency(contact, conv, text, *em)
+    # A new report: which area (leak, drain, electrics, ...)? Hot water and heating continue below as before.
+    if text and not conv.case_id and not conv.diagnosis and conv.step == st.NEW:
+        routed = await triage.route(contact, conv, text, images)
+        if routed is not None:
+            return routed
     # "My shower is cold": start the diagnosis (no gas question; centrix first, then max 3 questions)
     if text and not conv.case_id and not conv.diagnosis and conv.step == st.NEW and diagnosis.applies(text):
         conv.tenant_texts.append(text)
@@ -180,9 +192,13 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
             from app.channels.base import Option
 
             cause = d["concluded"]
-            opt = await choice.match(text, [Option(f"diagfu_yes:{cause}", "Yes, it's warm again"),
-                                            Option(f"diagfu_no:{cause}", "No, still cold")],
-                                     "Did the tip work, is the hot water back?")
+            if diagnosis.area_of(d) == diagnosis.HOT_WATER:
+                yes, no, q = "Yes, it's warm again", "No, still cold", "Did the tip work, is the hot water back?"
+            else:
+                k = diagnosis.load_kb(diagnosis.area_of(d))
+                yes, no = k.get("follow_up_yes") or "Yes, all good", k.get("follow_up_no") or "No, still broken"
+                q = "Did the tip work, " + (k.get("follow_up_question") or "is it working again?")
+            opt = await choice.match(text, [Option(f"diagfu_yes:{cause}", yes), Option(f"diagfu_no:{cause}", no)], q)
             if opt is not None:
                 conv.pending_options = []
                 await diagnosis.on_follow_up(contact, cause, opt.id.startswith("diagfu_yes"))
@@ -234,7 +250,15 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
                 return False
     if text and not images and not in_diagnosis and await flow.answer_open_question(contact, conv, text):
         return False  # answer to a partner's question (feature 4, needs_info)
-    return bool(await loop.run_tenant_turn(contact, text, images))
+    consent_open = conv.step == st.CONSENT and conv.case_id and text and "?" in text \
+        and diagnosis.area_of(conv) != diagnosis.HOT_WATER and bool(conv.diagnosis)
+    case_id = conv.case_id
+    interrupted = bool(await loop.run_tenant_turn(contact, text, images))
+    if consent_open and not interrupted and conv.step == st.CONSENT and conv.case_id == case_id:
+        # a question back ("how long will that take?") at the consent step: answered, then ask consent again
+        conv.asked_at[st.CONSENT] = 0
+        await flow.request_consent(contact, case_id)
+    return interrupted
 
 
 def _attach(case_id: str, kind: str, path: str, mime: str, filename: str | None = None) -> str | None:
@@ -257,6 +281,14 @@ async def handle_button(contact, button_id: str) -> bool:
             await diagnosis.on_follow_up(contact, cause_id, kind == "diagfu_yes")
         except Exception:
             log.exception("diagnosis follow-up %s failed", button_id)
+        return True
+    if (button_id or "").startswith("triage:"):  # the area list ("What is it about?")
+        from app.agent import triage
+
+        try:
+            await triage.on_button(contact, button_id.partition(":")[2])
+        except Exception:
+            log.exception("triage answer %s failed", button_id)
         return True
     if (button_id or "").startswith("diag:"):
         _, qid, key = (button_id.split(":") + ["", ""])[:3]

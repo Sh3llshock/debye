@@ -1,0 +1,1833 @@
+{
+  "version": 1,
+  "notes": "Gold triage conversations, set A (areas: water_leak, blocked_drain, electrics, windows_doors, appliances). Question ids, answer keys, cause ids and tenant_message texts come from the area KBs. tenant_facts holds the answer the tenant gives when first asked; for self_help_fails the KB's if_fails answers of the self-help cause override them after the failed tip, which yields expected_cause. Technician causes: concluding message, then the consent question (', floor and the photos' only when a photo was sent), then 'Thanks. Your property manager is confirming the repair, I'll update you shortly.' A re-ask after an off-topic reply repeats the same qid and does not count twice; 'clarify' does not count.",
+  "conversations": [
+    {
+      "id": "ta01_burst_pipe_flooding",
+      "title": "Burst pipe, water spreading across the kitchen",
+      "contact_id": "c_202",
+      "setup": null,
+      "expected_area": "water_leak",
+      "expected_cause": "major_leak_flooding",
+      "expected_outcome": "emergency",
+      "expected_trade": "plumbing",
+      "tags": [
+        "emergency",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "lk_amount": "spreading"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "HELP water is spreading all over the kitchen floor, I think a pipe burst"
+        },
+        {
+          "role": "debye",
+          "text": "Please turn off the main water valve now (usually near the water meter, in the bathroom or kitchen), switch off the fuse for any wet sockets, and move valuables away. I've alerted your property manager and an emergency plumber is being arranged.",
+          "asks": null,
+          "concludes": "major_leak_flooding"
+        },
+        {
+          "role": "tenant",
+          "text": "ok main valve is off now"
+        },
+        {
+          "role": "debye",
+          "text": "Good. Keep away from wet sockets; I'll update you as soon as the plumber is confirmed.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask any diagnostic question before the safety steps",
+        "ask where the water comes from",
+        "ask for consent before the safety message",
+        "promise an arrival time"
+      ]
+    },
+    {
+      "id": "ta02_tap_not_closed_typos",
+      "title": "Bathroom tap drips until turned off firmly",
+      "contact_id": "c_203",
+      "setup": null,
+      "expected_area": "water_leak",
+      "expected_cause": "tap_not_fully_closed",
+      "expected_outcome": "self_help",
+      "expected_trade": null,
+      "tags": [
+        "typos",
+        "self_help_works"
+      ],
+      "tenant_facts": {
+        "lk_where": "tap",
+        "lk_tap_closed": "stops",
+        "lk_amount": "drip"
+      },
+      "self_help_result": "works",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "bathrom tap keps driping all nite"
+        },
+        {
+          "role": "debye",
+          "text": "Got it. Does it still drip when you turn the tap off firmly?",
+          "asks": "lk_tap_closed"
+        },
+        {
+          "role": "tenant",
+          "text": "oh it stops if i realy crank it"
+        },
+        {
+          "role": "debye",
+          "text": "Then it was just not fully closed. Keep turning it off firmly, and tell me if it starts dripping again anyway.",
+          "asks": null,
+          "concludes": "tap_not_fully_closed"
+        },
+        {
+          "role": "tenant",
+          "text": "yep no drip since this morning"
+        },
+        {
+          "role": "debye",
+          "text": "Good to hear. Message me any time if it starts again.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask where the water comes from (already given)",
+        "send Peter Wolf or a plumber",
+        "correct the tenant's spelling"
+      ]
+    },
+    {
+      "id": "ta03_tap_washer_after_tip",
+      "title": "Kitchen tap drips again despite closing it firmly",
+      "contact_id": "c_204",
+      "setup": null,
+      "expected_area": "water_leak",
+      "expected_cause": "dripping_tap_washer",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "tags": [
+        "self_help_fails"
+      ],
+      "tenant_facts": {
+        "lk_where": "tap",
+        "lk_tap_closed": "stops",
+        "lk_amount": "drip"
+      },
+      "self_help_result": "fails",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "The kitchen tap is dripping."
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Does it still drip when you turn the tap off firmly?",
+          "asks": "lk_tap_closed"
+        },
+        {
+          "role": "tenant",
+          "text": "It stops when I turn it hard."
+        },
+        {
+          "role": "debye",
+          "text": "Then it was just not fully closed. Keep turning it off firmly, and tell me if it starts dripping again anyway.",
+          "asks": null,
+          "concludes": "tap_not_fully_closed"
+        },
+        {
+          "role": "tenant",
+          "text": "It's dripping again, even though I closed it as tight as it goes."
+        },
+        {
+          "role": "debye",
+          "text": "Then the seal inside the tap is worn, a quick job for our caretaker Peter Wolf. He'll get in touch to come by; until then a cup under the tap keeps the noise down.",
+          "asks": null,
+          "concludes": "dripping_tap_washer"
+        }
+      ],
+      "must_not": [
+        "close the case after the failed tip",
+        "send a plumber",
+        "ask the tenant to replace the washer"
+      ]
+    },
+    {
+      "id": "ta04_toilet_running_de",
+      "title": "Spülkasten läuft ständig nach (deutsch)",
+      "contact_id": "c_205",
+      "setup": null,
+      "expected_area": "water_leak",
+      "expected_cause": "toilet_running",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "tags": [
+        "german",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "lk_where": "toilet",
+        "lk_toilet": "running"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "Hallo, meine Toilette läuft ständig, das Wasser hört nicht auf in die Schüssel zu laufen."
+        },
+        {
+          "role": "debye",
+          "text": "Dann dichtet das Ventil im Spülkasten nicht mehr, das kann unser Hausmeister Peter Wolf richten. Er meldet sich; bis dahin kannst du das kleine Ventil hinter der Toilette zwischen dem Spülen zudrehen.",
+          "asks": null,
+          "concludes": "toilet_running"
+        },
+        {
+          "role": "tenant",
+          "text": "Okay, danke."
+        },
+        {
+          "role": "debye",
+          "text": "Gern. Melde dich, wenn sich bis dahin etwas ändert.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "answer in English",
+        "use 'Sie' instead of 'du'",
+        "ask where the water comes from (already given)",
+        "send a plumber"
+      ]
+    },
+    {
+      "id": "ta05_toilet_floor_photo_vague",
+      "title": "Toilet leaking onto the floor, vague answer then photo",
+      "contact_id": "c_206",
+      "setup": null,
+      "expected_area": "water_leak",
+      "expected_cause": "toilet_leak_floor",
+      "expected_outcome": "technician",
+      "expected_trade": "plumbing",
+      "tags": [
+        "vague",
+        "photo"
+      ],
+      "tenant_facts": {
+        "lk_where": "toilet",
+        "lk_toilet": "floor",
+        "lk_amount": "drip"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "my toilet is leaking"
+        },
+        {
+          "role": "debye",
+          "text": "Let's fix it. Is water running into the toilet bowl all the time, or is it leaking onto the floor?",
+          "asks": "lk_toilet"
+        },
+        {
+          "role": "tenant",
+          "text": "idk kinda both"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is the floor around the base of the toilet wet?",
+          "asks": "clarify"
+        },
+        {
+          "role": "tenant",
+          "text": "[photo] this is the floor behind the toilet, there's a wet patch around the base",
+          "media": "photo"
+        },
+        {
+          "role": "debye",
+          "text": "Water around the toilet usually means a seal or the connection has failed, so a plumber needs to fix it. Close the small valve behind the toilet and wipe up the water.",
+          "asks": null,
+          "concludes": "toilet_leak_floor"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Sanitär Esser GmbH over. Is it okay if I share your name, phone number, address, floor and the photos with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "treat 'kinda both' as a running cistern",
+        "leave out the photos in the consent question",
+        "send the caretaker",
+        "ask a fourth diagnostic question"
+      ]
+    },
+    {
+      "id": "ta06_washing_machine_hose_fails",
+      "title": "Washing machine leaks, still leaking with its tap closed",
+      "contact_id": "c_202",
+      "setup": null,
+      "expected_area": "water_leak",
+      "expected_cause": "wall_valve_leak",
+      "expected_outcome": "technician",
+      "expected_trade": "plumbing",
+      "tags": [
+        "decisive_first",
+        "self_help_fails"
+      ],
+      "tenant_facts": {
+        "lk_where": "appliance",
+        "lk_stop": "still_running",
+        "lk_amount": "drip"
+      },
+      "self_help_result": "fails",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "The washing machine is leaking at the back, there's a bit of water under it."
+        },
+        {
+          "role": "debye",
+          "text": "Usually it's the machine's hose or its seal. Close the small tap behind the machine, don't run it for now, and tell me if water still comes out with the tap closed.",
+          "asks": null,
+          "concludes": "appliance_hose_leak"
+        },
+        {
+          "role": "tenant",
+          "text": "Closed the little tap behind it, but water still drips out of the connection at the wall."
+        },
+        {
+          "role": "debye",
+          "text": "If it keeps leaking with the valve closed, the pipe or the valve itself is the problem, so a plumber needs to come. Put a bucket or towels under it for now.",
+          "asks": null,
+          "concludes": "wall_valve_leak"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Sanitär Esser GmbH over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes go ahead"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask where the water comes from (already given)",
+        "tell the tenant to keep using the machine",
+        "send an appliance technician",
+        "mention photos in the consent question"
+      ]
+    },
+    {
+      "id": "ta07_under_sink_dont_know",
+      "title": "Pipe under the bathroom sink drips, tenant not at home",
+      "contact_id": "c_203",
+      "setup": null,
+      "expected_area": "water_leak",
+      "expected_cause": "under_sink_leak",
+      "expected_outcome": "technician",
+      "expected_trade": "plumbing",
+      "tags": [
+        "dont_know"
+      ],
+      "tenant_facts": {
+        "lk_where": "under_sink",
+        "lk_amount": "drip"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "my flatmate says the pipe under our bathroom sink is dripping"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Can you stop it by turning the small valve under the sink or behind the toilet clockwise?",
+          "asks": "lk_stop"
+        },
+        {
+          "role": "tenant",
+          "text": "can't check, I'm at work until 6"
+        },
+        {
+          "role": "debye",
+          "text": "No problem, a plumber needs to replace the leaking connection under the sink anyway. Put a bowl underneath and close the small valve once you're home.",
+          "asks": null,
+          "concludes": "under_sink_leak"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Sanitär Esser GmbH over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes thats fine"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "insist the tenant checks the valve now",
+        "ask whether water is spreading across the floor",
+        "send the caretaker",
+        "ask about gas"
+      ]
+    },
+    {
+      "id": "ta08_radiator_valve_burst",
+      "title": "Radiator valve leaking, several messages at once",
+      "contact_id": "c_204",
+      "setup": null,
+      "expected_area": "water_leak",
+      "expected_cause": "radiator_valve_leak",
+      "expected_outcome": "technician",
+      "expected_trade": "heating",
+      "tags": [
+        "burst",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "lk_where": "radiator",
+        "lk_amount": "drip"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "hi"
+        },
+        {
+          "role": "tenant",
+          "text": "there's a small puddle of water under the radiator in the living room"
+        },
+        {
+          "role": "tenant",
+          "text": "it's dripping from the valve thing on the side"
+        },
+        {
+          "role": "debye",
+          "text": "A leaking radiator valve needs a heating technician. Put a towel and a bowl under it; please don't open or loosen anything on the radiator.",
+          "asks": null,
+          "concludes": "radiator_valve_leak"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Heizung Schmidt GmbH over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "sure"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "reply separately to each message of the burst",
+        "send a plumber instead of a heating technician",
+        "tell the tenant to tighten the valve",
+        "ask where the water comes from (already given)"
+      ]
+    },
+    {
+      "id": "ta09_shower_hair_off_topic",
+      "title": "Shower drains slowly, off-topic reply, hair tip works",
+      "contact_id": "c_205",
+      "setup": null,
+      "expected_area": "blocked_drain",
+      "expected_cause": "shower_hair_clog",
+      "expected_outcome": "self_help",
+      "expected_trade": null,
+      "tags": [
+        "off_topic",
+        "self_help_works"
+      ],
+      "tenant_facts": {
+        "dr_which": "shower",
+        "dr_flow": "slow",
+        "dr_plunger": "not_tried",
+        "dr_backup": "no"
+      },
+      "self_help_result": "works",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "my shower drains super slowly"
+        },
+        {
+          "role": "debye",
+          "text": "Let's fix it. Have you already tried a plunger, or pulling hair out of the drain cover?",
+          "asks": "dr_plunger"
+        },
+        {
+          "role": "tenant",
+          "text": "lol ok"
+        },
+        {
+          "role": "debye",
+          "text": "No worries. And have you tried a plunger or clearing the drain cover yet?",
+          "asks": "dr_plunger"
+        },
+        {
+          "role": "tenant",
+          "text": "no haven't tried anything"
+        },
+        {
+          "role": "debye",
+          "text": "It's almost always hair. Lift the drain cover, pull the hair out (a bent wire hanger helps), then run hot water. Tell me if it drains again.",
+          "asks": null,
+          "concludes": "shower_hair_clog"
+        },
+        {
+          "role": "tenant",
+          "text": "pulled out a disgusting amount of hair, drains fine now"
+        },
+        {
+          "role": "debye",
+          "text": "Good to hear. Message me any time if it blocks again.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "treat 'lol ok' as an answer",
+        "send a drain cleaning service",
+        "recommend chemical drain cleaner"
+      ]
+    },
+    {
+      "id": "ta10_kitchen_sink_de",
+      "title": "Küchenspüle verstopft, Saugglocke hilft (deutsch)",
+      "contact_id": "c_206",
+      "setup": null,
+      "expected_area": "blocked_drain",
+      "expected_cause": "sink_trap_clog",
+      "expected_outcome": "self_help",
+      "expected_trade": null,
+      "tags": [
+        "german",
+        "self_help_works"
+      ],
+      "tenant_facts": {
+        "dr_which": "sink",
+        "dr_flow": "not_at_all",
+        "dr_plunger": "not_tried",
+        "dr_backup": "no"
+      },
+      "self_help_result": "works",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "Hallo, das Spülbecken in der Küche läuft gar nicht mehr ab."
+        },
+        {
+          "role": "debye",
+          "text": "Okay. Hast du schon eine Saugglocke probiert oder Haare aus dem Abflusssieb gezogen?",
+          "asks": "dr_plunger"
+        },
+        {
+          "role": "tenant",
+          "text": "Nein, noch nichts."
+        },
+        {
+          "role": "debye",
+          "text": "Meist sind es Fett oder Essensreste im Siphon. Probier eine Saugglocke (den Überlauf mit einem nassen Tuch zuhalten) und gieß danach heißes Wasser nach, keine chemischen Reiniger. Sag mir, ob es wieder abläuft.",
+          "asks": null,
+          "concludes": "sink_trap_clog"
+        },
+        {
+          "role": "tenant",
+          "text": "Hat geklappt, läuft wieder ab. Danke!"
+        },
+        {
+          "role": "debye",
+          "text": "Schön. Melde dich jederzeit, wenn es wieder verstopft.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "answer in English",
+        "use 'Sie' instead of 'du'",
+        "recommend chemical drain cleaner",
+        "ask which drain it is (already given)"
+      ]
+    },
+    {
+      "id": "ta11_toilet_clog_plunger_fails",
+      "title": "Toilet blocked, plunger doesn't help",
+      "contact_id": "c_202",
+      "setup": null,
+      "expected_area": "blocked_drain",
+      "expected_cause": "stubborn_blockage",
+      "expected_outcome": "technician",
+      "expected_trade": "drain_cleaning",
+      "tags": [
+        "self_help_fails"
+      ],
+      "tenant_facts": {
+        "dr_which": "toilet",
+        "dr_plunger": "not_tried",
+        "dr_backup": "no",
+        "dr_flow": "not_at_all"
+      },
+      "self_help_result": "fails",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "my toilet is blocked"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Have you already tried a plunger, or pulling hair out of the drain cover?",
+          "asks": "dr_plunger"
+        },
+        {
+          "role": "tenant",
+          "text": "no, nothing yet"
+        },
+        {
+          "role": "debye",
+          "text": "Don't flush again for now. Try a plunger: press it firmly over the opening and pump a few times. Tell me if it drains again.",
+          "asks": null,
+          "concludes": "toilet_clog"
+        },
+        {
+          "role": "tenant",
+          "text": "borrowed a plunger from my neighbour and pumped for ages, still blocked"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks for trying. Does dirty water come up in another drain, for example in the shower when you flush?",
+          "asks": "dr_backup"
+        },
+        {
+          "role": "tenant",
+          "text": "no, just the toilet"
+        },
+        {
+          "role": "debye",
+          "text": "Then the blockage is deeper in the pipe, so a drain cleaning service needs to clear it. Please don't use chemical cleaners in the meantime.",
+          "asks": null,
+          "concludes": "stubborn_blockage"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Rohr-Frei Aachen over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "close the case after the failed tip",
+        "recommend chemical drain cleaner",
+        "ask a fourth diagnostic question",
+        "send a plumber instead of drain cleaning"
+      ]
+    },
+    {
+      "id": "ta12_main_stack_contradiction",
+      "title": "Sink blocked, tenant says no backup then describes one",
+      "contact_id": "c_203",
+      "setup": null,
+      "expected_area": "blocked_drain",
+      "expected_cause": "main_stack_blockage",
+      "expected_outcome": "technician",
+      "expected_trade": "drain_cleaning",
+      "tags": [
+        "contradiction"
+      ],
+      "tenant_facts": {
+        "dr_which": "sink",
+        "dr_flow": "slow",
+        "dr_plunger": "tried_no_help",
+        "dr_backup": "yes"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "Bathroom sink drains really slowly. I already used a plunger, didn't help."
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Does dirty water come up in another drain, for example in the shower when you flush?",
+          "asks": "dr_backup"
+        },
+        {
+          "role": "tenant",
+          "text": "No, only the sink. Although when I flush, dirty water comes up in the shower."
+        },
+        {
+          "role": "debye",
+          "text": "Just to check: does dirty water come up in the shower when you flush the toilet?",
+          "asks": "clarify"
+        },
+        {
+          "role": "tenant",
+          "text": "yes, every time"
+        },
+        {
+          "role": "debye",
+          "text": "If water comes up in another drain, the building's main pipe is blocked. Please use as little water as possible; a drain cleaning service is needed urgently.",
+          "asks": null,
+          "concludes": "main_stack_blockage"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Rohr-Frei Aachen over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "ok yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "conclude a simple blocked sink after the first 'no'",
+        "ask about the plunger (already given)",
+        "suggest the tenant keeps running water to test it"
+      ]
+    },
+    {
+      "id": "ta13_several_drains_question_back",
+      "title": "Kitchen sink and shower blocked, tenant asks about cost",
+      "contact_id": "c_204",
+      "setup": null,
+      "expected_area": "blocked_drain",
+      "expected_cause": "several_drains_blocked",
+      "expected_outcome": "technician",
+      "expected_trade": "drain_cleaning",
+      "tags": [
+        "decisive_first",
+        "question_back"
+      ],
+      "tenant_facts": {
+        "dr_which": "several",
+        "dr_plunger": "not_tried",
+        "dr_flow": "slow"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "the kitchen sink and the shower are both blocked since this morning"
+        },
+        {
+          "role": "debye",
+          "text": "When several drains block at once, the shared pipe is usually the problem, so a drain cleaning service needs to come. Please use as little water as possible until then.",
+          "asks": null,
+          "concludes": "several_drains_blocked"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Rohr-Frei Aachen over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "will I have to pay for this?"
+        },
+        {
+          "role": "debye",
+          "text": "No, you don't pay for repairs. Is it okay if I share your name, phone number, address and floor with Rohr-Frei Aachen?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "ok then yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "say the tenant has to pay",
+        "promise a date or a cost",
+        "give a plunger tip for several drains",
+        "ask which drain it is (already given)"
+      ]
+    },
+    {
+      "id": "ta14_burning_smell_socket",
+      "title": "Burning smell and sparks from a socket",
+      "contact_id": "c_205",
+      "setup": null,
+      "expected_area": "electrics",
+      "expected_cause": "electrical_burning",
+      "expected_outcome": "emergency",
+      "expected_trade": "electrical",
+      "tags": [
+        "emergency",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "el_scope": "one_spot"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "there's a burning smell coming from the socket behind my desk and it sparked when i unplugged the lamp"
+        },
+        {
+          "role": "debye",
+          "text": "Please don't touch the socket or switch. Switch off the fuse for that room (or the main switch) if you can do it safely, and if you see smoke or flames leave the flat and call 112. I've alerted your property manager and an electrician is being arranged.",
+          "asks": null,
+          "concludes": "electrical_burning"
+        },
+        {
+          "role": "tenant",
+          "text": "ok I switched the fuse off, no smoke"
+        },
+        {
+          "role": "debye",
+          "text": "Good. Leave it off and don't use that socket; I'll update you once the electrician is confirmed.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask any question before the safety steps",
+        "tell the tenant to check or open the socket",
+        "ask about the fuse box as a diagnostic question",
+        "ask about gas"
+      ]
+    },
+    {
+      "id": "ta15_building_blackout",
+      "title": "Whole building and street dark",
+      "contact_id": "c_206",
+      "setup": null,
+      "expected_area": "electrics",
+      "expected_cause": "building_power_outage",
+      "expected_outcome": "emergency",
+      "expected_trade": "electrical",
+      "tags": [
+        "emergency",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "el_scope": "building"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "power's out, the stairwell is dark and the whole street too"
+        },
+        {
+          "role": "debye",
+          "text": "If the whole building is dark, it's the main supply. Please switch off cookers and heaters so nothing starts by itself, use a torch instead of candles, and check on neighbours who need help. I've alerted your property manager, who contacts the grid operator and an electrician.",
+          "asks": null,
+          "concludes": "building_power_outage"
+        }
+      ],
+      "must_not": [
+        "ask the tenant to check the fuse box",
+        "ask whether it's the whole flat (already given)",
+        "suggest candles",
+        "promise when the power comes back"
+      ]
+    },
+    {
+      "id": "ta16_kitchen_breaker_burst",
+      "title": "Kitchen sockets dead, tripped breaker, two messages",
+      "contact_id": "c_202",
+      "setup": null,
+      "expected_area": "electrics",
+      "expected_cause": "tripped_breaker",
+      "expected_outcome": "self_help",
+      "expected_trade": null,
+      "tags": [
+        "burst",
+        "self_help_works"
+      ],
+      "tenant_facts": {
+        "el_scope": "one_spot",
+        "el_breaker": "tripped"
+      },
+      "self_help_result": "works",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "kitchen sockets stopped working"
+        },
+        {
+          "role": "tenant",
+          "text": "kettle and toaster both dead, rest of the flat is fine"
+        },
+        {
+          "role": "debye",
+          "text": "Got it. Have a look at the fuse box in your flat: is one of the switches flipped down?",
+          "asks": "el_breaker"
+        },
+        {
+          "role": "tenant",
+          "text": "yes one is down"
+        },
+        {
+          "role": "debye",
+          "text": "Flip it back up. If it trips again straight away, unplug everything in that room, flip it up and plug things back in one by one: the one that trips it is faulty. Tell me if the power is back.",
+          "asks": null,
+          "concludes": "tripped_breaker"
+        },
+        {
+          "role": "tenant",
+          "text": "flipped it up and it stayed up, everything works"
+        },
+        {
+          "role": "debye",
+          "text": "Good to hear. Message me any time if it trips again.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "reply separately to each message of the burst",
+        "ask whether it's the whole flat (already given)",
+        "send an electrician",
+        "tell the tenant to open a socket"
+      ]
+    },
+    {
+      "id": "ta17_hall_light_bulb_de",
+      "title": "Flurlampe aus, neue Birne hilft (deutsch)",
+      "contact_id": "c_203",
+      "setup": null,
+      "expected_area": "electrics",
+      "expected_cause": "bulb_blown",
+      "expected_outcome": "self_help",
+      "expected_trade": null,
+      "tags": [
+        "german",
+        "self_help_works"
+      ],
+      "tenant_facts": {
+        "el_scope": "one_light",
+        "el_bulb": "not_tried"
+      },
+      "self_help_result": "works",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "Die Deckenlampe im Flur geht nicht mehr, der Rest der Wohnung funktioniert."
+        },
+        {
+          "role": "debye",
+          "text": "Okay. Hast du schon eine neue Glühbirne ausprobiert?",
+          "asks": "el_bulb"
+        },
+        {
+          "role": "tenant",
+          "text": "Nein, noch nicht."
+        },
+        {
+          "role": "debye",
+          "text": "Dann ist es wahrscheinlich nur die Birne. Licht aus, kurz abkühlen lassen und eine neue einsetzen. Sag mir, ob es klappt.",
+          "asks": null,
+          "concludes": "bulb_blown"
+        },
+        {
+          "role": "tenant",
+          "text": "Mit der neuen Birne geht es wieder."
+        },
+        {
+          "role": "debye",
+          "text": "Schön. Melde dich jederzeit, wenn wieder etwas ausfällt.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "answer in English",
+        "use 'Sie' instead of 'du'",
+        "ask about the fuse box",
+        "send the caretaker"
+      ]
+    },
+    {
+      "id": "ta18_bathroom_light_fitting",
+      "title": "Bathroom light still dead after a new bulb",
+      "contact_id": "c_204",
+      "setup": null,
+      "expected_area": "electrics",
+      "expected_cause": "light_fitting_fault",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "tags": [
+        "self_help_fails"
+      ],
+      "tenant_facts": {
+        "el_scope": "one_light",
+        "el_bulb": "not_tried"
+      },
+      "self_help_result": "fails",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "the bathroom light stopped working, everything else is fine"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Have you tried a new bulb in it?",
+          "asks": "el_bulb"
+        },
+        {
+          "role": "tenant",
+          "text": "no"
+        },
+        {
+          "role": "debye",
+          "text": "Then it's most likely just the bulb. Switch the light off, let it cool and try a new one. Tell me if it works.",
+          "asks": null,
+          "concludes": "bulb_blown"
+        },
+        {
+          "role": "tenant",
+          "text": "new bulb is in, still nothing"
+        },
+        {
+          "role": "debye",
+          "text": "Then the fitting or the switch is faulty. Our caretaker Peter Wolf will check it and call an electrician if needed.",
+          "asks": null,
+          "concludes": "light_fitting_fault"
+        }
+      ],
+      "must_not": [
+        "close the case after the failed tip",
+        "tell the tenant to open the fitting",
+        "send an electrician directly",
+        "ask about the fuse box"
+      ]
+    },
+    {
+      "id": "ta19_socket_fault_photo",
+      "title": "Living room sockets dead, photo of the fuse box",
+      "contact_id": "c_205",
+      "setup": null,
+      "expected_area": "electrics",
+      "expected_cause": "socket_or_circuit_fault",
+      "expected_outcome": "technician",
+      "expected_trade": "electrical",
+      "tags": [
+        "photo"
+      ],
+      "tenant_facts": {
+        "el_scope": "one_spot",
+        "el_breaker": "all_up"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "the two sockets in my living room have no power"
+        },
+        {
+          "role": "debye",
+          "text": "Let's fix it. Have a look at the fuse box in your flat: is one of the switches flipped down?",
+          "asks": "el_breaker"
+        },
+        {
+          "role": "tenant",
+          "text": "[photo] this is my fuse box, all the switches look up to me",
+          "media": "photo"
+        },
+        {
+          "role": "debye",
+          "text": "If the fuses are all up and it's still dead, the socket or its wiring is faulty, so an electrician needs to check it. Please don't open the socket yourself.",
+          "asks": null,
+          "concludes": "socket_or_circuit_fault"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Elektro Klein GmbH over. Is it okay if I share your name, phone number, address, floor and the photos with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "leave out the photos in the consent question",
+        "tell the tenant to open the socket",
+        "ask whether it's the whole flat (already given)",
+        "send the caretaker"
+      ]
+    },
+    {
+      "id": "ta20_flat_supply_vague",
+      "title": "Whole flat without power, vague first answer",
+      "contact_id": "c_206",
+      "setup": null,
+      "expected_area": "electrics",
+      "expected_cause": "flat_supply_fault",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "tags": [
+        "vague"
+      ],
+      "tenant_facts": {
+        "el_scope": "whole_flat",
+        "el_breaker": "all_up"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "my electricity is gone"
+        },
+        {
+          "role": "debye",
+          "text": "Let's fix it. Is the power out in your whole flat, in just one room or socket, or only one light? And are the neighbours or the stairwell dark too?",
+          "asks": "el_scope"
+        },
+        {
+          "role": "tenant",
+          "text": "idk kinda both, it's dark everywhere and I haven't looked outside"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Do the stairwell lights work, or does a neighbour have power?",
+          "asks": "clarify"
+        },
+        {
+          "role": "tenant",
+          "text": "stairwell is lit and my neighbour has power"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Have a look at the fuse box in your flat: is one of the switches flipped down?",
+          "asks": "el_breaker"
+        },
+        {
+          "role": "tenant",
+          "text": "all of them are up"
+        },
+        {
+          "role": "debye",
+          "text": "Then it's probably the main fuse for your flat in the meter room. Our caretaker Peter Wolf has access and will check it soon; if it's not that, he calls an electrician.",
+          "asks": null,
+          "concludes": "flat_supply_fault"
+        }
+      ],
+      "must_not": [
+        "treat it as a building outage",
+        "tell the tenant to open the meter cabinet",
+        "ask a fourth diagnostic question",
+        "send an electrician directly"
+      ]
+    },
+    {
+      "id": "ta21_break_in",
+      "title": "Front door forced open, break-in",
+      "contact_id": "c_202",
+      "setup": null,
+      "expected_area": "windows_doors",
+      "expected_cause": "break_in",
+      "expected_outcome": "emergency",
+      "expected_trade": "locksmith",
+      "tags": [
+        "emergency",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "wd_what": "flat_door"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "someone broke into my flat, the front door has been forced open"
+        },
+        {
+          "role": "debye",
+          "text": "Please don't go in if someone might still be inside, and call the police on 110. Don't touch anything until they've been. I've alerted your property manager, and a locksmith will secure the door afterwards.",
+          "asks": null,
+          "concludes": "break_in"
+        },
+        {
+          "role": "tenant",
+          "text": "police are on their way"
+        },
+        {
+          "role": "debye",
+          "text": "Good. Wait outside until they're there; I'll update you once the locksmith is confirmed.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask any diagnostic question",
+        "tell the tenant to go inside and check",
+        "ask for consent before the safety message",
+        "mention cost"
+      ]
+    },
+    {
+      "id": "ta22_locked_out_typos",
+      "title": "Locked out with the keys inside",
+      "contact_id": "c_203",
+      "setup": null,
+      "expected_area": "windows_doors",
+      "expected_cause": "locked_out",
+      "expected_outcome": "technician",
+      "expected_trade": "locksmith",
+      "tags": [
+        "typos",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "wd_what": "flat_door",
+        "wd_problem": "locked_out"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "lokced myslef out, keys r inside on the table"
+        },
+        {
+          "role": "debye",
+          "text": "Then you need a locksmith to open the door. If the keys were lost or left inside, the cost is usually yours; the property manager confirms before anyone comes.",
+          "asks": null,
+          "concludes": "locked_out"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Schlüsseldienst Krause over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "ya ok"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "say the landlord pays for the locksmith",
+        "ask which door it is (already clear)",
+        "correct the tenant's spelling"
+      ]
+    },
+    {
+      "id": "ta23_broken_glass_photo_burst",
+      "title": "Window glass cracked by a ball, photo",
+      "contact_id": "c_204",
+      "setup": null,
+      "expected_area": "windows_doors",
+      "expected_cause": "broken_glass",
+      "expected_outcome": "technician",
+      "expected_trade": "glazier",
+      "tags": [
+        "photo",
+        "burst",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "wd_what": "window",
+        "wd_problem": "glass_broken"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "kids' football hit my bedroom window"
+        },
+        {
+          "role": "tenant",
+          "text": "[photo] this is the bedroom window, the glass is cracked right across",
+          "media": "photo"
+        },
+        {
+          "role": "debye",
+          "text": "Broken glass needs a glazier. Please keep away from loose pieces; if it's open to the outside, tape cardboard or plastic over it for now.",
+          "asks": null,
+          "concludes": "broken_glass"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Glaserei Hoffmann over. Is it okay if I share your name, phone number, address, floor and the photos with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes please"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "treat it as a break-in",
+        "leave out the photos in the consent question",
+        "send the caretaker",
+        "ask what is wrong with it (already given)"
+      ]
+    },
+    {
+      "id": "ta24_window_tilt_fails",
+      "title": "Window hangs from one corner, tip doesn't work",
+      "contact_id": "c_205",
+      "setup": null,
+      "expected_area": "windows_doors",
+      "expected_cause": "window_wont_close",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "tags": [
+        "self_help_fails"
+      ],
+      "tenant_facts": {
+        "wd_what": "window",
+        "wd_problem": "wont_close",
+        "wd_tilt": "yes"
+      },
+      "self_help_result": "fails",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "my bedroom window won't close"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is the window hanging open at the top, attached at only one corner?",
+          "asks": "wd_tilt"
+        },
+        {
+          "role": "tenant",
+          "text": "yes, it's hanging off at the top"
+        },
+        {
+          "role": "debye",
+          "text": "That's a common jam. Turn the handle up to tilt, press the loose top corner firmly back into the frame, then turn the handle down to closed. Tell me if it closes properly.",
+          "asks": null,
+          "concludes": "window_tilt_jammed"
+        },
+        {
+          "role": "tenant",
+          "text": "tried it a few times, the corner won't go back in and it still won't shut"
+        },
+        {
+          "role": "debye",
+          "text": "Then the window's fitting needs adjusting. Our caretaker Peter Wolf will get in touch and come by; if it needs a window fitter, he arranges that.",
+          "asks": null,
+          "concludes": "window_wont_close"
+        }
+      ],
+      "must_not": [
+        "close the case after the failed tip",
+        "send a glazier",
+        "ask which window or door it is (already given)"
+      ]
+    },
+    {
+      "id": "ta25_window_handle_de",
+      "title": "Fenstergriff abgebrochen (deutsch)",
+      "contact_id": "c_206",
+      "setup": null,
+      "expected_area": "windows_doors",
+      "expected_cause": "window_handle_hinge",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "tags": [
+        "german",
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "wd_what": "window",
+        "wd_problem": "handle_or_hinge"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "Hallo, der Griff vom Küchenfenster ist abgebrochen."
+        },
+        {
+          "role": "debye",
+          "text": "Ein kaputter Griff oder ein Scharnier ist eine Sache für unseren Hausmeister Peter Wolf. Er meldet sich und tauscht es aus.",
+          "asks": null,
+          "concludes": "window_handle_hinge"
+        },
+        {
+          "role": "tenant",
+          "text": "Super, danke."
+        },
+        {
+          "role": "debye",
+          "text": "Gern. Melde dich, wenn du bis dahin noch etwas brauchst.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "answer in English",
+        "use 'Sie' instead of 'du'",
+        "send a locksmith or glazier",
+        "ask what is wrong with it (already given)"
+      ]
+    },
+    {
+      "id": "ta26_building_door_wont_close",
+      "title": "Building entrance door doesn't close",
+      "contact_id": "c_202",
+      "setup": null,
+      "expected_area": "windows_doors",
+      "expected_cause": "building_door_fault",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "tags": [
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "wd_what": "building_door",
+        "wd_problem": "wont_close"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "The main entrance door downstairs doesn't close anymore."
+        },
+        {
+          "role": "debye",
+          "text": "Thanks for telling me, the entrance door matters for everyone's safety. Our caretaker Peter Wolf will check the door closer and lock today and call a locksmith if needed.",
+          "asks": null,
+          "concludes": "building_door_fault"
+        }
+      ],
+      "must_not": [
+        "ask about the tilt position",
+        "send a locksmith directly",
+        "ask which door it is (already given)"
+      ]
+    },
+    {
+      "id": "ta27_flat_door_lock_off_topic",
+      "title": "Key won't turn, off-topic reply",
+      "contact_id": "c_203",
+      "setup": null,
+      "expected_area": "windows_doors",
+      "expected_cause": "flat_door_lock_broken",
+      "expected_outcome": "technician",
+      "expected_trade": "locksmith",
+      "tags": [
+        "off_topic"
+      ],
+      "tenant_facts": {
+        "wd_what": "flat_door",
+        "wd_problem": "lock_broken"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "my key won't turn in the lock anymore"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Is it a window or balcony door, your flat's front door, or the building's entrance door?",
+          "asks": "wd_what"
+        },
+        {
+          "role": "tenant",
+          "text": "lol ok"
+        },
+        {
+          "role": "debye",
+          "text": "No worries. And is it a window, your front door or the building's entrance door?",
+          "asks": "wd_what"
+        },
+        {
+          "role": "tenant",
+          "text": "my flat door"
+        },
+        {
+          "role": "debye",
+          "text": "Then the lock cylinder needs a locksmith. Please don't force the key, it can snap off in the lock.",
+          "asks": null,
+          "concludes": "flat_door_lock_broken"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Schlüsseldienst Krause over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "treat 'lol ok' as an answer",
+        "tell the tenant to force the key",
+        "say the tenant has to pay",
+        "treat it as being locked out"
+      ]
+    },
+    {
+      "id": "ta28_draughty_window",
+      "title": "Draughty living room window",
+      "contact_id": "c_204",
+      "setup": null,
+      "expected_area": "windows_doors",
+      "expected_cause": "draughty_window",
+      "expected_outcome": "caretaker",
+      "expected_trade": null,
+      "tags": [
+        "decisive_first"
+      ],
+      "tenant_facts": {
+        "wd_what": "window",
+        "wd_problem": "draught"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "It's really draughty by the living room window, cold air comes in at the edges."
+        },
+        {
+          "role": "debye",
+          "text": "A draught usually means the seal is worn or the fitting needs adjusting. Our caretaker Peter Wolf will check it and order a window fitter if the seal must be replaced.",
+          "asks": null,
+          "concludes": "draughty_window"
+        }
+      ],
+      "must_not": [
+        "send a glazier",
+        "ask about the tilt position",
+        "ask what is wrong with it (already given)"
+      ]
+    },
+    {
+      "id": "ta29_own_fridge_management",
+      "title": "Tenant's own fridge stopped cooling",
+      "contact_id": "c_205",
+      "setup": null,
+      "expected_area": "appliances",
+      "expected_cause": "own_appliance",
+      "expected_outcome": "management",
+      "expected_trade": null,
+      "tags": [
+        "clean"
+      ],
+      "tenant_facts": {
+        "ap_which": "fridge",
+        "ap_owner": "own",
+        "ap_power": "has_power"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "my fridge stopped cooling"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Did the appliance come with the flat, or is it your own?",
+          "asks": "ap_owner"
+        },
+        {
+          "role": "tenant",
+          "text": "I bought it myself last year"
+        },
+        {
+          "role": "debye",
+          "text": "Your own appliances aren't covered by the landlord, so the manufacturer's service or a repair shop is the right call. If the socket itself has no power, tell me and I'll look into that.",
+          "asks": null,
+          "concludes": "own_appliance"
+        }
+      ],
+      "must_not": [
+        "send an appliance technician",
+        "say the landlord pays for the repair",
+        "ask about the fuse box"
+      ]
+    },
+    {
+      "id": "ta30_dishwasher_fuse_works",
+      "title": "Built-in dishwasher dead, tripped fuse",
+      "contact_id": "c_206",
+      "setup": null,
+      "expected_area": "appliances",
+      "expected_cause": "appliance_tripped_fuse",
+      "expected_outcome": "self_help",
+      "expected_trade": null,
+      "tags": [
+        "self_help_works"
+      ],
+      "tenant_facts": {
+        "ap_which": "dishwasher",
+        "ap_owner": "landlord",
+        "ap_power": "no_power",
+        "ap_breaker": "tripped"
+      },
+      "self_help_result": "works",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "the dishwasher is completely dead, no lights at all"
+        },
+        {
+          "role": "debye",
+          "text": "Let's fix it. Did the appliance come with the flat, or is it your own?",
+          "asks": "ap_owner"
+        },
+        {
+          "role": "tenant",
+          "text": "it came with the kitchen"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Have a look at the fuse box: is one of the switches flipped down?",
+          "asks": "ap_breaker"
+        },
+        {
+          "role": "tenant",
+          "text": "yes one is down"
+        },
+        {
+          "role": "debye",
+          "text": "Flip it back up. If it trips again as soon as the appliance runs, leave it off: then the appliance itself is faulty. Tell me if it works.",
+          "asks": null,
+          "concludes": "appliance_tripped_fuse"
+        },
+        {
+          "role": "tenant",
+          "text": "flipped it up, dishwasher runs again"
+        },
+        {
+          "role": "debye",
+          "text": "Good to hear. Message me any time if it acts up again.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask whether it has power (already given)",
+        "send a technician",
+        "tell the tenant to open the appliance"
+      ]
+    },
+    {
+      "id": "ta31_oven_fuse_fails",
+      "title": "Oven dead, fuse tip doesn't help",
+      "contact_id": "c_202",
+      "setup": null,
+      "expected_area": "appliances",
+      "expected_cause": "appliance_no_power",
+      "expected_outcome": "technician",
+      "expected_trade": "electrical",
+      "tags": [
+        "self_help_fails"
+      ],
+      "tenant_facts": {
+        "ap_which": "oven_hob",
+        "ap_owner": "landlord",
+        "ap_power": "no_power",
+        "ap_breaker": "tripped"
+      },
+      "self_help_result": "fails",
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "The oven is completely dead, the display is off too."
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Did the appliance come with the flat, or is it your own?",
+          "asks": "ap_owner"
+        },
+        {
+          "role": "tenant",
+          "text": "It came with the flat."
+        },
+        {
+          "role": "debye",
+          "text": "Got it. Have a look at the fuse box: is one of the switches flipped down?",
+          "asks": "ap_breaker"
+        },
+        {
+          "role": "tenant",
+          "text": "Yes, one was down."
+        },
+        {
+          "role": "debye",
+          "text": "Flip it back up. If it trips again as soon as the appliance runs, leave it off: then the appliance itself is faulty. Tell me if it works.",
+          "asks": null,
+          "concludes": "appliance_tripped_fuse"
+        },
+        {
+          "role": "tenant",
+          "text": "Flipped it up, all switches are up now but the oven is still dead."
+        },
+        {
+          "role": "debye",
+          "text": "If it's completely dead with all fuses up, the socket or its connection is the problem, so an electrician needs to check it.",
+          "asks": null,
+          "concludes": "appliance_no_power"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Elektro Klein GmbH over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "close the case after the failed tip",
+        "send an appliance technician instead of an electrician",
+        "tell the tenant to open the oven or the socket"
+      ]
+    },
+    {
+      "id": "ta32_washing_machine_frustrated",
+      "title": "Washing machine won't spin, tenant wants someone sent",
+      "contact_id": "c_203",
+      "setup": null,
+      "expected_area": "appliances",
+      "expected_cause": "appliance_fault",
+      "expected_outcome": "technician",
+      "expected_trade": "appliances",
+      "tags": [
+        "frustrated"
+      ],
+      "tenant_facts": {
+        "ap_which": "washing_machine",
+        "ap_owner": "landlord",
+        "ap_power": "has_power"
+      },
+      "self_help_result": null,
+      "max_diagnostic_questions": 3,
+      "turns": [
+        {
+          "role": "tenant",
+          "text": "washing machine won't spin, the lights are on and it just beeps"
+        },
+        {
+          "role": "debye",
+          "text": "Ok. Did the appliance come with the flat, or is it your own?",
+          "asks": "ap_owner"
+        },
+        {
+          "role": "tenant",
+          "text": "ugh I don't have time for this, just send someone"
+        },
+        {
+          "role": "debye",
+          "text": "Understood. I'll get a technician to look at it.",
+          "asks": null,
+          "concludes": "appliance_fault"
+        },
+        {
+          "role": "debye",
+          "text": "I'd like to send Hausgeräte-Service Meyer over. Is it okay if I share your name, phone number, address and floor with them?",
+          "asks": null
+        },
+        {
+          "role": "tenant",
+          "text": "yes"
+        },
+        {
+          "role": "debye",
+          "text": "Thanks. Your property manager is confirming the repair, I'll update you shortly.",
+          "asks": null
+        }
+      ],
+      "must_not": [
+        "ask another diagnostic question after 'just send someone'",
+        "argue with the tenant",
+        "tell the tenant to open the machine"
+      ]
+    }
+  ]
+}

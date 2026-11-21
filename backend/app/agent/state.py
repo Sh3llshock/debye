@@ -38,6 +38,7 @@ class Conversation:
     pending_inputs: list[str] = field(default_factory=list)  # zero-forms labels before the case exists
     lang: str = "en"  # resident's language for code-written texts (diagnosis.update_lang)
     photos: int = 0  # photos the resident sent in this conversation (consent mentions them only if any)
+    triage: dict | None = None  # see agent/triage.py: routed area, pending area question, queued second problem
     channel: str = "whatsapp"  # where the resident talks to us (whatsapp | web); recorded with the consent
 
 

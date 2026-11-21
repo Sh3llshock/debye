@@ -1,0 +1,115 @@
+{
+  "symptom": "lift",
+  "area": "lift",
+  "label": "the lift",
+  "label_de": "den Aufzug",
+  "title": "Lift",
+  "case_type": "repair.elevator",
+  "router": {
+    "description": "The building's lift/elevator: out of order, doors not closing, stopping between floors, strange noises. Someone stuck inside is an emergency.",
+    "button": "Lift",
+    "button_de": "Aufzug",
+    "keywords": ["lift", "elevator", "aufzug", "fahrstuhl"]
+  },
+  "applies_to": ["the lift is broken", "elevator out of order", "Aufzug geht nicht"],
+  "first_question": "li_state",
+  "fallback_cause": "lift_out_of_service",
+  "neutral_message": "The lift company needs to look at it.",
+  "neutral_message_de": "Das sollte sich die Aufzugsfirma ansehen.",
+  "follow_up_question": "just checking in: is the lift running again?",
+  "follow_up_question_de": "kurze Nachfrage: Fährt der Aufzug wieder?",
+  "follow_up_yes": "Yes, it runs",
+  "follow_up_no": "Still down",
+  "resolved_message": "Good to hear. Message me any time if it stops again.",
+  "resolved_message_de": "Schön. Melde dich jederzeit, wenn er wieder stehen bleibt.",
+  "extraction_hints": "'the lift doesn't come' / 'out of order' / 'not moving' → li_state=stopped; 'it works but the doors don't close properly' / 'it makes noises' / 'it jerks' → li_state=problem; 'someone is stuck inside' / 'I'm trapped' → li_state=someone_trapped; 'there's a maintenance sign' → li_notice=yes; 'no sign' → li_notice=no.",
+  "questions": [
+    {
+      "id": "li_state",
+      "text": "Is the lift not moving at all, or does it run but with a problem like the doors, noises or jerking? Is anyone stuck inside?",
+      "text_de": "Fährt der Aufzug gar nicht, oder fährt er mit einem Problem wie Türen, Geräuschen oder Ruckeln? Steckt jemand drin fest?",
+      "answers": {"stopped": "not moving at all", "problem": "runs, but doors, noise or jerking", "someone_trapped": "someone is stuck inside"},
+      "buttons": {"stopped": "Not moving", "problem": "Runs with a problem", "someone_trapped": "Someone is stuck"},
+      "buttons_de": {"stopped": "Fährt nicht", "problem": "Fährt mit Problem", "someone_trapped": "Jemand steckt fest"},
+      "reask": "And is it not moving at all, running with a problem, or is someone stuck?",
+      "reask_de": "Und fährt er gar nicht, mit Problem, oder steckt jemand fest?",
+      "fact_words": []
+    },
+    {
+      "id": "li_notice",
+      "text": "Is there a sign or notice at the lift, for example about maintenance?",
+      "text_de": "Hängt am Aufzug ein Schild oder Aushang, zum Beispiel wegen Wartung?",
+      "answers": {"yes": "there is a maintenance sign", "no": "no sign"},
+      "buttons": {"yes": "Yes, a sign", "no": "No sign"},
+      "buttons_de": {"yes": "Ja, ein Schild", "no": "Kein Schild"},
+      "reask": "And is there a sign at the lift?",
+      "reask_de": "Und hängt ein Schild am Aufzug?",
+      "fact_words": ["sign", "notice", "schild", "aushang"]
+    }
+  ],
+  "causes": [
+    {
+      "id": "person_trapped",
+      "label": "Person trapped in the lift",
+      "signals": ["li_state=someone_trapped"],
+      "ask_order": ["li_state"],
+      "outcome": "emergency",
+      "trade": "elevator",
+      "priority": "emergency",
+      "technician_needed": true,
+      "requires": ["li_state"],
+      "decisive": true,
+      "tenant_message": "Press the alarm button in the lift and hold it, that connects to the lift emergency service. Stay calm, don't try to open the doors, and call 112 if anyone feels unwell. I've alerted your property manager and the lift company.",
+      "tenant_message_de": "Drück den Notrufknopf im Aufzug und halt ihn gedrückt, damit bist du mit dem Aufzugsnotdienst verbunden. Bleib ruhig, versuch nicht die Türen zu öffnen, und ruf die 112, wenn es jemandem schlecht geht. Ich habe die Hausverwaltung und die Aufzugsfirma informiert."
+    },
+    {
+      "id": "lift_maintenance",
+      "label": "Lift out of service for maintenance (sign posted)",
+      "signals": ["li_notice=yes"],
+      "ask_order": ["li_notice"],
+      "outcome": "self_help",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["li_notice"],
+      "decisive": true,
+      "if_fails": {"li_notice": "no"},
+      "follow_up_minutes": 480,
+      "tenant_message": "Then it's the planned maintenance and it should run again once that's done. Tell me if it's still down after the time on the sign.",
+      "tenant_message_de": "Dann ist es die geplante Wartung und er sollte danach wieder fahren. Sag mir, falls er nach der Zeit auf dem Schild noch steht."
+    },
+    {
+      "id": "lift_out_of_service",
+      "label": "Lift out of service (not moving, no notice)",
+      "signals": ["li_state=stopped", "li_notice=no"],
+      "ask_order": ["li_state", "li_notice"],
+      "outcome": "technician",
+      "trade": "elevator",
+      "priority": "urgent",
+      "technician_needed": true,
+      "requires": ["li_state"],
+      "tenant_message": "Then the lift company needs to come. If you or a neighbour can't manage the stairs, tell me and the property manager will help in the meantime.",
+      "tenant_message_de": "Dann muss die Aufzugsfirma kommen. Wenn du oder ein Nachbar die Treppe nicht schafft, sag es mir, dann hilft die Hausverwaltung in der Zwischenzeit."
+    },
+    {
+      "id": "lift_fault_minor",
+      "label": "Lift runs but has a fault (doors, noise, jerking)",
+      "signals": ["li_state=problem"],
+      "ask_order": ["li_state"],
+      "outcome": "technician",
+      "trade": "elevator",
+      "technician_needed": true,
+      "requires": ["li_state"],
+      "decisive": true,
+      "tenant_message": "Then the lift company needs to check it. If it stops between floors, press the alarm button in the lift.",
+      "tenant_message_de": "Dann muss die Aufzugsfirma das prüfen. Wenn er zwischen den Etagen stehen bleibt, drück den Notrufknopf im Aufzug."
+    }
+  ],
+  "likelihood_order": ["person_trapped", "lift_maintenance", "lift_out_of_service", "lift_fault_minor"],
+  "strategy": [
+    "Someone stuck inside: emergency, alarm button, 112 if unwell, staff alerted.",
+    "Not moving: ask li_notice (maintenance sign → wait); otherwise the lift company, urgent.",
+    "Running with a fault: the lift company; staff approve.",
+    "At most 3 diagnostic questions, one per message. Never state a fact the tenant didn't give."
+  ],
+  "sources": ["Team troubleshooting sheet (lift)", "BetrSichV: lift emergency call system"]
+}

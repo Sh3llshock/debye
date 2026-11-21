@@ -1,0 +1,95 @@
+{
+  "partner_id": "glaserei-hoffmann",
+  "name": "Glaserei Hoffmann",
+  "category": "repair.glazier",
+  "kind": "deliver",
+  "triggers": [
+    "case.repair.glazier"
+  ],
+  "service_area": {
+    "postcodes": [
+      "52062",
+      "52064",
+      "52066",
+      "52068",
+      "52070"
+    ]
+  },
+  "capabilities": {
+    "trades": [
+      "glazier",
+      "windows"
+    ]
+  },
+  "eligibility": [
+    {
+      "field": "property.postcode",
+      "op": "in_service_area"
+    }
+  ],
+  "pricing": {
+    "model": "quote",
+    "callout_fee_eur": 69,
+    "hourly_eur": 58
+  },
+  "required_context": [
+    {
+      "key": "address",
+      "source": "property.address",
+      "pii": true,
+      "consent_required": true
+    },
+    {
+      "key": "unit_floor",
+      "source": "unit.floor",
+      "pii": false,
+      "consent_required": false
+    },
+    {
+      "key": "tenant_name",
+      "source": "tenant.name",
+      "pii": true,
+      "consent_required": true
+    },
+    {
+      "key": "tenant_phone",
+      "source": "tenant.phone",
+      "pii": true,
+      "consent_required": true
+    },
+    {
+      "key": "photos",
+      "source": "case.documents[kind=photo]",
+      "pii": true,
+      "consent_required": true
+    }
+  ],
+  "availability": {
+    "mode": "conversational"
+  },
+  "transport": {
+    "type": "portal",
+    "url": "/partner/glaserei-hoffmann",
+    "notify": {
+      "channel": "email",
+      "address": "jobs@glaserei-hoffmann.example"
+    }
+  },
+  "status_events": [
+    "accepted",
+    "declined",
+    "scheduled",
+    "completed",
+    "invoiced"
+  ],
+  "documents_returned": [
+    "visit_report",
+    "invoice"
+  ],
+  "sla": {
+    "urgent_response_hours": 24,
+    "standard_response_hours": 72
+  },
+  "rating": 4.6,
+  "_demo": "Demo partner for the triage branch (data invented)."
+}

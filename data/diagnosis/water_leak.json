@@ -1,0 +1,240 @@
+{
+  "symptom": "water_leak",
+  "area": "water_leak",
+  "label": "the leak",
+  "label_de": "das Leck",
+  "title": "Leak",
+  "case_type": "repair.plumbing",
+  "router": {
+    "description": "Water leaking or dripping inside the flat: a dripping tap or shower head, a leaking pipe or connection under a sink, a running or leaking toilet, a leaking radiator valve, a washing machine or dishwasher hose. Not water from the ceiling (roof_ceiling_leak).",
+    "button": "Leak or drip",
+    "button_de": "Leck / Tropfen",
+    "keywords": ["leak", "leaking", "leaks", "drip", "dripping", "drips", "puddle", "water on the floor", "toilet keeps running", "toilet is running", "cistern", "undicht", "tropft", "tropfen", "leck", "pfütze", "wasser auf dem boden", "spülkasten", "läuft ständig"]
+  },
+  "applies_to": ["dripping tap", "leak under the sink", "toilet keeps running", "water on the bathroom floor", "Wasserhahn tropft"],
+  "first_question": "lk_where",
+  "fallback_cause": "under_sink_leak",
+  "neutral_message": "A plumber needs to look at it.",
+  "neutral_message_de": "Das sollte sich ein Installateur ansehen.",
+  "follow_up_question": "just checking in: is it dry now?",
+  "follow_up_question_de": "kurze Nachfrage: Ist es jetzt trocken?",
+  "follow_up_yes": "Yes, it's dry",
+  "follow_up_no": "Still leaking",
+  "resolved_message": "Good to hear. Message me any time if it starts again.",
+  "resolved_message_de": "Schön. Melde dich jederzeit, wenn es wieder anfängt.",
+  "extraction_hints": "'the kitchen tap drips' → lk_where=tap; 'pipe under the sink' / 'the siphon' → lk_where=under_sink; 'the toilet keeps running' → lk_where=toilet AND lk_toilet=running; 'water around the toilet base' → lk_where=toilet AND lk_toilet=floor; 'the radiator valve leaks' → lk_where=radiator; 'the washing machine hose' → lk_where=appliance; 'a few drops' / 'slow drip' → lk_amount=drip; 'a steady stream' → lk_amount=steady; 'water everywhere' / 'spreading across the floor' → lk_amount=spreading; 'I closed the valve and it stopped' → lk_stop=stopped; 'it still drips when I turn the tap off hard' → lk_tap_closed=yes_drips.",
+  "safety_first": {
+    "trigger": "Flooding (water spreading across the floor, a burst pipe) is detected from the tenant's words by the router; never ask about it proactively."
+  },
+  "questions": [
+    {
+      "id": "lk_where",
+      "text": "Where is the water coming from: a tap or shower head, a pipe under a sink, the toilet, a radiator, or a washing machine or dishwasher?",
+      "text_de": "Woher kommt das Wasser: aus einem Hahn oder Duschkopf, einem Rohr unter dem Waschbecken, der Toilette, einem Heizkörper oder der Wasch- oder Spülmaschine?",
+      "answers": {
+        "tap": "a tap or shower head drips",
+        "under_sink": "a pipe or connection under a sink leaks",
+        "toilet": "the toilet or its cistern",
+        "radiator": "a radiator or heating pipe",
+        "appliance": "a washing machine or dishwasher hose"
+      },
+      "buttons": {"tap": "Tap / shower head", "under_sink": "Under a sink", "toilet": "Toilet", "radiator": "Radiator", "appliance": "Washing machine"},
+      "buttons_de": {"tap": "Hahn / Duschkopf", "under_sink": "Unter dem Becken", "toilet": "Toilette", "radiator": "Heizkörper", "appliance": "Waschmaschine"},
+      "reask": "And where is it coming from: a tap, under a sink, the toilet, a radiator or a machine?",
+      "reask_de": "Und woher kommt es: Hahn, unter dem Becken, Toilette, Heizkörper oder Maschine?",
+      "fact_words": []
+    },
+    {
+      "id": "lk_amount",
+      "text": "How much water is it: a slow drip, a steady trickle, or is it spreading across the floor?",
+      "text_de": "Wie viel Wasser ist es: ein langsames Tropfen, ein stetiges Rinnsal, oder breitet es sich auf dem Boden aus?",
+      "answers": {
+        "drip": "a slow drip",
+        "steady": "a steady trickle",
+        "spreading": "it's spreading across the floor"
+      },
+      "buttons": {"drip": "Slow drip", "steady": "Steady trickle", "spreading": "Spreading on floor"},
+      "buttons_de": {"drip": "Langsames Tropfen", "steady": "Stetiges Rinnsal", "spreading": "Breitet sich aus"},
+      "reask": "And is it a slow drip, a steady trickle, or spreading across the floor?",
+      "reask_de": "Und tropft es langsam, rinnt es stetig, oder breitet es sich aus?",
+      "fact_words": ["puddle", "trickle", "spreading", "flood"]
+    },
+    {
+      "id": "lk_stop",
+      "text": "Can you stop it by turning the small valve under the sink or behind the toilet clockwise?",
+      "text_de": "Kannst du es stoppen, indem du das kleine Ventil unter dem Waschbecken oder hinter der Toilette im Uhrzeigersinn zudrehst?",
+      "answers": {
+        "stopped": "closing the valve stopped it",
+        "still_running": "it keeps leaking even with the valve closed",
+        "no_valve": "can't find or turn a valve"
+      },
+      "buttons": {"stopped": "Yes, it stopped", "still_running": "Still leaking", "no_valve": "Can't find a valve"},
+      "buttons_de": {"stopped": "Ja, gestoppt", "still_running": "Leckt weiter", "no_valve": "Kein Ventil"},
+      "reask": "Could you try the small valve under the sink or behind the toilet?",
+      "reask_de": "Kannst du das kleine Ventil unter dem Becken oder hinter der Toilette probieren?",
+      "fact_words": ["valve", "ventil"]
+    },
+    {
+      "id": "lk_tap_closed",
+      "text": "Does it still drip when you turn the tap off firmly?",
+      "text_de": "Tropft es noch, wenn du den Hahn fest zudrehst?",
+      "answers": {
+        "yes_drips": "it still drips when turned off firmly",
+        "stops": "it stops when turned off firmly"
+      },
+      "buttons": {"yes_drips": "Still drips", "stops": "Then it stops"},
+      "buttons_de": {"yes_drips": "Tropft weiter", "stops": "Dann hört es auf"},
+      "reask": "And when you turn it off firmly, does it still drip?",
+      "reask_de": "Und wenn du ihn fest zudrehst, tropft er dann noch?",
+      "fact_words": ["washer", "cartridge"]
+    },
+    {
+      "id": "lk_toilet",
+      "text": "Is water running into the toilet bowl all the time, or is it leaking onto the floor?",
+      "text_de": "Läuft ständig Wasser in die Schüssel, oder läuft es auf den Boden?",
+      "answers": {
+        "running": "water keeps running into the bowl",
+        "floor": "water leaks onto the floor around the toilet"
+      },
+      "buttons": {"running": "Runs into the bowl", "floor": "Onto the floor"},
+      "buttons_de": {"running": "In die Schüssel", "floor": "Auf den Boden"},
+      "reask": "And is it running into the bowl, or onto the floor?",
+      "reask_de": "Und läuft es in die Schüssel oder auf den Boden?",
+      "fact_words": ["bowl", "cistern"]
+    }
+  ],
+  "causes": [
+    {
+      "id": "major_leak_flooding",
+      "label": "Major leak, water spreading (burst pipe or failed connection)",
+      "signals": ["lk_amount=spreading"],
+      "ask_order": ["lk_amount"],
+      "outcome": "emergency",
+      "trade": "plumbing",
+      "priority": "emergency",
+      "technician_needed": true,
+      "requires": ["lk_amount"],
+      "decisive": true,
+      "tenant_message": "Please turn off the main water valve now (usually near the water meter, in the bathroom or kitchen), switch off the fuse for any wet sockets, and move valuables away. I've alerted your property manager and an emergency plumber is being arranged.",
+      "tenant_message_de": "Bitte dreh jetzt den Hauptwasserhahn zu (meist beim Wasserzähler, im Bad oder in der Küche), schalte die Sicherung für nasse Steckdosen aus und räum Wertsachen weg. Ich habe die Hausverwaltung sofort informiert, ein Notdienst-Installateur wird organisiert."
+    },
+    {
+      "id": "tap_not_fully_closed",
+      "label": "Tap not fully closed (stops when turned off firmly)",
+      "signals": ["lk_where=tap", "lk_tap_closed=stops"],
+      "ask_order": ["lk_where", "lk_tap_closed"],
+      "outcome": "self_help",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["lk_tap_closed"],
+      "decisive": true,
+      "if_fails": {"lk_tap_closed": "yes_drips"},
+      "follow_up_minutes": 120,
+      "tenant_message": "Then it was just not fully closed. Keep turning it off firmly, and tell me if it starts dripping again anyway.",
+      "tenant_message_de": "Dann war er nur nicht ganz zu. Dreh ihn fest zu und sag mir, wenn er trotzdem wieder tropft."
+    },
+    {
+      "id": "dripping_tap_washer",
+      "label": "Worn tap washer or cartridge (drips even when closed)",
+      "signals": ["lk_where=tap", "lk_tap_closed=yes_drips"],
+      "ask_order": ["lk_where", "lk_tap_closed"],
+      "outcome": "caretaker",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["lk_tap_closed"],
+      "decisive": true,
+      "tenant_message": "Then the seal inside the tap is worn, a quick job for our caretaker Peter Wolf. He'll get in touch to come by; until then a cup under the tap keeps the noise down.",
+      "tenant_message_de": "Dann ist die Dichtung im Hahn verschlissen, eine kleine Sache für unseren Hausmeister Peter Wolf. Er meldet sich und kommt vorbei; bis dahin hilft ein Becher unter dem Hahn gegen das Geräusch."
+    },
+    {
+      "id": "under_sink_leak",
+      "label": "Leaking pipe or connection under a sink",
+      "signals": ["lk_where=under_sink"],
+      "ask_order": ["lk_where", "lk_stop", "lk_amount"],
+      "outcome": "technician",
+      "trade": "plumbing",
+      "technician_needed": true,
+      "requires": ["lk_where"],
+      "tenant_message": "A connection under the sink is leaking, so a plumber needs to replace it. Keep the small valve closed if you can and put a bowl underneath.",
+      "tenant_message_de": "Unter dem Becken ist eine Verbindung undicht, das muss ein Installateur austauschen. Lass das kleine Ventil möglichst zu und stell eine Schüssel darunter."
+    },
+    {
+      "id": "toilet_running",
+      "label": "Toilet cistern keeps running (fill or flush valve)",
+      "signals": ["lk_where=toilet", "lk_toilet=running"],
+      "ask_order": ["lk_where", "lk_toilet"],
+      "outcome": "caretaker",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["lk_toilet"],
+      "decisive": true,
+      "tenant_message": "Then the valve in the cistern isn't sealing, which our caretaker Peter Wolf can fix. He'll get in touch; until then you can close the small valve behind the toilet between flushes.",
+      "tenant_message_de": "Dann dichtet das Ventil im Spülkasten nicht mehr, das kann unser Hausmeister Peter Wolf richten. Er meldet sich; bis dahin kannst du das kleine Ventil hinter der Toilette zwischen dem Spülen zudrehen."
+    },
+    {
+      "id": "toilet_leak_floor",
+      "label": "Toilet leaking onto the floor (seal or connection)",
+      "signals": ["lk_where=toilet", "lk_toilet=floor"],
+      "ask_order": ["lk_where", "lk_toilet", "lk_stop"],
+      "outcome": "technician",
+      "trade": "plumbing",
+      "technician_needed": true,
+      "requires": ["lk_toilet"],
+      "decisive": true,
+      "tenant_message": "Water around the toilet usually means a seal or the connection has failed, so a plumber needs to fix it. Close the small valve behind the toilet and wipe up the water.",
+      "tenant_message_de": "Wasser rund um die Toilette heißt meist, dass eine Dichtung oder der Anschluss kaputt ist; das muss ein Installateur machen. Dreh das kleine Ventil hinter der Toilette zu und wisch das Wasser auf."
+    },
+    {
+      "id": "appliance_hose_leak",
+      "label": "Washing machine / dishwasher hose or seal leaking",
+      "signals": ["lk_where=appliance"],
+      "ask_order": ["lk_where", "lk_stop"],
+      "outcome": "self_help",
+      "trade": null,
+      "technician_needed": false,
+      "requires": ["lk_where"],
+      "decisive": true,
+      "if_fails": {"lk_stop": "still_running"},
+      "follow_up_minutes": 60,
+      "tenant_message": "Usually it's the machine's hose or its seal. Close the small tap behind the machine, don't run it for now, and tell me if water still comes out with the tap closed.",
+      "tenant_message_de": "Meist ist es der Schlauch der Maschine oder seine Dichtung. Dreh den kleinen Hahn hinter der Maschine zu, lass sie erst mal aus und sag mir, ob trotzdem noch Wasser kommt."
+    },
+    {
+      "id": "wall_valve_leak",
+      "label": "Leak at the wall valve or pipe (keeps leaking with the valve closed)",
+      "signals": ["lk_stop=still_running"],
+      "ask_order": ["lk_stop"],
+      "outcome": "technician",
+      "trade": "plumbing",
+      "technician_needed": true,
+      "priority": "urgent",
+      "requires": ["lk_stop"],
+      "tenant_message": "If it keeps leaking with the valve closed, the pipe or the valve itself is the problem, so a plumber needs to come. Put a bucket or towels under it for now.",
+      "tenant_message_de": "Wenn es trotz geschlossenem Ventil weiterleckt, ist das Rohr oder das Ventil selbst defekt; da muss ein Installateur kommen. Stell bis dahin einen Eimer oder Handtücher darunter."
+    },
+    {
+      "id": "radiator_valve_leak",
+      "label": "Leaking radiator valve or heating pipe",
+      "signals": ["lk_where=radiator"],
+      "ask_order": ["lk_where"],
+      "outcome": "technician",
+      "trade": "heating",
+      "technician_needed": true,
+      "requires": ["lk_where"],
+      "decisive": true,
+      "tenant_message": "A leaking radiator valve needs a heating technician. Put a towel and a bowl under it; please don't open or loosen anything on the radiator.",
+      "tenant_message_de": "Ein undichtes Heizkörperventil muss ein Heizungstechniker machen. Leg ein Handtuch und eine Schüssel darunter und öffne oder lockere bitte nichts am Heizkörper."
+    }
+  ],
+  "likelihood_order": ["major_leak_flooding", "tap_not_fully_closed", "dripping_tap_washer", "toilet_running", "under_sink_leak", "appliance_hose_leak", "toilet_leak_floor", "wall_valve_leak", "radiator_valve_leak"],
+  "strategy": [
+    "Flooding (water spreading, a burst pipe) is an emergency: safety steps first (main valve, fuse, valuables), staff alerted, no questions.",
+    "Take everything the first message says ('the kitchen tap drips' → lk_where=tap).",
+    "Ask lk_where first unless the message already says where; then the one question that decides between the likeliest causes (lk_tap_closed for a tap, lk_toilet for the toilet, lk_stop for a pipe).",
+    "At most 3 diagnostic questions, one per message; a clarifying question doesn't count.",
+    "Cheap self-help first: a tap that isn't fully closed, closing the tap behind the washing machine. Give the tip and ask the tenant to tell you if it works.",
+    "Small jobs (a worn tap washer, a running cistern) go to the caretaker Peter Wolf; real leaks to a plumber, a leaking radiator valve to a heating technician; staff approve every job.",
+    "Never state a fact the tenant didn't give."
+  ],
+  "sources": ["Team troubleshooting sheet (leaks), adapted for rental flats", "Typical caretaker vs. plumber split in German property management (Kleinreparaturen)"]
+}
