@@ -608,6 +608,8 @@ def dispatch_job(case_id: str, partner_id: str) -> dict:
                              f"Waiting for staff approval: {name}, est. €{est:.0f}",
                              {"partner_id": partner_id, "partner_name": name,
                               "estimated_cost_eur": est, **approval})
+                from . import notify_email  # email the PM a briefing + one-click links (background)
+                notify_email.on_approval_pending(case_id)
             raise
         case.partner_id = partner_id
         case.status = "requested"
