@@ -201,7 +201,7 @@ def get_unit_context(unit_id: str) -> dict:
         from .models import Notice
         notices = s.exec(select(Notice).where(Notice.property_id == unit.property_id)).all()
         open_cases = [c for c in s.exec(select(Case).where(Case.property_id == unit.property_id)).all()
-                      if c.status not in OPEN_STATUSES_EXCLUDED]
+                      if c.status not in OPEN_STATUSES_EXCLUDED and not is_try_contact(c.reporter_contact_id)]
         return {
             "property": prop.model_dump() if prop else None,
             "unit": unit.model_dump(),
@@ -219,11 +219,18 @@ def get_unit_context(unit_id: str) -> dict:
         }
 
 
+def is_try_contact(contact_id: str | None) -> bool:
+    """/tryDebye visitors share a demo flat; they must never count as each other's (or Luka's) neighbours."""
+    return bool(contact_id) and str(contact_id).startswith("c_try_")
+
+
 def find_open_case_for_asset(asset_id: str) -> Case | None:
     with get_session() as s:
         cases = s.exec(select(Case).where(Case.asset_id == asset_id)
                        .order_by(Case.created_at.desc())).all()
         for c in cases:
+            if is_try_contact(c.reporter_contact_id):
+                continue  # a /tryDebye visitor's case never blocks anyone else
             if c.status not in OPEN_STATUSES_EXCLUDED:
                 return c
         return None

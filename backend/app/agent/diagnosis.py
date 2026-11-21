@@ -976,7 +976,7 @@ async def apply_centrix_shortcuts(contact, conv: st.Conversation) -> bool:
     existing = None
     if asset_id:
         try:
-            existing = be.find_open_case_for_asset(asset_id)
+            existing = be.find_open_case_for_asset(asset_id, be.attr(contact, "id"))
         except Exception:
             log.exception("find_open_case_for_asset failed")
     if existing is not None and be.attr(existing, "reporter_contact_id") != be.attr(contact, "id"):

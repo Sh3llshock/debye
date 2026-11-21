@@ -104,7 +104,7 @@ async def ensure_case(
     existing = None
     if asset_id and building_case:
         try:
-            existing = be.find_open_case_for_asset(asset_id)
+            existing = be.find_open_case_for_asset(asset_id, be.attr(contact, "id"))
         except Exception:
             log.exception("find_open_case_for_asset failed")
     if existing is not None:
@@ -597,7 +597,7 @@ async def link_if_building_case_open(contact, conv: st.Conversation) -> bool:
     if not asset_id:
         return False
     try:
-        existing = be.find_open_case_for_asset(asset_id)
+        existing = be.find_open_case_for_asset(asset_id, be.attr(contact, "id"))
     except Exception:
         log.exception("find_open_case_for_asset failed")
         return False

@@ -61,7 +61,9 @@ def get_unit_context(unit_id: str) -> dict:
         return {}
 
 
-def find_open_case_for_asset(asset_id: str):
+def find_open_case_for_asset(asset_id: str, contact_id: str | None = None):
+    if contact_id and str(contact_id).startswith("c_try_"):
+        return None  # /tryDebye visitors share a demo flat but are never each other's neighbours
     return _call("find_open_case_for_asset", asset_id)
 
 
