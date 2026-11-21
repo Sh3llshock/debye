@@ -45,6 +45,13 @@ CHATS = {
     "knob": ["only the shower is cold, the sink is hot", "it stops at 38", "that worked, it's hot now"],
     "roommate": ["no hot water", "only the shower", "my roommate showered for ages just before"],
     "frustrated": ["shower cold again, this is useless just send someone"],
+    # proactive: centrix reports the boiler error, Debye writes first (a dict = an API call or a button tap)
+    "boiler_error": [{"post": "/demo/trigger/boiler_error", "json": {"unit_id": "unit_4b", "code": "F.28"}},
+                     {"tap": "aerr_water"}],
+    "boiler_error_text": [{"post": "/demo/trigger/boiler_error", "json": {"unit_id": "unit_4b", "code": "F.28"}},
+                          "yes the heating is completely cold"],
+    "one_room": ["the radiator in my bedroom is cold, the rest of the flat is warm", {"tap": "cold_some", "optional": True},
+                 {"tap": "oneroom_no"}],
 }
 
 FACTS = {"radiator": "radiat", "display": "display", "pressure": "pressure", "error code": "code",
@@ -78,15 +85,35 @@ def run_chat(name: str) -> dict:
         state.reset_all()
         whatsapp.clear_outbox()
         seen = 0
+        last_ids: list[str] = []
         for i, step in enumerate(CHATS[name]):
-            msgs = step if isinstance(step, list) else [step]
+            if isinstance(step, dict):
+                if "post" in step:
+                    client.post(step["post"], json=step.get("json") or {})
+                    msgs = [f"[{step['post']}]"]
+                else:
+                    bid = next((x for x in last_ids if x.startswith(step["tap"] + ":")), None)
+                    if bid is None:
+                        if step.get("optional"):
+                            continue
+                        turns.append({"tenant": [f"[tap {step['tap']}: no such button]"], "debye": []})
+                        break
+                    client.post("/webhooks/whatsapp", json={"entry": [{"changes": [{"value": {"messages": [
+                        {"from": PHONE, "id": f"wamid.smoke.{i}.tap.{time.time_ns()}", "type": "interactive",
+                         "interactive": {"type": "button_reply", "button_reply": {"id": bid, "title": step["tap"]}}}]}}]}]})
+                    msgs = [f"[tap {step['tap']}]"]
+                step = None
+            else:
+                msgs = step if isinstance(step, list) else [step]
 
             def post(text, k):
                 client.post("/webhooks/whatsapp", json={"entry": [{"changes": [{"value": {"messages": [
                     {"from": PHONE, "id": f"wamid.smoke.{i}.{k}.{time.time_ns()}", "type": "text",
                      "text": {"body": text}}]}}]}]})
 
-            if len(msgs) > 1:  # a real burst: concurrent, production-like debounce
+            if step is None:
+                pass
+            elif len(msgs) > 1:  # a real burst: concurrent, production-like debounce
                 msg_router.DEBOUNCE_SECONDS = 1.5
                 ths = [threading.Thread(target=post, args=(t, k)) for k, t in enumerate(msgs)]
                 for th in ths:
@@ -111,12 +138,16 @@ def run_chat(name: str) -> dict:
                         [r["id"] for s in it["action"].get("sections", []) for r in s["rows"]]
                     sent.append({"text": it["body"]["text"], "ids": ids})
             turns.append({"tenant": msgs, "debye": sent})
+            last_ids = [x for m in sent for x in m["ids"]] or last_ids
         d = state.conversation("c_202").diagnosis or {}
         conv = state.conversation("c_202")
         cases = client.get("/api/staff/cases").json()
     return {"name": name, "turns": turns, "concluded": d.get("concluded"), "asked": d.get("asked", []),
             "answers": d.get("answers", {}), "step": conv.step, "lang": conv.lang,
-            "cases": [{"trade": c.get("trade"), "status": c.get("status")} for c in cases]}
+            "cases": [{"trade": c.get("trade"), "status": c.get("status"), "id": c.get("id") or c.get("case_id")}
+                      for c in cases],
+            "events": [e.get("kind") for c in cases for e in
+                       (client.get(f"/api/staff/cases/{c.get('id') or c.get('case_id')}").json().get("events") or [])]}
 
 
 # ------------------------------------------------------------------ checks
@@ -145,6 +176,8 @@ def check(r: dict) -> list[str]:
     if len(set(r["asked"])) > 3:
         fails.append(f"{len(set(r['asked']))} diagnostic questions")
     said = " ".join(x for t in r["turns"] for x in t["tenant"]).lower()
+    if r["name"].startswith("boiler_error"):  # centrix reported the code: Debye's own first message has it
+        said += " error code " + " ".join(m["text"] for m in r["turns"][0]["debye"]).lower()
     for t in r["turns"]:
         for m in t["debye"]:
             if _is_question(m):
@@ -195,6 +228,26 @@ def check(r: dict) -> list[str]:
             fails.append("frustrated: assumed 'heating' although the trade is unknown")
         if not [c for c in r["cases"] if c["status"] != "closed"]:
             fails.append("frustrated: no case")
+    flat_l = [m["text"].lower() for t in r["turns"] for m in t["debye"]]
+    if n.startswith("boiler_error"):
+        first = r["turns"][0]["debye"]
+        if not first or "f.28" not in first[0]["text"].lower() or "?" not in first[0]["text"]:
+            fails.append(f"boiler_error: Debye didn't write first with the code: {[m['text'][:60] for m in first]}")
+        if any(("display" in t or "error code" in t) and "?" in t for t in flat_l[1:]):
+            fails.append("boiler_error: asked for the display / code although centrix reported it")
+        if n == "boiler_error" and r["concluded"] not in ("boiler_fault",) and not any("?" in t for t in flat_l[1:]):
+            fails.append(f"boiler_error: hot-water path neither concluded the boiler fault nor asked ({r['concluded']})")
+        if n == "boiler_error_text" and not any("share" in t or "technician" in t or "company" in t for t in flat_l[1:]):
+            fails.append("boiler_error_text: 'heating completely cold' didn't lead to a technician/consent")
+    if n == "one_room":
+        if any("is it okay if i share" in t for t in flat_l):
+            fails.append("one_room: asked consent for a company (installer) for one cold radiator")
+        if not any("thermostat" in t for t in flat_l):
+            fails.append("one_room: no radiator tip (thermostat valve / bleeding)")
+        if not any("caretaker" in t for t in flat_l):
+            fails.append("one_room: still cold didn't go to the caretaker")
+        if "job.sent" in r.get("events", []):
+            fails.append("one_room: a job was sent to a company")
     if n == "knob" and (r["concluded"] not in (None, "shower_knob_or_limiter") or _tech(r["cases"])):
         fails.append(f"knob chat: concluded {r['concluded']} / cases {r['cases']}")
     return fails

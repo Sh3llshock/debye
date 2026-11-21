@@ -71,7 +71,7 @@ def test_model_step_maps_free_text(client, svc, claude, monkeypatch):
     client.post("/webhooks/whatsapp", json=wa("Heating cold"))
     client.post("/webhooks/whatsapp", json=wa("just the shower"))
     assert svc.events and any(e[2] == "triage.answer" and e[3] == "Only one room cold" for e in svc.events)
-    assert "share your name" in last(client)
+    assert "thermostat valve" in last(client)  # one room: radiator tip, not an installer
 
 
 def test_unclear_answer_goes_to_agent_not_recorded(client, svc, claude, monkeypatch):

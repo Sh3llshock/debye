@@ -512,6 +512,20 @@ def attach_document(case_id: str, kind: str, filename: str, mime: str, path: str
     return doc
 
 
+def case_has_photos(case_id: str) -> bool:
+    with get_session() as s:
+        return s.exec(select(Document).where(Document.case_id == case_id, Document.kind == "photo")).first() is not None
+
+
+def consent_fields_for(case_id: str, partner_id: str) -> list[str]:
+    """The partner manifest's consent-required fields; photos only if the case has any."""
+    m = get_partner_manifest(partner_id)
+    fields = list(dict.fromkeys(rules.norm_field(f) for f in (m.consent_fields if m else [])))
+    if "photos" in fields and not case_has_photos(case_id):
+        fields.remove("photos")
+    return fields
+
+
 def record_consent(contact_id: str, partner_id: str, case_id: str, fields: list[str],
                    purpose: str, channel: str) -> Consent:
     with get_session() as s:

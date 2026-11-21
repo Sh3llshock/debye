@@ -38,6 +38,7 @@ class Conversation:
     pending_inputs: list[str] = field(default_factory=list)  # zero-forms labels before the case exists
     lang: str = "en"  # resident's language for code-written texts (diagnosis.update_lang)
     photos: int = 0  # photos the resident sent in this conversation (consent mentions them only if any)
+    channel: str = "whatsapp"  # where the resident talks to us (whatsapp | web); recorded with the consent
 
 
 @dataclass
@@ -46,8 +47,8 @@ class CaseState:
     reporter_contact_id: str | None = None
     partner_id: str | None = None
     partner_name: str | None = None
-    consent_fields: list[str] = field(default_factory=lambda: ["name", "phone", "address", "unit_floor", "photos", "access_details"])
-    consent_purpose: str = "Heizungsreparatur vor Ort"
+    consent_fields: list[str] = field(default_factory=list)  # set by flow.consent_scope when consent is asked
+    consent_purpose: str = ""
     slots: list[dict] = field(default_factory=list)  # [{start, end, label}]
     approval_notice_sent: bool = False
     trade_unknown: bool = False  # escalation without enough answers: staff pick the company at approval
