@@ -631,6 +631,8 @@ async def maybe_reroute(contact, conv: st.Conversation, text: str | None, force:
         kw = [a for a, v in scores(text).items() if a != cur and v >= 1]
         new = kw[0] if kw else ("roof_ceiling_leak" if _CEILING_RE.search(text) and cur != "roof_ceiling_leak" else None)
     if not new:
+        if dg.model_first(d) and REJECT_RE.search(text):
+            d["correction"] = text  # Luna sees it and acknowledges ("Sorry, the ceiling, got it.")
         if cur != HOT_WATER and q and ALREADY_RE.search(text) and q not in d["answers"]:
             d.setdefault("dont_know", []).append(q)  # never ask it again; the model moves on
             d.setdefault("reasked", []).append(q)

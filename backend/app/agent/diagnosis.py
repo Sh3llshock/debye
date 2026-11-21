@@ -1162,8 +1162,15 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         else:
             try:
                 ranking = be.rank_partners(cid)  # backend-core ranks by the case's trade
+                if not hw and trade:  # never another trade's company (e.g. the heating firm for a roofer job)
+                    ranking = [r for r in ranking or [] if partner_has_trade(be.attr(r, "partner_id"), trade)]
                 if ranking:
                     cs.partner_id, cs.partner_name = be.attr(ranking[0], "partner_id"), be.attr(ranking[0], "name")
+                elif not hw and trade:
+                    cs.partner_id = cs.partner_name = None
+                    cs.trade_label = trade_label(trade, conv.lang)
+                    be.record_event(cid, "debye", "staff.pick_partner", f"No eligible {trade} partner: please pick "
+                                    "the company at approval.", {"trade": trade, "cause_id": cause_id})
             except Exception:
                 log.exception("rank_partners failed")
         await flow.request_consent(contact, cid)
@@ -1378,6 +1385,7 @@ def model_first_context(conv: st.Conversation) -> dict:
         "questions_asked": d.get("free_q", []),
         "questions_left": max(0, MAX_QUESTIONS - len(d.get("free_q", []))),
         "open_question": free_open(d),
+        **({"resident_correction": d.pop("correction")} if d.get("correction") else {}),
         "language": conv.lang,
     }
 
@@ -1415,3 +1423,43 @@ def too_similar(a: str, b: str) -> bool:
 
     wa, wb = words(na), words(nb)
     return bool(wa and wb) and len(wa & wb) / min(len(wa), len(wb)) >= 0.6
+
+
+TRADE_LABELS = {"plumbing": ("a plumber", "einen Installateur"), "roofing": ("a roofer", "einen Dachdecker"),
+                "locksmith": ("a locksmith", "einen Schlüsseldienst"), "electrical": ("an electrician", "einen Elektriker"),
+                "pest_control": ("a pest control company", "einen Schädlingsbekämpfer"),
+                "glazier": ("a glazier", "einen Glaser"), "appliances": ("an appliance technician", "einen Gerätetechniker"),
+                "drain_cleaning": ("a drain cleaning service", "einen Rohrreinigungsdienst"),
+                "mold_damp": ("a damp specialist", "einen Trocknungsfachbetrieb"), "elevator": ("the lift company", "die Aufzugsfirma"),
+                "heating": ("a heating company", "eine Heizungsfirma")}
+
+
+def trade_label(trade: str | None, lang: str = "en") -> str:
+    en, de = TRADE_LABELS.get(trade or "", ("a technician", "einen Techniker"))
+    return de if lang == "de" else en
+
+
+@lru_cache(maxsize=None)
+def _manifest_trades(partner_id: str) -> tuple[str, ...] | None:
+    path = KB_DIR.parents[1] / "partners" / f"{partner_id}.json"
+    if not path.is_file():
+        return None
+    try:
+        return tuple(json.loads(path.read_text(encoding="utf-8")).get("capabilities", {}).get("trades") or [])
+    except (OSError, ValueError):
+        return None
+
+
+def partner_has_trade(partner_id: str | None, trade: str) -> bool:
+    """The partner's manifest lists the trade (database manifest first, the repo file as fallback)."""
+    if not partner_id:
+        return False
+    try:
+        m = be._call("get_partner_manifest", partner_id)
+        trades = (getattr(m, "capabilities", None) or {}).get("trades") if m is not None else None
+        if trades is not None:
+            return trade in trades
+    except Exception:
+        pass
+    trades = _manifest_trades(partner_id)
+    return trades is None or trade in trades

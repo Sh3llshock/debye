@@ -258,6 +258,15 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
         and diagnosis.area_of(conv) != diagnosis.HOT_WATER and bool(conv.diagnosis)
     case_id = conv.case_id
     before = diagnosis.progress_signature(conv)
+    d_done = conv.diagnosis or {}
+    if text and d_done.get("concluded") and diagnosis.area_of(d_done) != diagnosis.HOT_WATER:
+        # a follow-up after an emergency / technician / caretaker conclusion: stay in that case, never hot water
+        label = (diagnosis.load_kb(diagnosis.area_of(d_done)).get("title") or "the problem")
+        cause = next((c.get("label") for c in diagnosis.load_kb(diagnosis.area_of(d_done))["causes"]
+                      if c["id"] == d_done["concluded"]), d_done["concluded"])
+        text = (f"[Follow-up on the open case ({label}: {cause}); everything else is already arranged. Reply in ONE "
+                "short sentence that acknowledges what they said and repeats the safety step if there is one. No "
+                "diagnostic questions, nothing about hot water or heating unless they raise it.]\n" + text)
     interrupted = bool(await loop.run_tenant_turn(contact, text, images))
     if not interrupted and before is not None:
         await diagnosis.stall_guard(contact, conv, before)  # two turns in a row without progress: conclude

@@ -341,3 +341,33 @@ def test_model_first_has_no_fixed_questions_or_clarify(client, svc, monkeypatch)
         asyncio.run(tools._ask_question(ctx, "rf_rain"))
     with pytest.raises(ValueError, match="ask_free"):
         asyncio.run(tools._clarify(ctx, "Do you mean the ceiling?"))
+
+
+# ---------------------------------------------------------------- live bugs (main + PR 122)
+def test_roofer_job_never_goes_to_the_heating_firm(client, svc, monkeypatch):
+    from app.agent import state, tools
+
+    conv, ctx = _mf(svc, monkeypatch)  # the fake ranking always returns heizung-schmidt (heating, plumbing)
+    res = asyncio.run(tools._conclude(ctx, "roof_leak", 0.8, 'Tenant: "water dripping from my ceeling".'))
+    consent = texts(client)[-1]
+    assert "Heizung" not in consent and "a roofer" in consent
+    assert state.case_state(res["case_id"]).partner_id is None
+    assert any(e[2] == "staff.pick_partner" for e in svc.events if len(e) > 2)
+
+
+def test_follow_up_after_an_emergency_stays_in_the_case(client, svc, claude, monkeypatch):
+    from app.agent import loop
+
+    claude([RuntimeError("down")] * 10)
+    client.post("/webhooks/whatsapp", json=wa("socket in bedroom sparks"))
+    assert "Switch off the fuse" in texts(client)[-1]
+    seen = []
+
+    async def fake_turn(contact, text, images=None):
+        seen.append(text)
+        return False
+
+    monkeypatch.setattr(loop, "run_tenant_turn", fake_turn)
+    client.post("/webhooks/whatsapp", json=wa("only that one"))
+    assert seen and seen[-1].startswith("[Follow-up on the open case (Electrics")
+    assert "nothing about hot water or heating" in seen[-1]
