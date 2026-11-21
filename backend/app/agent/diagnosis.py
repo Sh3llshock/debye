@@ -481,12 +481,16 @@ def code_sentence(conv: st.Conversation) -> str:
     return error_codes.resident_sentence(conv.error_code, "text")
 
 
+ESCAPE_KEY = "_other"  # "Something else / none of these" on every question outside hot water: re-routes
+
+
 def _options(qid: str, lang: str = "en") -> list[Option]:
     q = questions()[qid]
-    if q.get("buttons"):  # other areas: the KB names its buttons
+    if q.get("buttons"):  # other areas: the KB names its buttons, plus an escape that re-routes
         titles = (q.get("buttons_de") if lang == "de" else None) or q["buttons"]
         return [Option(f"diag:{qid}:{k}", (titles.get(k) or k.replace("_", " ").capitalize())[:20])
-                for k in q["answers"]]
+                for k in q["answers"]] + [Option(f"diag:{qid}:{ESCAPE_KEY}",
+                                                 "Etwas anderes" if lang == "de" else "Something else")]
     if lang == "de":
         de = {**_SHORT_DE, **({"normal": "Ganz auf heiß"} if qid == "q_shower_handle" else {}),
               **({"yes": "Nur ein Rinnsal", "no": "Normaler Durchfluss"} if qid == "q_weather_pipe" else {})}
@@ -1300,3 +1304,33 @@ async def on_follow_up(contact, cause_id: str, fixed: bool) -> None:
         await out.text(contact, conv.case_id, say(conv, "Thanks for letting me know, then I'll get a technician to look at it.", "Danke für die Rückmeldung, dann schicke ich einen Techniker."))
     await conclude(contact, conv, tech, 0.6, f"Still cold after the self-help tip for '{_label(cause_id)}'.",
                    force=True, message=None if supported else "")
+
+
+# ------------------------------------------------------------------ anti-loop (areas other than hot water)
+def progress_signature(conv: st.Conversation) -> tuple | None:
+    """What a turn can change: answers, unknowns, questions asked, the area, the conclusion. None for hot water
+    (its flow is unchanged) or when no diagnosis runs."""
+    d = conv.diagnosis
+    if not d or d.get("concluded") or area_of(d) == HOT_WATER:
+        return None
+    return (area_of(d), tuple(sorted(d["answers"].items())), tuple(d.get("dont_know", [])), tuple(d["asked"]),
+            d.get("concluded"))
+
+
+async def stall_guard(contact, conv: st.Conversation, before: tuple) -> None:
+    """Two turns in a row without new information: stop asking and conclude with the best outcome so far (a
+    caretaker or technician the property manager confirms) instead of looping."""
+    d = conv.diagnosis
+    after = progress_signature(conv)
+    if after is None or not d:
+        return
+    if after == before and after[0] == before[0]:
+        d["stalls"] = d.get("stalls", 0) + 1
+    else:
+        d["stalls"] = 0
+    if d["stalls"] >= 2 and not d.get("concluded"):
+        use_area(d)
+        tech, supported = likeliest_technician(d, conv.error_code)
+        log.info("diagnosis: no progress for 2 turns, concluding with %s", tech)
+        await conclude(contact, conv, tech, 0.4, "No new information for two turns; best outcome so far.",
+                       force=True, message=None if supported else "")

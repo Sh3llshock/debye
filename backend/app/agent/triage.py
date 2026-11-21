@@ -63,7 +63,7 @@ _BUILDING_DARK_RE = re.compile(
     r"\b((whole|entire) (building|street|block|house|neighbou?rhood)|stairwell( is)? (dark|too)|neighbou?rs?\b.{0,25}"
     r"\b(no power|dark|out|too|as well)|(ganze[sn]?|gesamte[sn]?) (haus|straße|gebäude)|treppenhaus( ist)?( auch)? "
     r"dunkel|nachbarn\b.{0,25}\b(auch|kein strom))", re.I)
-_CEILING_RE = re.compile(r"\b(ceiling|from above|upstairs|decke|von oben)", re.I)
+_CEILING_RE = re.compile(r"\b(s?c[ei]{1,3}l+i?n?g|from above|upstairs|decke|von oben)", re.I)  # ceeling, cieling
 
 
 def emergency_from_text(text: str | None) -> tuple[str, str, dict] | None:
@@ -219,7 +219,10 @@ async def classify_llm(text: str) -> tuple[str | None, str | None] | None:
             model=os.getenv("OPENAI_CHAT_MODEL") or "gpt-6-luna",
             messages=[{"role": "system", "content": "Sort a tenant's message to their property manager into one "
                        "area. Areas:\n" + "\n".join(f"- {k}: {v}" for k, v in choices.items())
-                       + "\nPick by what is broken, not by the room. Never invent a second problem."},
+                       + "\nPick by what is broken, not by the room. Water from the ceiling or from above is "
+                       "roof_ceiling_leak, never water_leak. Tenants write with typos, slang and in German "
+                       "('ceeling' = ceiling, 'toylet' = toilet, 'radiater' = radiator): read what they mean. "
+                       "Never invent a second problem."},
                       {"role": "user", "content": text}],
             response_format={"type": "json_schema", "json_schema": {"name": "triage", "strict": True,
                                                                      "schema": schema}},
@@ -316,7 +319,9 @@ async def plan(text: str, candidates: list[str]) -> dict | None:
 async def classify(text: str | None) -> tuple[str | None, str | None]:
     """(primary area or None, queued second area or None)."""
     primary, second, ambiguous = classify_keywords(text)
-    if text and (ambiguous or primary is None) and (primary is not None or PROBLEM_RE.search(text)):
+    # the model decides the area (typos, slang, German); keywords are the fast path only for hot water / heating
+    # (their flows are unchanged) and the fallback when the model is down
+    if text and (ambiguous or primary not in PASSTHROUGH) and (primary is not None or PROBLEM_RE.search(text)):
         llm = await classify_llm(text)
         if llm is not None and llm[0] is not None:
             return llm
@@ -474,7 +479,7 @@ async def chose_area(contact, conv: st.Conversation, area: str, complaint: str, 
 
 
 async def begin_area(contact, conv: st.Conversation, area: str, complaint: str | None,
-                     images: list[str] | None = None, plan_: dict | None = None) -> bool:
+                     images: list[str] | None = None, plan_: dict | None = None, lead: str | None = None) -> bool:
     """Same start as hot water (diagnosis.begin): record what the first message says, then the model asks the
     one best question of the area's KB (following the planner's plan, if any) or concludes."""
     from . import loop
@@ -503,7 +508,9 @@ async def begin_area(contact, conv: st.Conversation, area: str, complaint: str |
         f"[New report, area {area} ({k.get('title') or k.get('symptom')}): \"{complaint}\". Record every answer this "
         "message already gives, then ask the one question that best splits the likeliest causes, or conclude if it's "
         "already clear." + (" Follow <diagnosis>.plan: its questions in order (skip answered ones), its causes "
-                            "likeliest first." if d.get("plan") else "") + "]", images))
+                            "likeliest first." if d.get("plan") else "")
+        + (f" The resident corrected the area: use lead_in \"{lead}\" and don't repeat earlier questions." if lead else "")
+        + "]", images))
 
 
 async def after_conclusion(contact, conv: st.Conversation, queued_from: dict | None = None) -> None:
@@ -534,3 +541,106 @@ async def after_conclusion(contact, conv: st.Conversation, queued_from: dict | N
         return
     await begin_area(contact, conv, area, text)
 
+
+
+# ------------------------------------------------------------------ re-route mid-conversation, escape option
+REJECT_RE = re.compile(
+    r"\b(i (already )?said|i told you|already (said|told)|none of (these|those|them)|neither|not (that|any of)|"
+    r"something else|nothing like that|wrong|no,? it'?s (the|my|from)|it'?s (coming )?from (the )?|"
+    r"hab(e)? ich (doch )?(schon )?gesagt|nichts davon|keins davon|keine davon|etwas anderes|was anderes)", re.I)
+MAX_REROUTES = 2
+
+
+async def reroute_llm(current: str, question: str | None, complaint: str, reply: str) -> str | None:
+    """Does the reply say the problem belongs to another area? The new area, or None (stay)."""
+    if not os.getenv("OPENAI_API_KEY") or (os.getenv("LLM_PROVIDER") or "openai").lower() != "openai":
+        return None
+    from openai import AsyncOpenAI
+
+    from app.media import openai_base_url
+
+    choices = {HOT_WATER: "No hot water or lukewarm water.", HEATING: "Radiators or the heating are cold."}
+    choices.update({a: dg.load_kb(a)["router"]["description"] for a in kb_areas()})
+    schema = {"type": "object", "additionalProperties": False, "required": ["area"],
+              "properties": {"area": {"type": "string", "enum": [*choices, "same"],
+                                      "description": "the area the problem really belongs to; 'same' if the reply "
+                                                     "fits the current area (an answer, 'I don't know', small talk)"}}}
+    try:
+        client = AsyncOpenAI(base_url=openai_base_url(), timeout=6, max_retries=0)
+        r = await client.chat.completions.create(
+            model=os.getenv("OPENAI_CHAT_MODEL") or "gpt-6-luna",
+            messages=[{"role": "system", "content": "A tenant reported a problem; the assistant sorted it into area "
+                       f"'{current}' and asked: \"{question or ''}\". Decide from the tenant's reply whether the "
+                       "problem belongs to another area (they correct the assistant, reject the options, or say "
+                       "where it really comes from). Tenants write with typos ('ceeling' = ceiling). Water from the "
+                       "ceiling or from above is roof_ceiling_leak. Areas:\n"
+                       + "\n".join(f"- {k}: {v}" for k, v in choices.items())},
+                      {"role": "user", "content": f"First message: {complaint}\nReply: {reply}"}],
+            response_format={"type": "json_schema", "json_schema": {"name": "reroute", "strict": True,
+                                                                     "schema": schema}},
+            **({"reasoning_effort": os.getenv("OPENAI_REASONING_EFFORT") or "none"}
+               if (os.getenv("OPENAI_REASONING_EFFORT") or "none") else {}))
+        area = json.loads(r.choices[0].message.content or "{}").get("area")
+    except Exception:
+        log.exception("triage re-route failed")
+        return None
+    return None if area in (None, "same", current) else area
+
+
+def _reroute_trigger(conv: st.Conversation, text: str) -> bool:
+    if REJECT_RE.search(text):
+        return True
+    cur = dg.area_of(conv)
+    other = {a: v for a, v in scores(text).items() if a != cur and v >= 1}
+    return bool(other) or bool(_CEILING_RE.search(text) and cur != "roof_ceiling_leak")
+
+
+async def maybe_reroute(contact, conv: st.Conversation, text: str | None, force: bool = False) -> bool:
+    """During a diagnosis of another area: 'I said the ceiling', 'none of these', 'it comes from upstairs'.
+    Switch to the right area (the first message plus this reply as the complaint) instead of asking again."""
+    d = conv.diagnosis or {}
+    cur = dg.area_of(conv)
+    if not text or not d or d.get("concluded") or cur == HOT_WATER or conv.case_id:
+        return False
+    t = _t(conv)
+    if t.get("reroutes", 0) >= MAX_REROUTES or not (force or _reroute_trigger(conv, text)):
+        return False
+    q = dg.open_question(d)
+    qtext = (dg.questions().get(q) or {}).get("text") if q else None
+    complaint = d.get("complaint") or ""
+    new = await reroute_llm(cur, qtext, complaint, text)
+    if new is None and not os.getenv("OPENAI_API_KEY"):  # model down: keywords
+        kw = [a for a, v in scores(text).items() if a != cur and v >= 1]
+        new = kw[0] if kw else ("roof_ceiling_leak" if _CEILING_RE.search(text) and cur != "roof_ceiling_leak" else None)
+    if not new:
+        return False
+    log.info("triage: re-routing %s -> %s after %r", cur, new, text[:60])
+    t["reroutes"] = t.get("reroutes", 0) + 1
+    t["area"] = new
+    conv.pending_options, conv.pending_question = [], None
+    merged = f"{complaint}\n{text}".strip()
+    if new in PASSTHROUGH:
+        conv.diagnosis = None
+        if new == HOT_WATER:
+            await dg.begin(contact, conv, merged)
+        else:
+            from . import loop
+
+            await loop.run_tenant_turn(contact, f"[The resident's problem is the heating: \"{merged}\".]")
+        return True
+    lead = "Verstanden." if conv.lang == "de" else "Got it, sorry."
+    await begin_area(contact, conv, new, merged, lead=lead)
+    return True
+
+
+async def on_escape(contact, qid: str) -> None:
+    """'Something else' tapped on a question's options: re-route if the problem is elsewhere, else unknown."""
+    conv = st.conversation(be.attr(contact, "id"))
+    d = conv.diagnosis or {}
+    if await maybe_reroute(contact, conv, f"none of these options fit: {d.get('last_text') or ''}", force=True):
+        return
+    from . import loop
+
+    d.setdefault("dont_know", []).append(qid)
+    await loop.run_tenant_turn(contact, f"[None of the options for {qid} fit; record_answer({qid}, 'unknown') and "
+                                        "continue with the next question or conclude.]")

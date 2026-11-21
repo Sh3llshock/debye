@@ -331,6 +331,16 @@ async def _clarify(ctx: TurnContext, text: str) -> dict:
         last = d["asked"][-1]
         raise ValueError(f"The answer is clear ({last}={d['answers'].get(last, 'unknown')}); don't clarify, "
                          "continue with the next question or conclude")
+    if diagnosis.area_of(d) != diagnosis.HOT_WATER and not d.get("conflicts"):
+        oq = diagnosis.open_question(d) or "-"
+        if d.get("clarify_turn") is not None and d.get("turn", 0) - d["clarify_turn"] <= 1:
+            raise ValueError("You just asked a clarifying question and the resident answered it ('yes' confirms it). "
+                             "Never confirm twice: record what it means with record_answer (or 'unknown') and continue "
+                             "with the next question, or conclude.")
+        if oq in d.get("clarified", []):
+            raise ValueError(f"{oq} was already clarified once: record_answer({oq}, 'unknown') and move on.")
+        d.setdefault("clarified", []).append(oq)
+        d["clarify_turn"] = d.get("turn", 0)
     d["clarifications"] = d.get("clarifications", 0) + 1
     if d.get("conflicts"):  # the conflict question goes out with both answers as buttons
         await diagnosis.ask_conflict(ctx.contact, ctx.conv)
