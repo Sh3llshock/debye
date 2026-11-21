@@ -1,5 +1,6 @@
 // v3 partner portal: Welcome (landing), Log in (demo), Register your company (6 steps).
 // Register keeps the real onboarding backend: POST /api/partners/onboard(/validate).
+import { Icon } from '../../components/icons'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
@@ -13,20 +14,20 @@ import { CheckPill, saveLocalProfile, setSession } from './shared'
 function Side({ children }: { children?: ReactNode }) {
   return (
     <aside className="flex flex-col gap-[22px] border-b border-line bg-surface px-5 py-6 text-secondary md:border-b-0 md:border-r md:px-8 md:py-10">
-      <Link to="/partner" className="flex items-center gap-[9px] text-[17px] font-semibold tracking-[-0.02em] text-ink">
+      <Link to="/partner" className="flex items-center gap-[9px] text-[17px] font-medium tracking-[-0.02em] text-ink">
         <Logo />
         Debye {t('partners')}
       </Link>
-      <h1 className="text-[24px] font-bold leading-[1.15] text-ink md:text-page md:leading-[1.15]">{t('Get repair jobs from thousands of rented homes. No sales, no paperwork.')}</h1>
+      <h1 className="text-[28px] font-medium leading-[1.15] tracking-[-0.02em] text-ink md:text-[36px] md:leading-[1.15]">{t('Repair jobs from reltix’s rented homes. No sales, no paperwork.')}</h1>
       <ul className="m-0 hidden list-none flex-col gap-3 p-0 leading-[1.45] sm:flex">
         <li className="flex gap-2.5">
-          🔧 <span><b className="font-semibold text-ink">{t('Jobs that fit you.')}</b> {t('Only your trades, brands and area.')}</span>
+          <Icon name="wrench" className="mt-[3px] h-[18px] w-[18px] flex-none text-wine" /> <span><b className="font-medium text-ink">{t('Jobs that fit you.')}</b> {t('Only your trades, brands and area.')}</span>
         </li>
         <li className="flex gap-2.5">
-          📸 <span><b className="font-semibold text-ink">{t('Everything up front.')}</b> {t('Photos, error codes, access, an approved budget.')}</span>
+          <Icon name="camera" className="mt-[3px] h-[18px] w-[18px] flex-none text-wine" /> <span><b className="font-medium text-ink">{t('Everything up front.')}</b> {t('Photos, error codes, access, an approved budget.')}</span>
         </li>
         <li className="flex gap-2.5">
-          💶 <span><b className="font-semibold text-ink">{t('Paid in 14 days.')}</b> {t('Send a photo of the invoice; we do the rest.')}</span>
+          <Icon name="file" className="mt-[3px] h-[18px] w-[18px] flex-none text-wine" /> <span><b className="font-medium text-ink">{t('Paid in 14 days.')}</b> {t('Send a photo of the invoice; we do the rest.')}</span>
         </li>
       </ul>
       {children}
@@ -49,10 +50,10 @@ function RegShell({ side, children, wide }: { side?: ReactNode; children: ReactN
 }
 
 function Eyebrow({ children }: { children: ReactNode }) {
-  return <div className="text-label font-semibold text-wine">{children}</div>
+  return <div className="text-label font-medium text-wine">{children}</div>
 }
 function H2({ children }: { children: ReactNode }) {
-  return <h2 className="mb-2 mt-1 text-[28px] font-bold leading-tight md:text-[34px]">{children}</h2>
+  return <h2 className="mb-2 mt-1 text-[28px] font-medium leading-tight md:text-[34px]">{children}</h2>
 }
 function Lead({ children }: { children: ReactNode }) {
   return <p className="mb-[26px] mt-0 text-[15px] leading-[1.5] text-secondary">{children}</p>
@@ -64,7 +65,6 @@ export function PartnerWelcome() {
   return (
     <RegShell>
       <div className="max-w-[660px] pt-6 md:pt-0">
-        <Eyebrow>{t('Debye partner portal')}</Eyebrow>
         <H2>{t('Welcome')}</H2>
         <Lead>{t('Heating and plumbing companies get repair jobs from reltix properties, with the diagnosis, photos and an approved budget already done.')}</Lead>
         <div className="flex flex-wrap gap-2.5">
@@ -140,7 +140,6 @@ export function PartnerLogin() {
           submit()
         }}
       >
-        <Eyebrow>{t('Log in')}</Eyebrow>
         <H2>{t('Welcome back')}</H2>
         <Lead>{t('Use the email address or mobile number you registered with.')}</Lead>
         <div className="grid max-w-[420px] grid-cols-1 gap-4">
@@ -351,7 +350,7 @@ const AGREE: [string, string, string][] = [
 
 /** Small "from your website" marker on a field the website autofill filled in. */
 function FromWebsite() {
-  return <span className="ml-1.5 inline-block rounded-full bg-wine-tint px-2 py-px align-middle text-[11px] font-semibold text-wine">{t('from your website')}</span>
+  return <span className="ml-1.5 inline-block rounded-full bg-wine-tint px-2 py-px align-middle text-[11px] font-medium text-wine">{t('from your website')}</span>
 }
 
 function F({ label, id, req, hint, full, children, bad, tag }: { label: string; id?: string; req?: boolean; hint?: string; full?: boolean; children: ReactNode; bad?: boolean; tag?: boolean }) {
@@ -369,7 +368,7 @@ function F({ label, id, req, hint, full, children, bad, tag }: { label: string; 
 }
 
 function Sec({ children, first }: { children: ReactNode; first?: boolean }) {
-  return <div className={`text-[17px] font-semibold tracking-[-0.02em] sm:col-span-2 ${first ? '' : 'mt-3 border-t border-line pt-4'}`}>{children}</div>
+  return <div className={`text-[17px] font-medium tracking-[-0.02em] sm:col-span-2 ${first ? '' : 'mt-3 border-t border-line pt-4'}`}>{children}</div>
 }
 
 /** One form field from the step definition (also used read/write on the Profile tab). */
@@ -868,7 +867,7 @@ export function PartnerRegister() {
 function StepDot({ n, on, done }: { n: number; on: boolean; done: boolean }) {
   return (
     <span
-      className={`grid h-[22px] w-[22px] flex-none place-items-center rounded-full border-[1.5px] text-[11px] font-bold ${on ? 'border-wine bg-wine text-white' : done ? 'border-ok bg-ok text-white' : 'border-[#D1D1D6] bg-surface'}`}
+      className={`grid h-[22px] w-[22px] flex-none place-items-center rounded-full border-[1.5px] text-[11px] font-medium ${on ? 'border-wine bg-wine text-white' : done ? 'border-ok bg-ok text-white' : 'border-[#D1D1D6] bg-surface'}`}
     >
       {done && !on ? '✓' : n}
     </span>

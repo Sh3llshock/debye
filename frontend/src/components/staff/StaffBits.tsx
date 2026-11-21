@@ -12,14 +12,15 @@ import { isNoTechnician, isNoTechnicianSummary } from '../case/Diagnosis'
 import { splitButtons, zeroForms } from '../case/CasePanels'
 
 type Tone = '' | 'hot' | 'wait' | 'blue' | 'ok' | 'red' | 'warn'
-const TONE: Record<Tone, string> = {
-  '': 'bg-beige text-secondary',
-  wait: 'bg-beige text-secondary',
-  hot: 'bg-wine-tint text-wine',
-  blue: 'bg-blue-tint text-blue',
-  ok: 'bg-ok-tint text-ok',
-  red: 'bg-red-tint text-red',
-  warn: 'bg-warn-tint text-warn',
+// v4: status is a square marker plus text, not a coloured pill. [marker, text]
+const TONE: Record<Tone, [string, string]> = {
+  '': ['bg-beige-d', 'text-secondary'],
+  wait: ['bg-beige-d', 'text-secondary'],
+  hot: ['bg-wine', 'text-wine font-medium'],
+  blue: ['bg-blue', 'text-secondary'],
+  ok: ['bg-ok', 'text-secondary'],
+  red: ['bg-red', 'text-red font-medium'],
+  warn: ['bg-warn', 'text-warn'],
 }
 
 /** Status in the v3 wording ("Waiting for partner", "Booked", …), English source for t(). */
@@ -52,7 +53,13 @@ export function stageOf(c: CaseSummary | CaseDetail): [string, Tone] {
 }
 
 export function Pill({ tone = '', children, className = '' }: { tone?: Tone; children: React.ReactNode; className?: string }) {
-  return <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-[3px] text-meta font-semibold ${TONE[tone]} ${className}`}>{children}</span>
+  const [mark, text] = TONE[tone]
+  return (
+    <span className={`inline-flex items-center gap-2 whitespace-nowrap text-label ${text} ${className}`}>
+      <i className={`h-1.5 w-1.5 flex-none ${mark}`} aria-hidden />
+      {children}
+    </span>
+  )
 }
 
 export const isOpen = (c: CaseSummary) => !['closed', 'rejected'].includes(c.status)
@@ -72,7 +79,7 @@ export function MiniBar({ c }: { c: CaseSummary }) {
   return (
     <div className="grid w-[120px] grid-cols-8 gap-[3px]" aria-label={t('{n} of 8 steps', { n: k })}>
       {Array.from({ length: 8 }).map((_, i) => (
-        <i key={i} className={`h-1 rounded-sm ${i < k ? 'bg-ok' : i === k ? 'bg-wine' : 'bg-beige-d'}`} />
+        <i key={i} className={`h-1 ${i < k ? 'bg-ink' : i === k ? 'bg-wine' : 'bg-beige-d'}`} />
       ))}
     </div>
   )
@@ -92,7 +99,7 @@ export function channelOf(d?: CaseDetail): 'WhatsApp' | 'Website' | 'Phone' {
 
 export function ChannelTag({ ch }: { ch: string }) {
   const cls = ch === 'WhatsApp' ? 'bg-wa-tint text-wa-text' : 'bg-blue-tint text-blue'
-  return <span className={`rounded-sm px-1.5 py-px text-[10.5px] font-semibold ${cls}`}>{ch === 'Website' ? t('Website') : ch === 'Phone' ? t('Phone') : 'WhatsApp'}</span>
+  return <span className={`rounded-sm px-1.5 py-px text-[10.5px] font-medium ${cls}`}>{ch === 'Website' ? t('Website') : ch === 'Phone' ? t('Phone') : 'WhatsApp'}</span>
 }
 
 export function lastMessage(d?: CaseDetail): ThreadMessage | null {
@@ -161,20 +168,34 @@ export function SummaryCard({ c, className = '' }: { c: CaseDetail; className?: 
   const z = zeroForms(c)
   const times = c.slot ? fmtSlotShort(c.slot) : c.proposed_slots?.length ? c.proposed_slots.map((s) => s.label ?? fmtSlotShort(s)).join(', ') : c.approval?.suggested_slot ? `${fmtSlotShort(c.approval.suggested_slot)} (${t('suggested')})` : null
   return (
-    <div className={`rounded-panel bg-surface px-5 py-[18px] shadow-ring ${className}`}>
-      <h4 className="mb-2 text-meta font-semibold tracking-normal text-muted">{t('Summary')}</h4>
-      <div className="grid grid-cols-1 gap-x-[26px] gap-y-3.5 sm:grid-cols-2">
+    <div className={`border-t border-line pt-6 ${className}`}>
+      <h3 className="mb-4 text-head">{t('Diagnosis')}</h3>
+      {c.asset?.error_code && (
+        <div className="mb-5 flex flex-wrap items-center gap-4">
+          {/* the boiler's own display, drawn */}
+          <span className="lcd" title={t('What the display shows')}>
+            <b>{c.asset.error_code}</b>
+            <span>
+              {c.asset.make?.toUpperCase()}
+              <br />
+              {c.asset.model?.split(' ').slice(0, 2).join(' ').toUpperCase()}
+            </span>
+          </span>
+          <span className="text-label text-muted">{t('What the display shows')}</span>
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
         <SumItem label={t('Problem')}>
           {c.title}
           {(firstIn || c.summary) && <>: “{firstIn ?? c.summary}”</>}
         </SumItem>
-        <SumItem label={t('Diagnosis')}>
+        <SumItem label={t('Likely cause')}>
           {d ? (
             <>
               {explainCodes(d.label)}
               {pct != null && (
-                <div className="mt-1.5 h-1.5 w-40 overflow-hidden rounded-full bg-beige-d">
-                  <i className="block h-full bg-wine" style={{ width: `${pct}%` }} />
+                <div className="mt-2 h-1 w-48 bg-beige-d">
+                  <i className="block h-full bg-ink" style={{ width: `${pct}%` }} />
                 </div>
               )}
               <span className="text-meta text-muted">
@@ -200,7 +221,7 @@ export function SummaryCard({ c, className = '' }: { c: CaseDetail; className?: 
         <SumItem label={t('Tenant’s times')}>{times ?? <span className="text-muted">{t('Not given yet')}</span>}</SumItem>
         {z && (
           <SumItem label={t('Typed by the tenant')} wide>
-            <span className="font-semibold text-wine">{t('0 fields')}</span> · {t('{n} filled from centrix', { n: z.prefilled })} · {z.inputs}
+            {t('Nothing. Debye filled in {n} details from centrix.', { n: z.prefilled })}
           </SumItem>
         )}
       </div>

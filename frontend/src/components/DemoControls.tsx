@@ -13,7 +13,7 @@ function TextSize() {
       <button className="btn-ghost min-h-0 px-3 py-1" disabled={scale <= STAGE_MIN} onClick={() => step(-0.05)} aria-label="Smaller text">
         A−
       </button>
-      <button className="min-w-[3.5rem] text-label font-semibold" onClick={() => setScale(setStageScale(1))} title="Reset to 100 %">
+      <button className="min-w-[3.5rem] text-label font-medium" onClick={() => setScale(setStageScale(1))} title="Reset to 100 %">
         {Math.round(scale * 100)}%
       </button>
       <button className="btn-ghost min-h-0 px-3 py-1" disabled={scale >= STAGE_MAX} onClick={() => step(0.05)} aria-label="Bigger text">
@@ -65,7 +65,7 @@ export function DemoControls() {
   return (
     <div className="fixed bottom-3 right-3 z-50 w-80 max-w-[calc(100vw-24px)] rounded-panel bg-surface p-4 shadow-pop ring-1 ring-line">
       <div className="mb-3 flex items-center justify-between">
-        <span className="flex items-center gap-2 text-panel font-semibold"><img src="/brand/debye-logo.png" alt="" className="h-5 w-5" />Demo controls</span>
+        <span className="flex items-center gap-2 text-panel font-medium"><img src="/brand/debye-logo.png" alt="" className="h-5 w-5" />Demo controls</span>
         <button className="text-muted" onClick={() => setOpen(false)}>✕</button>
       </div>
       <div className="flex flex-col gap-2">

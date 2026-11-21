@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Staff case: polish</title>
+<link rel="stylesheet" href="polish.css">
+<style>
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 28px 40px 80px; }
+  .crumb { font-size: 13px; color: var(--muted); display: flex; gap: 8px; }
+  .crumb a:hover { color: var(--wine); }
+  .head { display: grid; grid-template-columns: 1fr 320px; align-items: end; gap: 48px; margin: 12px 0 32px; }
+  .head .meta { margin-top: 8px; font-size: 14px; }
+
+  /* the decision: one white sheet, the only thing on the page with a shadow */
+  .decide { display: grid; grid-template-columns: 1fr 300px; background: var(--surface); border-radius: var(--r-panel) var(--r-panel) 0 0; box-shadow: 0 0 0 1px var(--line); }
+  .decide .who { background: var(--wine-tint); }
+  .decide .who { padding: 28px 32px; }
+  .decide .who .row { display: flex; align-items: center; gap: 12px; }
+  .decide .why { margin: 8px 0 24px; color: var(--body); max-width: 56ch; }
+  .decide .facts { grid-template-columns: 120px 1fr; }
+  .decide .act { padding: 28px 32px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 20px; background: #FCFAF7; }
+  .decide .act .meta { margin-top: 4px; }
+  .decide .act .lnk { align-self: flex-start; }
+  .alts { background: var(--surface); box-shadow: 0 0 0 1px var(--line); border-radius: 0 0 var(--r-panel) var(--r-panel); }
+  .alts .r { display: grid; grid-template-columns: 240px 1fr 1fr 160px; gap: 24px; padding: 14px 32px; border-top: 1px solid var(--line); font-size: 14px; color: var(--body); }
+  .alts .r.h { color: var(--muted); font-size: 12px; padding-top: 12px; padding-bottom: 8px; }
+  .alts .r b { font-weight: 500; color: var(--ink); }
+  .alts .no { color: var(--warn); }
+  .consent { padding: 14px 0 0; font-size: 14px; color: var(--body); }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 56px; margin-top: 56px; align-items: start; }
+  .col { display: grid; gap: 40px; }
+
+  .cause { display: flex; align-items: center; gap: 16px; }
+  .conf { display: flex; align-items: center; gap: 12px; margin-top: 16px; max-width: 360px; }
+  .bar { flex: 1; height: 4px; background: var(--beige-d); }
+  .bar i { display: block; height: 100%; width: 85%; background: var(--ink); }
+  blockquote { margin: 24px 0 0; padding: 0; font-size: 17px; line-height: 26px; color: var(--ink); max-width: 60ch; }
+  blockquote + .meta { margin-top: 6px; }
+  .qa { margin-top: 24px; }
+
+  .steps { list-style: none; margin: 0; padding: 0; }
+  .steps li { display: grid; grid-template-columns: 18px 1fr auto; gap: 14px; position: relative; padding-bottom: 18px; }
+  .steps li::after { content: ""; position: absolute; left: 8px; top: 24px; bottom: 2px; width: 1px; background: var(--beige-d); }
+  .steps li:last-child::after { display: none; }
+  .steps .m { width: 18px; height: 18px; margin-top: 3px; border-radius: var(--r-tag); display: grid; place-items: center; box-shadow: inset 0 0 0 1.5px var(--beige-d); background: var(--bg); }
+  .steps .done .m { background: var(--ink); box-shadow: none; color: var(--cream); }
+  .steps .done .m svg { width: 12px; height: 12px; stroke-width: 2; }
+  .steps .now .m { box-shadow: inset 0 0 0 2px var(--wine); }
+  .steps .now .m::after { content: ""; width: 8px; height: 8px; background: var(--wine); }
+  .steps .now .h3 { color: var(--wine); }
+  .steps .later .h3 { color: var(--muted); font-weight: 400; }
+  .steps .t { font-size: 13px; color: var(--muted); }
+
+  .convo { overflow: hidden; }
+  .convo .h2 { padding: 20px 20px 16px; }
+  .chat { background: var(--chat-bg); padding: 16px; display: grid; gap: 8px; }
+  .b { max-width: 84%; padding: 8px 12px 4px; border-radius: var(--r-bubble); background: #fff; font-size: 14px; line-height: 21px; box-shadow: 0 1px 1px rgba(0,0,0,.06); }
+  .b.o { background: var(--chat-out); justify-self: end; }
+  .b small { display: block; text-align: right; font-size: 11px; line-height: 16px; color: var(--muted); }
+
+  .sticky { display: none; }
+  @media (max-width: 960px) {
+    .wrap { padding: 20px 16px 120px; }
+    .top { gap: 16px; padding: 0 16px; } .top .search, .brand small, .me span:last-child, .nav a:not(.on) { display: none; }
+    .h1 { font-size: 28px; line-height: 34px; }
+    .head, .grid, .decide { grid-template-columns: 1fr; gap: 24px; }
+    .decide .who, .decide .act { padding: 20px; }
+    .decide .act { border-left: 0; border-top: 1px solid var(--line); }
+    .decide .act .btn { display: none; }
+    .alts .r { grid-template-columns: 1fr 1fr; gap: 2px 12px; padding: 12px 20px; } .alts .r.h { display: none; } .consent { padding: 12px 0 0; }
+    .sticky { display: flex; position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); gap: 16px; align-items: center; background: var(--surface); box-shadow: 0 -1px 0 var(--line), 0 -8px 24px rgba(43,16,24,.08); }
+    .sticky .btn { flex: 1; }
+    .sticky b { font-size: 22px; font-weight: 500; }
+  }
+</style></head>
+<body>
+<header class="top">
+  <div class="brand"><img src="logo.png" alt="">Debye<small>Property management</small></div>
+  <nav class="nav"><a href="staff-inbox.html">Inbox <span class="c">2</span></a><a class="on">Cases</a><a>Properties</a><a>Partners</a></nav>
+  <div class="right">
+    <div class="search"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search<kbd>/</kbd></div>
+    <span class="me"><span class="av">AB</span><span>Anna Becker</span></span>
+    <span class="lang"><span class="on">EN</span><span>DE</span></span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="crumb"><a href="#">Cases</a><span>/</span><span>Case 9</span></div>
+  <div class="head">
+    <div>
+      <h1 class="h1">No heating, central boiler</h1>
+      <div class="meta">Sofia Rossi<span class="sep"></span>Lothringerstr. 41, unit 1<span class="sep"></span>Reported 02:18 on WhatsApp</div>
+      <div class="state">Needs your approval, urgent within 24 h</div>
+    </div>
+    <div class="trackwrap">
+      <div class="track"><i class="d"></i><i class="d"></i><i class="d"></i><i class="n"></i><i></i><i></i><i></i><i></i></div>
+      <div class="label"><b>Approve partner</b>, step 4 of 8</div>
+    </div>
+  </div>
+
+  <section>
+    <div class="decide">
+      <div class="who">
+        <div class="row"><h2 class="h2">Heizung Schmidt GmbH</h2><span class="tag">Recommended</span></div>
+        <p class="why">The only Viessmann-certified partner, and free tomorrow 08–10, the slot Sofia asked for. Wärme Wagner rates higher but can't come for 6 days.</p>
+        <dl class="facts">
+          <dt>Technician</dt><dd>Tom Schmidt</dd>
+          <dt>Visit</dt><dd>Tomorrow 08–10</dd>
+          <dt>Track record</dt><dd>Rated 4.8, 3 jobs for reltix</dd>
+        </dl>
+      </div>
+      <div class="act">
+        <div>
+          <div class="label">Expected cost</div>
+          <div class="fig">€263</div>
+          <div class="meta">incl. VAT, typical for this fault</div>
+        </div>
+        <button class="btn p lg block">Approve partner</button>
+        <a class="lnk" href="#">I'll handle this myself</a>
+      </div>
+    </div>
+    <div class="alts">
+      <div class="r h"><span>Other qualified partners</span><span>Viessmann</span><span>First slot</span><span>Rating</span></div>
+      <div class="r"><b>Heiztechnik Grün</b><span class="no">Not certified</span><span>Tomorrow 14–16</span><span>4.2, 31 jobs</span></div>
+      <div class="r"><b>Wärme Wagner KG</b><span class="no">Not certified</span><span>In 6 days</span><span>4.9, 12 jobs</span></div>
+    </div>
+    <p class="consent">Sofia agreed to share her details with Heizung Schmidt only. Another partner means asking her again.</p>
+  </section>
+
+  <div class="grid">
+    <div class="col">
+      <section class="sec">
+        <h2 class="h2">Diagnosis</h2>
+        <div class="cause">
+          <span class="lcd" title="What Sofia's boiler display shows"><b>F4</b><span>VITODENS<br>200-W</span></span>
+          <div><div class="h3" style="font-size:17px">Ignition fault, no flame signal</div><div class="meta">Gas supply is fine, the stove works</div></div>
+        </div>
+        <div class="conf"><div class="bar"><i></i></div><span class="meta" style="color:var(--ink)">85% sure</span></div>
+        <blockquote>“Hi, my heating and hot water stopped this morning. The boiler shows F4.”</blockquote>
+        <div class="meta">Sofia, 02:18</div>
+        <dl class="facts qa">
+          <dt>All radiators cold?</dt><dd>Yes, all of them</dd>
+          <dt>Gas stove works?</dt><dd>Yes</dd>
+        </dl>
+      </section>
+
+      <section class="sec">
+        <h2 class="h2">Progress</h2>
+        <ol class="steps">
+          <li class="done"><span class="m"><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span><div class="h3">Recognised Sofia by her phone number</div><span class="t">02:18</span></li>
+          <li class="done"><span class="m"><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span><div class="h3">Diagnosed after 2 questions</div><span class="t">02:21</span></li>
+          <li class="done"><span class="m"><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span><div class="h3">Sofia agreed to share her details</div><span class="t">02:22</span></li>
+          <li class="now"><span class="m"></span><div class="h3">You approve the partner</div><span class="t">now</span></li>
+          <li class="later"><span class="m"></span><div class="h3">Heizung Schmidt accepts</div><span></span></li>
+          <li class="later"><span class="m"></span><div class="h3">Sofia confirms the time</div><span></span></li>
+          <li class="later"><span class="m"></span><div class="h3">Visit</div><span></span></li>
+          <li class="later"><span class="m"></span><div class="h3">Invoice and report</div><span></span></li>
+        </ol>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="sheet convo">
+        <h2 class="h2">Conversation</h2>
+        <div class="chat">
+          <div class="b o">All of them, the whole flat is freezing<small>02:18</small></div>
+          <div class="b">Thanks. Does your gas stove still work?<small>Debye 02:19</small></div>
+          <div class="b o">Yes it does<small>02:19</small></div>
+          <div class="b">That points to the boiler's ignition (no flame signal, F4). May I share your name, phone, address and photos with Heizung Schmidt GmbH?<small>Debye 02:21</small></div>
+          <div class="b o">Yes, go ahead<small>02:22</small></div>
+        </div>
+      </section>
+      <section class="sec">
+        <h2 class="h2">Flat</h2>
+        <dl class="facts">
+          <dt>Tenant</dt><dd>Sofia Rossi</dd>
+          <dt>Phone</dt><dd>+49 000 •••• 0014</dd>
+          <dt>Boiler</dt><dd>Viessmann Vitodens 200-W, 2017</dd>
+          <dt>Last service</dt><dd>18 Sep 2025</dd>
+          <dt>Who pays</dt><dd>Landlord</dd>
+        </dl>
+      </section>
+    </div>
+  </div>
+</main>
+
+<div class="sticky"><b>€263</b><button class="btn p">Approve partner</button></div>
+</body></html>

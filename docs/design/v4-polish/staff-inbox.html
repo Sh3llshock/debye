@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Staff inbox: polish</title>
+<link rel="stylesheet" href="polish.css">
+<style>
+  body { height: 100vh; display: flex; flex-direction: column; }
+  .split { flex: 1; display: grid; grid-template-columns: 400px minmax(0,1fr); min-height: 0; }
+  .list { min-width: 0; overflow: auto; border-right: 1px solid var(--line); background: var(--surface); }
+  .lh { padding: 24px 24px 0; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  .seg { display: flex; gap: 24px; margin-top: 16px; border-bottom: 1px solid var(--line); }
+  .seg a { padding: 8px 0 12px; color: var(--muted); font-size: 14px; position: relative; display: flex; gap: 6px; }
+  .seg a.on { color: var(--ink); font-weight: 500; }
+  .seg a.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--wine); }
+  .grp { padding: 20px 24px 8px; }
+  .it { display: grid; grid-template-columns: 36px minmax(0,1fr); gap: 14px; padding: 14px 24px; border-bottom: 1px solid var(--line); transition: background-color 120ms var(--ease); }
+  .it:hover { background: #FBF8F4; }
+  .it .av { width: 36px; height: 36px; }
+  .it .l1 { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+  .it .nm { font-weight: 500; }
+  .it .tm { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .it .ttl { color: var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .it .st { margin-top: 4px; }
+  /* needs you: a tinted row and the problem in ink. Not a side stripe */
+  .it.you { background: var(--wine-tint); }
+  .it.you .ttl { color: var(--ink); font-weight: 500; }
+  .it.you .tm { color: var(--wine); font-weight: 500; }
+  .it.sel { background: var(--surface); box-shadow: inset 0 0 0 2px var(--wine); }
+
+  .detail { display: flex; flex-direction: column; min-height: 0; padding: 28px 40px 0; }
+  .dh { display: grid; grid-template-columns: 1fr auto; gap: 32px; align-items: start; }
+  .dh .acts { display: flex; align-items: center; gap: 20px; }
+  .dh .trackwrap { max-width: 280px; margin-top: 16px; }
+  .said { margin-top: 24px; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 32px; padding: 20px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .said .v { margin-top: 4px; font-weight: 500; }
+  .said .meta { margin-top: 2px; }
+  .chatwrap { margin-top: 24px; flex: 1; min-height: 0; background: var(--chat-bg); border-radius: var(--r-panel) var(--r-panel) 0 0; padding: 24px; display: flex; flex-direction: column; gap: 8px; overflow: auto; }
+  .day { align-self: center; font-size: 12px; color: var(--body); background: rgba(255,255,255,.75); padding: 2px 12px; border-radius: var(--r-tag); margin-bottom: 4px; }
+  .b { max-width: 60%; padding: 8px 12px 4px; border-radius: var(--r-bubble); background: #fff; box-shadow: 0 1px 1px rgba(0,0,0,.06); font-size: 14px; line-height: 21px; }
+  .b.o { background: var(--chat-out); align-self: flex-end; }
+  .b small { display: block; text-align: right; font-size: 11px; line-height: 16px; color: var(--muted); }
+  .chips { display: flex; gap: 8px; margin-top: 8px; }
+  .chips span { font-size: 13px; padding: 2px 10px; border-radius: var(--r-tag); box-shadow: var(--ring); color: var(--body); }
+  .chips span.p { background: var(--beige); color: var(--ink); box-shadow: none; }
+
+  @media (max-width: 960px) {
+    body { height: auto; }
+    .top { gap: 16px; padding: 0 16px; } .top .search, .brand small, .me span:last-child, .nav a:not(.on) { display: none; }
+    .split { grid-template-columns: 1fr; } .list { border-right: 0; } .detail { display: none; }
+    .lh, .it, .grp { padding-left: 16px; padding-right: 16px; }
+  }
+</style></head>
+<body>
+<header class="top">
+  <div class="brand"><img src="logo.png" alt="">Debye<small>Property management</small></div>
+  <nav class="nav"><a class="on">Inbox <span class="c">2</span></a><a href="staff-case.html">Cases</a><a>Properties</a><a>Partners</a></nav>
+  <div class="right">
+    <div class="search"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search<kbd>/</kbd></div>
+    <span class="me"><span class="av">AB</span><span>Anna Becker</span></span>
+    <span class="lang"><span class="on">EN</span><span>DE</span></span>
+  </div>
+</header>
+
+<div class="split">
+  <aside class="list">
+    <div class="lh">
+      <h1 class="h2">Inbox</h1>
+      <div class="seg"><a class="on">All 10</a><a>Needs you 2</a><a>Open 8</a></div>
+    </div>
+    <div class="grp label">Needs you</div>
+    <div class="it you sel"><span class="av">M</span><div>
+      <div class="l1"><span class="nm">Max</span><span class="tm">03:08</span></div>
+      <div class="ttl">No heating, central boiler</div>
+      <div class="st wine you">Approve partner</div></div></div>
+    <div class="it you"><span class="av">SR</span><div>
+      <div class="l1"><span class="nm">Sofia Rossi</span><span class="tm">02:22</span></div>
+      <div class="ttl">No heating, central boiler</div>
+      <div class="st wine you">Approve partner</div></div></div>
+    <div class="grp label">Debye is handling</div>
+    <div class="it"><span class="av n">GO</span><div>
+      <div class="l1"><span class="nm">Grace Okafor</span><span class="tm">02:58</span></div>
+      <div class="ttl">Shower only lukewarm, sinks are hot</div>
+      <div class="st warn">Technician confirming</div></div></div>
+    <div class="it"><span class="av n">MK</span><div>
+      <div class="l1"><span class="nm">Mateusz Kowalski</span><span class="tm">02:58</span></div>
+      <div class="ttl">No hot water from the electric water heater</div>
+      <div class="st ok">Booked for Mon 08–10</div></div></div>
+    <div class="it"><span class="av n">HV</span><div>
+      <div class="l1"><span class="nm">Hannah Vogel</span><span class="tm">01:25</span></div>
+      <div class="ttl">Radiators lukewarm, boiler pressure too low</div>
+      <div class="st">Diagnosing</div></div></div>
+    <div class="it"><span class="av n">AD</span><div>
+      <div class="l1"><span class="nm">Aylin Demir</span><span class="tm">00:05</span></div>
+      <div class="ttl">Water leaking under the kitchen sink</div>
+      <div class="st">Waiting for the partner</div></div></div>
+  </aside>
+
+  <section class="detail">
+    <div class="dh">
+      <div>
+        <h2 class="h1" style="font-size:30px;line-height:36px">No heating, central boiler</h2>
+        <div class="meta" style="margin-top:8px;font-size:14px">Max<span class="sep"></span>Musterstr. 12, unit 2a<span class="sep"></span>WhatsApp since 03:07</div>
+        <div class="state">Needs your approval</div>
+        <div class="trackwrap"><div class="track"><i class="d"></i><i class="d"></i><i class="d"></i><i class="n"></i><i></i><i></i><i></i><i></i></div><div class="label"><b>Approve partner</b>, step 4 of 8</div></div>
+      </div>
+      <div class="acts"><a class="lnk" href="staff-case.html">Open case</a><button class="btn p">Approve partner</button></div>
+    </div>
+
+    <div class="said">
+      <div><div class="label">Max wrote</div><div class="v">“my shower is cold”</div><div class="meta">first said heater, then corrected</div></div>
+      <div><div class="label">Flat</div><div class="v">Vaillant ecoTEC plus</div><div class="meta">Musterstr. 12, unit 2a</div></div>
+      <div><div class="label">Max can do</div><div class="v">Tomorrow 08–10</div></div>
+    </div>
+
+    <div class="chatwrap">
+      <span class="day">Today</span>
+      <div class="b o">hey my heater isnt working<small>03:06</small></div>
+      <div class="b">Are all your radiators cold, or just one?<div class="chips"><span>All cold</span><span>Just one room</span></div><small>Debye 03:07</small></div>
+      <div class="b o">oh sorry i mean that my shower is cold<small>03:07</small></div>
+      <div class="b">I'd like to send Heizung Schmidt GmbH over. Is it okay if I share your name, phone number, address and floor with them?<div class="chips"><span class="p">Yes, go ahead</span><span>No</span></div><small>Debye 03:08</small></div>
+      <div class="b o">yes ofc but why choose them have you talked to your housekeeper<small>03:08</small></div>
+      <div class="b">Thanks. Your property manager is confirming the repair. I'll update you shortly.<small>Debye 03:08</small></div>
+    </div>
+  </section>
+</div>
+</body></html>

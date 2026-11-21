@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>States: polish</title>
+<link rel="stylesheet" href="polish.css">
+<style>
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 32px 32px 64px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .wrap > h1 { grid-column: 1 / -1; }
+  .cap { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .frame { border-radius: var(--r-panel); box-shadow: var(--card); background: var(--surface); overflow: hidden; }
+  /* loading: skeleton rows in the real row shape, a slow shimmer that stops under reduced motion */
+  .sk { display: grid; grid-template-columns: 32px 1fr; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line-2); }
+  .sk i { display: block; border-radius: var(--r-tag); background: linear-gradient(90deg, var(--beige) 0%, #F3EEE7 50%, var(--beige) 100%); background-size: 200% 100%; animation: sh 1.6s linear infinite; }
+  .sk .a { width: 32px; height: 32px; border-radius: var(--r-ctl); }
+  .sk .l { height: 10px; margin: 4px 0 8px; } .sk .l.w1 { width: 40%; } .sk .l.w2 { width: 75%; } .sk .l.w3 { width: 55%; margin-bottom: 0; }
+  @keyframes sh { to { background-position: -200% 0; } }
+  .empty { padding: 28px 28px 32px; display: grid; gap: 8px; justify-items: start; max-width: 44ch; }
+  .empty svg { width: 24px; height: 24px; color: var(--muted); margin-bottom: 8px; }
+  .nf { padding: 32px 28px; display: grid; gap: 8px; justify-items: start; }
+  @media (max-width: 760px) { .wrap { grid-template-columns: 1fr; padding: 20px 16px 48px; } .frame .nav, .frame .brand small { display: none; } }
+</style></head>
+<body>
+<main class="wrap">
+  <h1 class="h1">Loading, empty and not-found states</h1>
+
+  <div><div class="label" style="margin-bottom:8px">Staff inbox, loading (replaces the blank detail pane)</div>
+    <div class="frame" aria-busy="true" aria-label="Loading conversations">
+      <div class="sk"><i class="a"></i><div><i class="l w1"></i><i class="l w2"></i><i class="l w3"></i></div></div>
+      <div class="sk"><i class="a"></i><div><i class="l w1"></i><i class="l w2"></i><i class="l w3"></i></div></div>
+      <div class="sk"><i class="a"></i><div><i class="l w1"></i><i class="l w2"></i><i class="l w3"></i></div></div>
+      <div class="sk"><i class="a"></i><div><i class="l w1"></i><i class="l w2"></i><i class="l w3"></i></div></div>
+    </div></div>
+
+  <div><div class="label" style="margin-bottom:8px">Staff inbox, "Needs you" with nothing in it</div>
+    <div class="frame"><div class="empty">
+      <svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>
+      <h2 class="h2">Nothing needs you right now</h2>
+      <p class="body" style="margin:0">Debye lists a case here when it needs your approval or can't answer a tenant on its own.</p>
+      <a class="lnk" href="#" style="margin-top:8px">See all 8 open cases</a>
+    </div></div></div>
+
+  <div><div class="label" style="margin-bottom:8px">Tenant home, no cases</div>
+    <div class="frame"><div class="empty">
+      <svg class="i" viewBox="0 0 24 24"><path d="M3 11 12 4l9 7v9H3z"/><path d="M9 20v-6h6v6"/></svg>
+      <h2 class="h2">No open cases</h2>
+      <p class="body" style="margin:0">When you report something here or on WhatsApp, it appears in this list with where it stands.</p>
+    </div></div></div>
+
+  <div><div class="label" style="margin-bottom:8px">Technician, no jobs today</div>
+    <div class="frame"><div class="empty">
+      <svg class="i" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>
+      <h2 class="h2">No jobs today</h2>
+      <p class="body" style="margin:0">New jobs appear here when your dispatcher assigns them.</p>
+    </div></div></div>
+
+  <div style="grid-column:1/-1"><div class="label" style="margin-bottom:8px">Not found, keeps the top bar</div>
+    <div class="frame" style="min-height:0">
+      <header class="top">
+        <div class="brand"><img src="logo.png" alt="">Debye<small>Property management</small></div>
+        <nav class="nav"><a>Inbox</a><a>Cases</a><a>Properties</a><a>Partners</a></nav>
+      </header>
+      <div class="nf">
+        <h2 class="h2">This page doesn't exist</h2>
+        <p class="body" style="margin:0">The link may be old, or the case was closed and archived.</p>
+        <a class="btn s" href="#" style="margin-top:8px">Go to the inbox</a>
+      </div>
+    </div></div>
+</main>
+</body></html>

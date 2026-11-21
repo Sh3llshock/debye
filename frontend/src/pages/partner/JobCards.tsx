@@ -112,16 +112,17 @@ function ErrLine({ err }: { err: string | null }) {
 function JobTop({ job, pills, meta }: { job: JobDetail; pills: ReactNode; meta: ReactNode }) {
   const cap = costCap(job.estimated_cost_eur)
   return (
-    <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-[18px]">
+    <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 border-b border-line px-6 py-6">
       <div className="min-w-0">
-        <div className="flex flex-wrap gap-1.5">{pills}</div>
-        <h3 className="mt-1.5 text-[20px] font-semibold leading-tight">{title(job)}</h3>
-        <div className="mt-[3px] text-muted">{meta}</div>
+        {/* title first; the facts follow it, never a kicker above it */}
+        <h3 className="text-title font-medium">{title(job)}</h3>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-body-sm text-muted">{pills}</div>
+        <div className="mt-1 text-body-sm text-muted">{meta}</div>
       </div>
       {cap != null && (
-        <div className="flex-none text-right">
-          <div className="text-meta text-muted">{t('Cost cap')}</div>
-          <div className="text-[22px] font-semibold tracking-[-0.02em]">{eur0(cap)}</div>
+        <div className="flex-none sm:text-right">
+          <div className="text-meta text-muted">{t('Approved budget')}</div>
+          <div className="text-stat font-medium">{eur0(cap)}</div>
         </div>
       )}
     </div>
@@ -130,7 +131,7 @@ function JobTop({ job, pills, meta }: { job: JobDetail; pills: ReactNode; meta: 
 
 function JobBody({ job, time, className = '' }: { job: JobDetail; time?: ReactNode; className?: string }) {
   return (
-    <div className={`grid grid-cols-1 gap-5 px-5 py-[18px] md:grid-cols-[200px_minmax(0,1fr)] ${className}`}>
+    <div className={`grid grid-cols-1 gap-6 px-6 py-6 md:grid-cols-[200px_minmax(0,1fr)] ${className}`}>
       <Shot job={job} />
       <KV rows={jobRows(job, { time })} />
     </div>
@@ -138,7 +139,7 @@ function JobBody({ job, time, className = '' }: { job: JobDetail; time?: ReactNo
 }
 
 function ActBar({ children }: { children: ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-2.5 border-t border-line bg-bg px-5 py-3.5">{children}</div>
+  return <div className="flex flex-wrap items-center gap-3 border-t border-line bg-bg px-6 py-4">{children}</div>
 }
 
 export const caseRef = (j: JobDetail) => `${t('Case')} ${j.case_id.replace(/^case_0*/, '')}`
@@ -155,7 +156,7 @@ export function QuestionsPanel({ job, pid, put, toast }: { job: JobDetail; pid: 
   return (
     <div className="border-t border-line px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="font-semibold">{t('Questions to the tenant')}</div>
+        <div className="font-medium">{t('Questions to the tenant')}</div>
         {!open && !waiting && (
           <button type="button" className="btn-secondary min-h-0 px-3 py-1.5 text-label" onClick={() => setOpen(true)}>
             {t('Ask the tenant')}
@@ -173,7 +174,7 @@ export function QuestionsPanel({ job, pid, put, toast }: { job: JobDetail; pid: 
               {q.answer ? (
                 <div className="mt-1">
                   <span className="text-muted">{t('{who} answered', { who })}: </span>
-                  <b className="font-semibold">{q.answer}</b>
+                  <b className="font-medium">{q.answer}</b>
                 </div>
               ) : (
                 <div className="mt-1 text-muted">{t('Waiting for {who} to answer on WhatsApp', { who })}</div>
@@ -228,7 +229,7 @@ export function AccessPanel({ job }: { job: JobDetail }) {
         {a.key_safe_code && (
           <>
             <dt className="text-muted">{t('Key safe')}</dt>
-            <dd className="m-0 font-mono font-semibold">{a.key_safe_code}</dd>
+            <dd className="m-0 font-mono font-medium">{a.key_safe_code}</dd>
           </>
         )}
         {a.intercom_name && (
@@ -247,7 +248,7 @@ export function AccessPanel({ job }: { job: JobDetail }) {
     )
   return (
     <div className="flex flex-wrap items-start gap-x-4 gap-y-1.5 border-t border-line px-5 py-4">
-      <div className="w-[200px] flex-none font-semibold">
+      <div className="w-[200px] flex-none font-medium">
         {t('Access details')}
       </div>
       <div className="min-w-0 flex-1">{body}</div>
@@ -272,9 +273,8 @@ export function NewJobCard({ job, pid, techs, put, toast, onAccepted }: { job: J
         job={job}
         pills={
           <>
-            <span className={`pill ${u.cls}`}>{u.text}</span>
-            <span className="pill">{tradeOf(job)}</span>
-            <span className="pill bg-blue-tint text-blue">{t('Live')}</span>
+            {u.cls ? <span className="font-medium text-wine">{u.text}</span> : null}
+            <span>{tradeOf(job)}</span>
           </>
         }
         meta={`${caseRef(job)} · ${t('received {when}', { when: received(job.created_at) })}`}
@@ -285,7 +285,7 @@ export function NewJobCard({ job, pid, techs, put, toast, onAccepted }: { job: J
       <ActBar>
         <TimePicker techs={techs} techId={techId} setTechId={setTechId} picked={picked} setPicked={setPicked} disabled={busy} />
         <div className="ml-auto flex flex-wrap items-center gap-2.5">
-          <select className="rounded-[8px] bg-surface px-2.5 py-[7px] shadow-ring" value={why} onChange={(e) => setWhy(e.target.value)} aria-label={t('Decline reason…')}>
+          <select className="min-h-[44px] rounded bg-surface px-3 shadow-ring" value={why} onChange={(e) => setWhy(e.target.value)} aria-label={t('Decline reason…')}>
             <option value="">{t('Decline reason…')}</option>
             {DECLINE_REASONS.map((r) => (
               <option key={r} value={r}>
@@ -304,7 +304,7 @@ export function NewJobCard({ job, pid, techs, put, toast, onAccepted }: { job: J
             {t('Decline')}
           </button>
           <button
-            className="btn bg-ok text-white hover:bg-ok/90"
+            className="btn-primary"
             disabled={busy}
             onClick={() =>
               run(
@@ -372,7 +372,7 @@ export function WipCard({ job, pid, techs, put, toast, onCompleted }: { job: Job
         {TRACK.map((s, i) => (
           <div
             key={s.key}
-            className={`truncate rounded-[8px] px-1 py-[7px] text-center text-meta font-semibold sm:px-2.5 ${i < idx ? 'text-ok' : i === idx ? 'bg-surface text-ink shadow-[0_1px_3px_rgba(0,0,0,.12)]' : 'text-muted'}`}
+            className={`truncate rounded-[8px] px-1 py-[7px] text-center text-meta font-medium sm:px-2.5 ${i < idx ? 'text-ok' : i === idx ? 'bg-surface text-ink shadow-[0_1px_3px_rgba(0,0,0,.12)]' : 'text-muted'}`}
             title={t(s.label)}
           >
             {i < idx ? '✓ ' : ''}
@@ -520,7 +520,7 @@ export function InvoicePanel({ job, pid, put, toast, onClose }: { job: JobDetail
     )
   return (
     <div className="mt-[18px] rounded-[18px] bg-wine-tint p-5 shadow-[0_0_0_1.5px_rgba(107,31,51,.35)]">
-      <h3 className="mb-1 text-[17px] font-semibold">{t('Invoice for {title}', { title: title(job) })}</h3>
+      <h3 className="mb-1 text-[17px] font-medium">{t('Invoice for {title}', { title: title(job) })}</h3>
       <p className="m-0 text-muted">{t('Upload a PDF or a photo of the paper invoice. We read the numbers for you.')}</p>
       {cap != null && <p className="mb-0 mt-1 text-muted">{t('Cost cap {eur} incl. VAT. Within the cap it is approved automatically; paid within 14 days.', { eur: eur2(cap) })}</p>}
       {err && <div className="mt-3 rounded-[12px] bg-red-tint px-3.5 py-3 text-red">{err}</div>}

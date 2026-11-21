@@ -127,7 +127,7 @@ export function Head({ title, sub, right }: { title: ReactNode; sub?: ReactNode;
   return (
     <div className="mb-[22px] flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="text-page font-bold">{title}</h1>
+        <h1 className="text-page font-medium">{title}</h1>
         {sub && <p className="mt-1 text-[15px] leading-[22px] text-secondary">{sub}</p>}
       </div>
       {right}
@@ -141,7 +141,7 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
 
 export function CardTitle({ children, right, className = '' }: { children: ReactNode; right?: ReactNode; className?: string }) {
   return (
-    <h3 className={`mb-3 flex items-center justify-between gap-2 text-[17px] font-semibold ${className}`}>
+    <h3 className={`mb-3 flex items-center justify-between gap-2 text-[17px] font-medium ${className}`}>
       <span className="min-w-0">{children}</span>
       {right}
     </h3>
@@ -156,19 +156,23 @@ export function Empty({ children, className = '' }: { children: ReactNode; class
 export function Shot({ job, className = 'h-[130px]' }: { job: JobDetail; className?: string }) {
   const photo = job.photos?.find((p) => !p.filename.startsWith('after'))
   const code = job.error_code ?? job.asset?.error_code
-  return (
-    <div className={`relative grid place-items-center overflow-hidden rounded-tile bg-[linear-gradient(160deg,#E3E3E8,#C9C9CF)] ${className}`}>
-      {photo ? (
+  if (photo)
+    return (
+      <div className={`relative overflow-hidden rounded-tile bg-beige ${className}`}>
         <img src={photo.url} alt={photo.filename} className="absolute inset-0 h-full w-full object-cover" />
-      ) : code ? (
-        <div className="grid h-[76px] w-[110px] place-items-center rounded-[10px] bg-[#F4F2EE] shadow-[0_6px_14px_rgba(0,0,0,.16)]">
-          <div className="rounded-[6px] border-[3px] border-[#5E6B60] bg-[#9FB7A4] px-[9px] py-[3px] font-mono text-[18px] font-bold tracking-[2px] text-[#1E2A21]">{code}</div>
-        </div>
-      ) : (
-        <div className="h-[88px] w-[88px] rounded-full bg-[radial-gradient(circle_at_40%_35%,#FAFAFA,#A9ADB3)] shadow-[0_6px_14px_rgba(0,0,0,.18)]" />
-      )}
-    </div>
-  )
+      </div>
+    )
+  // no photo: the boiler's display drawn if there is a code, otherwise a plain line (no placeholder art)
+  if (code)
+    return (
+      <div className="self-start">
+        <span className="lcd" title={t('What the display shows')}>
+          <b>{code}</b>
+          <span>{(job.asset?.make ?? '').toUpperCase()}</span>
+        </span>
+      </div>
+    )
+  return <div className="self-start text-label text-muted">{t('No photos yet. Photos the tenant sends on WhatsApp appear here.')}</div>
 }
 
 /** Key/value list in the job card (dt 130px). */
@@ -245,7 +249,7 @@ export function Story({ job, bordered = true }: { job: JobDetail; bordered?: boo
   return (
     <div className={`grid grid-cols-1 gap-6 px-5 py-[18px] lg:grid-cols-2 ${bordered ? 'border-t border-line' : ''}`}>
       <div className="min-w-0">
-        <h4 className="mb-2.5 text-[15px] font-semibold">{t('What the tenant told us')}</h4>
+        <h4 className="mb-2.5 text-[15px] font-medium">{t('What the tenant told us')}</h4>
         {uniq.length ? (
           <ul className="m-0 list-disc pl-[18px] leading-[1.55] text-secondary">
             {uniq.map((s) => (
@@ -275,7 +279,7 @@ export function Story({ job, bordered = true }: { job: JobDetail; bordered?: boo
         )}
       </div>
       <div className="min-w-0">
-        <h4 className="mb-2.5 text-[15px] font-semibold">{t('How we got to the diagnosis')}</h4>
+        <h4 className="mb-2.5 text-[15px] font-medium">{t('How we got to the diagnosis')}</h4>
         <div className="mb-2.5 flex items-center justify-between gap-2.5 rounded-[12px] bg-bg px-3.5 py-3">
           <b className="min-w-0">{code ? (errorText(code, label, job.asset?.error_meaning) ?? code) : title(job)}</b>
         </div>
@@ -293,9 +297,9 @@ export function Story({ job, bordered = true }: { job: JobDetail; bordered?: boo
 function Reason({ ok, head, body }: { ok: boolean; head: string; body: string }) {
   return (
     <li className="grid grid-cols-[24px_1fr] gap-2.5 border-t border-line py-2 leading-[1.4] text-secondary first:border-t-0">
-      <span className={`grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold ${ok ? 'bg-ok text-white' : 'bg-beige text-muted'}`}>{ok ? '✓' : '✗'}</span>
+      <span className={`grid h-5 w-5 place-items-center rounded-full text-[10px] font-medium ${ok ? 'bg-ok text-white' : 'bg-beige text-muted'}`}>{ok ? '✓' : '✗'}</span>
       <span>
-        <b className="font-semibold text-ink">{head}</b>
+        <b className="font-medium text-ink">{head}</b>
         {body && (
           <>
             <br />

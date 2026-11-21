@@ -57,7 +57,6 @@ export const isNoTechnicianSummary = (c: { resolution?: string | null }) => NO_T
 export function DiagnosisPanel({ c }: { c: CaseDetail }) {
   const d = c.diagnosis
   if (!d) return null
-  const pct = d.confidence == null ? null : Math.round(d.confidence <= 1 ? d.confidence * 100 : d.confidence)
   // outcome/cost come in a backend follow-up; until then fall back to the KB entry for the cause,
   // and a caretaker.notified event means the caretaker outcome.
   const kb = KB_CAUSES[d.cause_id]
@@ -67,29 +66,17 @@ export function DiagnosisPanel({ c }: { c: CaseDetail }) {
   const saved = outcome && NO_TECHNICIAN.has(outcome) ? (c.saving_eur ?? d.estimated_saving_eur ?? KB_MIN_TECHNICIAN_EUR) : null
   const qs = (d.questions_asked ?? []).map(qa).filter((x) => x.q)
   return (
-    <section className="panel overflow-hidden">
-      <header className="panel-head">
-        <h2 className="flex items-center gap-2 text-panel">
-          <Icon name="search" className="h-5 w-5 text-action" /> {t("Debye's diagnosis")}
-        </h2>
+    <section className="border-t border-line pt-6">
+      <header className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
+        <h2 className="text-head">{t('How Debye got there')}</h2>
         <Chip tone={outcome === 'emergency' ? 'negative' : saved != null ? 'positive' : 'action'}>{tradeLabel(trade, outcome)}</Chip>
       </header>
-      <div className="px-5 py-4">
-        <div className="flex flex-wrap items-baseline gap-x-3">
-          <span className="text-label text-muted">{t('Likely cause')}</span>
-          <span className="text-body font-semibold">{explainCodes(d.label)}</span>
-          {pct != null && <span className="text-label font-semibold text-action">{t('{n}% confident', { n: pct })}</span>}
-        </div>
-        {pct != null && (
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-sub" aria-hidden>
-            <div className="h-full rounded-full bg-action" style={{ width: `${pct}%` }} />
-          </div>
-        )}
-        {d.reasoning && <p className="mt-3 text-body-sm text-ink">{explainCodes(d.reasoning)}</p>}
+      <div>
+        {d.reasoning && <p className="max-w-[65ch] text-body text-ink">{explainCodes(d.reasoning)}</p>}
         {qs.length > 0 && (
-          <div className="mt-3">
-            <div className="text-label text-muted">{t('Questions Debye asked')}</div>
-            <ol className="mt-1 flex flex-col gap-1.5">
+          <div className="mt-4">
+            <div className="text-meta text-muted">{t('Questions Debye asked')}</div>
+            <ol className="mt-2 flex flex-col gap-2">
               {qs.map((x, i) => (
                 <li key={i} className="grid grid-cols-[20px_minmax(0,1fr)] gap-2 text-body-sm">
                   <span className="text-muted">{i + 1}.</span>
@@ -108,7 +95,7 @@ export function DiagnosisPanel({ c }: { c: CaseDetail }) {
           </div>
         )}
         {saved != null && (
-          <div className="mt-4 flex items-center gap-2 rounded border border-positive bg-positive-soft px-3 py-2 font-semibold text-positive">
+          <div className="mt-4 flex items-center gap-2 rounded border border-positive bg-positive-soft px-3 py-2 font-medium text-positive">
             <Icon name="check" className="h-5 w-5 shrink-0" />
             {outcome === 'caretaker' ? t('No technician sent, the caretaker handles it. Saved ~{eur}', { eur: fmtEur(saved) }) : t('No technician sent, saved ~{eur}', { eur: fmtEur(saved) })}
           </div>

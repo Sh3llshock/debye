@@ -138,11 +138,11 @@ function Overview({ ctx }: { ctx: Ctx }) {
             <>
               <div className="mb-4 grid grid-cols-[74px_minmax(0,1fr)] items-center gap-4">
                 <div className="flex h-[74px] flex-col items-center justify-center rounded-tile bg-wine-tint text-wine">
-                  <span className="text-meta font-semibold uppercase tracking-[.04em]">{d ? d.toLocaleDateString(locale(), { weekday: 'short', timeZone: 'Europe/Berlin' }) : '–'}</span>
-                  <b className="text-[20px] font-bold">{d ? d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) : '–'}</b>
+                  <span className="text-meta font-medium uppercase tracking-[.04em]">{d ? d.toLocaleDateString(locale(), { weekday: 'short', timeZone: 'Europe/Berlin' }) : '–'}</span>
+                  <b className="text-[20px] font-medium">{d ? d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) : '–'}</b>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[18px] font-semibold tracking-[-0.02em]">{title(next)}</div>
+                  <div className="text-[18px] font-medium tracking-[-0.02em]">{title(next)}</div>
                   <div className="text-muted">{slot ? fmtSlot(slot) : t('Times offered, tenant picks')}</div>
                 </div>
               </div>
@@ -174,9 +174,9 @@ function Overview({ ctx }: { ctx: Ctx }) {
             <ul className="m-0 flex list-none flex-col p-0">
               {att.map(([k, c, head, sub, tab, b]) => (
                 <li key={head} className="grid grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-3 border-t border-line py-3 first:border-t-0 first:pt-0">
-                  <span className={`grid h-[34px] w-[34px] place-items-center rounded-[10px] text-[14px] font-bold ${k === 'hot' ? 'bg-wine-tint text-wine' : k === 'wait' ? 'bg-blue-tint text-blue' : 'bg-beige text-ink'}`}>{c}</span>
+                  <span className={`grid h-[34px] w-[34px] place-items-center rounded-[10px] text-[14px] font-medium ${k === 'hot' ? 'bg-wine-tint text-wine' : k === 'wait' ? 'bg-blue-tint text-blue' : 'bg-beige text-ink'}`}>{c}</span>
                   <div className="min-w-0">
-                    <b className="block font-semibold">{head}</b>
+                    <b className="block font-medium">{head}</b>
                     <span className="text-label text-muted">{sub}</span>
                   </div>
                   <button className={`${k === 'hot' ? 'btn-primary' : 'btn-secondary'} min-h-0 px-3 py-1.5 text-label`} onClick={() => go(tab)}>
@@ -187,7 +187,7 @@ function Overview({ ctx }: { ctx: Ctx }) {
             </ul>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-1 py-4 text-center">
-              <span className="mb-1 grid h-10 w-10 place-items-center rounded-full bg-ok-tint font-bold text-ok">✓</span>
+              <span className="mb-1 grid h-10 w-10 place-items-center rounded-full bg-ok-tint font-medium text-ok">✓</span>
               <b>{t('All caught up')}</b>
               <span className="text-muted">{t('No new jobs, requests or missing invoices.')}</span>
             </div>
@@ -242,7 +242,7 @@ function Kpi({ label, value, onClick }: { label: string; value: ReactNode; onCli
   return (
     <button onClick={onClick} className="rounded-panel bg-surface p-[18px] text-left shadow-card transition-transform hover:-translate-y-px">
       <span className="text-label text-muted">{label}</span>
-      <b className="mt-1.5 block text-page font-bold">{value}</b>
+      <b className="mt-1.5 block text-page font-medium">{value}</b>
     </button>
   )
 }
@@ -271,7 +271,7 @@ function OvKV({ rows }: { rows: [string, ReactNode][] }) {
 function Mini({ v, l }: { v: ReactNode; l: string }) {
   return (
     <div className="rounded-[12px] bg-bg px-3.5 py-3 shadow-ring">
-      <b className="block text-[22px] font-bold">{v}</b>
+      <b className="block text-[22px] font-medium">{v}</b>
       <span className="text-meta text-muted">{l}</span>
     </div>
   )
@@ -440,7 +440,7 @@ function Availability({ ctx }: { ctx: Ctx }) {
                         key={x.iso}
                         disabled={!!off}
                         onClick={() => toggleCell(x.iso, bi)}
-                        className={`h-[38px] rounded-[9px] text-[11px] font-semibold ${off ? 'cursor-default bg-[repeating-linear-gradient(45deg,#F3EEE7,#F3EEE7_5px,#EFE8DF_5px,#EFE8DF_10px)] text-muted' : on ? 'bg-ok text-white' : 'bg-[#F3EEE7] text-muted'}`}
+                        className={`h-[38px] rounded-[9px] text-[11px] font-medium ${off ? 'cursor-default bg-[repeating-linear-gradient(45deg,#F3EEE7,#F3EEE7_5px,#EFE8DF_5px,#EFE8DF_10px)] text-muted' : on ? 'bg-ok text-white' : 'bg-[#F3EEE7] text-muted'}`}
                       >
                         {off ? t('Off') : on ? t('Free') : ''}
                       </button>

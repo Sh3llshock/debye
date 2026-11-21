@@ -75,7 +75,7 @@ export function JobFacts({ job, extra }: { job: JobDetail; extra?: ReactNode }) 
           )}
           {code && (
             <Row label={t('Error')}>
-              <span className="font-semibold">{errorText(code, label, asset?.error_meaning)}</span>
+              <span className="font-medium">{errorText(code, label, asset?.error_meaning)}</span>
               {asset?.error_meaning && !asset.error_meaning.toLowerCase().startsWith((errorLabel(code, label) ?? '~').toLowerCase()) && <span className="text-secondary"> · {asset.error_meaning}</span>}
             </Row>
           )}
@@ -108,7 +108,7 @@ export function JobFacts({ job, extra }: { job: JobDetail; extra?: ReactNode }) 
           {tenantPhoto ? (
             <img src={tenantPhoto.url} alt={tenantPhoto.filename} className="absolute inset-0 h-full w-full object-cover" />
           ) : (
-            code && <span className="rounded bg-photo-display px-4 py-2 text-stat font-semibold text-ink">{code}</span>
+            code && <span className="rounded bg-photo-display px-4 py-2 text-stat font-medium text-ink">{code}</span>
           )}
         </div>
         <figcaption className="mt-2 text-meta text-muted">
@@ -156,7 +156,7 @@ function JobView(props: ActionProps) {
               tech && (
                 <Row label={t('Technician')}>
                   {tech.name}{' '}
-                  <Link to={`/tech/${tech.tech_id}`} className="ml-2 text-label font-semibold text-action hover:underline">
+                  <Link to={`/tech/${tech.tech_id}`} className="ml-2 text-label font-medium text-action hover:underline">
                     {t('Open as {name}', { name: tech.name.split(' ')[0] })} →
                   </Link>
                 </Row>
@@ -324,7 +324,7 @@ function Dispatch({ job, partnerId, jobs, onChange }: ActionProps) {
               >
                 <span className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${on ? 'border-action' : 'border-life-upcoming'}`}>{on && <span className="h-2 w-2 rounded-full bg-action" />}</span>
                 <span className="min-w-0">
-                  <span className="block font-semibold">{x.name}</span>
+                  <span className="block font-medium">{x.name}</span>
                   <span className="block text-meta text-secondary">{x.skills.join(' · ')}</span>
                   <span className="block text-meta text-muted">{t('{n} free slots in the next days', { n: x.free_slots.length })}</span>
                 </span>
@@ -351,7 +351,7 @@ function Dispatch({ job, partnerId, jobs, onChange }: ActionProps) {
                     onClick={() => toggle(s)}
                     aria-pressed={on}
                     className={`flex h-14 flex-col items-center justify-center rounded text-label leading-tight transition-colors ${
-                      busyCell ? 'cursor-not-allowed bg-sub text-muted' : on ? 'bg-action font-semibold text-on-action' : 'border border-line bg-surface text-ink hover:border-action'
+                      busyCell ? 'cursor-not-allowed bg-sub text-muted' : on ? 'bg-action font-medium text-on-action' : 'border border-line bg-surface text-ink hover:border-action'
                     }`}
                   >
                     <span className="font-medium">
@@ -395,7 +395,7 @@ function Dispatch({ job, partnerId, jobs, onChange }: ActionProps) {
                         onClick={() => toggle(s)}
                         aria-pressed={on}
                         className={`flex h-10 w-full items-center justify-center gap-1.5 rounded text-label transition-colors ${
-                          busyCell ? 'cursor-not-allowed bg-sub text-muted' : on ? 'bg-action font-semibold text-on-action' : 'border border-line bg-surface text-secondary hover:border-action'
+                          busyCell ? 'cursor-not-allowed bg-sub text-muted' : on ? 'bg-action font-medium text-on-action' : 'border border-line bg-surface text-secondary hover:border-action'
                         }`}
                       >
                         {on && <Icon name="check" className="h-4 w-4" />}
@@ -463,7 +463,7 @@ function AwaitingTechnician({ job }: { job: JobDetail }) {
       <div className="min-w-0 flex-1">
         <h2 className="text-panel">{t('{who} picked a time', { who })}</h2>
         {job.slot && (
-          <p className="mt-2 inline-flex items-center gap-2 rounded border border-line bg-action-soft px-4 py-2 font-semibold">
+          <p className="mt-2 inline-flex items-center gap-2 rounded border border-line bg-action-soft px-4 py-2 font-medium">
             <Icon name="calendar" className="h-4 w-4 text-action" /> {fmtSlot(job.slot)}
           </p>
         )}
@@ -485,7 +485,7 @@ function FileTile({ label, sub, accept, capture, file, onFile, icon }: { label: 
     <label className={`flex cursor-pointer items-center gap-3 rounded border p-3 transition-colors ${file ? 'border-positive bg-positive-soft' : 'border-dashed border-line hover:border-action'}`}>
       <Icon name={file ? icon : 'upload'} className={`h-5 w-5 shrink-0 ${file ? 'text-positive' : 'text-secondary'}`} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-semibold">{file ? file.name : label}</span>
+        <span className="block truncate font-medium">{file ? file.name : label}</span>
         <span className="block truncate text-meta text-muted">{file ? `${sub} · ${(file.size / 1024).toFixed(0)} KB` : t('Tap to add')}</span>
       </span>
       <input type="file" className="sr-only" accept={accept} {...(capture ? { capture: 'environment' } : {})} onChange={(e) => onFile(e.target.files?.[0] ?? null)} />
@@ -511,7 +511,7 @@ function CompleteForm({ job, partnerId, onChange }: ActionProps) {
         <div className="flex items-center gap-3 rounded border border-line bg-action-soft px-4 py-3">
           <Icon name="calendar" className="h-5 w-5 shrink-0 text-action" />
           <span>
-            <span className="font-semibold">{t('Visit booked: {slot}', { slot: fmtSlot(slot) })}</span>
+            <span className="font-medium">{t('Visit booked: {slot}', { slot: fmtSlot(slot) })}</span>
             <span className="text-secondary"> · {job.technician ? t('{tech} confirmed, {who} knows', { tech: job.technician.name, who }) : t('confirmed by {who} on WhatsApp', { who })}</span>
           </span>
         </div>
@@ -520,7 +520,7 @@ function CompleteForm({ job, partnerId, onChange }: ActionProps) {
         <h2 className="text-panel">{t('Mark as done')}</h2>
         {DEMO && (
           <button
-            className="text-label font-semibold text-action hover:underline"
+            className="text-label font-medium text-action hover:underline"
             onClick={async () => {
               setPhoto(await demoFile('/demo-media/repair_done.jpg', 'after_repair.jpg', 'image/jpeg'))
               setInvoice(await demoFile('/demo-media/invoice_RE-2026-1187.pdf', 'RE-2026-1187.pdf', 'application/pdf'))
@@ -590,14 +590,14 @@ function Done({ job, staffName }: ActionProps) {
             <div className="flex items-center gap-3">
               <Icon name="file" className="h-5 w-5 text-action" />
               <div className="min-w-0 flex-1">
-                <div className="truncate font-semibold">{invoice.filename}</div>
+                <div className="truncate font-medium">{invoice.filename}</div>
                 <div className={`text-meta ${pc.status === 'ok' ? 'text-positive' : pc.status === 'flagged' ? 'text-warning' : 'text-muted'}`}>
                   {typeof x.gross_eur === 'number' ? t('{eur} gross, read by Debye', { eur: fmtEur(x.gross_eur as number, true) }) : t('Reading…')}
                   {pc.status === 'ok' ? ` · ${t('price check passed')}` : pc.status === 'flagged' ? ` · ${t('price check flagged')}` : ''}
                 </div>
               </div>
               {Object.keys(x).length > 0 && (
-                <button className="text-label font-semibold text-action hover:underline" onClick={() => setFields(!fields)}>
+                <button className="text-label font-medium text-action hover:underline" onClick={() => setFields(!fields)}>
                   {fields ? t('Hide fields') : t('Fields')}
                 </button>
               )}
@@ -612,7 +612,7 @@ function Done({ job, staffName }: ActionProps) {
           <li className="flex items-center gap-3 px-4 py-3">
             <img src={after.url} alt="" className="h-10 w-10 rounded object-cover" />
             <div className="min-w-0 flex-1">
-              <div className="truncate font-semibold">{after.filename}</div>
+              <div className="truncate font-medium">{after.filename}</div>
               <div className="text-meta text-muted">{t('Photo after repair, filed on the unit')}</div>
             </div>
           </li>

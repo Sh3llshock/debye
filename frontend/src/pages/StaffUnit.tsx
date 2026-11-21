@@ -37,7 +37,7 @@ export function StaffUnits() {
     <>
       <div className="mb-[18px] flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-page font-bold">{t('Properties')}</h1>
+          <h1 className="text-page font-medium">{t('Properties')}</h1>
           {data && (
             <p className="mt-1 text-secondary">
               {t('{n} flats', { n: data.length })} · {t('{n} open cases', { n: open })} · {t('all data from centrix')}
@@ -65,7 +65,7 @@ export function StaffUnits() {
                 return (
                   <tr key={u.unit_id} className="click" onClick={() => nav(`/staff/units/${u.unit_id}`)}>
                     <td>
-                      <Link to={`/staff/units/${u.unit_id}`} className="font-semibold text-ink no-underline" onClick={(e) => e.stopPropagation()}>
+                      <Link to={`/staff/units/${u.unit_id}`} className="font-medium text-ink no-underline" onClick={(e) => e.stopPropagation()}>
                         {street(u.address)} · {floorLabel(u.floor)}
                       </Link>
                       <br />
@@ -121,7 +121,7 @@ export default function StaffUnit() {
     <>
       <div className="mb-[18px] flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-page font-bold">
+          <h1 className="text-page font-medium">
             {street(p?.address)} · {floorLabel(u.unit.floor)}
           </h1>
           <p className="mt-1 text-secondary">
@@ -140,7 +140,7 @@ export default function StaffUnit() {
           [lease.rent_cold_eur != null ? fmtEur(lease.rent_cold_eur) : '–', t('Cold rent')],
         ].map(([b, s]) => (
           <div key={s} className="rounded-tile bg-surface px-4 py-3.5 shadow-ring">
-            <b className="block text-stat font-bold">{b}</b>
+            <b className="block text-stat font-medium">{b}</b>
             <span className="text-label text-muted">{s}</span>
           </div>
         ))}

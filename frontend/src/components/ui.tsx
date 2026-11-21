@@ -22,7 +22,7 @@ export function Panel({ title, meta, children, className = '', bodyClass = '' }:
 export function Chip({ tone = 'neutral', children }: { tone?: ChipTone; children: ReactNode }) {
   const c = chipColors[tone]
   return (
-    <span className="inline-flex items-center whitespace-nowrap rounded-chip px-2.5 py-[3px] text-label font-semibold" style={{ color: c.fg, backgroundColor: c.bg }}>
+    <span className="inline-flex items-center whitespace-nowrap rounded-chip px-2.5 py-[3px] text-label font-medium" style={{ color: c.fg, backgroundColor: c.bg }}>
       {children}
     </span>
   )
@@ -57,7 +57,7 @@ export function Loading({ what }: { what?: string }) {
 export function ErrorBox({ error, onRetry }: { error: string; onRetry?: () => void }) {
   return (
     <div className="rounded-panel bg-red-tint p-5 text-red">
-      <div className="font-semibold">{t('Something went wrong')}</div>
+      <div className="font-medium">{t('Something went wrong')}</div>
       <div className="mt-1 text-secondary">{error}</div>
       {onRetry && (
         <button className="btn-secondary mt-4" onClick={onRetry}>

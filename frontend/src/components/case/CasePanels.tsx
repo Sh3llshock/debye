@@ -118,16 +118,16 @@ export function ZeroFormsStrip({ c }: { c: CaseDetail }) {
       title={c.zero_forms?.prefilled.join(', ')}
     >
       <div className="flex items-baseline gap-3">
-        <span className="text-stat font-semibold text-ink">0</span>
+        <span className="text-stat font-medium text-ink">0</span>
         <span className="text-secondary">{t('fields typed by {name}', { name })}</span>
       </div>
       <div className="flex items-baseline gap-3">
-        <span className="text-stat font-semibold text-ink">{z.prefilled}</span>
+        <span className="text-stat font-medium text-ink">{z.prefilled}</span>
         <span className="text-secondary">{t('filled from centrix')}</span>
       </div>
       <div className="flex items-baseline gap-3 lg:pr-28">
         <span className="shrink-0 text-secondary">{t('{name} did:', { name })}</span>
-        <span className="text-panel font-semibold text-ink">{z.inputs}</span>
+        <span className="text-panel font-medium text-ink">{z.inputs}</span>
       </div>
       {c.status === 'closed' && <Mascot pose="thumbs-up" alt={t('Debye: repair done')} className="animate-rise pointer-events-none absolute -top-8 right-3 hidden h-24 w-24 lg:block" />}
     </div>
@@ -181,7 +181,7 @@ export function Activity({ c }: { c: CaseDetail }) {
                 <ActorIcon actor={e.actor} />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="font-semibold">{actorName(c, e)}</span>
+                    <span className="font-medium">{actorName(c, e)}</span>
                     <span className="text-label text-muted">{fmtTime(e.ts)}</span>
                   </div>
                   <div className="text-body-sm text-secondary">{explainCodes(e.summary)}</div>
@@ -259,7 +259,7 @@ export function Conversation({ c }: { c: CaseDetail }) {
               {buttons.length > 0 && (
                 <div className="mt-2 flex flex-col gap-1">
                   {buttons.map((b) => (
-                    <span key={b} className="rounded border border-line bg-surface px-3 py-1 text-center text-label font-semibold text-action">
+                    <span key={b} className="rounded border border-line bg-surface px-3 py-1 text-center text-label font-medium text-action">
                       {b}
                     </span>
                   ))}
@@ -310,7 +310,7 @@ export function InvoiceFields({ x }: { x: Record<string, unknown> }) {
               {t('Net')} {num('net_eur')} · {t('VAT')} {num('vat_eur')}
             </td>
             <td />
-            <td className="pt-1 text-right font-semibold">{num('gross_eur')}</td>
+            <td className="pt-1 text-right font-medium">{num('gross_eur')}</td>
           </tr>
         </tbody>
       </table>
@@ -367,10 +367,10 @@ export function Documents({ docs, priceCheck }: { docs: DocumentItem[]; priceChe
             <div className="flex items-start gap-3">
               <Icon name={d.kind === 'photo' ? 'camera' : d.kind === 'voice_note' ? 'mic' : 'file'} className={`mt-0.5 h-5 w-5 shrink-0 ${d.kind === 'invoice' ? 'text-action' : 'text-secondary'}`} />
               <div className="min-w-0 flex-1">
-                <div className="truncate font-semibold">{d.kind === 'report' ? t('Visit report') : d.filename}</div>
+                <div className="truncate font-medium">{d.kind === 'report' ? t('Visit report') : d.filename}</div>
                 <div className={`text-meta ${st === 'ok' ? 'text-positive' : st === 'flagged' ? 'text-warning' : 'text-muted'}`}>{docSubtitle(d, priceCheck)}</div>
                 {hasFields && (
-                  <button className="text-meta font-semibold text-action hover:underline" onClick={() => setOpen(open === d.document_id ? null : d.document_id)}>
+                  <button className="text-meta font-medium text-action hover:underline" onClick={() => setOpen(open === d.document_id ? null : d.document_id)}>
                     {open === d.document_id ? t('Hide fields') : t('Show extracted fields')}
                   </button>
                 )}
@@ -468,7 +468,7 @@ export function Inspector({ c, unit, docs, partnerName }: { c: CaseDetail; unit:
         <section className="px-5 py-4">
           <div className="flex items-center justify-between">
             <h3 className="text-panel">{t('Written back to centrix')}</h3>
-            <button className="text-label font-semibold text-action hover:underline" onClick={() => setJson(!json)}>
+            <button className="text-label font-medium text-action hover:underline" onClick={() => setJson(!json)}>
               {json ? t('Hide JSON') : t('Show JSON')}
             </button>
           </div>
@@ -519,7 +519,7 @@ export function ApprovalCard({ c, onApprove, onReject }: { c: CaseDetail; onAppr
     <section className="animate-rise rounded-panel border-2 border-warning bg-warning-soft px-5 py-4" aria-live="polite">
       <div className="flex flex-wrap items-center gap-4">
         <div className="min-w-0 flex-1">
-          <div className="text-label font-semibold text-warning">{t('Needs your approval')}</div>
+          <div className="text-label font-medium text-warning">{t('Needs your approval')}</div>
           <h2 className="mt-0.5 text-panel">{t('Approve & send to {partner}', { partner })}</h2>
           {meta && <div className="text-body text-ink">{meta}</div>}
           <div className="mt-1 text-body-sm text-secondary">{t('The partner sees nothing until you approve. Debye then sends the job and keeps the resident informed.')}</div>
@@ -586,7 +586,7 @@ export function PartnerChoice({ ranking, chosen }: { c?: CaseDetail; ranking: Ra
               const win = chosen ? r.partner_id === chosen : i === 0
               return (
                 <tr key={r.partner_id} className={`border-b border-line last:border-b-0 ${win ? 'bg-action-soft' : ''}`}>
-                  <td className={`px-5 py-4 ${win ? 'font-semibold' : ''}`}>{r.name}</td>
+                  <td className={`px-5 py-4 ${win ? 'font-medium' : ''}`}>{r.name}</td>
                   <td className="px-3 py-4">{r.score.toFixed(2)}</td>
                   <td className="px-5 py-4 text-body-sm text-secondary">{r.reasons.join(' · ')}</td>
                 </tr>

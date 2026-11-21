@@ -6,7 +6,7 @@ import { Activity, Documents } from '../components/case/CasePanels'
 import { DiagnosisPanel } from '../components/case/Diagnosis'
 import { useCrumbs } from '../components/Layout'
 import { ApprovalChoice, CaseProgress } from '../components/staff/CaseFlow'
-import { Chat, channelOf, firstName, Pill, StagePill, SummaryCard, tenantOf } from '../components/staff/StaffBits'
+import { Chat, channelOf, firstName, stageOf, SummaryCard, tenantOf } from '../components/staff/StaffBits'
 import { ErrorBox, JsonView, Loading } from '../components/ui'
 import { fmtDateTime, fmtEur, fmtSlot, fmtTime, humanize, maskPhone, placeLabel, unitLabel } from '../lib/format'
 import { locale, t } from '../lib/i18n'
@@ -15,11 +15,11 @@ import { useStream } from '../lib/stream'
 import { useDebounced, useResource } from '../lib/useResource'
 import { shortId } from './StaffCases'
 
-function Card({ title, right, children, className = '' }: { title?: ReactNode; right?: ReactNode; children: ReactNode; className?: string }) {
+function Card({ title, right, children, className = '', ruled = false }: { title?: ReactNode; right?: ReactNode; children: ReactNode; className?: string; ruled?: boolean }) {
   return (
-    <section className={`card ${className}`}>
+    <section className={`${ruled ? 'border-t border-line pt-6' : 'card'} ${className}`}>
       {title && (
-        <h3 className="mb-3 flex items-center justify-between gap-2 text-panel">
+        <h3 className={`mb-3 flex items-center justify-between gap-2 ${ruled ? 'text-head' : 'text-panel'}`}>
           {title}
           {right}
         </h3>
@@ -82,29 +82,32 @@ export default function StaffCase() {
   const partnerName = (id: string) => c.ranking.find((r) => r.partner_id === id)?.name ?? (c.partner?.partner_id === id ? c.partner.name : id)
   const ch = channelOf(c)
   const urgent = c.priority === 'urgent' || c.priority === 'high'
+  const [label, tone] = stageOf(c)
 
   return (
     <>
-      <div className="mb-[18px] flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-[18px] flex flex-wrap items-end justify-between gap-4 pt-2">
         <div className="min-w-0">
-          <h1 className="text-page font-bold">{c.title}</h1>
-          <p className="mt-1 text-secondary">
+          <h1 className="text-page font-medium">{c.title}</h1>
+          <p className="mt-2 text-body-sm text-secondary">
             {[tenant, placeLabel(c.address).split(' · ')[0]].filter(Boolean).join(' · ')} <span className="text-muted">· {t('unit {u}', { u: unitLabel(c.unit_id, c.address) })}</span> · {t('opened {time} via {ch}', { time: fmtTime(c.created_at), ch: ch === 'Website' ? t('Website') : ch === 'Phone' ? t('Phone') : 'WhatsApp' })}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {urgent && c.status !== 'closed' && <Pill tone="warn">{c.priority === 'urgent' ? t('Urgent · within 24 h') : t('High priority')}</Pill>}
-          <StagePill c={c} />
-        </div>
+      </div>
+      {/* the key state, at reading size, in colour, right under the title */}
+      <div className={`state -mt-3 mb-10 ${tone === 'hot' || tone === 'red' ? '' : tone === 'warn' ? 'state-warn' : 'text-secondary'}`}>
+        {label}
+        {urgent && c.status !== 'closed' ? `, ${c.priority === 'urgent' ? t('urgent within 24 h') : t('high priority')}` : ''}
       </div>
 
       <ApprovalChoice c={c} onApprove={async () => setData(await api.approve(c.case_id))} onReject={async (reason) => setData(await api.reject(c.case_id, reason))} />
 
-      <div className="grid grid-cols-1 items-start gap-[18px] xl:grid-cols-[minmax(0,1fr)_400px]">
-        <div className="flex min-w-0 flex-col gap-4">
+      <div className="grid grid-cols-1 items-start gap-10 xl:grid-cols-[minmax(0,1fr)_400px] xl:gap-14">
+        <div className="flex min-w-0 flex-col gap-10 pb-24 lg:pb-0">
           <SummaryCard c={c} />
           {c.diagnosis && <DiagnosisPanel c={c} />}
           <Card
+            ruled
             title={t('Case progress')}
             right={
               <button className="link-btn no-underline" onClick={() => setLog(!log)}>

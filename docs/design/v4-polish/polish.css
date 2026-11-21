@@ -1,0 +1,126 @@
+/* Debye v4 polish, round 4.
+   Round 3 set the rules (rules.html): Lexend, square-ish corners, keyed buttons, flat ruled surfaces.
+   Round 4 fixes what an independent impeccable critique found underneath them:
+   washed-out 300-weight 13px text, a compressed scale, three near-identical whites, dead bands,
+   one box shape repeated, the key status set smallest, an illegible track, label-over-value soup,
+   the product's world absent, and an explanatory caption under every heading. */
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap');
+
+:root {
+  /* ground and surface now clearly apart: a warm paper ground, white sheets on it */
+  --bg: #F2EDE6; --surface: #FFFFFF; --sunk: #EAE3DA;
+  --ink: #2B1018; --body: #4A3A37; --muted: #6A5B53;   /* muted 5.6:1 on --bg, used for labels and meta only */
+  --line: rgba(74,20,36,.16); --edge: rgba(43,16,24,.34);
+  --wine: #6B1F33; --wine-d: #571828; --wine-tint: #F3E4E8; --beige: #E8E0D5; --beige-d: #D9CEC0;
+  --ok: #2F7D4F; --warn: #A8460F; --warn-tint: #FBEADF; --blue: #34508C;
+  --cream: #FDFAF7; --chat-bg: #E9E3D9; --chat-out: #D9FDD3;
+  --lcd: #1E2420; --lcd-ink: #B8F5C8;                  /* the boiler display: the one object from the product's world */
+  --r-tag: 2px; --r-ctl: 3px; --r-panel: 4px; --r-bubble: 6px;
+  --ring: inset 0 0 0 1px var(--line);
+  --card: 0 0 0 1px var(--line);
+  --float: 0 0 0 1px var(--line), 0 16px 40px rgba(43,16,24,.12);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+html { scrollbar-color: var(--beige-d) transparent; scrollbar-width: thin; }
+body {
+  background: var(--bg); color: var(--ink); font: 400 15px/24px Lexend, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
+}
+::selection { background: var(--wine-tint); color: var(--wine-d); }
+input, textarea, [contenteditable] { caret-color: var(--wine); }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--wine); outline-offset: 2px; border-radius: 0; }
+svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
+
+/* type: four clear roles. Title 36, section 20, body/value 15, label 12. One figure per screen at 44. */
+.h1 { font-size: 36px; line-height: 42px; font-weight: 500; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.h2 { font-size: 20px; line-height: 28px; font-weight: 500; letter-spacing: -0.01em; margin: 0; }
+.h3 { font-size: 15px; line-height: 24px; font-weight: 500; margin: 0; }
+.body { color: var(--body); }
+.meta { font-size: 13px; line-height: 20px; color: var(--muted); }
+.label { font-size: 12px; line-height: 16px; color: var(--muted); }
+.small { font-size: 12px; line-height: 16px; color: var(--muted); }
+.strong { font-weight: 500; color: var(--ink); }
+.fig { font-size: 44px; line-height: 48px; font-weight: 500; letter-spacing: -0.03em; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 500; }
+.sep { display: inline-block; width: 16px; }
+
+/* the key state: says what is happening and who is next, under the title, in colour, at reading size */
+.state { display: inline-flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 15px; font-weight: 500; color: var(--wine); }
+.state::before { content: ""; width: 8px; height: 8px; background: currentColor; }
+.state.warn { color: var(--warn); }
+
+/* top bar */
+.top { height: 60px; display: flex; align-items: center; gap: 40px; padding: 0 32px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 17px; white-space: nowrap; }
+.brand img { width: 22px; height: 22px; }
+.brand small { font-weight: 400; font-size: 13px; color: var(--muted); }
+.nav { display: flex; gap: 28px; align-self: stretch; }
+.nav a { display: flex; gap: 6px; align-items: center; color: var(--body); position: relative; transition: color 140ms var(--ease); }
+.nav a:hover { color: var(--ink); }
+.nav a.on { color: var(--ink); font-weight: 500; }
+.nav a.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--wine); }
+.nav .c { font-size: 12px; color: var(--wine); font-weight: 500; }
+.top .right { margin-left: auto; display: flex; align-items: center; gap: 20px; }
+.search { width: 240px; height: 36px; border-radius: var(--r-ctl); box-shadow: var(--ring); background: var(--bg); display: flex; align-items: center; gap: 8px; padding: 0 12px; color: var(--muted); font-size: 14px; }
+.search kbd { margin-left: auto; font: 500 11px/16px 'JetBrains Mono', monospace; color: var(--muted); box-shadow: var(--ring); border-radius: var(--r-tag); padding: 0 6px; }
+.me { display: flex; align-items: center; gap: 10px; white-space: nowrap; font-size: 14px; }
+.av { width: 30px; height: 30px; border-radius: var(--r-ctl); background: var(--wine); color: var(--cream); display: grid; place-items: center; font-size: 12px; font-weight: 500; flex: none; }
+.av.n { background: var(--beige); color: var(--body); }
+.lang { display: flex; font-size: 12px; font-weight: 500; color: var(--muted); }
+.lang span { padding: 2px 6px; border-radius: var(--r-tag); }
+.lang .on { color: var(--ink); background: var(--beige); }
+
+/* status in lists = square marker + text */
+.st { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.st::before { content: ""; width: 6px; height: 6px; background: var(--beige-d); flex: none; }
+.st.wine::before { background: var(--wine); } .st.ok::before { background: var(--ok); }
+.st.warn::before { background: var(--warn); }
+.st.you { color: var(--wine); font-weight: 500; }
+
+.tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--r-tag); background: var(--wine-tint); color: var(--wine); font-size: 12px; font-weight: 500; }
+
+/* signature: the case track, now 4px and always labelled with the current station */
+.track { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; width: 100%; }
+.track i { height: 4px; background: var(--beige-d); }
+.track i.d { background: var(--ink); } .track i.n { background: var(--wine); }
+.trackwrap .label { margin-top: 8px; }
+.trackwrap .label b { color: var(--ink); font-weight: 500; }
+
+/* the boiler display, drawn: the product's own material */
+.lcd { display: inline-flex; align-items: center; gap: 10px; background: var(--lcd); color: var(--lcd-ink); border-radius: var(--r-ctl); padding: 6px 12px 6px 10px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.lcd b { font: 500 22px/28px 'JetBrains Mono', monospace; letter-spacing: .04em; text-shadow: 0 0 8px rgba(184,245,200,.35); }
+.lcd span { font: 500 11px/14px 'JetBrains Mono', monospace; color: rgba(184,245,200,.7); }
+
+/* surfaces: sections are ruled on the ground; only a few things are sheets */
+.sheet { background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--card); }
+.sec { padding-top: 24px; border-top: 1px solid var(--line); }
+.sec > .h2 { margin-bottom: 16px; }
+
+/* buttons */
+.btn { height: 44px; padding: 0 20px; border-radius: var(--r-ctl); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 500; font-size: 15px; white-space: nowrap; transition: background-color 120ms var(--ease), transform 80ms var(--ease), box-shadow 80ms var(--ease); }
+.btn.p { background: var(--wine); color: var(--cream); box-shadow: inset 0 -2px 0 rgba(0,0,0,.30); }
+.btn.p:hover { background: var(--wine-d); }
+.btn.p:active { transform: translateY(1px); box-shadow: inset 0 -1px 0 rgba(0,0,0,.30); }
+.btn.s, .btn.g { background: var(--surface); box-shadow: inset 0 0 0 1px var(--edge); color: var(--ink); }
+.btn.s:hover, .btn.g:hover { background: var(--beige); }
+.btn.s:active, .btn.g:active { transform: translateY(1px); }
+.btn.lg { height: 52px; padding: 0 24px; font-size: 16px; }
+.btn.sm { height: 36px; padding: 0 14px; font-size: 14px; }
+.btn.block { width: 100%; }
+.lnk { color: var(--body); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; text-decoration-color: var(--edge); font-size: 14px; transition: text-decoration-color 140ms var(--ease), color 140ms var(--ease); }
+.lnk:hover { color: var(--wine); text-decoration-color: currentColor; }
+
+.chip { height: 40px; padding: 0 14px; border-radius: var(--r-ctl); box-shadow: var(--ring); background: var(--surface); display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink); transition: background-color 120ms var(--ease); }
+.chip:hover { background: var(--beige); }
+.chip.on { box-shadow: inset 0 0 0 2px var(--wine); }
+.chip.on svg { color: var(--wine); }
+
+/* facts: label left, value right, values in ink at reading size */
+.facts { display: grid; grid-template-columns: 128px 1fr; gap: 10px 20px; margin: 0; }
+.facts dt { color: var(--muted); font-size: 13px; line-height: 24px; } .facts dd { margin: 0; color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

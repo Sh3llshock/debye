@@ -15,7 +15,7 @@ export function ReviewStatus({ p }: { p: PartnerProfile }) {
     return (
       <div className={box}>
         <span className="pill bg-wine-tint text-wine">{t('Under review by reltix')}</span>
-        <h2 className="mt-3 text-title font-semibold">{t('Thanks, {name}. We are checking your documents.', { name: p.name })}</h2>
+        <h2 className="mt-3 text-title font-medium">{t('Thanks, {name}. We are checking your documents.', { name: p.name })}</h2>
         <p className="mt-2 text-secondary">{t('A reltix property manager checks your licence and insurance. You get jobs as soon as you are approved. This usually takes less than a working day.')}</p>
       </div>
     )
@@ -23,7 +23,7 @@ export function ReviewStatus({ p }: { p: PartnerProfile }) {
     return (
       <div className={box}>
         <span className="pill bg-beige text-secondary">{t('Not approved')}</span>
-        <h2 className="mt-3 text-title font-semibold">{t('reltix could not approve {name} yet', { name: p.name })}</h2>
+        <h2 className="mt-3 text-title font-medium">{t('reltix could not approve {name} yet', { name: p.name })}</h2>
         {reason && (
           <p className="mt-2">
             <b>{t('Reason')}:</b> {reason}
@@ -38,7 +38,7 @@ export function ReviewStatus({ p }: { p: PartnerProfile }) {
   return (
     <div className={box}>
       <span className="pill bg-warn-tint text-warn">{t('Suspended')}</span>
-      <h2 className="mt-3 text-title font-semibold">{t('{name} gets no new jobs right now', { name: p.name })}</h2>
+      <h2 className="mt-3 text-title font-medium">{t('{name} gets no new jobs right now', { name: p.name })}</h2>
       {reason && <p className="mt-2">{reason}</p>}
       <p className="mt-2 text-secondary">{t('Send reltix a current certificate and we switch you back on.')}</p>
     </div>
