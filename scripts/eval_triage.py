@@ -115,9 +115,11 @@ def instrument(track_ref: dict) -> None:
 
     async def conclude(contact, conv, cause_id, *a, **kw):
         area = diagnosis.area_of(conv) if conv.diagnosis else "no_hot_water"
+        events = track_ref["t"]["events"]
+        at = len(events)  # a conclusion may start the queued second problem inside the call: keep the order
         res = await orig_conclude(contact, conv, cause_id, *a, **kw)
         if not (isinstance(res, dict) and res.get("note") == "already concluded"):
-            track_ref["t"]["events"].append(("concluded", area, cause_id))
+            events.insert(at, ("concluded", area, cause_id))
         return res
 
     async def ask(contact, conv, qid, *a, **kw):
@@ -243,12 +245,15 @@ def run_one(client, conv: dict, track: dict) -> dict:
         first.append({"text": t["text"], "photo": bool(t.get("media"))})
     send(first)
     idle_after_settled = 0
+    consent_answered = False
     for _ in range(MAX_TENANT_STEPS):
         ev_ = track["events"]
         if all(settled(ev_, a) for a in areas):
-            break
-        if any(settled(ev_, a) for a in areas[:1]) and len(areas) == 1:
-            break
+            asking_consent = bool(log) and log[-1][0] == "debye" and "Is it okay if I share" in log[-1][1] \
+                or "Ist es okay, wenn ich" in (log[-1][1] if log else "")
+            if not asking_consent or consent_answered:
+                break
+            consent_answered = True  # one more tenant turn: the answer to the consent question
         last = next((e for e in reversed(ev_) if e[0] == "concluded"), None)
         if last and outcome_of(last[1], last[2]) == "self_help":
             idle_after_settled += 1
