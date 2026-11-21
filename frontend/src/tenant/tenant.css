@@ -1,9 +1,7 @@
-/* Tenant portal, from designs-v3/tenant-portal1.html. Everything is scoped under .tp so the staff
-   and partner pages are untouched. Tokens are local until the shared theme (design-v3) lands. */
+/* Tenant portal, from docs/design/v3/tenant-portal1.html. Everything is scoped under .tp so the staff
+   and partner pages are untouched. */
 .tp {
-  --bg: #FAF8F5; --side: #F3EFEA; --surface: #FDFCFA; --ink: #2B1018; --body: #5A4744; --muted: #8E807A; --line: rgba(74,20,36,.10);
-  --wine: #6B1F33; --wine-d: #571828; --wine-tint: #F5EBED; --beige: #EFE8DF; --beige-d: #E2D8CB;
-  --ok: #2F7D4F; --ok-tint: #E7F3EB; --ok-line: #BFDCC9; --warn: #B04A12; --red: #C0262D; --red-tint: #FCE9EA;
+  /* colours come from the shared v3 tokens in src/index.css (:root); only the mockup's font stacks are local */
   --sys: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif;
   --sysd: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", Arial, sans-serif;
   font-family: var(--sys); background: var(--bg); color: var(--ink); font-size: 15px; -webkit-font-smoothing: antialiased;
@@ -15,7 +13,7 @@
 .tp button { cursor: pointer; }
 .tp button:disabled { cursor: default; }
 .tp :focus-visible { outline: 2px solid var(--wine); outline-offset: 2px; }
-.tp .logo { width: 28px; height: 28px; background: url("./logo.png") center / contain no-repeat; flex: none; }
+.tp .logo { width: 28px; height: 28px; background: url("/brand/debye-logo.png") center / contain no-repeat; flex: none; }
 
 /* ---------- login ---------- */
 .tp .login { min-height: 100%; display: grid; place-items: center; padding: 24px; overflow-y: auto; height: 100%; }
@@ -25,7 +23,7 @@
 .tp .lbox p { color: var(--body); margin: 0 0 22px; }
 .tp .lbox input { width: 100%; padding: 13px 15px; border-radius: 12px; border: 1px solid var(--beige-d); background: var(--surface); font-size: 15px; margin-bottom: 10px; outline: none; color: var(--ink); }
 .tp .lbox input:focus { border-color: var(--wine); box-shadow: 0 0 0 3px rgba(107,31,51,.15); }
-.tp .primary { width: 100%; padding: 13px; border-radius: 12px; border: 0; background: var(--wine); color: #FDFAF7; font-size: 15px; font-weight: 600; }
+.tp .primary { width: 100%; padding: 13px; border-radius: 12px; border: 0; background: var(--wine); color: var(--cream); font-size: 15px; font-weight: 600; }
 .tp .primary:hover { background: var(--wine-d); }
 .tp .primary:disabled { opacity: .6; }
 .tp .err { color: var(--red); font-size: 14px; margin: 4px 0 10px; }
@@ -52,7 +50,7 @@
 .tp .app.withpanel { grid-template-columns: 1fr 340px; }
 .tp .dotst { width: 7px; height: 7px; border-radius: 50%; background: var(--wine); flex: none; }
 .tp .dotst.ok { background: var(--ok); } .tp .dotst.wait { background: #C9B9A6; }
-.tp .uav { width: 32px; height: 32px; border-radius: 50%; background: var(--wine); color: #FDFAF7; display: grid; place-items: center; font-weight: 600; font-size: 14px; flex: none; }
+.tp .uav { width: 32px; height: 32px; border-radius: 50%; background: var(--wine); color: var(--cream); display: grid; place-items: center; font-weight: 600; font-size: 14px; flex: none; }
 .tp .logout { margin-left: auto; border: 0; background: transparent; color: var(--muted); font-size: 12px; }
 .tp .logout:hover { color: var(--wine); }
 
@@ -83,7 +81,7 @@
 .tp .bigin textarea::placeholder, .tp .cin textarea::placeholder { color: var(--muted); }
 .tp .binrow { display: flex; align-items: center; gap: 8px; }
 .tp .binrow .hint { font-size: 12px; color: var(--muted); }
-.tp .sendc { margin-left: auto; width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--wine); color: #FDFAF7; font-size: 16px; flex: none; }
+.tp .sendc { margin-left: auto; width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--wine); color: var(--cream); font-size: 16px; flex: none; }
 .tp .sendc:disabled { opacity: .35; cursor: default; }
 .tp .att { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); cursor: pointer; font-size: 17px; flex: none; }
 .tp .att:hover { background: var(--beige); }
@@ -105,11 +103,11 @@
 .tp .row { display: flex; gap: 14px; }
 .tp .row.me { justify-content: flex-end; }
 .tp .row > div:last-child { min-width: 0; }
-.tp .bav { width: 30px; height: 30px; border-radius: 50%; background: var(--surface) url("./logo.png") center / 70% no-repeat; box-shadow: 0 0 0 1px var(--line); flex: none; }
+.tp .bav { width: 30px; height: 30px; border-radius: 50%; background: var(--surface) url("/brand/debye-logo.png") center / 70% no-repeat; box-shadow: 0 0 0 1px var(--line); flex: none; }
 .tp .btext { line-height: 1.58; min-width: 0; max-width: 82%; background: var(--surface); padding: 12px 16px; border-radius: 4px 18px 18px 18px; box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgba(43,16,24,.04); white-space: pre-wrap; overflow-wrap: anywhere; display: inline-block; }
 .tp .row > div:last-child > .btext { max-width: 100%; }
 .tp .bname { font-size: 12px; font-weight: 600; color: var(--wine); margin-bottom: 3px; white-space: normal; }
-.tp .ubub { background: var(--wine); color: #FDFAF7; padding: 10px 16px; border-radius: 18px 4px 18px 18px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tp .ubub { background: var(--wine); color: var(--cream); padding: 10px 16px; border-radius: 18px 4px 18px 18px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tp .ubub img, .tp .btext img { display: block; max-width: 220px; max-height: 220px; border-radius: 12px; object-fit: cover; }
 .tp .ubub img + span { display: block; margin-top: 8px; }
 .tp .meta { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
@@ -118,12 +116,12 @@
 .tp .card { margin-top: 12px; background: var(--surface); border-radius: 14px; padding: 13px 15px; box-shadow: 0 0 0 1px var(--line); }
 .tp .card h4 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; }
 .tp .bar { height: 6px; border-radius: 980px; background: var(--beige-d); overflow: hidden; margin: 6px 0 10px; } .tp .bar i { display: block; height: 100%; background: var(--wine); }
-.tp .big { display: flex; gap: 12px; align-items: center; } .tp .tav { width: 42px; height: 42px; border-radius: 50%; background: var(--wine); color: #FDFAF7; display: grid; place-items: center; font-weight: 600; flex: none; }
+.tp .big { display: flex; gap: 12px; align-items: center; } .tp .tav { width: 42px; height: 42px; border-radius: 50%; background: var(--wine); color: var(--cream); display: grid; place-items: center; font-weight: 600; flex: none; }
 .tp .big b { display: block; font-size: 16px; } .tp .big span { color: var(--body); font-size: 14px; }
 .tp .card.good { background: var(--ok-tint); box-shadow: none; } .tp .card.emerg { background: var(--red-tint); box-shadow: none; }
 .tp .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: 44px; }
 .tp .chip { border: 1.5px solid var(--wine); background: transparent; color: var(--wine); padding: 8px 15px; border-radius: 980px; font-weight: 500; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
-.tp .chip:hover { background: var(--wine-tint); } .tp .chip.on, .tp .chip.solid { background: var(--wine); color: #FDFAF7; }
+.tp .chip:hover { background: var(--wine-tint); } .tp .chip.on, .tp .chip.solid { background: var(--wine); color: var(--cream); }
 .tp .chip.solid:hover { background: var(--wine-d); }
 .tp .chip:disabled { opacity: .45; }
 .tp .typing { display: inline-flex; gap: 4px; padding: 4px 0; }
@@ -138,7 +136,7 @@
 .tp .cfile img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; }
 .tp .cfile button { border: 0; background: transparent; color: var(--muted); font-size: 13px; }
 .tp .closedbar { max-width: 740px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface); border-radius: 16px; padding: 12px 16px; box-shadow: 0 0 0 1px var(--line); color: var(--body); }
-.tp .closedbar button { border: 0; background: var(--wine); color: #FDFAF7; padding: 9px 16px; border-radius: 980px; font-weight: 500; white-space: nowrap; }
+.tp .closedbar button { border: 0; background: var(--wine); color: var(--cream); padding: 9px 16px; border-radius: 980px; font-weight: 500; white-space: nowrap; }
 .tp .sendfail { max-width: 740px; margin: 0 auto 8px; color: var(--red); font-size: 13px; text-align: center; }
 
 /* ---------- right: progress ---------- */
@@ -170,7 +168,8 @@
 @media (max-width: 640px) {
   .tp .top { padding: 10px 16px; gap: 10px; }
   .tp .tbrand { font-size: 17px; }
-  .tp .tabs { margin-left: 0; }
+  /* no room for tabs: home lists the open cases and the case view has a back button */
+  .tp .tabs { display: none; }
   .tp .tuser .tname { display: none; }
   .tp .tuser .uav { width: 28px; height: 28px; font-size: 13px; }
   .tp .topline { padding: 12px 16px; }
