@@ -250,8 +250,12 @@ def run_one(client, conv: dict, track: dict) -> dict:
     log: list[tuple[str, str]] = []
     times: list[float] = []
 
+    first_reply: list[float] = []
+
     def send(batch: list[dict]):
         t0 = time.perf_counter()
+        wall0 = time.time()
+        seq0 = seen[0]
         if len(batch) == 1:
             m = batch[0]
             client.post("/webhooks/whatsapp", json=wa_photo(phone, m["text"]) if m.get("photo") else wa_text(phone, m["text"]))
@@ -268,6 +272,10 @@ def run_one(client, conv: dict, track: dict) -> dict:
                 th.join()
             msg_router.DEBOUNCE_SECONDS = 0
         times.append(time.perf_counter() - t0)
+        if not first_reply:  # first tenant message → first Debye message (the holding message if any)
+            mine = [m for m in whatsapp.outbox(seq0) if m["to"].lstrip("+") == phone]
+            if mine:
+                first_reply.append(max(0.0, mine[0]["ts"] - wall0))
         for m in batch:
             log.append(("tenant", ("[photo] " if m.get("photo") else "") + m["text"]))
         drain_outbox(log)
@@ -301,6 +309,10 @@ def run_one(client, conv: dict, track: dict) -> dict:
     cause_ok = got == exp or (track["resolved"] and conv["expected_outcome"] == "self_help"
                               and (exp in track["concluded"] or not track["concluded"]))
     questions = len(dict.fromkeys(q for q in track["asked"] if q != diagnosis.SAFETY_QID))
+    try:
+        planner_usage = list(state.conversation(conv["contact_id"]).diagnosis.get("planner_usage") or [])
+    except Exception:  # noqa: BLE001
+        planner_usage = []
     metrics = {"expected_cause": exp, "got_cause": got, "concluded_sequence": track["concluded"],
                "resolved_by_tenant": track["resolved"], "expected_outcome": conv["expected_outcome"],
                "got_outcome": outcome, "diagnostic_questions": questions,
@@ -319,7 +331,9 @@ def run_one(client, conv: dict, track: dict) -> dict:
         client.post("/demo/trigger/maintenance_notice", json={"notice_id": "notice_12_maint", "active": False})
     return {"id": conv["id"], "title": conv["title"], "tags": conv["tags"], **metrics,
             "cause_ok": cause_ok, "outcome_ok": outcome_ok, "questions_ok": q_ok, "passed": passed,
-            "verdict": verdict, "turn_s": [round(t, 1) for t in times], "transcript": log}
+            "verdict": verdict, "turn_s": [round(t, 1) for t in times], "transcript": log,
+            "first_reply_s": round(first_reply[0], 2) if first_reply else None,
+            "first_turn_s": round(times[0], 2) if times else None, "planner_usage": planner_usage}
 
 
 def _outcome(cause_id: str | None) -> str | None:
@@ -494,7 +508,21 @@ def summary(rows: list[dict]) -> dict:
         "must_not_clean": sum(not r["verdict"]["must_not_violations"] for r in ok),
         "avg_turn_s": round(sum(t for r in ok for t in r["turn_s"]) / max(sum(len(r["turn_s"]) for r in ok), 1), 1),
         "pct": round(100 * sum(r["passed"] for r in rows) / n),
+        "first_reply_s": _avg([r.get("first_reply_s") for r in ok]),
+        "first_turn_s": _avg([r.get("first_turn_s") for r in ok]),
+        "planner_calls": round(sum(len(r.get("planner_usage") or []) for r in ok) / max(len(ok), 1), 2),
+        "planner_prompt_tokens": round(sum(u["prompt_tokens"] for r in ok for u in r.get("planner_usage") or [])
+                                       / max(len(ok), 1)),
+        "planner_completion_tokens": round(sum(u["completion_tokens"] for r in ok for u in r.get("planner_usage") or [])
+                                           / max(len(ok), 1)),
+        "planner_s": _avg([u["seconds"] for r in ok for u in r.get("planner_usage") or []]),
+        "planner_errors": sum(1 for r in ok for u in r.get("planner_usage") or [] if u.get("error")),
     }
+
+
+def _avg(xs):
+    xs = [x for x in xs if x is not None]
+    return round(sum(xs) / len(xs), 2) if xs else None
 
 
 def summary_line(rows) -> str:

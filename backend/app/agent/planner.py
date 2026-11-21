@@ -105,6 +105,9 @@ async def make_plan(contact, conv, reason: str = "first message") -> dict | None
         plan = json.loads(r.choices[0].message.content)
     except Exception as exc:  # the diagnosis works without a plan
         log.warning("planner failed (%s: %s)", type(exc).__name__, exc)
+        d.setdefault("planner_usage", []).append({"reason": reason, "seconds": round(time.perf_counter() - t0, 2),
+                                                  "prompt_tokens": 0, "completion_tokens": 0,
+                                                  "error": f"{type(exc).__name__}: {str(exc)[:120]}"})
         return None
     usage = getattr(r, "usage", None)
     rec = d.setdefault("planner_usage", [])
