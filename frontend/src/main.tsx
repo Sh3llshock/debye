@@ -13,6 +13,7 @@ import PartnerPage from './pages/PartnerInbox'
 import TechPage from './pages/TechPage'
 import StaffPartners from './pages/StaffPartners'
 import PartnerJoin from './pages/PartnerJoin'
+import TenantApp from './tenant/TenantApp'
 import { t, useLang } from './lib/i18n'
 
 function Staff() {
@@ -54,6 +55,7 @@ function App() {
         <Route path="/partner" element={<Navigate to="/partner/heizung-schmidt" replace />} />
         <Route path="/partner/:partnerId" element={<PartnerPage />} />
         <Route path="/partner/:partnerId/jobs/:caseId" element={<PartnerPage />} />
+        <Route path="/tenant/*" element={<TenantApp />} />
         <Route path="/tech/:techId" element={<TechPage />} />
         <Route path="/tech/:techId/jobs/:caseId" element={<TechPage />} />
         <Route path="*" element={<NotFound />} />

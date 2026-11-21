@@ -291,7 +291,7 @@ def _case_ids_for(s, contact_id: str) -> list[str]:
     return sorted(ids)
 
 
-CLOSED_STATUSES = ("closed", "invoiced")
+CLOSED_STATUSES = ("closed",)  # "invoiced" still waits for the tenant's "is it fixed?"
 
 
 def _case_view(s, case, contact_id: str, full: bool = False) -> dict:
@@ -300,7 +300,8 @@ def _case_view(s, case, contact_id: str, full: bool = False) -> dict:
     from app.models import Asset, CaseEvent, Document, Partner
 
     data = case.data or {}
-    partner = s.get(Partner, case.partner_id) if case.partner_id else None
+    pid = case.partner_id or data.get("pending_partner_id") or ((data.get("ranking") or [{}])[0].get("partner_id"))
+    partner = s.get(Partner, pid) if pid else None
     tech = data.get("technician") or {}
     diag = data.get("diagnosis") or {}
     approval = data.get("approval") or {}
@@ -442,8 +443,20 @@ def history(
         cid = case_id or conv.case_id
         msgs = _messages(s, c.id, cid)
     current = (cid or None) == (conv.case_id or None)
-    return {"case_id": cid, "current": current, "messages": msgs,
-            "pending": _pending(c.id) if current else None}
+    if not current and cid and not conv.case_id:
+        # after a restart the agent's state is gone: treat the tenant's newest open case as current
+        from app.models import Case
+
+        with get_session() as s:
+            open_ids = [k.id for k in (s.get(Case, i) for i in _case_ids_for(s, c.id))
+                        if k and k.status not in CLOSED_STATUSES]
+        current = bool(open_ids) and cid == max(open_ids)
+    pending = _pending(c.id) if current else None
+    if current and pending is None and msgs and msgs[-1]["direction"] == "out" and msgs[-1]["options"]:
+        # agent state is in memory; after a restart the last question's chips still work
+        # (button ids carry the case id, so the router handles them without that state)
+        pending = {"question": msgs[-1]["text"], "options": msgs[-1]["options"]}
+    return {"case_id": cid, "current": current, "messages": msgs, "pending": pending}
 
 
 _tasks: set[asyncio.Task] = set()
