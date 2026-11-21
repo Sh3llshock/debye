@@ -137,7 +137,8 @@ def guidance(d: dict) -> dict | None:
     return {"likeliest": [{"id": c["id"], "p": c["probability"], "why": c["why"]} for c in plan["causes"][:4]],
             "next_question": next_question(d), "questions": plan["questions"], "self_help": plan["self_help"],
             "stop_when": plan["stop_when"],
-            "note": "Guidance from a planner model. Follow it unless the tenant's answers point elsewhere."}
+            "note": "Guidance from a planner model: prefer its next_question and stop_when unless the tenant's "
+                    "answers point elsewhere. The 'why' texts are hypotheses, never facts to tell the resident."}
 
 
 def should_replan(conv, before: dict) -> bool:
