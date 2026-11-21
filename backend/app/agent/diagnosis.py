@@ -265,6 +265,8 @@ def forced_question(conv: st.Conversation) -> str | None:
             return "q_power"
     if (a.get("q_heater_type") == "yes" or HOLIDAY_RE.search(d.get("complaint") or "")) and open_("q_switch_check"):
         return "q_switch_check"
+    if a.get("q_scope") == "everywhere" and a.get("q_hot_water_use") == "no" and open_("q_radiators"):
+        return "q_radiators"  # whole flat cold, nobody used it: heating on or off splits boiler vs. hot-water side
     return None
 
 
@@ -725,7 +727,9 @@ _ONLY_SHOWER_RE = re.compile(
 _EVERYWHERE_RE = re.compile(
     r"\b(everywhere|every tap|all (the |of the )?taps|all of them|sinks? too|kitchen too|(the )?sinks? (are|is) "
     r"(also |too )?cold|also (the )?(sinks?|kitchen)|(and|plus) (the )?(sinks?|kitchen)|whole (flat|apartment)|"
-    r"kitchen and (the )?(bath(room)?|shower)|(kitchen|sinks?)\b[^.!?]{0,25}\bcold|cold (at|in) (the )?(sinks?|kitchen)|"
+    r"kitchen (and|or|&) (in )?(the )?(bath(room)?|shower)|(bath(room)?|shower) (and|or|&) (in )?(the )?(kitchen|sinks?)|"
+    r"(kitchen|sink) tap and (the )?shower|both (the )?(kitchen|shower|sink)|"
+    r"(kitchen|sinks?)\b[^.!?]{0,25}\bcold|cold (at|in) (the )?(sinks?|kitchen)|"
     r"(shower|kitchen) and (the )?(sinks?|kitchen|shower)|überall|alle hähne|auch (die |das |in der )?(waschbecken|küche))",
     re.IGNORECASE)
 

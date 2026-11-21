@@ -991,7 +991,7 @@
       "turns": [
         {
           "role": "tenant",
-          "text": "No hot water and the heating is off."
+          "text": "No hot water and the heating is off. My gas stove won't light either."
         },
         {
           "role": "debye",
@@ -1022,7 +1022,8 @@
         "ask about a gas smell",
         "send a heating technician",
         "ask about the radiators (already given)"
-      ]
+      ],
+      "notes": "Debye never asks about the gas stove; the tenant volunteers it (lead decision, PR 105)."
     },
     {
       "id": "g19_ambiguous_everything",
