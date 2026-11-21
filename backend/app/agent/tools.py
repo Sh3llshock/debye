@@ -173,6 +173,12 @@ async def _reply(ctx: TurnContext, text: str) -> dict:
         raise ValueError("A diagnosis question was just sent: stop now, don't add another message.")
 
     d = ctx.conv.diagnosis
+    if diagnosis.active(ctx.conv) and diagnosis.model_first(d):
+        if "?" in text:
+            raise ValueError("model_first: ask questions only with ask_free (it checks for repeats and the limit)")
+        if "?" not in (d.get("last_text") or "") or {"ask_free", "conclude_diagnosis"} & set(ctx.calls[:-1]):
+            raise ValueError("model_first: no plain-text messages during the diagnosis. Ask with ask_free, or "
+                             "finish with conclude_diagnosis (it sends the cause's message and the next step).")
     if diagnosis.active(ctx.conv) and diagnosis.open_question(d) and "?" in text:
         raise ValueError(f"Question {diagnosis.open_question(d)} is still open: don't ask anything in plain text. Record what the "
                          "resident said, or send a short acknowledgement without a question, or nothing.")

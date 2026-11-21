@@ -152,7 +152,10 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
     if conv.diagnosis:
         conv.diagnosis["turn"] = conv.diagnosis.get("turn", 0) + 1  # one batch of tenant messages = one turn
     # Gas smell / hissing mentioned anywhere → emergency path at once (never asked proactively)
-    if text and diagnosis.safety_from_text(text) == "yes" and conv.step != st.CLOSED:
+    other_area = conv.diagnosis and diagnosis.area_of(conv.diagnosis) != diagnosis.HOT_WATER
+    if text and diagnosis.safety_from_text(text) == "yes" and conv.step != st.CLOSED \
+            and not (other_area and not re.search(r"\b(gas|gasgeruch)\b", text, re.I)):
+        # (outside hot water a hissing toilet or tap is not a gas leak: only the word 'gas' counts there)
         if not conv.diagnosis or conv.diagnosis.get("concluded"):
             diagnosis.start(conv, text)
         await diagnosis.conclude(contact, conv, "gas_smell", 1.0, f"Tenant mentions a gas smell: \"{text[:120]}\"")
@@ -203,6 +206,12 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
                 conv.pending_options = []
                 await diagnosis.on_follow_up(contact, cause, opt.id.startswith("diagfu_yes"))
                 return False
+        if text and d.get("acked") and diagnosis.area_of(d) != diagnosis.HOT_WATER \
+                and re.fullmatch(r"\W*(idk|i don'?t know|dunno|not sure|no idea|keine ahnung|wei(ß|ss) nicht)\W*",
+                                 text.strip(), re.I):
+            conv.pending_options = []  # can't do the tip: a technician instead of repeating it
+            await diagnosis.on_follow_up(contact, d["concluded"], False)
+            return False
         if text and diagnosis.ACK_RE.fullmatch(text.strip()) and not d.get("acked"):
             d["acked"] = True  # "ok, will try later": nothing to diagnose, just keep the door open
             from app.agent import outbound
