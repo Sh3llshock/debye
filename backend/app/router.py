@@ -31,9 +31,47 @@ _draining: set[str] = set()
 BUTTON_RE = re.compile(r"^(?P<kind>[a-z_]+?)(?:_(?P<n>\d+))?:(?P<case>[\w-]+)$")
 
 
+async def _partner_inbound(contact, partner_id: str, msg: InboundMessage, ch) -> None:
+    """A WhatsApp partner (connector transport "conversational"): the job runs in the chat."""
+    from app import media as media_mod
+    from app.partners import wa_partner
+
+    text = msg.text
+    files: list[tuple[str, str, str | None]] = []
+    for m in msg.media:
+        try:
+            path = await ch.download_media(m)
+        except Exception:
+            log.exception("partner media download failed")
+            continue
+        if m.kind == "audio":
+            spoken = await media_mod.transcribe(path)
+            text = f"{text}\n{spoken}".strip() if text and spoken else (spoken or text)
+        else:
+            mime = m.mime or ("application/pdf" if m.kind == "pdf" else "image/jpeg")
+            files.append((path, mime, m.filename))
+    shown = msg.button_title or text or ", ".join(f[2] or Path(f[0]).name for f in files)
+    await be.log_message(be.attr(contact, "id"), None, msg.channel, "in", shown, msg.wa_message_id, [],
+                         be.attr(contact, "name"))
+    async with _locks[be.attr(contact, "id")]:
+        await wa_partner.handle_message(contact, partner_id, msg, text, files)
+
+
 async def handle_inbound(msg: InboundMessage) -> None:
+    from app.partners import wa_partner
+
+    # partner sign-up handshake (one-time code / test button) comes from numbers we don't know yet
+    if await wa_partner.try_handshake(msg):
+        return
     contact = be.get_contact_by_phone(msg.from_phone)
     ch = get_channel(msg.channel)
+    if contact is None or be.attr(contact, "role") == "partner_staff":
+        # registered WhatsApp partners are known by the verified number in their manifest
+        pid = (contact is not None and be.attr(contact, "partner_id")) or wa_partner.partner_for_phone(msg.from_phone)
+        if pid and wa_partner.is_whatsapp(wa_partner._manifest(pid)):
+            contact = contact or wa_partner._partner_contact(pid, msg.from_phone, msg.profile_name)
+            await _partner_inbound(contact, pid, msg, ch)
+            return
     if contact is None:
         log.info("unknown sender %s", msg.from_phone)
         await ch.send_text(

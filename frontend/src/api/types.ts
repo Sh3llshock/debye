@@ -338,6 +338,22 @@ export interface WebsiteAutofill {
 }
 
 /** POST /api/partners/onboard */
+export interface WhatsAppLinkView {
+  id: string
+  code: string
+  status: 'pending' | 'received' | 'replied' | 'verified' | 'expired'
+  company: string | null
+  phone_entered: string | null
+  phone_e164: string | null
+  number_changed: boolean
+  debye_number: string | null
+  wa_link: string | null
+  message: string
+  expires_at: string
+  steps: { id: string; label: string; at: string | null }[]
+  error: string | null
+}
+
 export interface OnboardResult {
   partner_id: string
   name: string

@@ -190,5 +190,26 @@ class Conversation(SQLModel, table=True):
     updated_at: Optional[str] = None
 
 
+class WhatsAppLink(SQLModel, table=True):
+    """WhatsApp handshake for a partner (partners/wa_partner.py): the company sends a one-time code
+    to Debye's number, which proves the number, records the opt-in and opens the conversation."""
+    id: str = Field(primary_key=True)
+    code: str = Field(index=True)  # DEBYE-7KQ2X9
+    company: Optional[str] = None
+    phone_entered: Optional[str] = None  # what the form said
+    phone_e164: Optional[str] = Field(default=None, index=True)  # the number that actually sent the code
+    partner_id: Optional[str] = None  # set once the partner is saved (or for a re-link)
+    status: str = "pending"  # pending | received | replied | verified
+    channel: Optional[str] = None
+    profile_name: Optional[str] = None
+    message_id: Optional[str] = None
+    created_at: str
+    expires_at: str
+    received_at: Optional[str] = None
+    replied_at: Optional[str] = None
+    verified_at: Optional[str] = None
+    error: Optional[str] = None
+
+
 def to_dict(obj: Any) -> dict:
     return obj.model_dump() if obj is not None else None

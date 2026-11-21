@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
-import type { OnboardCheck, OnboardDocument, OnboardResult, PartnerProfile, WebsiteAutofill } from '../../api/types'
+import type { OnboardCheck, OnboardDocument, OnboardResult, PartnerProfile, WebsiteAutofill, WhatsAppLinkView } from '../../api/types'
 import { LangToggle, Logo } from '../../components/Layout'
 import { t } from '../../lib/i18n'
 import { CheckPill, saveLocalProfile, setSession } from './shared'
@@ -542,7 +542,11 @@ function buildManifest(p: Profile): Record<string, unknown> {
       { key: 'photos', source: 'case.documents[kind=photo]', pii: true, consent_required: true },
     ],
     availability: p.calendar_url ? { mode: 'static', hours: String(p.hours_week || 'calendar link') } : { mode: 'conversational' },
-    transport: { type: 'portal', url: `/partner/${id}`, ...(notify ? { notify } : {}) },
+    // WhatsApp: jobs run in the chat (connector transport "conversational"); the number is proven by the handshake
+    transport:
+      via === 'WhatsApp' && p.mobile
+        ? { type: 'conversational', channel: 'whatsapp', address: toE164(String(p.mobile)), url: `/partner/${id}` }
+        : { type: 'portal', url: `/partner/${id}`, ...(notify ? { notify } : {}) },
     status_events: ['accepted', 'declined', 'scheduled', 'in_progress', 'completed', 'invoiced'],
     documents_returned: ['visit_report', 'invoice'],
     sla: { urgent_response_hours: Math.min(hours, 8), standard_response_hours: Math.max(hours, 24) },
@@ -624,6 +628,9 @@ export function PartnerRegister() {
   const [siteBusy, setSiteBusy] = useState(false)
   const [siteMsg, setSiteMsg] = useState<string | null>(null)
   const [auto, setAuto] = useState<Set<string>>(new Set())
+  const [wa, setWa] = useState<WhatsAppLinkView | null>(null)
+  const needsWa = String(p.jobs_via) === 'WhatsApp'
+  const waOk = !needsWa || wa?.status === 'verified'
   const set = (patch: Partial<Profile>) => {
     setP((x) => ({ ...x, ...patch }) as Profile)
     setErrors((e) => e.filter((k) => !(k in patch)))
@@ -689,7 +696,7 @@ export function PartnerRegister() {
         postcode: String(p.postcode),
         city: String(p.city),
         vat_id: String(p.vat_id),
-      })
+      }, needsWa ? wa?.id : undefined)
       saveLocalProfile(r.partner_id, p as unknown as Record<string, unknown>)
       setSession({ pid: r.partner_id, name: r.name })
       setDone(r)
@@ -773,6 +780,7 @@ export function PartnerRegister() {
               }
             />
           </ul>
+          {needsWa && <WhatsAppConnect phone={toE164(String(p.mobile))} company={String(p.company_name).trim()} link={wa} onChange={setWa} />}
           {failed.length > 0 && (
             <ul className="mb-4 list-disc pl-5 text-label text-warn">
               {failed.map((c, i) => (
@@ -785,7 +793,7 @@ export function PartnerRegister() {
             <button className="btn-ghost" onClick={back}>
               ← {t('Back')}
             </button>
-            <button className="btn-primary" disabled={busy || checks === null || failed.length > 0} onClick={goLive}>
+            <button className="btn-primary" disabled={busy || checks === null || failed.length > 0 || !waOk} onClick={goLive}>
               {busy ? t('Going live…') : `${t('Go to your partner portal')} →`}
             </button>
           </div>
@@ -862,6 +870,86 @@ export function PartnerRegister() {
         </div>
       </div>
     </RegShell>
+  )
+}
+
+/** WhatsApp handshake: the company sends a one-time code to Debye from its phone (proves the number, records
+ * the opt-in, opens the chat), Debye answers with a test button, the tap proves replies work both ways. */
+function WhatsAppConnect({ phone, company, link, onChange }: { phone: string; company: string; link: WhatsAppLinkView | null; onChange: (l: WhatsAppLinkView) => void }) {
+  const [err, setErr] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const start = async () => {
+    setErr(null)
+    try {
+      onChange(await api.whatsappStart(phone, company))
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    }
+  }
+  const id = link?.id
+  const st = link?.status
+  useEffect(() => {
+    if (!id || st === 'verified' || st === 'expired') return
+    const h = window.setInterval(() => {
+      api.whatsappStatus(id).then(onChange).catch(() => undefined)
+    }, 1500)
+    return () => window.clearInterval(h)
+  }, [id, st, onChange])
+  const verified = st === 'verified'
+  return (
+    <div className="mb-5 rounded-tile bg-surface p-5 shadow-card">
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <strong className="text-ink">{t('Connect WhatsApp')}</strong>
+        <span className={`pill ${verified ? 'bg-ok-tint text-ok' : st === 'expired' ? 'bg-warn-tint text-warn' : ''}`}>
+          {verified ? t('Verified') : st === 'expired' ? t('Code expired') : link ? t('Waiting for your message…') : t('Not connected')}
+        </span>
+      </div>
+      <p className="m-0 mb-4 text-label text-muted">
+        {t('Jobs arrive on WhatsApp and you run them by replying. Send one message from your phone so we know the number is yours and may write to you.')}
+      </p>
+      {!link || st === 'expired' ? (
+        <button className="btn-primary" onClick={start}>
+          {st === 'expired' ? t('Get a new code') : t('Connect {phone}', { phone })}
+        </button>
+      ) : (
+        <>
+          {!verified && (
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              {link.wa_link ? (
+                <a className="btn-primary" href={link.wa_link} target="_blank" rel="noreferrer">
+                  {t('Open WhatsApp and send')}
+                </a>
+              ) : (
+                <span className="text-label text-muted">{t('Send this code to Debye on WhatsApp:')}</span>
+              )}
+              <button
+                className="btn-ghost font-mono"
+                onClick={() => {
+                  navigator.clipboard?.writeText(link.message).then(() => setCopied(true), () => undefined)
+                }}
+              >
+                {link.code} {copied ? '✓' : '⧉'}
+              </button>
+              {link.debye_number && <span className="font-mono text-label text-muted">→ {link.debye_number}</span>}
+            </div>
+          )}
+          <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
+            {link.steps.map((s) => (
+              <li key={s.id} className={`flex items-center gap-2.5 text-label ${s.at ? 'text-ink' : 'text-muted'}`}>
+                <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${s.at ? 'bg-ok-tint text-ok' : 'bg-bg'}`}>{s.at ? '✓' : '·'}</span>
+                {t(s.label)}
+              </li>
+            ))}
+          </ol>
+          {!verified && st === 'replied' && <p className="m-0 mt-3 text-label text-muted">{t('Now tap “Test bestätigen” in WhatsApp.')}</p>}
+          {link.number_changed && link.phone_e164 && (
+            <p className="m-0 mt-3 text-label text-warn">{t('The code came from {n}; jobs will go to that number.', { n: link.phone_e164 })}</p>
+          )}
+          {link.error && <p className="m-0 mt-3 text-label text-red">{link.error}</p>}
+        </>
+      )}
+      {err && <p className="m-0 mt-3 text-label text-red">{err}</p>}
+    </div>
   )
 }
 

@@ -56,6 +56,12 @@ class OnboardIn(BaseModel):
     technicians: list[TechIn] = []
     documents: list[DocIn] = []
     company: CompanyIn | None = None
+    whatsapp_link_id: str | None = None  # verified handshake (POST /whatsapp/start) for a WhatsApp transport
+
+
+class WhatsAppStartIn(BaseModel):
+    phone: str | None = None
+    company: str | None = None
 
 
 class ValidateIn(BaseModel):
@@ -80,6 +86,23 @@ async def from_website(body: WebsiteIn) -> dict:
         raise HTTPException(400, str(e)) from None
 
 
+@router.post("/whatsapp/start")
+def whatsapp_start(body: WhatsAppStartIn) -> dict:
+    """Step 1 of the WhatsApp handshake: a one-time code + wa.me link for the company's phone."""
+    from .partners import wa_partner
+    return wa_partner.start(body.phone, body.company)
+
+
+@router.get("/whatsapp/{link_id}")
+def whatsapp_status(link_id: str) -> dict:
+    """Polled by the join form: pending → received → replied → verified."""
+    from .partners import wa_partner
+    v = wa_partner.status(link_id)
+    if v is None:
+        raise HTTPException(404, "unknown link")
+    return v
+
+
 @router.post("/validate")
 def validate(body: ValidateIn) -> dict:
     _, checks = onboarding.validate(body.manifest)
@@ -102,6 +125,15 @@ def onboard(body: OnboardIn) -> dict:
     pid = str(raw.get("partner_id") or "")
     if raw.get("transport", {}).get("type") == "portal" and pid:
         raw["transport"] = {**raw["transport"], "url": f"/partner/{pid}"}  # centrix owns the portal URL
+    link = None
+    tr = raw.get("transport") or {}
+    if tr.get("type") == "conversational" and tr.get("channel") == "whatsapp":
+        from .partners import wa_partner
+        link = wa_partner.verified_link(body.whatsapp_link_id or tr.get("link_id"))
+        if link is None:
+            raise HTTPException(422, {"message": "Connect WhatsApp first: send the code to Debye and tap the "
+                                                 "test button", "checks": []})
+        raw["transport"] = wa_partner.transport_from_link(link, pid, tr.get("language") or "de")
     m, checks = onboarding.validate(raw)
     if m is None or not onboarding.is_valid(checks):
         raise HTTPException(422, {"message": "manifest does not match the connector spec",
@@ -147,6 +179,9 @@ def onboard(body: OnboardIn) -> dict:
         path.write_text(json.dumps({**manifest, "technicians": roster}, indent=2, ensure_ascii=False) + "\n",
                         encoding="utf-8")
         file = f"partners/{path.name}"
+    if link is not None:
+        from .partners import wa_partner
+        wa_partner.attach_to_partner(link.id, m.partner_id, link.profile_name or m.name)
     log.info("onboarded partner %s with %d technician(s), pending review", m.partner_id, len(techs))
     from .events import record_event
     record_event(None, "partner", "partner.applied",

@@ -73,6 +73,58 @@ def _seed_partner_docs(s, m: dict) -> None:
         s.flush()
 
 
+def _seed_whatsapp_contact(s, m: dict) -> None:
+    """A partner that registered with WhatsApp keeps its verified number in its manifest
+    (transport.address). After a reset that is enough: its staff contact comes back from it."""
+    from sqlmodel import select
+    from .db import next_id
+    tr = m.get("transport") or {}
+    phone = tr.get("address")
+    if tr.get("type") != "conversational" or tr.get("channel") != "whatsapp" or not phone:
+        return
+    s.flush()
+    c = s.exec(select(Contact).where(Contact.phone_e164 == phone)).first()
+    if c is None:
+        s.add(Contact(id=next_id(s, Contact, "c"), role="partner_staff", name=m.get("name") or m["partner_id"],
+                      phone_e164=phone, partner_id=m["partner_id"], language=tr.get("language", "de"),
+                      whatsapp_opt_in=True))
+    elif c.role == "partner_staff":
+        c.partner_id, c.whatsapp_opt_in = m["partner_id"], True
+        s.add(c)
+    s.flush()
+
+
+def _whatsapp_demo(s) -> None:
+    """PARTNER_WHATSAPP_DEMO=+4917...: Heizung Schmidt runs its jobs on WhatsApp from that phone
+    (as if it had done the handshake), and Tom Schmidt (c_301) is that number."""
+    import os
+    phone = (os.getenv("PARTNER_WHATSAPP_DEMO") or "").strip().replace(" ", "")
+    if not phone:
+        return
+    from sqlmodel import select
+    from .config import now_iso
+    phone = phone if phone.startswith("+") else "+" + phone.lstrip("0")
+    pid = os.getenv("PARTNER_WHATSAPP_DEMO_ID", "heizung-schmidt")
+    p = s.get(Partner, pid)
+    if p is None:
+        return
+    for other in s.exec(select(Contact).where(Contact.phone_e164 == phone)).all():
+        if other.partner_id != pid:
+            other.phone_e164 = None  # the demo phone belongs to the partner now
+            s.add(other)
+    s.flush()
+    staff = s.exec(select(Contact).where(Contact.partner_id == pid, Contact.role == "partner_staff")).first()
+    if staff:
+        staff.phone_e164, staff.whatsapp_opt_in = phone, True
+        s.add(staff)
+    p.manifest = {**p.manifest, "transport": {
+        "type": "conversational", "channel": "whatsapp", "address": phone,
+        "language": (p.manifest.get("transport") or {}).get("language", "de"),
+        "verified_at": now_iso(), "link_id": "demo", "url": f"/partner/{pid}"}}
+    s.add(p)
+    log.info("partner %s runs on WhatsApp (%s)", pid, phone)
+
+
 def seed(reset: bool = False) -> None:
     if reset:
         drop_all()
@@ -138,5 +190,7 @@ def seed(reset: bool = False) -> None:
             s.merge(Partner(id=m["partner_id"], manifest=m, active=status == "active",
                             status=status, review=review))
             _seed_partner_docs(s, m)
+            _seed_whatsapp_contact(s, m)
+        _whatsapp_demo(s)
         s.commit()
     log.info("seeded database")

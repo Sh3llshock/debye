@@ -605,6 +605,9 @@ def dispatch_job(case_id: str, partner_id: str) -> dict:
     if transport.get("type") == "api":  # portal partners: unchanged (they work in the partner page)
         from .partners import transport as partner_transport
         partner_transport.send_order(manifest, case_id)
+    elif transport.get("type") == "conversational" and transport.get("channel") == "whatsapp":
+        from .partners import wa_partner  # the job card goes out on WhatsApp
+        wa_partner.queue_offer(case_id, partner_id)
     return {"case_id": case_id, "partner_id": partner_id, "partner_name": name,
             "status": "requested", "approval": approval}
 

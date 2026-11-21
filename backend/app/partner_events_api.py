@@ -294,6 +294,14 @@ async def partner_event(partner_id: str, request: Request) -> dict:
         raise HTTPException(422, f"invalid status_event: {e}")
     if ev.partner_id != partner_id:
         raise HTTPException(422, "partner_id does not match the URL")
+    return await apply_event(m, ev)
+
+
+async def apply_event(m: Manifest, ev: StatusEvent, via: str = "API") -> dict:
+    """One lifecycle step from a partner, whatever the transport (API webhook or WhatsApp reply):
+    order lookup (404), transition check (409), then the same services the partner page uses.
+    Raises HTTPException; the WhatsApp transport turns its detail into a reply."""
+    partner_id = m.partner_id
     if ev.status not in set(DELIVER) | set(SELL) | ANY:
         raise HTTPException(422, f"unknown status {ev.status}")
     with get_session() as s:
@@ -304,9 +312,9 @@ async def partner_event(partner_id: str, request: Request) -> dict:
         if not allowed(current, ev.status, m.kind, ev.data or {}):
             raise HTTPException(409, f"transition {current} → {ev.status} not allowed")
     record_event(case.id, "partner", "partner.event",
-                 f"{m.name} reported {ev.status} for {ev.order_ref}",
+                 f"{m.name} reported {ev.status} for {ev.order_ref}" + (f" via {via}" if via != "API" else ""),
                  {"partner_id": partner_id, "order_ref": ev.order_ref, "status": ev.status,
-                  "at": ev.at, "from": current})
+                  "at": ev.at, "from": current, "via": via})
     if ev.status in ANY:
         await _any(ev, case, m)
     elif m.kind == "sell":

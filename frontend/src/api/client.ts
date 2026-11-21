@@ -1,4 +1,4 @@
-import type { CaseDetail, CaseSummary, CentrixEventResult, JobDetail, JobSummary, OnboardCheck, OnboardDocument, OnboardResult, PartnerApplication, PartnerProfile, Slot, TechProfile, Technician, UnitDetail, UnitSummary, WebsiteAutofill } from './types'
+import type { CaseDetail, CaseSummary, CentrixEventResult, JobDetail, JobSummary, OnboardCheck, OnboardDocument, OnboardResult, PartnerApplication, PartnerProfile, Slot, TechProfile, Technician, UnitDetail, UnitSummary, WebsiteAutofill, WhatsAppLinkView } from './types'
 
 export const USE_FIXTURES = import.meta.env.VITE_USE_FIXTURES === '1'
 export const DEMO = import.meta.env.VITE_DEMO === '1'
@@ -71,8 +71,10 @@ const http = {
   onboardValidate: (manifest: Record<string, unknown>) => req<{ valid: boolean; checks: OnboardCheck[] }>('POST', '/api/partners/onboard/validate', { manifest }),
   askTenant: (pid: string, caseId: string, text: string) => req<JobDetail>('POST', `/api/partner/${enc(pid)}/jobs/${enc(caseId)}/question`, { text }),
   onboardFromWebsite: (url: string) => req<WebsiteAutofill>('POST', '/api/partners/onboard/from-website', { url }),
-  onboard: (manifest: Record<string, unknown>, technicians: { name: string; skills: string[] }[], documents: OnboardDocument[] = [], company?: Record<string, string>) =>
-    req<OnboardResult>('POST', '/api/partners/onboard', { manifest, technicians, documents, ...(company ? { company } : {}) }),
+  onboard: (manifest: Record<string, unknown>, technicians: { name: string; skills: string[] }[], documents: OnboardDocument[] = [], company?: Record<string, string>, whatsappLinkId?: string) =>
+    req<OnboardResult>('POST', '/api/partners/onboard', { manifest, technicians, documents, ...(company ? { company } : {}), ...(whatsappLinkId ? { whatsapp_link_id: whatsappLinkId } : {}) }),
+  whatsappStart: (phone: string, company: string) => req<WhatsAppLinkView>('POST', '/api/partners/onboard/whatsapp/start', { phone, company }),
+  whatsappStatus: (id: string) => req<WhatsAppLinkView>('GET', `/api/partners/onboard/whatsapp/${id}`),
   partnerApplications: () => req<PartnerApplication[]>('GET', '/api/staff/partners/applications'),
   approvePartner: (pid: string) => req<{ status: string }>('POST', `/api/staff/partners/${enc(pid)}/approve`, {}),
   rejectPartner: (pid: string, reason: string) => req<{ status: string }>('POST', `/api/staff/partners/${enc(pid)}/reject`, { reason }),

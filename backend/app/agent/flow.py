@@ -361,10 +361,17 @@ async def send_slots(case_id: str, slots: list[dict], technician_name: str | Non
 async def on_slot(contact, case_id: str, n: int) -> None:
     """n is 1-based as in the list row id slot_<n>."""
     cs = st.case_state(case_id)
-    be.confirm_slot(case_id, n)  # 1-based (interfaces §3.3); services counts the tap
+    res = be.confirm_slot(case_id, n) or {}  # 1-based (interfaces §3.3); services counts the tap
+    if isinstance(res, dict) and res.get("status") == "awaiting_technician" and not cs.technician_name:
+        cs.technician_name = (res.get("technician") or {}).get("name")  # slots came via the partner API/WhatsApp
     label = slot_label(cs.slots[n - 1]) if 0 < n <= len(cs.slots) else f"option {n}"
     cs.chosen_slot = cs.slots[n - 1] if 0 < n <= len(cs.slots) else None
     st.conversation(be.attr(contact, "id")).step = st.SCHEDULED
+    try:  # WhatsApp partners: ask them to confirm the picked time in their chat
+        from app.partners import wa_partner
+        await wa_partner.on_tenant_picked_slot(case_id)
+    except Exception:
+        log.exception("WhatsApp partner slot message failed")
     if cs.technician_name:  # dispatcher flow: the technician still confirms (notify "technician_confirmed")
         await out.text(
             contact, case_id, f"Thanks. I've asked {cs.technician_name} to confirm and will let you know shortly."

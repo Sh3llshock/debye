@@ -136,6 +136,14 @@ def precheck(manifest: dict, documents: list[dict], company: dict | None = None)
         gas = by_type.get("gas_registry")
         add("gas_registry", "Gas registration (heating trade)", "pass" if gas else "fail",
             (gas.get("number") or "given") if gas else "Heating work needs a gas installer registration")
+
+    # 7. WhatsApp partners: the number was proven by the handshake (partners/wa_partner.py)
+    tr = manifest.get("transport") or {}
+    if tr.get("type") == "conversational" and tr.get("channel") == "whatsapp":
+        ok = bool(tr.get("verified_at"))
+        add("whatsapp", "WhatsApp number verified", "pass" if ok else "fail",
+            f"{tr.get('address')} · code sent by the company, test reply came back" if ok
+            else "The number never completed the WhatsApp handshake")
     return checks
 
 
