@@ -725,7 +725,9 @@ _ONLY_SHOWER_RE = re.compile(
 _EVERYWHERE_RE = re.compile(
     r"\b(everywhere|every tap|all (the |of the )?taps|all of them|sinks? too|kitchen too|(the )?sinks? (are|is) "
     r"(also |too )?cold|also (the )?(sinks?|kitchen)|(and|plus) (the )?(sinks?|kitchen)|whole (flat|apartment)|"
-    r"kitchen and (the )?(bath(room)?|shower)|(kitchen|sinks?)\b[^.!?]{0,25}\bcold|cold (at|in) (the )?(sinks?|kitchen)|"
+    r"kitchen (and|or|&) (in )?(the )?(bath(room)?|shower)|(bath(room)?|shower) (and|or|&) (in )?(the )?(kitchen|sinks?)|"
+    r"(kitchen|sink) tap and (the )?shower|both (the )?(kitchen|shower|sink)|"
+    r"(kitchen|sinks?)\b[^.!?]{0,25}\bcold|cold (at|in) (the )?(sinks?|kitchen)|"
     r"(shower|kitchen) and (the )?(sinks?|kitchen|shower)|überall|alle hähne|auch (die |das |in der )?(waschbecken|küche))",
     re.IGNORECASE)
 
