@@ -12,9 +12,10 @@ import logging
 import re
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from . import auth
 from .config import now_iso, settings
 from .db import get_session
 from .models import Partner, Technician
@@ -74,7 +75,7 @@ def _tech_id(partner_id: str, name: str, taken: set[str]) -> str:
 
 
 @router.post("")
-def onboard(body: OnboardIn) -> dict:
+def onboard(body: OnboardIn, request: Request) -> dict:
     raw = dict(body.manifest)
     pid = str(raw.get("partner_id") or "")
     if raw.get("transport", {}).get("type") == "portal" and pid:
@@ -88,6 +89,8 @@ def onboard(body: OnboardIn) -> dict:
         if existing and not (existing.manifest or {}).get("onboarding"):
             # seeded partners can't be overwritten from the public form; re-onboarding is fine
             raise HTTPException(409, f"partner {m.partner_id} already exists")
+        if existing:  # re-onboarding: only that partner itself (else anyone could take it over)
+            auth.require_partner(request, m.partner_id)
         manifest = m.model_dump(mode="json", exclude_none=True)
         manifest["onboarding"] = {"at": now_iso(), "via": "/partners/join"}
         manifest.pop("technicians", None)
@@ -120,4 +123,5 @@ def onboard(body: OnboardIn) -> dict:
         file = f"partners/{path.name}"
     log.info("onboarded partner %s with %d technician(s)", m.partner_id, len(techs))
     return {"partner_id": m.partner_id, "name": m.name, "portal_url": f"/partner/{m.partner_id}",
+            "token": auth.make_token("partner", m.partner_id, m.partner_id),  # logged in after signing up
             "technicians": techs, "manifest": manifest, "file": file, "checks": checks}

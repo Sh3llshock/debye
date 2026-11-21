@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { USE_FIXTURES } from '../api/client'
 import type { StreamMessage } from '../api/types'
+import { onAuthChange, tokenForPage } from './auth'
 
 type Listener = (m: StreamMessage) => void
 const listeners = new Set<Listener>()
@@ -27,22 +28,44 @@ function start() {
     })
     return
   }
+  // The stream needs the page's portal token (?token=, EventSource cannot send headers); the server
+  // only sends what this account may see. Reconnect when the login or the page's portal changes.
+  let es: EventSource | null = null
+  let current: string | null = null
+  let retry: number | undefined
   const open = () => {
-    const es = new EventSource('/api/stream')
-    es.onopen = () => setConnected(true)
-    es.onmessage = (e) => {
+    window.clearTimeout(retry)
+    const tok = tokenForPage()
+    if (es && tok === current && es.readyState !== EventSource.CLOSED) return
+    es?.close()
+    es = null
+    current = tok
+    if (!tok) {
+      setConnected(false)
+      return
+    }
+    const src = new EventSource(`/api/stream?token=${encodeURIComponent(tok)}`)
+    es = src
+    src.onopen = () => setConnected(true)
+    src.onmessage = (e) => {
       try {
         dispatch(JSON.parse(e.data) as StreamMessage)
       } catch {
         /* ignore keep-alives / malformed lines */
       }
     }
-    es.onerror = () => {
+    src.onerror = () => {
       setConnected(false)
       // EventSource retries by itself while CONNECTING; reopen if it gave up.
-      if (es.readyState === EventSource.CLOSED) setTimeout(open, 2000)
+      if (src.readyState === EventSource.CLOSED) retry = window.setTimeout(open, 2000)
     }
   }
+  onAuthChange(open)
+  window.addEventListener('popstate', open)
+  // SPA navigation (pushState) between portals: check the token now and then
+  window.setInterval(() => {
+    if (tokenForPage() !== current) open()
+  }, 1500)
   open()
 }
 

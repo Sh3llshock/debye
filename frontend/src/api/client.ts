@@ -1,3 +1,4 @@
+import { expireFor, tokenForPath, type LoginResult } from '../lib/auth'
 import type { CaseDetail, CaseSummary, JobDetail, JobSummary, OnboardCheck, OnboardResult, PartnerProfile, Slot, TechProfile, Technician, UnitDetail, UnitSummary, WebsiteAutofill } from './types'
 
 export const USE_FIXTURES = import.meta.env.VITE_USE_FIXTURES === '1'
@@ -11,12 +12,15 @@ export class ApiError extends Error {
 
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
   const init: RequestInit = { method, headers: {} }
+  const tok = tokenForPath(path) // portal session for this URL (lib/auth.ts)
+  if (tok) (init.headers as Record<string, string>).Authorization = `Bearer ${tok}`
   if (body instanceof FormData) init.body = body
   else if (body !== undefined) {
     init.body = JSON.stringify(body)
     ;(init.headers as Record<string, string>)['Content-Type'] = 'application/json'
   }
   const res = await fetch(path, init)
+  if (res.status === 401 && tok) expireFor(path) // session ended (expired, or the server restarted)
   if (!res.ok) {
     let detail = res.statusText
     try {
@@ -36,6 +40,9 @@ const enc = encodeURIComponent
 const KNOWN_PARTNERS = ['heizung-schmidt', 'waerme-wagner', 'heiztechnik-gruen', 'elektro-klein', 'example-fibre']
 
 const http = {
+  /** Demo login for every portal (any password); the server returns a signed token with the role. */
+  login: (login: string, password: string, role?: 'staff' | 'partner' | 'tech') =>
+    req<LoginResult>('POST', '/api/auth/login', { login, password, ...(role ? { role } : {}) }),
   staffUnits: () => req<UnitSummary[]>('GET', '/api/staff/units'),
   staffUnit: (id: string) => req<UnitDetail>('GET', `/api/staff/units/${enc(id)}`),
   staffCases: () => req<CaseSummary[]>('GET', '/api/staff/cases'),

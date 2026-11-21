@@ -284,6 +284,8 @@ export interface OnboardResult {
   manifest: Record<string, unknown>
   file: string | null
   checks: OnboardCheck[]
+  /** partner session token: signing up logs the new partner in */
+  token?: string
 }
 
 export interface JobSummary {

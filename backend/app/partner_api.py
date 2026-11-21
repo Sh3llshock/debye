@@ -1,16 +1,21 @@
 """Partner page API (interfaces §4). The partner sees only consented context."""
 from __future__ import annotations
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlmodel import select
 
-from . import notify, rules, services
+from . import auth, notify, rules, services
 from .db import get_session
 from .models import Asset, Case, CaseEvent, Contact, Document, Partner, Property, Unit
 
-router = APIRouter(prefix="/api/partner", tags=["partner"])
-list_router = APIRouter(tags=["partner"])  # GET /api/partners (staff "Partners" page)
+def _own_partner(request: Request, partner_id: str) -> None:
+    """Every /api/partner/{partner_id}/... call: a partner token for exactly this partner (or staff)."""
+    auth.require_partner(request, partner_id)
+
+
+router = APIRouter(prefix="/api/partner", tags=["partner"], dependencies=[Depends(_own_partner)])
+list_router = APIRouter(tags=["partner"], dependencies=[Depends(auth.staff_only)])  # GET /api/partners (staff "Partners" page)
 
 VISIBLE_STATUSES = {"requested", "accepted", "slots_proposed", "awaiting_technician", "scheduled",
                     "completed", "invoiced", "closed", "reopened"}
@@ -105,13 +110,13 @@ def job_detail(s, c: Case, partner_id: str) -> dict:
                   if asset else None),
         "tenant": tenant_view,
         "consented_fields": sorted(fields),
-        "photos": [{"document_id": d.id, "url": f"/files/{d.id}", "filename": d.filename}
+        "photos": [{"document_id": d.id, "url": auth.file_url(d.id), "filename": d.filename}
                    for d in visible_photos],
         "proposed_slots": data.get("proposed_slots") or [],
         "confirmed_slot": out["slot"],
         "estimated_cost_eur": c.estimated_cost_eur,
         "documents": [{"document_id": d.id, "kind": d.kind, "filename": d.filename,
-                       "url": f"/files/{d.id}", "extracted": d.extracted or {}} for d in partner_docs],
+                       "url": auth.file_url(d.id), "extracted": d.extracted or {}} for d in partner_docs],
         "completion": data.get("completion"),
         "approval": _approval_view(data.get("approval") or {}),
         "price_check": data.get("price_check"),

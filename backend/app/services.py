@@ -17,12 +17,14 @@ partner_accept, partner_decline, record_completion, approve_case, case_label_slo
 from __future__ import annotations
 
 import json
+import secrets
 from datetime import datetime
 from pathlib import Path
 
 from sqlmodel import select
 
 from . import rules
+from .auth import file_url
 from .config import TZ, now, now_iso, settings
 from .db import get_session, next_id
 from .events import publish_sync, record_event
@@ -499,7 +501,8 @@ def attach_document(case_id: str, kind: str, filename: str, mime: str, path: str
                     extracted: dict | None = None) -> Document:
     with get_session() as s:
         case = s.get(Case, case_id) if case_id else None
-        doc = Document(id=next_id(s, Document, "doc"), case_id=case_id or None,
+        # random id: document links must not be guessable (they are also signed, see app.auth)
+        doc = Document(id=f"doc_{secrets.token_hex(8)}", case_id=case_id or None,
                        unit_id=case.unit_id if case else None, kind=kind, filename=filename,
                        mime=mime, path=str(path), extracted=extracted, created_at=now_iso())
         s.add(doc)
@@ -508,7 +511,7 @@ def attach_document(case_id: str, kind: str, filename: str, mime: str, path: str
     if case_id:
         record_event(case_id, "system", "document.attached", f"{kind.capitalize()} {filename} attached",
                      {"document_id": doc.id, "kind": kind, "filename": filename,
-                      "url": f"/files/{doc.id}", "unit_id": doc.unit_id})
+                      "unit_id": doc.unit_id})
     return doc
 
 
@@ -1043,7 +1046,7 @@ def log_message(contact_id: str | None, case_id: str | None, channel: str, direc
         contact = s.get(Contact, contact_id) if contact_id else None
     payload = {"ts": msg.ts, "direction": direction,
                "contact": contact.name if contact else None, "contact_id": contact_id,
-               "text": text, "media": [{"document_id": d, "url": f"/files/{d}"} for d in msg.media_ids],
+               "text": text, "media": [{"document_id": d, "url": file_url(d)} for d in msg.media_ids],
                "message_id": msg.id}
     publish_sync("message.in" if direction == "in" else "message.out", case_id, payload)
     return msg

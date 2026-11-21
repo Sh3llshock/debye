@@ -88,7 +88,10 @@ def test_onboarded_plumber_is_ranked_without_code_change(client, partners_dir):
     assert {t["name"] for t in client.get(f"/api/partner/{pid}/technicians").json()} == {"Lena Becker", "Max Roth"}
 
     # re-onboarding the same partner is idempotent; a seeded partner can't be overwritten
-    again = client.post("/api/partners/onboard", json={"manifest": _plumber(), "technicians": [{"name": "Lena Becker"}]})
+    # re-onboarding needs that partner's own session (the token the first sign-up returned)
+    body = {"manifest": _plumber(), "technicians": [{"name": "Lena Becker"}]}
+    assert client.post("/api/partners/onboard", json=body).status_code == 401
+    again = client.post("/api/partners/onboard", json=body, headers={"Authorization": f"Bearer {out['token']}"})
     assert again.status_code == 200 and len(client.get(f"/api/partner/{pid}/technicians").json()) == 1
     clash = {**_plumber(), "partner_id": "heizung-schmidt"}
     assert client.post("/api/partners/onboard", json={"manifest": clash}).status_code == 409

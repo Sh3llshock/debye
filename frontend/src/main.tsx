@@ -6,6 +6,7 @@ import { initStageScale } from './lib/stage'
 
 initStageScale()
 import { StaffLayout } from './components/Layout'
+import { RequireLogin } from './components/RequireLogin'
 import StaffCases from './pages/StaffCases'
 import StaffInbox from './pages/StaffInbox'
 import StaffCase from './pages/StaffCase'
@@ -42,7 +43,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/staff" replace />} />
-        <Route path="/staff" element={<Staff />}>
+        <Route path="/staff" element={<RequireLogin role="staff"><Staff /></RequireLogin>}>
           <Route index element={<StaffInbox />} />
           <Route path="cases" element={<StaffCases />} />
           <Route path="cases/:caseId" element={<StaffCase />} />
@@ -57,16 +58,16 @@ function App() {
         <Route path="/partner" element={<PartnerWelcome />} />
         <Route path="/partner/login" element={<PartnerLogin />} />
         <Route path="/partner/register" element={<PartnerRegister />} />
-        <Route path="/partner/:partnerId" element={<PartnerPage />} />
-        <Route path="/partner/:partnerId/new" element={<PartnerPage tab="new" />} />
-        <Route path="/partner/:partnerId/wip" element={<PartnerPage tab="wip" />} />
-        <Route path="/partner/:partnerId/availability" element={<PartnerPage tab="availability" />} />
-        <Route path="/partner/:partnerId/done" element={<PartnerPage tab="done" />} />
-        <Route path="/partner/:partnerId/profile" element={<PartnerPage tab="profile" />} />
-        <Route path="/partner/:partnerId/jobs/:caseId" element={<PartnerPage />} />
+        <Route path="/partner/:partnerId" element={<RequireLogin role="partner"><PartnerPage /></RequireLogin>} />
+        <Route path="/partner/:partnerId/new" element={<RequireLogin role="partner"><PartnerPage tab="new" /></RequireLogin>} />
+        <Route path="/partner/:partnerId/wip" element={<RequireLogin role="partner"><PartnerPage tab="wip" /></RequireLogin>} />
+        <Route path="/partner/:partnerId/availability" element={<RequireLogin role="partner"><PartnerPage tab="availability" /></RequireLogin>} />
+        <Route path="/partner/:partnerId/done" element={<RequireLogin role="partner"><PartnerPage tab="done" /></RequireLogin>} />
+        <Route path="/partner/:partnerId/profile" element={<RequireLogin role="partner"><PartnerPage tab="profile" /></RequireLogin>} />
+        <Route path="/partner/:partnerId/jobs/:caseId" element={<RequireLogin role="partner"><PartnerPage /></RequireLogin>} />
         <Route path="/tenant/*" element={<TenantApp />} />
-        <Route path="/tech/:techId" element={<TechPage />} />
-        <Route path="/tech/:techId/jobs/:caseId" element={<TechPage />} />
+        <Route path="/tech/:techId" element={<RequireLogin role="tech"><TechPage /></RequireLogin>} />
+        <Route path="/tech/:techId/jobs/:caseId" element={<RequireLogin role="tech"><TechPage /></RequireLogin>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

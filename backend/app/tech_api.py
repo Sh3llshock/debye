@@ -1,15 +1,20 @@
 """Technician phone page API (interfaces §Technician flow). Consented context only."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import select
 
-from . import notify, rules, services
+from . import auth, notify, rules, services
 from .db import get_session
 from .models import Case, Partner, Technician
 from .partner_api import job_detail, job_summary
 
-router = APIRouter(prefix="/api/tech", tags=["technician"])
+def _own_tech(request: Request, tech_id: str) -> None:
+    """The technician themself (tech token) or their own company (partner token), or staff."""
+    auth.require_tech(request, tech_id)
+
+
+router = APIRouter(prefix="/api/tech", tags=["technician"], dependencies=[Depends(_own_tech)])
 
 TECH_STATUSES = {"slots_proposed", "awaiting_technician", "scheduled", "completed", "invoiced",
                  "closed", "reopened"}

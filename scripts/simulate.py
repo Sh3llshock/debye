@@ -160,9 +160,39 @@ def _option_ids(item: dict) -> list[str]:
 
 # --------------------------------------------------------------------------- runner
 
+class PortalLogin(httpx.Auth):
+    """The staff/partner/technician APIs need a portal session (backend app/auth.py). Log in like the
+    pages do (demo: any password) and send the token of the role that owns each URL."""
+
+    STAFF_LOGIN = "anna.becker@example.com"
+
+    def __init__(self, base: str):
+        self.base = base
+        self.tokens: dict[str, str] = {}
+
+    def _token(self, login: str) -> str:
+        if login not in self.tokens:
+            r = httpx.post(f"{self.base}/api/auth/login", json={"login": login, "password": "demo"}, timeout=30)
+            r.raise_for_status()
+            self.tokens[login] = r.json()["token"]
+        return self.tokens[login]
+
+    def auth_flow(self, request):
+        path = request.url.path
+        parts = path.strip("/").split("/")
+        login = None
+        if path.startswith("/api/staff") or path == "/api/partners" or path.startswith("/files/"):
+            login = self.STAFF_LOGIN
+        elif path.startswith(("/api/partner/", "/api/tech/")) and len(parts) >= 3:
+            login = parts[2]  # partner id or technician id
+        if login and "authorization" not in request.headers:
+            request.headers["Authorization"] = f"Bearer {self._token(login)}"
+        yield request
+
+
 class Sim:
     def __init__(self, base: str, direct: bool, wait: float, upload: bool = True):
-        self.c = httpx.Client(base_url=base, timeout=60)
+        self.c = httpx.Client(base_url=base, timeout=60, auth=PortalLogin(base.rstrip("/")))
         self.direct = direct
         self.wait = wait
         self.upload_media = upload

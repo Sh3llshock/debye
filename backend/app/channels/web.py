@@ -12,15 +12,13 @@ the existing SSE stream (/api/stream, message.out with contact_id).
 Interactive questions (buttons / lists) are kept per outbound message id, so the page
 can render them as tappable chips.
 
-Demo login: email or phone of a seeded tenant/owner, any non-empty password.
+Demo login: email or phone of a seeded tenant/owner, any non-empty password. The token is signed and
+expires (app.auth, TENANT_TOKEN_SECRET); every endpoint returns only that tenant's own data.
 WEB_MIRROR_WHATSAPP=1 also sends every web reply to the contact's WhatsApp (off by default).
 """
 from __future__ import annotations
 
 import asyncio
-import base64
-import hashlib
-import hmac
 import json
 import logging
 import mimetypes
@@ -33,6 +31,8 @@ from pathlib import Path
 from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 from sqlmodel import or_, select
+
+from app.auth import file_url
 
 from .base import (
     MAX_BUTTON_TITLE,
@@ -171,33 +171,23 @@ register(channel)
 
 
 # ------------------------------------------------------------------ auth (demo)
-def _secret() -> bytes:
-    return (os.getenv("TENANT_PORTAL_SECRET") or "debye-tenant-portal-demo").encode()
-
-
 def make_token(contact_id: str) -> str:
-    sig = hmac.new(_secret(), contact_id.encode(), hashlib.sha256).hexdigest()[:32]
-    raw = f"{contact_id}.{sig}"
-    return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
+    """Signed, expiring tenant token (app.auth; secret from TENANT_TOKEN_SECRET)."""
+    from app import auth
+
+    return auth.make_token("tenant", contact_id)
 
 
 def contact_from_token(token: str | None):
+    from app import auth
     from app.db import get_session
     from app.models import Contact
 
-    if not token:
-        return None
-    token = token.removeprefix("Bearer ").strip()
-    try:
-        raw = base64.urlsafe_b64decode(token + "=" * (-len(token) % 4)).decode()
-        cid, sig = raw.rsplit(".", 1)
-    except Exception:
-        return None
-    good = hmac.new(_secret(), cid.encode(), hashlib.sha256).hexdigest()[:32]
-    if not hmac.compare_digest(sig, good):
+    p = auth.read_token(token)
+    if p is None or p.role != "tenant":
         return None
     with get_session() as s:
-        c = s.get(Contact, cid)
+        c = s.get(Contact, p.sub)
     return c if c and c.role in TENANT_ROLES else None
 
 
@@ -284,11 +274,9 @@ def _pending(contact_id: str) -> dict | None:
 
 
 def _case_ids_for(s, contact_id: str) -> list[str]:
-    from app.models import Case, CaseContact
+    from app.auth import tenant_case_ids
 
-    ids = {r.case_id for r in s.exec(select(CaseContact).where(CaseContact.contact_id == contact_id)).all()}
-    ids |= {c.id for c in s.exec(select(Case).where(Case.reporter_contact_id == contact_id)).all()}
-    return sorted(ids)
+    return sorted(tenant_case_ids(s, contact_id))
 
 
 CLOSED_STATUSES = ("closed",)  # "invoiced" still waits for the tenant's "is it fixed?"
@@ -330,7 +318,7 @@ def _case_view(s, case, contact_id: str, full: bool = False) -> dict:
                       "last_service": asset.last_service} if asset else None,
             "proposed_slots": data.get("proposed_slots") or [],
             "documents": [{"document_id": d.id, "kind": d.kind, "filename": d.filename, "mime": d.mime,
-                           "url": f"/files/{d.id}"} for d in docs if d.kind in ("photo", "report", "invoice")],
+                           "url": file_url(d.id)} for d in docs if d.kind in ("photo", "report", "invoice")],
             "completion": {"notes": (data.get("completion") or {}).get("notes")} if data.get("completion") else None,
             "events": [{"ts": e.ts, "actor": e.actor, "kind": e.kind} for e in events],
             "first_channel": None,
@@ -351,7 +339,7 @@ def _messages(s, contact_id: str, case_id: str | None) -> list[dict]:
         for d_id in m.media_ids or []:
             d = s.get(Document, d_id) if isinstance(d_id, str) else None
             if d:
-                media.append({"document_id": d.id, "url": f"/files/{d.id}", "mime": d.mime, "kind": d.kind})
+                media.append({"document_id": d.id, "url": file_url(d.id), "mime": d.mime, "kind": d.kind})
         text = m.text
         if fr and fr.get("type") in ("buttons", "list"):
             text = fr.get("text") or text

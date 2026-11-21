@@ -1,5 +1,6 @@
 """In-process event bus + SSE stream at /api/stream (interfaces §3.2).
 
+The stream needs a portal token and is filtered per viewer (app.auth.can_see_event).
 Every SSE `data:` line is JSON {"type", "case_id", "event"}.
 record_event() is sync and thread-safe: it works from FastAPI's threadpool, from async
 endpoints, and from tests/scripts with no running loop (then it only writes the row).
@@ -83,6 +84,11 @@ router = APIRouter()
 
 @router.get("/api/stream")
 async def stream(request: Request) -> StreamingResponse:
+    """Needs a portal token (?token=, EventSource cannot send headers). Staff get every event; a
+    partner/technician only events of their own jobs; a tenant only their cases and own chat lines."""
+    from .auth import can_see_event, require
+
+    who = require(request)
     q: asyncio.Queue = asyncio.Queue(maxsize=1000)
     _subscribers.add(q)
 
@@ -94,9 +100,11 @@ async def stream(request: Request) -> StreamingResponse:
                     break
                 try:
                     msg = await asyncio.wait_for(q.get(), timeout=15)
-                    yield f"data: {json.dumps(msg, ensure_ascii=False)}\n\n"
                 except asyncio.TimeoutError:
                     yield ": ping\n\n"
+                    continue
+                if can_see_event(who, msg):
+                    yield f"data: {json.dumps(msg, ensure_ascii=False)}\n\n"
         finally:
             _subscribers.discard(q)
 

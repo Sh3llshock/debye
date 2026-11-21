@@ -9,11 +9,11 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from . import demo, events, onboard_api, partner_api, staff_api, tech_api
+from . import auth, demo, events, onboard_api, partner_api, staff_api, tech_api
 from .config import settings
 from .db import get_session
 from .models import Document
@@ -70,11 +70,33 @@ def health() -> dict:
     return {"ok": True, "demo_mode": settings.demo_mode}
 
 
+@app.post("/api/auth/login")
+def login(body: auth.LoginBody) -> dict:
+    """Demo login for every portal: email, phone, partner id or technician id + any password.
+    Returns a signed token with the role (staff/partner/tech/tenant); the server checks it on every call."""
+    return auth.login(body)
+
+
+@app.get("/api/auth/me")
+def whoami(request: Request) -> dict:
+    p = auth.require(request)
+    return {"role": p.role, "sub": p.sub, "pid": p.pid}
+
+
 @app.get("/files/{document_id}")
-def get_file(document_id: str):
+def get_file(document_id: str, request: Request, exp: str | None = None, sig: str | None = None):
+    """Only with a signed link (handed out by the API to people who may see the case) or a token
+    whose owner may see this document's case. Unknown ids and missing rights look the same (404)."""
+    from .models import Case
+
     with get_session() as s:
         d = s.get(Document, document_id)
-    if not d or not Path(d.path).exists():
+        allowed = bool(d) and auth.file_link_ok(document_id, exp, sig)
+        if d and not allowed:
+            p = auth.principal_from(request)
+            if p is not None:
+                allowed = p.role == "staff" or (bool(d.case_id) and auth.can_see_case(s, p, s.get(Case, d.case_id)))
+    if not d or not allowed or not Path(d.path).exists():
         raise HTTPException(404, "file not found")
     return FileResponse(d.path, media_type=d.mime, filename=d.filename,
                         content_disposition_type="inline")

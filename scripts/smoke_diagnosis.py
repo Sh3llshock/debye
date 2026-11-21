@@ -113,7 +113,10 @@ def run_chat(name: str) -> dict:
             turns.append({"tenant": msgs, "debye": sent})
         d = state.conversation("c_202").diagnosis or {}
         conv = state.conversation("c_202")
-        cases = client.get("/api/staff/cases").json()
+        from app import auth  # the staff API needs a staff session
+
+        staff = {"Authorization": f"Bearer {auth.make_token('staff', 'c_401')}"}
+        cases = client.get("/api/staff/cases", headers=staff).json()
     return {"name": name, "turns": turns, "concluded": d.get("concluded"), "asked": d.get("asked", []),
             "answers": d.get("answers", {}), "step": conv.step, "lang": conv.lang,
             "cases": [{"trade": c.get("trade"), "status": c.get("status")} for c in cases]}

@@ -665,4 +665,12 @@ export const DE: Record<string, string> = {
   "today": "heute",
   "via WhatsApp": "per WhatsApp",
   "{partner} accepts": "{partner} nimmt an",
+  // portal logins (components/RequireLogin.tsx)
+  "No property-management account with this email.": "Kein Konto der Hausverwaltung mit dieser E-Mail.",
+  "Login failed. Please try again.": "Anmeldung fehlgeschlagen. Bitte noch einmal versuchen.",
+  "Log in to see and approve cases.": "Melden Sie sich an, um Fälle zu sehen und freizugeben.",
+  "Demo: Anna Becker, any password works.": "Demo: Anna Becker, jedes Passwort funktioniert.",
+  "Enter your password.": "Bitte Passwort eingeben.",
+  "Logging in…": "Anmelden…",
+  "No partner account with this email or number.": "Kein Partnerkonto mit dieser E-Mail oder Nummer.",
 }

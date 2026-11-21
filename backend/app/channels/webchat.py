@@ -1,7 +1,8 @@
 """WhatsApp-lookalike web chat over WebSocket: hidden stage fallback.
 
 Mount with:  from app.channels.webchat import router as webchat_router
-Open /chat/{contact_id} (e.g. /chat/c_202) in a phone browser. Same router,
+Open /chat/{contact_id} (e.g. /chat/c_202) in a phone browser after logging in at /tenant as that
+tenant (the socket needs their tenant token). Same router,
 same agent; replies go here while this is the contact's last-used channel.
 """
 from __future__ import annotations
@@ -107,9 +108,15 @@ def _save_data_url(data_url: str) -> Media | None:
 
 @router.websocket("/ws/chat/{contact_id}")
 async def chat_socket(ws: WebSocket, contact_id: str):
+    from app import auth
     from app import router as msg_router
     from app.agent import _backend as be
 
+    # only the tenant themself: a tenant token (?token=, from the tenant portal login) for this contact
+    who = auth.read_token(ws.query_params.get("token"))
+    if who is None or who.role != "tenant" or who.sub != contact_id:
+        await ws.close(code=4401)
+        return
     await ws.accept()
     contact = be.get_contact(contact_id)
     phone = be.attr(contact, "phone_e164")
@@ -143,6 +150,12 @@ async def chat_socket(ws: WebSocket, contact_id: str):
 
 @router.get("/chat/{contact_id}", response_class=HTMLResponse, include_in_schema=False)
 async def chat_page(contact_id: str):
+    import re
+
+    from fastapi import HTTPException
+
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", contact_id):  # it is written into the page
+        raise HTTPException(404, "not found")
     return HTMLResponse(_PAGE.replace("__CONTACT__", contact_id))
 
 
@@ -170,7 +183,8 @@ form button,label.att{border:0;background:var(--bar);color:#fff;border-radius:50
 <input id="t" type="text" placeholder="Nachricht" autocomplete="off"><button>➤</button></form>
 <script>
 const log=document.getElementById('log');const proto=location.protocol==='https:'?'wss':'ws';
-let ws;function connect(){ws=new WebSocket(`${proto}://${location.host}/ws/chat/__CONTACT__`);ws.onmessage=e=>render(JSON.parse(e.data));ws.onclose=()=>setTimeout(connect,1500)}connect();
+const tok=localStorage.getItem('debye-tenant-token');if(!tok)location.href='/tenant';
+let ws;function connect(){ws=new WebSocket(`${proto}://${location.host}/ws/chat/__CONTACT__?token=${encodeURIComponent(tok||'')}`);ws.onmessage=e=>render(JSON.parse(e.data));ws.onclose=()=>setTimeout(connect,1500)}connect();
 function bubble(cls,text){const d=document.createElement('div');d.className='b '+cls;d.textContent=text;log.appendChild(d);log.scrollTop=1e9;return d}
 function send(obj,shown){ws.send(JSON.stringify(obj));bubble('out',shown)}
 function render(m){const d=bubble('in',m.text||m.caption||('['+(m.kind||'')+'] '+(m.name||'')));

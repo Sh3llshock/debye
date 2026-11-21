@@ -1,10 +1,11 @@
 // v3 partner portal: Welcome (landing), Log in (demo), Register your company (6 steps).
 // Register keeps the real onboarding backend: POST /api/partners/onboard(/validate).
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { api } from '../../api/client'
-import type { OnboardCheck, OnboardResult, PartnerProfile, WebsiteAutofill } from '../../api/types'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { ApiError, api } from '../../api/client'
+import type { OnboardCheck, OnboardResult, WebsiteAutofill } from '../../api/types'
 import { LangToggle, Logo } from '../../components/Layout'
+import { saveLogin } from '../../lib/auth'
 import { t } from '../../lib/i18n'
 import { CheckPill, saveLocalProfile, setSession } from './shared'
 
@@ -83,39 +84,17 @@ export function PartnerWelcome() {
 // ---------------------------------------------------------------- login (demo: any password)
 
 /** Demo accounts from our seed (partners/*.json, data/seed.json). Technicians land on their phone page. */
-const DEMO_LOGINS: { who: string; email?: string; phone?: string; to: string; pid: string }[] = [
+const DEMO_LOGINS: { who: string; email?: string; phone?: string; id?: string; to: string; pid: string }[] = [
   { who: 'Tom Schmidt · Heizung Schmidt', email: 'jobs@heizung-schmidt.example', phone: '+49 000 000 0003', to: '/partner/heizung-schmidt', pid: 'heizung-schmidt' },
-  { who: 'Ali Yilmaz · Heizung Schmidt (technician)', phone: '+49 000 000 0005', to: '/tech/tech_ali', pid: 'heizung-schmidt' },
+  { who: 'Ali Yilmaz · Heizung Schmidt (technician)', id: 'tech_ali', to: '/tech/tech_ali', pid: 'heizung-schmidt' },
   { who: 'Elektro Klein', email: 'jobs@elektro-klein.example', to: '/partner/elektro-klein', pid: 'elektro-klein' },
-  { who: 'Marco Klein · Elektro Klein (technician)', phone: '+49 000 000 0006', to: '/tech/tech_marco', pid: 'elektro-klein' },
+  { who: 'Marco Klein · Elektro Klein (technician)', id: 'tech_marco', to: '/tech/tech_marco', pid: 'elektro-klein' },
   { who: 'Heiztechnik Grün', email: 'jobs@heiztechnik-gruen.example', to: '/partner/heiztechnik-gruen', pid: 'heiztechnik-gruen' },
   { who: 'Wärme Wagner', phone: '+49 000 000 0004', to: '/partner/waerme-wagner', pid: 'waerme-wagner' },
 ]
-const digits = (s: string) => s.replace(/\D/g, '').replace(/^00/, '')
-
-/** Find a partner by email/phone: the demo list first, then the live partner list (transport addresses). */
-async function findLogin(raw: string): Promise<{ to: string; pid: string } | null> {
-  const q = raw.trim().toLowerCase()
-  if (!q) return null
-  const d = digits(q)
-  const hit = DEMO_LOGINS.find((x) => x.email === q || (d.length >= 6 && x.phone && digits(x.phone) === d))
-  if (hit) return hit
-  let partners: PartnerProfile[] = []
-  try {
-    partners = await api.partners()
-  } catch {
-    return null
-  }
-  for (const p of partners) {
-    const tr = (p.transport ?? {}) as { address?: string; notify?: { address?: string } }
-    const addrs = [tr.address, tr.notify?.address].filter(Boolean).map((a) => String(a).toLowerCase())
-    if (addrs.some((a) => a === q || (d.length >= 6 && digits(a) === d)) || p.partner_id === q) return { to: `/partner/${p.partner_id}`, pid: p.partner_id }
-  }
-  return null
-}
-
 export function PartnerLogin() {
   const nav = useNavigate()
+  const [params] = useSearchParams()
   const [email, setEmail] = useState('')
   const [pass, setPass] = useState('')
   const [err, setErr] = useState('')
@@ -125,11 +104,19 @@ export function PartnerLogin() {
     if (!email.trim()) return setErr(t('Enter your email address or mobile number.'))
     if (!pass) return setErr(t('Enter your password.'))
     setBusy(true)
-    const hit = await findLogin(email)
-    setBusy(false)
-    if (!hit) return setErr(t('No partner account with this email or number.'))
-    setSession({ pid: hit.pid })
-    nav(hit.to)
+    try {
+      // the server finds the account (partner or technician) and returns a signed session token
+      const r = await api.login(email.trim(), pass)
+      if (r.role !== 'partner' && r.role !== 'tech') return setErr(t('No partner account with this email or number.'))
+      saveLogin(r)
+      setSession({ pid: r.pid ?? r.sub, name: r.name })
+      const next = params.get('next')
+      nav(next && next.startsWith(r.to) ? next : r.to)
+    } catch (e) {
+      setErr(e instanceof ApiError && e.status === 404 ? t('No partner account with this email or number.') : t('Login failed. Please try again.'))
+    } finally {
+      setBusy(false)
+    }
   }
   return (
     <RegShell>
@@ -175,11 +162,11 @@ export function PartnerLogin() {
                   type="button"
                   className="text-left hover:text-wine"
                   onClick={() => {
-                    setEmail(x.email ?? x.phone ?? '')
+                    setEmail(x.email ?? x.phone ?? x.id ?? '')
                     setPass('demo')
                   }}
                 >
-                  <span className="font-medium text-ink">{x.email ?? x.phone}</span> · {x.who}
+                  <span className="font-medium text-ink">{x.email ?? x.phone ?? x.id}</span> · {x.who}
                 </button>
               </li>
             ))}
@@ -669,6 +656,7 @@ export function PartnerRegister() {
       const techs = p.team.filter((x) => x.name.trim()).map((x) => ({ name: x.name.trim(), skills: [...new Set([...p.trades.map((k) => TRADES.find((y) => y[0] === k)?.[2] ?? 'heating'), ...p.brands])], ...(x.phone ? { phone_e164: toE164(x.phone) } : {}) }))
       const r = await api.onboard(manifest, techs as { name: string; skills: string[] }[])
       saveLocalProfile(r.partner_id, p as unknown as Record<string, unknown>)
+      if (r.token) saveLogin({ role: 'partner', sub: r.partner_id, pid: r.partner_id, token: r.token })
       setSession({ pid: r.partner_id, name: r.name })
       setDone(r)
     } catch (e) {

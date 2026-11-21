@@ -1,24 +1,41 @@
 """Staff page API (interfaces §4) – the centrix stand-in."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import select
 
-from . import notify, rules, services
+from . import auth, notify, rules, services
 from .db import get_session
 from .models import (Asset, Case, CaseContact, CaseEvent, Consent, Contact, Document, Message,
                      Partner, Property, Unit)
 
-router = APIRouter(prefix="/api/staff", tags=["staff"])
+# every staff route needs a staff session (demo login as the property manager, app.auth)
+router = APIRouter(prefix="/api/staff", tags=["staff"], dependencies=[Depends(auth.staff_only)])
 
 
 # --------------------------------------------------------------------------- serializers
 
 def doc_view(d: Document) -> dict:
     return {"document_id": d.id, "kind": d.kind, "filename": d.filename, "mime": d.mime,
-            "url": f"/files/{d.id}", "case_id": d.case_id, "unit_id": d.unit_id,
+            "url": auth.file_url(d.id), "case_id": d.case_id, "unit_id": d.unit_id,
             "created_at": d.created_at, "extracted": d.extracted or {}}
+
+
+def _signed_event_data(data: dict | None) -> dict:
+    d = dict(data or {})
+    if d.get("document_id"):
+        d["url"] = auth.file_url(d["document_id"])
+    return d
+
+
+def _staff_name(request: Request) -> str | None:
+    p = auth.principal_from(request)
+    if p is None or not p.contact_id:
+        return None
+    with get_session() as s:
+        c = s.get(Contact, p.contact_id)
+    return c.name if c else None
 
 
 def case_summary(s, c: Case) -> dict:
@@ -122,11 +139,11 @@ def case_detail(s, c: Case) -> dict:
                       "purpose": k.purpose, "revoked_at": k.revoked_at} for k in consents],
         "documents": [doc_view(d) for d in docs],
         "events": [{"id": e.id, "ts": e.ts, "actor": e.actor, "kind": e.kind, "summary": e.summary,
-                    "data": e.data} for e in events],
+                    "data": _signed_event_data(e.data)} for e in events],
         "messages": [{"ts": m.ts, "direction": m.direction,
                       "contact": contact_names.get(m.contact_id), "contact_id": m.contact_id,
                       "text": m.text,
-                      "media": [{"document_id": d, "url": f"/files/{d}"} for d in (m.media_ids or [])]}
+                      "media": [{"document_id": d, "url": auth.file_url(d)} for d in (m.media_ids or [])]}
                      for m in msgs],
         "price_check": data.get("price_check"),
         "result": data.get("result"),
@@ -212,11 +229,11 @@ class ApproveBody(BaseModel):
 
 
 @router.post("/cases/{case_id}/approve")
-async def approve(case_id: str, body: ApproveBody | None = None) -> dict:
+async def approve(case_id: str, request: Request, body: ApproveBody | None = None) -> dict:
     if services.get_case(case_id) is None:
         raise HTTPException(404, f"case {case_id} not found")
     try:
-        result = services.approve_case(case_id, staff_name=body.staff_name if body else None)
+        result = services.approve_case(case_id, staff_name=_staff_name(request))  # who is logged in
     except rules.RuleViolation as rv:
         raise HTTPException(409, rv.message)
     await notify.notify_tenant(case_id, "approval_granted",
@@ -232,12 +249,12 @@ class RejectBody(BaseModel):
 
 
 @router.post("/cases/{case_id}/reject")
-async def reject(case_id: str, body: RejectBody | None = None) -> dict:
+async def reject(case_id: str, request: Request, body: RejectBody | None = None) -> dict:
     if services.get_case(case_id) is None:
         raise HTTPException(404, f"case {case_id} not found")
     reason = body.reason if body else ""
     try:
-        result = services.reject_case(case_id, reason, staff_name=body.staff_name if body else None)
+        result = services.reject_case(case_id, reason, staff_name=_staff_name(request))
     except rules.RuleViolation as rv:
         raise HTTPException(409, rv.message)
     await notify.notify_tenant(case_id, "approval_rejected",
