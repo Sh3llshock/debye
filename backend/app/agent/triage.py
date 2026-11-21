@@ -233,6 +233,82 @@ async def classify_llm(text: str) -> tuple[str | None, str | None] | None:
         return None
 
 
+# ------------------------------------------------------------------ planner (a stronger model plans the diagnosis)
+HOLDING_EN = "Let me look into it, one moment."
+HOLDING_DE = "Ich schaue mir das kurz an, einen Moment."
+
+
+def planner_enabled() -> bool:
+    return os.getenv("PLANNER_ENABLED", "0").lower() in ("1", "true", "yes", "on")
+
+
+def _kb_brief(area: str, detail: bool) -> dict:
+    k = dg.load_kb(area)
+    out = {"area": area, "what": k["router"]["description"]}
+    if detail:
+        out["questions"] = {q["id"]: {"text": q["text"], "answers": list(q["answers"])} for q in k["questions"]}
+        out["causes"] = {c["id"]: {"label": c["label"], "signals": c["signals"], "outcome": c["outcome"]}
+                         for c in k["causes"]}
+        out["strategy"] = k.get("strategy")
+    return out
+
+
+async def plan(text: str, candidates: list[str]) -> dict | None:
+    """One structured call to PLANNER_MODEL: the area, the likeliest causes (ranked) and the best 1-3 questions
+    from that area's KB. None if disabled, slow or invalid (keywords and Luna decide then)."""
+    if not os.getenv("OPENAI_API_KEY") or (os.getenv("LLM_PROVIDER") or "openai").lower() != "openai":
+        return None
+    from openai import AsyncOpenAI
+
+    from app.media import openai_base_url
+
+    detail = [a for a in candidates if a in kb_areas()] or list(kb_areas())
+    briefs = [_kb_brief(a, a in detail) for a in kb_areas()]
+    enum = [HOT_WATER, HEATING, *kb_areas(), "unclear"]
+    schema = {"type": "object", "additionalProperties": False,
+              "required": ["area", "likely_causes", "questions", "reason"],
+              "properties": {
+                  "area": {"type": "string", "enum": enum},
+                  "likely_causes": {"type": "array", "items": {"type": "string"},
+                                    "description": "cause ids of that area, likeliest first (max 3)"},
+                  "questions": {"type": "array", "items": {"type": "string"},
+                                "description": "question ids of that area to ask, best first (0-3); skip what the "
+                                               "message already answers; empty if the message already decides it"},
+                  "reason": {"type": "string", "description": "one sentence"}}}
+    system = ("You plan how a property manager's WhatsApp assistant triages a tenant's first message. Pick the area "
+              "(by what is broken, not by the room; hot water and radiators keep their own areas; 'unclear' if the "
+              "message says nothing about what is affected), rank the likeliest causes of that area and pick the "
+              "fewest questions (0-3, one topic each) that best separate them, cheap self-checks first. Use only ids "
+              "from the knowledge below. Never invent facts.\n" + json.dumps(briefs, ensure_ascii=False))
+    extra = {}
+    effort = os.getenv("PLANNER_REASONING_EFFORT", "low")
+    if effort and effort != "none":
+        extra["reasoning_effort"] = effort
+    try:
+        client = AsyncOpenAI(base_url=openai_base_url(), timeout=float(os.getenv("PLANNER_TIMEOUT", "8")),
+                             max_retries=0)
+        r = await client.chat.completions.create(
+            model=os.getenv("PLANNER_MODEL") or "gpt-6-sol",
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": text}],
+            response_format={"type": "json_schema", "json_schema": {"name": "plan", "strict": True, "schema": schema}},
+            **extra)
+        msg = r.choices[0].message
+        if getattr(msg, "refusal", None) or not msg.content:
+            return None
+        p = json.loads(msg.content)
+    except Exception:
+        log.exception("triage planner failed")
+        return None
+    area = p.get("area")
+    if area in kb_areas():
+        k = dg.load_kb(area)
+        qids, cids = {q["id"] for q in k["questions"]}, {c["id"] for c in k["causes"]}
+        p["questions"] = [q for q in p.get("questions") or [] if q in qids][:3]
+        p["likely_causes"] = [c for c in p.get("likely_causes") or [] if c in cids][:3]
+    log.info("triage planner: %s", p)
+    return p
+
+
 async def classify(text: str | None) -> tuple[str | None, str | None]:
     """(primary area or None, queued second area or None)."""
     primary, second, ambiguous = classify_keywords(text)
@@ -288,7 +364,20 @@ async def route(contact, conv: st.Conversation, text: str | None, images: list[s
         return await start_emergency(contact, conv, text, *em)
     if t.get("asked"):  # the answer to "what is it about?" (typed instead of tapped)
         return await on_area_text(contact, conv, text, images)
-    primary, second = await classify(text)
+    kw_primary, kw_second, ambiguous = classify_keywords(text)
+    the_plan = None
+    if planner_enabled() and (kw_primary not in PASSTHROUGH or ambiguous) \
+            and (kw_primary is not None or PROBLEM_RE.search(text)):
+        # a stronger model picks the area and plans the questions; the resident sees a holding message meanwhile
+        await out.text(contact, None, HOLDING_DE if conv.lang == "de" else HOLDING_EN)
+        the_plan = await plan(text, [a for a in scores(text) if a not in PASSTHROUGH][:3])
+    if the_plan and the_plan.get("area") == "unclear" and not kw_second:
+        await ask_area(contact, conv, text)
+        return False
+    if the_plan and the_plan.get("area") in (*PASSTHROUGH, *kb_areas()):
+        primary, second = the_plan["area"], kw_second if kw_second != the_plan["area"] else None
+    else:
+        primary, second = await classify(text)
     if primary is None:
         if PROBLEM_RE.search(text) and not dg.applies(text):
             await ask_area(contact, conv, text)
@@ -301,7 +390,8 @@ async def route(contact, conv: st.Conversation, text: str | None, images: list[s
     t["area"] = primary
     if primary in PASSTHROUGH:
         return None  # hot water: diagnosis.begin in the router; heating: the agent's existing flow
-    return await begin_area(contact, conv, primary, text, images)
+    return await begin_area(contact, conv, primary, text, images,
+                            plan_=the_plan if the_plan and the_plan.get("area") == primary else None)
 
 
 async def start_emergency(contact, conv: st.Conversation, text: str, area: str, cause: str, rec: dict) -> bool:
@@ -380,14 +470,17 @@ async def chose_area(contact, conv: st.Conversation, area: str, complaint: str, 
 
 
 async def begin_area(contact, conv: st.Conversation, area: str, complaint: str | None,
-                     images: list[str] | None = None) -> bool:
+                     images: list[str] | None = None, plan_: dict | None = None) -> bool:
     """Same start as hot water (diagnosis.begin): record what the first message says, then the model asks the
-    one best question of the area's KB or concludes."""
+    one best question of the area's KB (following the planner's plan, if any) or concludes."""
     from . import loop
 
     dg.start(conv, complaint, area)
     d = conv.diagnosis
     d["safety_done"] = True
+    if plan_:
+        d["plan"] = {"likely_causes": plan_.get("likely_causes") or [], "questions": plan_.get("questions") or [],
+                     "reason": plan_.get("reason")}
     _t(conv)["area"] = area
     if complaint and complaint not in conv.tenant_texts:
         conv.tenant_texts.append(complaint)
@@ -405,7 +498,8 @@ async def begin_area(contact, conv: st.Conversation, area: str, complaint: str |
         contact,
         f"[New report, area {area} ({k.get('title') or k.get('symptom')}): \"{complaint}\". Record every answer this "
         "message already gives, then ask the one question that best splits the likeliest causes, or conclude if it's "
-        "already clear.]", images))
+        "already clear." + (" Follow <diagnosis>.plan: its questions in order (skip answered ones), its causes "
+                            "likeliest first." if d.get("plan") else "") + "]", images))
 
 
 async def after_conclusion(contact, conv: st.Conversation, queued_from: dict | None = None) -> None:

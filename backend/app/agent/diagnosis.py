@@ -429,7 +429,15 @@ def context_block(conv: st.Conversation) -> dict:
     """What the model sees in <diagnosis>."""
     d = conv.diagnosis
     use_area(d)
+    suggested = dict(zip(("action", "id", "confidence"), next_step(conv)))
+    plan = d.get("plan")
+    if plan and not is_hot_water() and len(d["asked"]) < MAX_QUESTIONS and suggested["action"] == "ask":
+        nxt = next((q for q in plan["questions"] if q not in d["answers"] and q not in d["asked"]
+                    and q not in d.get("dont_know", [])), None)
+        if nxt:
+            suggested = {"action": "ask", "id": nxt, "confidence": 0.0, "from": "plan"}
     return {
+        **({"plan": plan} if plan and not is_hot_water() else {}),
         "symptom": kb()["symptom"],
         "first_message": d.get("complaint"),
         "strategy": kb()["strategy"],
@@ -448,7 +456,7 @@ def context_block(conv: st.Conversation) -> dict:
         "max_questions": MAX_QUESTIONS,
         "facts": d.get("facts", []),
         "display_error_code": conv.error_code,
-        "suggested_next": dict(zip(("action", "id", "confidence"), next_step(conv))),
+        "suggested_next": suggested,
     }
 
 
