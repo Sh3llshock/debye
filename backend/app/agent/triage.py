@@ -496,6 +496,17 @@ async def begin_area(contact, conv: st.Conversation, area: str, complaint: str |
     _t(conv)["area"] = area
     if complaint and complaint not in conv.tenant_texts:
         conv.tenant_texts.append(complaint)
+    if dg.model_first(d):  # Luna leads with the KBs as reference; code keeps the hard guards only
+        if complaint and dg.FRUSTRATED_RE.search(complaint):
+            await dg.escalate_now(contact, conv, complaint)
+            return False
+        return bool(await loop.run_tenant_turn(
+            contact,
+            f"[New report, area {area}: \"{complaint}\". You lead (model_first): use <diagnosis>.reference. If the "
+            "message already makes one cause clear, conclude_diagnosis now (quote the resident). Otherwise ask ONE "
+            "short question in your own words with ask_free. If it belongs to another area, switch_area first."
+            + (f" The resident corrected the area: start with \"{lead}\" and don't repeat earlier questions." if lead
+               else "") + "]", images))
     await dg.extract_answers(conv, complaint)
     if complaint and dg.FRUSTRATED_RE.search(complaint):
         await dg.escalate_now(contact, conv, complaint)

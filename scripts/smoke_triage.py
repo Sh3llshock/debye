@@ -76,7 +76,7 @@ def run(names: list[str]) -> int:
                 [b["reply"] for b in p["interactive"]["action"].get("buttons", [])]
                 + [r for s in p["interactive"]["action"].get("sections", []) for r in s["rows"]])]
             events = track_ref["t"]["events"]
-            area = next((a for kind, a, _ in events if kind in ("asked", "concluded")), None)
+            area = next((a for kind, a, _ in events if kind in ("asked", "concluded")), None)                 or (state.conversation("c_202").diagnosis or {}).get("area")
             concluded = [c for kind, _, c in events if kind == "concluded"]
             problems = []
             if expect == "list":

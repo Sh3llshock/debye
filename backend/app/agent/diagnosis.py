@@ -429,6 +429,8 @@ def context_block(conv: st.Conversation) -> dict:
     """What the model sees in <diagnosis>."""
     d = conv.diagnosis
     use_area(d)
+    if model_first(d):
+        return model_first_context(conv)
     suggested = dict(zip(("action", "id", "confidence"), next_step(conv)))
     plan = d.get("plan")
     if plan and not is_hot_water() and len(d["asked"]) < MAX_QUESTIONS and suggested["action"] == "ask":
@@ -1079,7 +1081,8 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
     if hw and cause_id != "gas_smell" and missing_core(d, cause_id) and causes()[cause_id]["outcome"] == "technician" \
             and not (cause_id == "boiler_fault" and (conv.error_code or d["answers"].get("q_radiators") == "yes")):
         trade_unknown = True  # the answers don't say which trade: staff pick the company at approval
-    if message is None and cause_id != "gas_smell" and (missing_core(d, cause_id) or trade_unknown):
+    if message is None and cause_id != "gas_smell" and (missing_core(d, cause_id) or trade_unknown) \
+            and not model_first(d):  # model_first: the model's conclusion quotes the tenant (tools._conclude)
         message = ""  # never explain a cause whose required answers are missing (e.g. 'radiators are warm')
     d["concluded"] = cause_id
     override = None
@@ -1314,7 +1317,7 @@ def progress_signature(conv: st.Conversation) -> tuple | None:
     if not d or d.get("concluded") or area_of(d) == HOT_WATER:
         return None
     return (area_of(d), tuple(sorted(d["answers"].items())), tuple(d.get("dont_know", [])), tuple(d["asked"]),
-            d.get("concluded"))
+            d.get("concluded"), tuple(d.get("free_q", [])))
 
 
 async def stall_guard(contact, conv: st.Conversation, before: tuple) -> None:
@@ -1334,3 +1337,81 @@ async def stall_guard(contact, conv: st.Conversation, before: tuple) -> None:
         log.info("diagnosis: no progress for 2 turns, concluding with %s", tech)
         await conclude(contact, conv, tech, 0.4, "No new information for two turns; best outcome so far.",
                        force=True, message=None if supported else "")
+
+
+# ------------------------------------------------------------------ model_first (DIAGNOSIS_MODE, default)
+# Luna leads with the KBs as reference context and writes her own short questions; code keeps hard guards
+# only: safety/gas (router), max 3 questions, never the same question twice, a conclusion must quote the
+# tenant or centrix, and the outcome goes through conclude() (consent, approval, caretaker ... unchanged).
+# Hot water keeps its guided rails (its gates are defined on them); DIAGNOSIS_MODE=guided turns it off.
+def diagnosis_mode() -> str:
+    return (os.getenv("DIAGNOSIS_MODE") or "model_first").strip().lower()
+
+
+def model_first(x) -> bool:
+    return diagnosis_mode() == "model_first" and area_of(x) != HOT_WATER
+
+
+def free_open(d: dict) -> str | None:
+    """The model_first question still waiting for an answer."""
+    return d.get("free_open") if d else None
+
+
+def model_first_context(conv: st.Conversation) -> dict:
+    d = conv.diagnosis
+    use_area(d)
+    k = kb()
+    others = {a: load_kb(a).get("router", {}).get("description") for a in areas() if a not in (HOT_WATER, area_of(d))}
+    return {
+        "mode": "model_first",
+        "area": area_of(d),
+        "first_message": d.get("complaint"),
+        "reference": {
+            "strategy": k.get("strategy"),
+            "causes": [{"id": c["id"], "label": c["label"], "signals": c["signals"], "outcome": c["outcome"],
+                        "trade": c.get("trade"), "tenant_message": c.get("tenant_message")} for c in k["causes"]],
+            "useful_questions": [{"id": q["id"], "text": q["text"], "answers": q["answers"]} for q in k["questions"]],
+        },
+        "other_areas": others,
+        "answers_so_far": d["answers"],
+        "facts": d.get("facts", []),
+        "questions_asked": d.get("free_q", []),
+        "questions_left": max(0, MAX_QUESTIONS - len(d.get("free_q", []))),
+        "open_question": free_open(d),
+        "language": conv.lang,
+    }
+
+
+def evidence_ok(conv: st.Conversation, reasoning: str) -> bool:
+    """The conclusion quotes the tenant (or a centrix fact): at least one "..." quote found in what they wrote."""
+    import difflib
+
+    quotes = [q.strip().lower() for q in re.findall(r"[\"“„']([^\"“”„']{3,120})[\"”']", reasoning or "")]
+    said = " \n ".join([*(conv.tenant_texts or []), (conv.diagnosis or {}).get("complaint") or "",
+                        *((conv.diagnosis or {}).get("facts") or [])]).lower()
+    for q in quotes:
+        if q in said:
+            return True
+        words = q.split()
+        if words and difflib.SequenceMatcher(None, q, said).find_longest_match(0, len(q), 0, len(said)).size \
+                >= max(4, int(0.8 * len(q))):
+            return True
+    return False
+
+
+def too_similar(a: str, b: str) -> bool:
+    import difflib
+
+    na, nb = re.sub(r"\W+", " ", a.lower()).strip(), re.sub(r"\W+", " ", b.lower()).strip()
+    if difflib.SequenceMatcher(None, na, nb).ratio() > 0.72:
+        return True
+    # the same question in other words: most content words shared ("when it rains ... dry" twice)
+    stop = {"the", "is", "it", "or", "and", "does", "do", "you", "your", "a", "an", "in", "on", "of", "to", "also",
+            "when", "there", "this", "that", "are", "any", "just", "only", "mainly", "still", "ist", "es", "oder",
+            "und", "die", "der", "das", "du", "dein", "deine", "auch", "wenn", "nur"}
+
+    def words(x):
+        return {w[:5] for w in x.split() if w not in stop and len(w) > 2}
+
+    wa, wb = words(na), words(nb)
+    return bool(wa and wb) and len(wa & wb) / min(len(wa), len(wb)) >= 0.6

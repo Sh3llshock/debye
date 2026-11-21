@@ -208,3 +208,9 @@ def client(svc):
     app.include_router(whatsapp_router)
     app.include_router(webchat_router)
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _guided_diagnosis_mode(monkeypatch):
+    """These tests exercise the guided rails (fixed KB questions); model_first tests set the mode themselves."""
+    monkeypatch.setenv("DIAGNOSIS_MODE", "guided")

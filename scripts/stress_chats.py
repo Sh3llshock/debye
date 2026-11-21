@@ -140,7 +140,8 @@ def run_chat(client, name: str, track: dict) -> dict:
         conv = state.conversation("c_202")
         d = conv.diagnosis or {}
         return (len(track["events"]), json.dumps(d.get("answers", {}), sort_keys=True), d.get("area"),
-                tuple(d.get("dont_know", [])), conv.step, bool((conv.triage or {}).get("asked")))
+                tuple(d.get("dont_know", [])), conv.step, bool((conv.triage or {}).get("asked")),
+                tuple(d.get("free_q", [])))
 
     stalls, max_stalls, turns, concluded_at = 0, 0, 0, None
     if name == "luka" or name.startswith("luka_"):
@@ -183,7 +184,8 @@ def run_chat(client, name: str, track: dict) -> dict:
     repeats = [(a, b) for i, a in enumerate(questions) for b in questions[i + 1:]
                if difflib.SequenceMatcher(None, a.lower(), b.lower()).ratio() > 0.8]
     concl = [e for e in track["events"] if e[0] == "concluded"]
-    got_area = concl[-1][1] if concl else next((a for k, a, _ in track["events"] if k == "asked"), None)
+    got_area = concl[-1][1] if concl else next((a for k, a, _ in track["events"] if k == "asked"),
+                                                 (state.conversation("c_202").diagnosis or {}).get("area"))
     got_outcome = et.outcome_of(concl[-1][1], concl[-1][2]) if concl else None
     resolved = any(e[0] == "resolved" for e in track["events"])
     problems = []

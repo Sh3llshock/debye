@@ -233,9 +233,10 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
     in_diagnosis = diagnosis.active(conv)
     if in_diagnosis and conv.diagnosis.get("conflict_open"):
         diagnosis.resolve_conflict_reply(conv, text)  # "no", "everything": resolved or moved on, never looped
-    if in_diagnosis and text:
+    guided = in_diagnosis and not diagnosis.model_first(conv.diagnosis)  # model_first: the model reads it all
+    if guided and text:
         await diagnosis.extract_answers(conv, text)  # evidence first; the agent then asks/concludes
-    if in_diagnosis:
+    if guided:
         settled = diagnosis.decisive_self_help(conv.diagnosis, conv.error_code)
         if settled:
             await diagnosis.conclude(contact, conv, settled, 0.85, "Decisive answer: "
