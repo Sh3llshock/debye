@@ -319,7 +319,7 @@ async def request_consent(contact, case_id: str, prefix: str = "") -> None:
     conv.step = st.CONSENT
     conv.asked_at[st.CONSENT] = time.monotonic()
     who = ("einen Techniker" if conv.lang == "de" else "a technician") if cs.trade_unknown \
-        else cs.partner_name or ("eine Heizungsfirma" if conv.lang == "de" else "a heating company")
+        else cs.partner_name or cs.trade_label or ("eine Heizungsfirma" if conv.lang == "de" else "a heating company")
     cs.consent_fields, cs.consent_purpose = consent_scope(case_id, conv)
     await out.buttons(
         contact,

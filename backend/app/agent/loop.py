@@ -195,6 +195,12 @@ async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | No
         await flow.link_if_building_case_open(contact, conv)
         from . import diagnosis
 
+        if diagnosis.active(conv) and diagnosis.model_first(conv.diagnosis):
+            if ctx.sent == 0:  # the model sent nothing: never loop, conclude with the best outcome so far
+                tech, _ok = diagnosis.likeliest_technician(conv.diagnosis, conv.error_code)
+                await diagnosis.conclude(contact, conv, tech, 0.4, "No reply from the model; best outcome so far.",
+                                         force=True, message="")
+            return False
         if diagnosis.active(conv):
             open_q = diagnosis.open_question(conv.diagnosis)
             if not diagnosis.question_slot_free(conv.diagnosis) or "clarify" in ctx.calls:

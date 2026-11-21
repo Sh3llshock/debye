@@ -141,6 +141,25 @@ SCHEMAS += [
     },
 ]
 
+SCHEMAS += [
+    {
+        "name": "ask_free",
+        "description": "model_first diagnosis only (<diagnosis>.mode = model_first): ask the resident ONE short question "
+        "in your own words (their language), the one that best separates the likely causes in <diagnosis>.reference. "
+        "options: 0-3 short tap answers (max 20 characters each), or [] for a free answer. Max 3 questions per "
+        "diagnosis; never ask what the resident already said; never the same question twice.",
+        "input_schema": _obj({"question": {"type": "string"},
+                              "options": {"type": "array", "items": {"type": "string"}}}),
+    },
+    {
+        "name": "switch_area",
+        "description": "model_first diagnosis only: the problem belongs to another area (see <diagnosis>.other_areas), "
+        "e.g. the resident says the water comes from the ceiling. Switches the reference to that area; then ask or "
+        "conclude in the same turn.",
+        "input_schema": _obj({"area": {"type": "string"}}),
+    },
+]
+
 for s in SCHEMAS:
     s["strict"] = True
 
@@ -154,6 +173,12 @@ async def _reply(ctx: TurnContext, text: str) -> dict:
         raise ValueError("A diagnosis question was just sent: stop now, don't add another message.")
 
     d = ctx.conv.diagnosis
+    if diagnosis.active(ctx.conv) and diagnosis.model_first(d):
+        if "?" in text:
+            raise ValueError("model_first: ask questions only with ask_free (it checks for repeats and the limit)")
+        if "?" not in (d.get("last_text") or "") or {"ask_free", "conclude_diagnosis"} & set(ctx.calls[:-1]):
+            raise ValueError("model_first: no plain-text messages during the diagnosis. Ask with ask_free, or "
+                             "finish with conclude_diagnosis (it sends the cause's message and the next step).")
     if diagnosis.active(ctx.conv) and diagnosis.open_question(d) and "?" in text:
         raise ValueError(f"Question {diagnosis.open_question(d)} is still open: don't ask anything in plain text. Record what the "
                          "resident said, or send a short acknowledgement without a question, or nothing.")
@@ -250,6 +275,8 @@ async def _ask_question(ctx: TurnContext, question_id: str, lead_in: str | None 
     if not diagnosis.active(ctx.conv):
         raise ValueError("no diagnosis running")
     d = ctx.conv.diagnosis
+    if diagnosis.model_first(d):
+        raise ValueError("model_first diagnosis: ask in your own words with ask_free")
     if question_id not in diagnosis.questions():
         raise ValueError(f"unknown question {question_id}")
     if question_id in d["answers"]:
@@ -310,6 +337,16 @@ async def _conclude(ctx: TurnContext, cause_id: str, confidence: float, reasonin
         raise ValueError("no diagnosis running")
     if not diagnosis.question_slot_free(ctx.conv.diagnosis):
         raise ValueError("A question was sent this turn: wait for the answer before concluding.")
+    if diagnosis.model_first(ctx.conv.diagnosis):
+        if cause_id not in diagnosis.causes():
+            raise ValueError(f"unknown cause {cause_id}; pick one of <diagnosis>.reference.causes (or switch_area)")
+        if not diagnosis.evidence_ok(ctx.conv, reasoning):
+            raise ValueError('Quote the resident: the reasoning must contain at least one "..." quote of what they '
+                             "wrote (or a centrix fact). Never state anything they didn't say.")
+        res = await diagnosis.conclude(ctx.contact, ctx.conv, cause_id, max(0.0, min(1.0, confidence)), reasoning,
+                                       translation=translation, force=True)
+        ctx.sent += 1
+        return res
     res = await diagnosis.conclude(ctx.contact, ctx.conv, cause_id, max(0.0, min(1.0, confidence)), reasoning,
                                    translation=translation)
     ctx.sent += 1
@@ -322,6 +359,8 @@ async def _clarify(ctx: TurnContext, text: str) -> dict:
     d = ctx.conv.diagnosis
     if not diagnosis.active(ctx.conv):
         raise ValueError("no diagnosis running")
+    if diagnosis.model_first(d):
+        raise ValueError("model_first diagnosis: a clarifying question is a question too, use ask_free")
     if d.get("clarifications", 0) >= 2:
         raise ValueError("2 clarifications used: record what you can (or 'unknown') and move on")
     if ctx.sent:
@@ -357,11 +396,72 @@ async def _clarify(ctx: TurnContext, text: str) -> dict:
     return {"ok": True, "delivered": True, "note": "Wait for the tenant's answer."}
 
 
+async def _ask_free(ctx: TurnContext, question: str, options: list[str]) -> dict:
+    from . import diagnosis
+
+    d = ctx.conv.diagnosis
+    if not diagnosis.active(ctx.conv) or not diagnosis.model_first(d):
+        raise ValueError("ask_free is only for a model_first diagnosis; use ask_question")
+    question = (question or "").strip()
+    if "?" not in question or len(question) > 300:
+        raise ValueError("one short question, ending with '?'")
+    if ctx.sent or not diagnosis.question_slot_free(d):
+        raise ValueError("A message was already sent this turn: stop now.")
+    asked = d.setdefault("free_q", [])
+    if len(asked) >= diagnosis.MAX_QUESTIONS:
+        raise ValueError("3 questions asked: call conclude_diagnosis now with the most likely cause")
+    for prev in asked:
+        if diagnosis.too_similar(question, prev):
+            raise ValueError(f"You already asked that ('{prev}'). Never repeat a question: ask something different "
+                             "that moves the diagnosis on, or conclude with the most likely cause.")
+    opts = [o.strip()[:20] for o in (options or []) if o and o.strip()][:3]
+    asked.append(question)
+    d["free_open"] = question
+    d["q_turn"] = d.get("turn")
+    ctx.conv.step = st.DIAGNOSIS
+    if opts:
+        de = ctx.conv.lang == "de"
+        rows = [Option(f"fa{i}", o) for i, o in enumerate(opts)] + \
+            [Option("fa9", "Etwas anderes" if de else "Something else")]
+        if len(rows) > 3:
+            await out.list_(ctx.contact, ctx.conv.case_id, question, "Auswählen" if de else "Choose", rows)
+        else:
+            await out.buttons(ctx.contact, ctx.conv.case_id, question, rows)
+    else:
+        await out.text(ctx.contact, ctx.conv.case_id, question)
+    ctx.sent += 1
+    return {"ok": True, "delivered": True, "note": "Question sent. Wait for the answer."}
+
+
+async def _switch_area(ctx: TurnContext, area: str) -> dict:
+    from . import diagnosis
+
+    d = ctx.conv.diagnosis
+    if not diagnosis.active(ctx.conv) or not diagnosis.model_first(d):
+        raise ValueError("switch_area is only for a model_first diagnosis")
+    if area not in diagnosis.areas() or area == diagnosis.HOT_WATER:
+        raise ValueError(f"unknown area {area}; pick one of <diagnosis>.other_areas")
+    if area == diagnosis.area_of(d):
+        return {"ok": True, "note": "already in that area"}
+    if d.get("switches", 0) >= 2:
+        raise ValueError("area switched twice already: conclude with the best outcome")
+    keep = {k: d.get(k) for k in ("free_q", "free_open", "turn", "q_turn", "facts")}
+    complaint = "\n".join(t for t in [d.get("complaint"), d.get("last_text")] if t)
+    diagnosis.start(ctx.conv, complaint, area)
+    ctx.conv.diagnosis.update({k: v for k, v in keep.items() if v is not None})
+    ctx.conv.diagnosis["switches"] = d.get("switches", 0) + 1
+    if ctx.conv.triage is not None:
+        ctx.conv.triage["area"] = area
+    return {"ok": True, "diagnosis": diagnosis.model_first_context(ctx.conv)}
+
+
 IMPLS: dict[str, Callable[..., Awaitable[dict]]] = {
     "clarify": _clarify,
     "ask_question": _ask_question,
     "record_answer": _record_answer,
     "conclude_diagnosis": _conclude,
+    "ask_free": _ask_free,
+    "switch_area": _switch_area,
     "reply": _reply,
     "ask_buttons": _ask_buttons,
     "ask_list": _ask_list,
@@ -371,7 +471,7 @@ IMPLS: dict[str, Callable[..., Awaitable[dict]]] = {
 }
 
 
-SENDING_TOOLS = {"reply", "ask_buttons", "ask_list", "ask_question", "clarify", "conclude_diagnosis",
+SENDING_TOOLS = {"reply", "ask_buttons", "ask_list", "ask_question", "clarify", "conclude_diagnosis", "ask_free",
                  "record_triage_answer", "open_case"}
 
 

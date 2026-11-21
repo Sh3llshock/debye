@@ -152,7 +152,10 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
     if conv.diagnosis:
         conv.diagnosis["turn"] = conv.diagnosis.get("turn", 0) + 1  # one batch of tenant messages = one turn
     # Gas smell / hissing mentioned anywhere → emergency path at once (never asked proactively)
-    if text and diagnosis.safety_from_text(text) == "yes" and conv.step != st.CLOSED:
+    other_area = conv.diagnosis and diagnosis.area_of(conv.diagnosis) != diagnosis.HOT_WATER
+    if text and diagnosis.safety_from_text(text) == "yes" and conv.step != st.CLOSED \
+            and not (other_area and not re.search(r"\b(gas|gasgeruch)\b", text, re.I)):
+        # (outside hot water a hissing toilet or tap is not a gas leak: only the word 'gas' counts there)
         if not conv.diagnosis or conv.diagnosis.get("concluded"):
             diagnosis.start(conv, text)
         await diagnosis.conclude(contact, conv, "gas_smell", 1.0, f"Tenant mentions a gas smell: \"{text[:120]}\"")
@@ -203,6 +206,12 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
                 conv.pending_options = []
                 await diagnosis.on_follow_up(contact, cause, opt.id.startswith("diagfu_yes"))
                 return False
+        if text and d.get("acked") and diagnosis.area_of(d) != diagnosis.HOT_WATER \
+                and re.fullmatch(r"\W*(idk|i don'?t know|dunno|not sure|no idea|keine ahnung|wei(ß|ss) nicht)\W*",
+                                 text.strip(), re.I):
+            conv.pending_options = []  # can't do the tip: a technician instead of repeating it
+            await diagnosis.on_follow_up(contact, d["concluded"], False)
+            return False
         if text and diagnosis.ACK_RE.fullmatch(text.strip()) and not d.get("acked"):
             d["acked"] = True  # "ok, will try later": nothing to diagnose, just keep the door open
             from app.agent import outbound
@@ -233,9 +242,10 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
     in_diagnosis = diagnosis.active(conv)
     if in_diagnosis and conv.diagnosis.get("conflict_open"):
         diagnosis.resolve_conflict_reply(conv, text)  # "no", "everything": resolved or moved on, never looped
-    if in_diagnosis and text:
+    guided = in_diagnosis and not diagnosis.model_first(conv.diagnosis)  # model_first: the model reads it all
+    if guided and text:
         await diagnosis.extract_answers(conv, text)  # evidence first; the agent then asks/concludes
-    if in_diagnosis:
+    if guided:
         settled = diagnosis.decisive_self_help(conv.diagnosis, conv.error_code)
         if settled:
             await diagnosis.conclude(contact, conv, settled, 0.85, "Decisive answer: "
@@ -257,6 +267,15 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
         and diagnosis.area_of(conv) != diagnosis.HOT_WATER and bool(conv.diagnosis)
     case_id = conv.case_id
     before = diagnosis.progress_signature(conv)
+    d_done = conv.diagnosis or {}
+    if text and d_done.get("concluded") and diagnosis.area_of(d_done) != diagnosis.HOT_WATER:
+        # a follow-up after an emergency / technician / caretaker conclusion: stay in that case, never hot water
+        label = (diagnosis.load_kb(diagnosis.area_of(d_done)).get("title") or "the problem")
+        cause = next((c.get("label") for c in diagnosis.load_kb(diagnosis.area_of(d_done))["causes"]
+                      if c["id"] == d_done["concluded"]), d_done["concluded"])
+        text = (f"[Follow-up on the open case ({label}: {cause}); everything else is already arranged. Reply in ONE "
+                "short sentence that acknowledges what they said and repeats the safety step if there is one. No "
+                "diagnostic questions, nothing about hot water or heating unless they raise it.]\n" + text)
     interrupted = bool(await loop.run_tenant_turn(contact, text, images))
     if not interrupted and before is not None:
         await diagnosis.stall_guard(contact, conv, before)  # two turns in a row without progress: conclude

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import atexit
 import difflib
+import re
 import json
 import os
 import shutil
@@ -31,6 +32,14 @@ import eval_triage as et  # noqa: E402  (temp DB, env, backend on sys.path)
 PHONE = "490000000001"
 MAX_TURNS = 6
 LUKA = ["Water is dripping from my ceeling", "I said the ceeling", "Yes", "Yesss"]
+# scripted chats from live bugs: name prefix -> (messages, expected area, allowed outcomes)
+SCRIPTS = {
+    "luka": (LUKA, "roof_ceiling_leak", ("technician", "caretaker")),
+    "sparks": (["socket in bedroom sparks", "only that one", "ok thanks"], "electrics", ("emergency",)),
+}
+HEATING_FIRM_OK = ("water_leak", "no_hot_water", "heating")  # heizung-schmidt also does plumbing
+HW_LEAK_RE = re.compile(r"(hot water|radiator|room is cold|tap has no|warm water|shower)", re.I)
+ACK_RE = re.compile(r"(sorry|got it|understood|right|ceiling|i see|thanks for|okay, the|ok, the)", re.I)
 
 # name: (opener, what is true for the tenant, persona, expected area, allowed outcomes)
 CHATS: dict[str, tuple[str, str, str, str, tuple[str, ...]]] = {
@@ -98,7 +107,7 @@ CHATS: dict[str, tuple[str, str, str, str, tuple[str, ...]]] = {
     "vague": ("something isnt working", "It's the bathroom sink, it drains slowly, plunger didn't help.",
               "vague first, then answer", "blocked_drain", ("technician", "self_help")),
     "none_of_these": ("water on my floor", "It comes from under the fridge.", "reject the first options "
-                      "('none of these')", "appliances", ("technician", "self_help", "management")),
+                      "('none of these')", ("appliances", "water_leak"), ("technician", "self_help", "management")),
 }
 
 SIM = """You play a tenant texting Debye, the WhatsApp assistant of the property manager. You are difficult on
@@ -140,11 +149,14 @@ def run_chat(client, name: str, track: dict) -> dict:
         conv = state.conversation("c_202")
         d = conv.diagnosis or {}
         return (len(track["events"]), json.dumps(d.get("answers", {}), sort_keys=True), d.get("area"),
-                tuple(d.get("dont_know", [])), conv.step, bool((conv.triage or {}).get("asked")))
+                tuple(d.get("dont_know", [])), conv.step, bool((conv.triage or {}).get("asked")),
+                tuple(d.get("free_q", [])))
 
     stalls, max_stalls, turns, concluded_at = 0, 0, 0, None
-    if name == "luka" or name.startswith("luka_"):
-        script, expect_area, allowed = list(LUKA), "roof_ceiling_leak", ("technician", "caretaker")
+    key = name.split("_")[0]
+    if key in SCRIPTS:
+        msgs, expect_area, allowed = SCRIPTS[key]
+        script = list(msgs)
         opener, sim = script.pop(0), None
     else:
         opener, facts, persona, expect_area, allowed = CHATS[name]
@@ -161,7 +173,8 @@ def run_chat(client, name: str, track: dict) -> dict:
         if concluded_at is None and any(e[0] == "concluded" for e in track["events"]):
             concluded_at = turns
         last = next((e for e in reversed(track["events"]) if e[0] == "concluded"), None)
-        if last and et.outcome_of(last[1], last[2]) != "self_help" and not log[-1][1].count("Is it okay if I share"):
+        if last and et.outcome_of(last[1], last[2]) != "self_help" and not log[-1][1].count("Is it okay if I share") \
+                and not script:
             break
         if script:
             msg = script.pop(0)
@@ -183,10 +196,24 @@ def run_chat(client, name: str, track: dict) -> dict:
     repeats = [(a, b) for i, a in enumerate(questions) for b in questions[i + 1:]
                if difflib.SequenceMatcher(None, a.lower(), b.lower()).ratio() > 0.8]
     concl = [e for e in track["events"] if e[0] == "concluded"]
-    got_area = concl[-1][1] if concl else next((a for k, a, _ in track["events"] if k == "asked"), None)
+    got_area = concl[-1][1] if concl else next((a for k, a, _ in track["events"] if k == "asked"),
+                                                 (state.conversation("c_202").diagnosis or {}).get("area"))
     got_outcome = et.outcome_of(concl[-1][1], concl[-1][2]) if concl else None
     resolved = any(e[0] == "resolved" for e in track["events"])
     problems = []
+    exp_areas = expect_area if isinstance(expect_area, tuple) else (expect_area,)
+    if not any(a in HEATING_FIRM_OK for a in exp_areas) and any("Heizung" in t for w, t in log if w == "debye"):
+        problems.append("wrong partner: a heating firm for another trade")
+    if concl:
+        first_concl = next(i for i, (w, t) in enumerate(log) if w == "debye" and i > 0) if log else 0
+        after = [t for w, t in log[first_concl + 1:] if w == "debye"]
+        if got_outcome == "emergency" and any(HW_LEAK_RE.search(t) for t in after):
+            problems.append("state leak: hot-water/heating talk after the emergency")
+    if key == "luka":
+        i = next((n for n, (w, t) in enumerate(log) if w == "tenant" and t.startswith("I said")), None)
+        reply = next((t for w, t in log[i + 1:] if w == "debye"), "") if i is not None else ""
+        if not ACK_RE.search(reply):
+            problems.append(f"correction not acknowledged: {reply[:60]!r}")
     if repeats:
         problems.append(f"question repeated: {repeats[0][1][:60]!r}")
     if max_stalls >= 3:
@@ -234,7 +261,7 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--out", default=os.getenv("STRESS_OUT"))
     a = ap.parse_args()
-    names = a.names or [*CHATS, "luka_1", "luka_2", "luka_3"]
+    names = a.names or [*CHATS, "luka_1", "luka_2", "luka_3", "sparks_1"]
     names = [n if n != "luka" else "luka_1" for n in names]
     tmp = Path(tempfile.mkdtemp(prefix="debye-stress-"))
     atexit.register(shutil.rmtree, tmp, True)
@@ -252,7 +279,7 @@ def main() -> int:
         if of.exists():
             rows += json.loads(of.read_text(encoding="utf-8"))
     luka = [r for r in rows if r["name"].startswith("luka")]
-    other = [r for r in rows if not r["name"].startswith("luka")]
+    other = [r for r in rows if not r["name"].startswith("luka")]  # (sparks counts with the others)
     ok = sum(r["passed"] for r in other)
     pct = round(100 * ok / max(len(other), 1))
     print(f"\nstress: {ok}/{len(other)} chats passed ({pct}%), Luka's chat clean {sum(r['passed'] for r in luka)}/"
