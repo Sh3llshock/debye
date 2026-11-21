@@ -405,6 +405,8 @@ async def _ask_free(ctx: TurnContext, question: str, options: list[str]) -> dict
     question = (question or "").strip()
     if "?" not in question or len(question) > 300:
         raise ValueError("one short question, ending with '?'")
+    if question.count("?") > 1:
+        raise ValueError("ONE question per message (one '?'): drop the second question, ask it later if needed")
     if ctx.sent or not diagnosis.question_slot_free(d):
         raise ValueError("A message was already sent this turn: stop now.")
     asked = d.setdefault("free_q", [])

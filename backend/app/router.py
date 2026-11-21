@@ -268,6 +268,14 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
     case_id = conv.case_id
     before = diagnosis.progress_signature(conv)
     d_done = conv.diagnosis or {}
+    if text and "?" not in text and d_done.get("concluded") and diagnosis.area_of(d_done) != diagnosis.HOT_WATER \
+            and diagnosis.outcome_of_cause(d_done) == "emergency" and not images:
+        # after an emergency message: acknowledge once, never flip the meaning of a bare "no", never repeat
+        # "call 112" unless they report danger again (the safety message already went out)
+        from app.agent import outbound as out_follow
+
+        await out_follow.text(contact, conv.case_id, diagnosis.emergency_follow_up(conv, text))
+        return False
     if text and d_done.get("concluded") and diagnosis.area_of(d_done) != diagnosis.HOT_WATER:
         # a follow-up after an emergency / technician / caretaker conclusion: stay in that case, never hot water
         label = (diagnosis.load_kb(diagnosis.area_of(d_done)).get("title") or "the problem")

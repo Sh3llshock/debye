@@ -36,6 +36,11 @@ LUKA = ["Water is dripping from my ceeling", "I said the ceeling", "Yes", "Yesss
 SCRIPTS = {
     "luka": (LUKA, "roof_ceiling_leak", ("technician", "caretaker")),
     "sparks": (["socket in bedroom sparks", "only that one", "ok thanks"], "electrics", ("emergency",)),
+    "sparksno": (["socket in bedroom sparks", "only that one", "no"], "electrics", ("emergency",)),
+    "windowhandle": (["my windo wont close properly", "the handle turns but it doesnt lock", "living room"],
+                     "windows_doors", ("caretaker", "technician")),
+    "mouldair": (["mold in bathroom", "dry, just spots", "i dont really air it", "smaller than my hand"],
+                 "mold_damp", ("self_help", "technician")),
 }
 HEATING_FIRM_OK = ("water_leak", "no_hot_water", "heating")  # heizung-schmidt also does plumbing
 HW_LEAK_RE = re.compile(r"(hot water|radiator|room is cold|tap has no|warm water|shower)", re.I)
@@ -209,6 +214,12 @@ def run_chat(client, name: str, track: dict) -> dict:
         after = [t for w, t in log[first_concl + 1:] if w == "debye"]
         if got_outcome == "emergency" and any(HW_LEAK_RE.search(t) for t in after):
             problems.append("state leak: hot-water/heating talk after the emergency")
+    debye = [t for w, t in log if w == "debye"]
+    if any(a == b for a, b in zip(debye, debye[1:])):
+        problems.append("the same message sent twice in a row")
+    if got_outcome == "emergency" and sum("112" in t for t in debye) > 1 \
+            and not any(re.search(r"(smoke|fire|burn|spark|flame)", t, re.I) for w, t in log[1:] if w == "tenant"):
+        problems.append("'call 112' repeated without new danger")
     if key == "luka":
         i = next((n for n, (w, t) in enumerate(log) if w == "tenant" and t.startswith("I said")), None)
         reply = next((t for w, t in log[i + 1:] if w == "debye"), "") if i is not None else ""
@@ -261,7 +272,8 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--out", default=os.getenv("STRESS_OUT"))
     a = ap.parse_args()
-    names = a.names or [*CHATS, "luka_1", "luka_2", "luka_3", "sparks_1"]
+    names = a.names or [*CHATS, "luka_1", "luka_2", "luka_3", "sparks_1", "sparksno_1", "windowhandle_1",
+                        "mouldair_1"]
     names = [n if n != "luka" else "luka_1" for n in names]
     tmp = Path(tempfile.mkdtemp(prefix="debye-stress-"))
     atexit.register(shutil.rmtree, tmp, True)

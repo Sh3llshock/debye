@@ -369,5 +369,28 @@ def test_follow_up_after_an_emergency_stays_in_the_case(client, svc, claude, mon
 
     monkeypatch.setattr(loop, "run_tenant_turn", fake_turn)
     client.post("/webhooks/whatsapp", json=wa("only that one"))
-    assert seen and seen[-1].startswith("[Follow-up on the open case (Electrics")
+    assert not seen  # after an emergency, code acknowledges: never the hot-water / heating flow
+    assert texts(client)[-1].startswith("Got it, thanks.")
+    client.post("/webhooks/whatsapp", json=wa("how long will the electrician take?"))
+    assert seen and seen[-1].startswith("[Follow-up on the open case (Electrics")  # questions: Luna, in the case
     assert "nothing about hot water or heating" in seen[-1]
+
+
+def test_emergency_follow_ups_acknowledge_once_without_repeating_112(client, svc, claude):
+    claude([RuntimeError("down")] * 10)
+    client.post("/webhooks/whatsapp", json=wa("socket in bedroom sparks"))
+    client.post("/webhooks/whatsapp", json=wa("only that one"))
+    client.post("/webhooks/whatsapp", json=wa("no"))
+    t = texts(client)
+    assert t[1].startswith("Got it, thanks.") and "electrician" in t[1].lower()
+    assert t[2].startswith("Noted.") and sum("112" in x for x in t) == 1
+    client.post("/webhooks/whatsapp", json=wa("now there is smoke coming out"))
+    assert "112" in texts(client)[-1]  # danger again: the safety step again
+
+
+def test_model_first_one_question_per_message(client, svc, monkeypatch):
+    from app.agent import tools
+
+    conv, ctx = _mf(svc, monkeypatch, "electrics", "no power in kitchen")
+    with pytest.raises(ValueError, match="ONE question"):
+        asyncio.run(tools._ask_free(ctx, "Is the power out in the whole flat? Are the neighbours dark too?", []))
