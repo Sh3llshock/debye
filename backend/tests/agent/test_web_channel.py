@@ -198,3 +198,29 @@ def test_chip_after_restart_lands_in_its_case(web, claude):
              headers=h)
     msgs = web.get(f"/api/tenant/messages?case_id={case_id}", headers=h).json()["messages"]
     assert any(m["direction"] == "in" and m["text"] == "All cold" for m in msgs)
+
+
+def test_diagnosis_chips_never_repeat_a_question(web, claude):
+    """Tenant-portal report: after 'No' to the hot-water-use chip Debye asked an almost identical
+    follow-up. KB v2 asks one merged question; every question is asked at most once, also via chips."""
+    claude([RuntimeError("down")] * 20)  # model down: the code policy drives the questions
+    h = login(web)
+    web.post("/api/tenant/messages?wait=1", data={"text": "My shower is cold"}, headers=h)
+    truth = {"q_scope": "everywhere", "q_hot_water_use": "no", "q_radiators": "no", "q_wait_result": "stays_cold",
+             "q_switch_check": "all_on", "q_display": "normal"}
+    asked = []
+    for _ in range(6):
+        pending = web.get("/api/tenant/messages", headers=h).json().get("pending") or {}
+        diag = [o for o in pending.get("options") or [] if o["id"].startswith("diag:")]
+        if not diag:
+            break
+        qid = diag[0]["id"].split(":")[1]
+        asked.append(qid)
+        key = truth.get(qid) or diag[0]["id"].split(":")[2]
+        chip = next(o for o in diag if o["id"] == f"diag:{qid}:{key}")
+        web.post("/api/tenant/messages?wait=1", data={"button_id": chip["id"], "button_title": chip["title"]},
+                 headers=h)
+    assert asked and len(asked) == len(set(asked)) and len(asked) <= 3
+    outs = [m["text"] for m in web.get("/api/tenant/messages", headers=h).json()["messages"] if m["direction"] == "out"]
+    assert sum("use hot water" in t or "running at the same time" in t for t in outs) <= 1  # one merged question
+    assert outbox(web) == []
