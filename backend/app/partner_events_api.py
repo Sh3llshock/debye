@@ -276,10 +276,6 @@ async def _any(ev: StatusEvent, case: Case, m: Manifest) -> None:
         record_event(cid, "partner", "job.needs_info", f"{m.name} asks: {q}", {"partner_id": pid, "question": q})
 
 
-# Sell partners (feature 8) register their handler here: async (ev, case, manifest) -> None
-SELL_HANDLERS: dict = {}
-
-
 @router.post("/api/partners/{partner_id}/events")
 async def partner_event(partner_id: str, request: Request) -> dict:
     raw = await request.body()
@@ -314,10 +310,8 @@ async def partner_event(partner_id: str, request: Request) -> dict:
     if ev.status in ANY:
         await _any(ev, case, m)
     elif m.kind == "sell":
-        handler = SELL_HANDLERS.get("sell")
-        if not handler:
-            raise HTTPException(501, "sell lifecycle not available")
-        await handler(ev, case, m)
+        from . import triggers  # sell lifecycle: accepted → signed → active (service_contract)
+        await triggers.on_sell_event(ev, case, m)
     else:
         await _deliver(ev, case, m)
     stored = (((services.get_case(case.id).data or {}).get("partner_order")) or {}).get("status")

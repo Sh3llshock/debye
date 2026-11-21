@@ -93,6 +93,19 @@ For partners without an API. Debye:
 
 When the lifecycle reaches `closed` (deliver) or `active` (sell), centrix links the outcome to the unit: `service_contract` or `service_job` with partner, status, dates, price/invoice, documents and the consent record.
 
+### 7.1 What is built: the sell flow (Example Fibre GmbH, `partners/example-fibre.json`)
+
+Proof that the spec is generic: the internet partner runs end to end with no fibre-specific code.
+
+1. **Trigger** (`backend/app/triggers.py`): centrix sends `tenant.move_in {unit_id, contact_id?, move_in_date?}` to `POST /api/centrix/events` (staff unit page button "Tenant moves in", or `POST /demo/trigger/move_in`). Every active partner whose `triggers` contain the event is checked with its `eligibility` rules (`property.fibre_available eq true`, `in_service_area`); each eligible one gets a case of its `category` (`telecom.internet`, status `offered`, cost bearer tenant). Ineligible partners come back in `skipped` with the failed rules. Firing twice does not open a second offer while one is open.
+2. **Offer** (`agent/flow.send_offers`): the manifest's `offers` become buttons ("Fibre 250 · €29.99/month", "Fibre 500 · €34.99/month", "No thanks").
+3. **Consent**: on a pick Debye asks for the manifest's `consent_required` fields ("your name, your address and your move-in date … OK?"). Nothing leaves centrix before the tap. No staff approval: the tenant signs their own contract.
+4. **Order** through the API transport (§4.1) with `offer_id` and the consented context; case status `ordered`.
+5. **Lifecycle** through the events webhook: `offered → accepted → signed (+ contract document) → active`, anything else is a 409.
+6. **Result** on `active`: written to the unit in reltix's shape `{unit_id, contact_id, service_contract: {partner, category, product, status, start, monthly_price_eur, consent: {data_shared, given_at, channel}}}`, stored as a `service` Contract on the unit, on the case (`data.result`) and as a JSON document; the case closes. The staff unit page lists it under "Service contracts", the tenant portal under "Your services".
+
+Fake partner: `python scripts/fake_fibre.py --port 8101 --debye http://localhost:8000` (`FIBRE_SECRET` in `.env`) answers accepted → signed → active about 3 s apart.
+
 ## 8. Adding the next partner
 
 1. Write the manifest (15 minutes).

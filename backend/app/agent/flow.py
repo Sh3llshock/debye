@@ -552,3 +552,125 @@ async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[st
         await ask_fixed(cid)
     else:
         await out.text(contact, cid, "Thanks. I'm on it and will let you know as soon as there's news.")
+
+
+# ---------------------------------------------------------------- sell flow (triggers.py, feature 8)
+# Generic for any kind "sell" manifest: the offers, consent fields and partner come from the manifest.
+SELL_FIELD_LABELS = {"name": ("your name", "deinen Namen"), "address": ("your address", "deine Adresse"),
+                     "move_in_date": ("your move-in date", "dein Einzugsdatum"),
+                     "phone": ("your phone number", "deine Telefonnummer"), "email": ("your email", "deine E-Mail")}
+
+
+def _sell_lang(contact) -> str:
+    conv = st.conversation(be.attr(contact, "id"))
+    return "de" if (conv.lang == "de" or (be.attr(contact, "language") == "de" and conv.lang != "en")) else "en"
+
+
+def _join(items: list[str], lang: str) -> str:
+    if len(items) <= 1:
+        return "".join(items)
+    return ", ".join(items[:-1]) + (" und " if lang == "de" else " and ") + items[-1]
+
+
+def _price(o: dict) -> str:
+    p = o.get("monthly_price_eur")
+    return f"€{p:.2f}/month" if isinstance(p, (int, float)) else ""
+
+
+async def send_offers(case_id: str) -> None:
+    """centrix moment → offer buttons (max 2 offers + "No thanks", WhatsApp allows 3 buttons)."""
+    from app import services, triggers
+    case = services.get_case(case_id)
+    m = triggers.manifest_for(case)
+    offers = ((case.data or {}).get("sell") or {}).get("offers") or []
+    contact = be.get_contact(case.reporter_contact_id)
+    if not contact or not offers:
+        return
+    lang = _sell_lang(contact)
+    when = ((case.data or {}).get("sell") or {}).get("move_in_date")
+    label = triggers._category_label(m).lower()
+    body = (f"Willkommen, {first_name(contact)}! {m.name} kann dir zum Einzug ({when}) {label} anbieten. "
+            "Möchtest du eins der Angebote?") if lang == "de" else \
+        (f"Welcome, {first_name(contact)}! {m.name} can set up {label} for your move-in on {when}. "
+         "Want one of these?")
+    opts = [Option(f"offer:{case_id}:{o['offer_id']}", f"{o['title']} · {_price(o)}".strip(" ·"))
+            for o in offers[:2]]
+    opts.append(Option(f"offer:{case_id}:none", "Nein danke" if lang == "de" else "No thanks"))
+    await out.buttons(contact, case_id, body, opts)
+    be.record_event(case_id, "debye", "offer.sent", f"Offered {', '.join(o.title for o in opts[:-1])} to {first_name(contact)}",
+                    {"options": [o.id for o in opts]})
+
+
+async def on_offer(contact, case_id: str, offer_id: str) -> None:
+    from app import rules, triggers
+    lang = _sell_lang(contact)
+    try:
+        res = triggers.choose_offer(case_id, None if offer_id == "none" else offer_id)
+    except rules.RuleViolation:
+        await out.text(contact, case_id, "Das Angebot ist nicht mehr offen." if lang == "de"
+                       else "That offer isn't open any more.")
+        return
+    if not res["chosen"]:
+        await out.text(contact, case_id, "Alles klar, kein Problem." if lang == "de" else "No problem.")
+        return
+    from app import services
+    m = triggers.manifest_for(services.get_case(case_id))
+    fields = [SELL_FIELD_LABELS.get(f, (f.replace("_", " "), f.replace("_", " ")))[1 if lang == "de" else 0]
+              for f in triggers.consent_fields(m)]
+    title = res["chosen"]["title"]
+    body = (f"Für {title} gebe ich {_join(fields, lang)} an {m.name} weiter, damit sie den Anschluss einrichten. Okay?"
+            if lang == "de" else
+            f"For {title} I'll share {_join(fields, lang)} with {m.name} so they can set up the line. OK?")
+    await out.buttons(contact, case_id, body,
+                      [Option(f"sellconsent:{case_id}:yes", "Ja" if lang == "de" else "Yes, go ahead"),
+                       Option(f"sellconsent:{case_id}:no", "Nein" if lang == "de" else "No")])
+
+
+async def on_sell_consent(contact, case_id: str, yes: bool) -> None:
+    from app import rules, services, triggers
+    lang = _sell_lang(contact)
+    case = services.get_case(case_id)
+    if not case or case.status != "offered":
+        return
+    m = triggers.manifest_for(case)
+    if not yes:
+        be.record_event(case_id, "tenant", "consent.declined", "Tenant declined sharing their details")
+        triggers._set_status(case_id, "closed")
+        await out.text(contact, case_id, "Okay, ich gebe nichts weiter." if lang == "de"
+                       else "Okay, I won't share anything.")
+        return
+    be.add_tenant_input(case_id, "tap: consent")
+    be.record_consent(be.attr(contact, "id"), m.partner_id, case_id, triggers.consent_fields(m),
+                      f"set up {((case.data or {}).get('sell') or {}).get('chosen', {}).get('title', 'the contract')}",
+                      "whatsapp")
+    try:
+        order = triggers.place_order(case_id)
+    except rules.RuleViolation:
+        log.exception("place_order failed")
+        order = None
+    if order and not order.get("error"):
+        await out.text(contact, case_id, f"Danke. Ich habe die Bestellung an {m.name} geschickt." if lang == "de"
+                       else f"Thanks. I've sent the order to {m.name}.")
+    else:
+        await out.text(contact, case_id, "Danke. Ich gebe die Bestellung weiter und melde mich." if lang == "de"
+                       else "Thanks. I'm passing the order on and will update you.")
+
+
+async def tell_sell_update(case_id: str, status: str, partner_name: str, chosen: dict, data: dict) -> None:
+    from app import services
+    case = services.get_case(case_id)
+    contact = be.get_contact(case.reporter_contact_id) if case else None
+    if not contact:
+        return
+    lang = _sell_lang(contact)
+    title = chosen.get("title") or ""
+    texts = {
+        "accepted": (f"{partner_name} has confirmed your {title} order.",
+                     f"{partner_name} hat deine Bestellung {title} bestätigt."),
+        "signed": (f"Your {title} contract with {partner_name} is signed.",
+                   f"Dein Vertrag {title} mit {partner_name} ist unterschrieben."),
+        "active": (f"Your {title} line is active from {data.get('start')}.",
+                   f"Dein Anschluss {title} ist ab {data.get('start')} aktiv."),
+    }
+    if status in texts:
+        await out.text(contact, case_id, texts[status][1 if lang == "de" else 0])

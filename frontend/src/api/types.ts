@@ -226,6 +226,32 @@ export interface UnitDetail {
   lease: { data?: { rent_cold_eur?: number; start?: string }; rent_cold_eur?: number; start?: string; [k: string]: unknown } | null
   documents: DocumentItem[]
   cases: CaseSummary[]
+  service_contracts?: ServiceContractRow[]
+}
+
+/** reltix result shape for sell partners (backend/app/triggers.py write_service_contract) */
+export interface ServiceContract {
+  partner: string
+  category: string
+  product: string
+  status: string
+  start: string
+  monthly_price_eur: number | null
+  consent: { data_shared: string[]; given_at: string; channel: string } | null
+}
+export interface ServiceContractRow {
+  contract_id: string
+  unit_id: string
+  contact_id: string
+  case_id?: string
+  service_contract: ServiceContract
+}
+export interface CentrixEventResult {
+  event: string
+  unit_id: string
+  contact_id: string
+  opened: string[]
+  skipped: { partner_id: string; reasons: string[] }[]
 }
 
 // ---- partner ----
