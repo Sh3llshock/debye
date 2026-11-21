@@ -288,7 +288,7 @@
     },
     {
       "id": "boiler_fault",
-      "label": "Boiler fault (e.g. F.28 ignition failed)",
+      "label": "Boiler fault (ignition or no flame)",
       "signals": [
         "q_radiators=yes",
         "q_display=code",
