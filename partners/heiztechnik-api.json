@@ -1,0 +1,32 @@
+{
+  "partner_id": "heiztechnik-api",
+  "name": "Heiztechnik API GmbH",
+  "category": "repair.heating",
+  "kind": "deliver",
+  "triggers": ["case.repair.heating"],
+  "service_area": { "postcodes": ["52062", "52064", "52066", "52068", "52070", "52072"] },
+  "capabilities": { "trades": ["heating"], "brands_certified": ["Buderus", "Wolf"] },
+  "eligibility": [
+    { "field": "asset.type", "op": "in", "value": ["gas_boiler", "heat_pump"] },
+    { "field": "property.postcode", "op": "in_service_area" }
+  ],
+  "pricing": { "model": "framework_agreement", "callout_fee_eur": 89, "hourly_eur": 72 },
+  "required_context": [
+    { "key": "address", "source": "property.address", "pii": true, "consent_required": true },
+    { "key": "unit_floor", "source": "unit.floor", "pii": false, "consent_required": false },
+    { "key": "asset", "source": "asset", "pii": false, "consent_required": false },
+    { "key": "error_code", "source": "case.error_code", "pii": false, "consent_required": false },
+    { "key": "tenant_name", "source": "tenant.name", "pii": true, "consent_required": true },
+    { "key": "tenant_phone", "source": "tenant.phone", "pii": true, "consent_required": true }
+  ],
+  "availability": { "mode": "api", "availability_endpoint": "http://localhost:8100/availability" },
+  "transport": {
+    "type": "api",
+    "base_url": "http://localhost:8100",
+    "auth": { "type": "hmac", "secret_env": "PARTNER_API_SECRET", "header": "X-Centrix-Signature" }
+  },
+  "status_events": ["accepted", "declined", "scheduled", "in_progress", "completed", "invoiced", "needs_info"],
+  "documents_returned": ["visit_report", "invoice"],
+  "sla": { "urgent_response_hours": 4, "standard_response_hours": 48 },
+  "rating": 4.4
+}

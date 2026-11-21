@@ -14,7 +14,8 @@
   "required_context": [
     { "key": "address", "source": "property.address", "pii": true, "consent_required": true },
     { "key": "asset", "source": "asset", "pii": false, "consent_required": false },
-    { "key": "tenant_phone", "source": "tenant.phone", "pii": true, "consent_required": true }
+    { "key": "tenant_phone", "source": "tenant.phone", "pii": true, "consent_required": true },
+    { "key": "access_details", "source": "unit.access", "pii": true, "consent_required": true }
   ],
   "availability": { "mode": "static", "hours": "next free slot in 6 days (seeded as fully booked)" },
   "transport": { "type": "conversational", "channel": "whatsapp", "address": "+490000000004" },

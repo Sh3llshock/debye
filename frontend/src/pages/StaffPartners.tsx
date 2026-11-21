@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import type { JobSummary, PartnerProfile, Technician } from '../api/types'
 import { tradeLabel } from '../components/case/Diagnosis'
 import { useCrumbs } from '../components/Layout'
+import { NewPartnersSection } from '../components/staff/PartnerApplications'
 import { Pill, StagePill } from '../components/staff/StaffBits'
 import { ErrorBox, Loading } from '../components/ui'
 import { t } from '../lib/i18n'
@@ -38,9 +39,19 @@ function Row({ p }: { p: PartnerProfile }) {
       <td className="text-right">{p.rating != null ? p.rating.toFixed(1) : '–'}</td>
       <td className="text-right">{jobs.data?.length ?? '…'}</td>
       <td>{active ? <Pill tone="hot">{t('{n} active', { n: active })}</Pill> : <span className="text-muted">–</span>}</td>
-      <td>{p.active === false ? <Pill>{t('Paused')}</Pill> : <Pill tone="ok">{t('Verified')}</Pill>}</td>
+      <td>
+        <PartnerStatusPill p={p} />
+      </td>
     </tr>
   )
+}
+
+function PartnerStatusPill({ p }: { p: PartnerProfile }) {
+  const st = p.status ?? (p.active === false ? 'suspended' : 'active')
+  if (st === 'pending_review') return <Pill tone="hot">{t('Under review')}</Pill>
+  if (st === 'rejected') return <Pill>{t('Rejected')}</Pill>
+  if (st === 'suspended') return <Pill tone="warn">{t('Suspended')}</Pill>
+  return <Pill tone="ok">{t('Verified')}</Pill>
 }
 
 /** /staff/partners: verified partner companies (they register in the partner portal). */
@@ -58,6 +69,7 @@ export default function StaffPartners() {
           {t('Partner sign-up page')}
         </Link>
       </div>
+      <NewPartnersSection onChange={reload} />
       {error && !data && <ErrorBox error={error} onRetry={reload} />}
       {!data && !error && <Loading what={t('Loading partners')} />}
       {data && (
@@ -126,7 +138,7 @@ export function StaffPartner() {
           <p className="mt-1 text-secondary">{[trades(p).map((y) => tradeLabel(y)).join(', '), area].filter(Boolean).join(' · ')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Pill tone="ok">✓ {t('Verified')}</Pill>
+          <PartnerStatusPill p={p} />
           <Link className="btn-ghost" to={`/partner/${p.partner_id}`}>
             {t('Open partner portal')}
           </Link>

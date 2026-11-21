@@ -116,10 +116,16 @@ async def skip_to_tomorrow() -> dict:
     _require_demo()
     advance_clock(timedelta(days=1))
     record_event(None, "system", "clock.skipped", "Demo clock moved to tomorrow", {"now": now_iso()})
+    from . import services
     from app.agent import flow
 
+    suspended = services.check_partner_expiry()  # feature 1: expired insurance / gas registration
+    redispatched = services.check_sla()  # feature 2: jobs not accepted in time go to the next partner
+    for r in redispatched:
+        await notify.notify_tenant(r["case_id"], "partner_declined", r)
     reminders = await flow.send_due_reminders()  # "I'll remind you the evening before" comes due
-    return {"ok": True, "now": now_iso(), "reminders_sent": reminders}
+    return {"ok": True, "now": now_iso(), "suspended_partners": [p["partner_id"] for p in suspended],
+            "redispatched": redispatched, "reminders_sent": reminders}
 
 
 @router.post("/sim-media")
@@ -319,7 +325,17 @@ async def t_maintenance_notice(body: dict) -> dict:
     return out
 
 
+async def t_move_in(body: dict) -> dict:
+    """centrix tenant.move_in → sell partners (example-fibre) offer to the tenant.
+    Body: unit_id (default unit_4b), contact_id (default the unit's tenant), move_in_date."""
+    from . import triggers
+    return await triggers.fire_and_offer("tenant.move_in", {"unit_id": body.get("unit_id", "unit_4b"),
+                                                            "contact_id": body.get("contact_id"),
+                                                            "move_in_date": body.get("move_in_date")})
+
+
 TRIGGERS = {
+    "move_in": t_move_in,
     "tenant_report": t_tenant_report,
     "neighbour_report": t_neighbour_report,
     "neighbour": t_neighbour_report,  # alias: Jonas (unit 2a) reports the same boiler

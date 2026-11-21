@@ -1,4 +1,4 @@
-import type { CaseDetail, CaseSummary, JobDetail, JobSummary, OnboardCheck, OnboardResult, PartnerProfile, Slot, TechProfile, Technician, UnitDetail, UnitSummary, WebsiteAutofill } from './types'
+import type { CaseDetail, CaseSummary, CentrixEventResult, JobDetail, JobSummary, OnboardCheck, OnboardDocument, OnboardResult, PartnerApplication, PartnerProfile, Slot, TechProfile, Technician, UnitDetail, UnitSummary, WebsiteAutofill } from './types'
 
 export const USE_FIXTURES = import.meta.env.VITE_USE_FIXTURES === '1'
 export const DEMO = import.meta.env.VITE_DEMO === '1'
@@ -38,6 +38,9 @@ const KNOWN_PARTNERS = ['heizung-schmidt', 'waerme-wagner', 'heiztechnik-gruen',
 const http = {
   staffUnits: () => req<UnitSummary[]>('GET', '/api/staff/units'),
   staffUnit: (id: string) => req<UnitDetail>('GET', `/api/staff/units/${enc(id)}`),
+  // centrix moment → partners whose manifest triggers on it (backend/app/triggers.py)
+  centrixMoveIn: (unitId: string, contactId?: string, moveInDate?: string) =>
+    req<CentrixEventResult>('POST', '/api/centrix/events', { type: 'tenant.move_in', unit_id: unitId, contact_id: contactId, move_in_date: moveInDate }),
   staffCases: () => req<CaseSummary[]>('GET', '/api/staff/cases'),
   staffCase: (id: string) => req<CaseDetail>('GET', `/api/staff/cases/${enc(id)}`),
   approve: (id: string) => req<CaseDetail>('POST', `/api/staff/cases/${enc(id)}/approve`),
@@ -66,9 +69,13 @@ const http = {
     }
   },
   onboardValidate: (manifest: Record<string, unknown>) => req<{ valid: boolean; checks: OnboardCheck[] }>('POST', '/api/partners/onboard/validate', { manifest }),
+  askTenant: (pid: string, caseId: string, text: string) => req<JobDetail>('POST', `/api/partner/${enc(pid)}/jobs/${enc(caseId)}/question`, { text }),
   onboardFromWebsite: (url: string) => req<WebsiteAutofill>('POST', '/api/partners/onboard/from-website', { url }),
-  onboard: (manifest: Record<string, unknown>, technicians: { name: string; skills: string[] }[]) =>
-    req<OnboardResult>('POST', '/api/partners/onboard', { manifest, technicians }),
+  onboard: (manifest: Record<string, unknown>, technicians: { name: string; skills: string[] }[], documents: OnboardDocument[] = [], company?: Record<string, string>) =>
+    req<OnboardResult>('POST', '/api/partners/onboard', { manifest, technicians, documents, ...(company ? { company } : {}) }),
+  partnerApplications: () => req<PartnerApplication[]>('GET', '/api/staff/partners/applications'),
+  approvePartner: (pid: string) => req<{ status: string }>('POST', `/api/staff/partners/${enc(pid)}/approve`, {}),
+  rejectPartner: (pid: string, reason: string) => req<{ status: string }>('POST', `/api/staff/partners/${enc(pid)}/reject`, { reason }),
   demoScenarios: () => req<unknown>('POST', '/demo/scenarios'),
   demoReset: () => req<void>('POST', '/demo/reset'),
   demoSkip: () => req<void>('POST', '/demo/skip-to-tomorrow'),

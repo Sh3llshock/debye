@@ -1,9 +1,11 @@
 // German UI copy, keyed by the English source text (see i18n.ts).
 // API data (case titles, event summaries) and WhatsApp messages are not translated here.
 import { DE_PARTNER } from './de-partner'
+import { DE_PARTNER_OPS } from './de-partner-ops'
 
 export const DE: Record<string, string> = {
   ...DE_PARTNER,
+  ...DE_PARTNER_OPS,
   // shell
   // v3 staff portal
   '{n} question': '{n} Frage',
@@ -367,6 +369,24 @@ export const DE: Record<string, string> = {
   'No cases': 'Keine Fälle',
   'Tenant and lease': 'Mieter und Mietvertrag',
   'Move-in': 'Einzug',
+  // centrix move-in trigger + sell partners (triggers.py)
+  'Sends the centrix event tenant.move_in to every partner that listens for it': 'Sendet das centrix-Ereignis tenant.move_in an alle Partner, die darauf hören',
+  'Tenant moves in (centrix event)': 'Mieter zieht ein (centrix-Ereignis)',
+  '{n} partner offer sent to {name}': '{n} Partnerangebot an {name} gesendet',
+  'No new offer: {why}': 'Kein neues Angebot: {why}',
+  'No partner listens for this event': 'Kein Partner hört auf dieses Ereignis',
+  'Service contracts': 'Dienstleistungsverträge',
+  Category: 'Kategorie',
+  Start: 'Beginn',
+  'Monthly price': 'Monatspreis',
+  'Data shared': 'Geteilte Daten',
+  'consent via {c}': 'Einwilligung per {c}',
+  active: 'aktiv',
+  'Your services': 'Deine Verträge',
+  'Active since {d}': 'Aktiv seit {d}',
+  '/month': '/Monat',
+  'Service contract': 'Dienstleistungsvertrag',
+  'Service record': 'Vertragsdaten',
   'Cold rent': 'Kaltmiete',
   'Lease start': 'Mietbeginn',
 

@@ -345,7 +345,7 @@ function docSubtitle(d: DocumentItem, pc: unknown) {
   const date = d.created_at ? new Date(d.created_at).toLocaleDateString(locale(), { day: 'numeric', month: 'short' }) : ''
   if (d.kind === 'photo') return [t('Photo'), date].filter(Boolean).join(' · ')
   if (d.kind === 'voice_note') return [t('Voice note'), date].filter(Boolean).join(' · ')
-  if (d.kind === 'report') return t('Visit report')
+  if (d.kind === 'report') return [d.case_id ? t('Case {id}', { id: d.case_id.replace(/^case_0*/, '') }) : null, date].filter(Boolean).join(' · ')
   if (d.kind === 'contract') return t('Lease')
   return humanize(d.kind)
 }
@@ -367,7 +367,7 @@ export function Documents({ docs, priceCheck }: { docs: DocumentItem[]; priceChe
             <div className="flex items-start gap-3">
               <Icon name={d.kind === 'photo' ? 'camera' : d.kind === 'voice_note' ? 'mic' : 'file'} className={`mt-0.5 h-5 w-5 shrink-0 ${d.kind === 'invoice' ? 'text-action' : 'text-secondary'}`} />
               <div className="min-w-0 flex-1">
-                <div className="truncate font-semibold">{d.filename}</div>
+                <div className="truncate font-semibold">{d.kind === 'report' ? t('Visit report') : d.filename}</div>
                 <div className={`text-meta ${st === 'ok' ? 'text-positive' : st === 'flagged' ? 'text-warning' : 'text-muted'}`}>{docSubtitle(d, priceCheck)}</div>
                 {hasFields && (
                   <button className="text-meta font-semibold text-action hover:underline" onClick={() => setOpen(open === d.document_id ? null : d.document_id)}>

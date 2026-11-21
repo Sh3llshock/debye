@@ -204,7 +204,7 @@ export function StaffLayout({ children }: { children: ReactNode }) {
   const { data, reload } = useResource(() => api.staffCases(), [])
   const refetch = useDebounced(reload, 400)
   useStream(() => refetch())
-  const needs = data?.filter((c) => needsApproval(c.status)).length ?? 0
+  const needs = data?.filter((c) => needsApproval(c.status) || c.status === 'needs_staff').length ?? 0
   const running = data?.filter((c) => !['closed', 'rejected'].includes(c.status)).length ?? 0
   return (
     <CrumbCtx.Provider value={setCrumbs}>

@@ -1,20 +1,15 @@
 """Events centrix pushes to reltix (property-management system → Debye).
 
 POST /api/centrix/events  {"type": "asset.error_reported", "unit_id": "unit_4b", "code": "F.28"}
-  A connected boiler reported an error: Debye writes the unit's tenant first (agent/proactive.py).
-If CENTRIX_WEBHOOK_TOKEN is set, the request needs the header X-Centrix-Token with that value.
+  (route in triggers.py) A connected boiler reported an error: Debye writes the unit's tenant first
+  (agent/proactive.py). Also /demo/trigger/boiler_error.
 """
 from __future__ import annotations
 
-import hmac
-import os
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import HTTPException
 from pydantic import BaseModel
-
-router = APIRouter(prefix="/api/centrix", tags=["centrix"])
-
 
 class AssetErrorReported(BaseModel):
     type: Literal["asset.error_reported"] = "asset.error_reported"
@@ -35,11 +30,3 @@ async def handle(ev: AssetErrorReported) -> dict:
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
     return {"ok": True, "event": ev.type, "code": code, **res}
-
-
-@router.post("/events")
-async def centrix_event(ev: AssetErrorReported, x_centrix_token: Optional[str] = Header(None)) -> dict:
-    token = os.getenv("CENTRIX_WEBHOOK_TOKEN")
-    if token and not hmac.compare_digest(token, x_centrix_token or ""):
-        raise HTTPException(401, "bad centrix token")
-    return await handle(ev)
