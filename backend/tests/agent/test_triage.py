@@ -10,6 +10,14 @@ from test_diagnosis import last_ids, outbox, tap, texts, wa
 DATA = Path(__file__).resolve().parents[3] / "data" / "diagnosis"
 
 
+@pytest.fixture(autouse=True)
+def _reset_kb_area():
+    yield
+    from app.agent import diagnosis
+
+    diagnosis._AREA.set(diagnosis.HOT_WATER)  # tests that call diagnosis.start() directly must not leak the area
+
+
 def _cancel_followups():
     from app.agent import diagnosis
 

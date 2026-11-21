@@ -83,7 +83,9 @@ def emergency_from_text(text: str | None) -> tuple[str, str, dict] | None:
 # ------------------------------------------------------------------ areas from the words
 HOT_WATER_STRONG_RE = re.compile(
     r"\b(hot water|warm water|lukewarm|no hot|(shower|water)( is| 's|'s)? (cold|freezing|not (hot|warm))|cold shower|"
-    r"warmwasser|warmes wasser|lauwarm|kein(e|en)? warm|dusche (ist |bleibt )?kalt|kalt duschen|ho?t ?wa?te?r|no hw)",
+    r"warmwasser|warmes wasser|lauwarm|kein(e|en)? warm|dusche (ist |bleibt )?kalt|kalt duschen|ho?t ?wa?te?r|no hw|"
+    r"(shower|taps?|sinks?)\b[^.!?]{0,25}\b(runs? |is |are |stays? |goes |only )*(cold|freezing|lukewarm)|"
+    r"dusche\b[^.!?]{0,25}\bkalt)",
     re.I)
 HEATING_RE = re.compile(
     r"\b(radiators?|heating|heater|heizung|heizkörper|heizt nicht|flat is (cold|freezing)|wohnung (ist )?kalt)", re.I)
@@ -170,6 +172,8 @@ def classify_keywords(text: str | None) -> tuple[str | None, str | None, bool]:
     ranked = list(s)
     if len(ranked) == 1:
         return ranked[0], None, False
+    if HOT_WATER in s and HOT_WATER_STRONG_RE.search(t) and not SECOND_PROBLEM_RE.search(t)             and not any(rx.search(t) for _, _, _, rx in EMERGENCIES):
+        return HOT_WATER, None, False  # "since the plumber fixed the leak, the shower only runs cold": hot water
     if HOT_WATER in s and "appliances" in s and _GAS_APPLIANCE_RE.search(t) and not SECOND_PROBLEM_RE.search(t):
         s.pop("appliances")  # "no hot water and the gas stove won't light either": the gas supply (hot-water KB)
         ranked = list(s)

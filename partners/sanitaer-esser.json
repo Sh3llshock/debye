@@ -55,6 +55,12 @@
       "source": "tenant.phone",
       "pii": true,
       "consent_required": true
+    },
+    {
+      "key": "photos",
+      "source": "case.documents[kind=photo]",
+      "pii": true,
+      "consent_required": true
     }
   ],
   "availability": {
