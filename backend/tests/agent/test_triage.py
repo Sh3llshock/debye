@@ -158,3 +158,90 @@ def test_radiators_cold_keeps_the_heating_flow(client, svc, claude):
     assert not conv.diagnosis and (conv.triage or {}).get("area") == "heating"
     assert not any(m["payload"].get("type") == "interactive" and "triage:" in json.dumps(m["payload"])
                    for m in outbox(client))
+
+
+# ---------------------------------------------------------------- planner (PLANNER_ENABLED), mocked model
+def test_planner_off_by_default_sends_no_holding_message(client, svc, claude):
+    claude([RuntimeError("down")] * 10)
+    client.post("/webhooks/whatsapp", json=wa("toilet blocked"))
+    assert not any(t.startswith("Let me look into it") for t in texts(client))
+
+
+def test_planner_plan_steers_the_first_question(client, svc, claude, monkeypatch):
+    from app.agent import diagnosis, state, triage
+
+    claude([RuntimeError("down")] * 10)
+    monkeypatch.setenv("PLANNER_ENABLED", "1")
+
+    async def fake_plan(text, candidates):
+        return {"area": "blocked_drain", "likely_causes": ["main_stack_blockage"], "questions": ["dr_backup"],
+                "reason": "test"}
+
+    monkeypatch.setattr(triage, "plan", fake_plan)
+    client.post("/webhooks/whatsapp", json=wa("toilet blocked"))
+    assert texts(client)[0] == triage.HOLDING_EN
+    conv = state.conversation("c_202")
+    assert conv.diagnosis["area"] == "blocked_drain" and conv.diagnosis["plan"]["questions"] == ["dr_backup"]
+    assert diagnosis.context_block(conv)["plan"]["likely_causes"] == ["main_stack_blockage"]
+
+
+def test_planner_unclear_asks_the_area(client, svc, claude, monkeypatch):
+    from app.agent import triage
+
+    claude([RuntimeError("down")] * 10)
+    monkeypatch.setenv("PLANNER_ENABLED", "1")
+
+    async def fake_plan(text, candidates):
+        return {"area": "unclear", "likely_causes": [], "questions": [], "reason": "test"}
+
+    monkeypatch.setattr(triage, "plan", fake_plan)
+    client.post("/webhooks/whatsapp", json=wa("I have a problem, can you help"))
+    assert texts(client)[-1] == "Ok. What is it about?"
+
+
+def test_planner_never_runs_for_hot_water(client, svc, claude, monkeypatch):
+    from app.agent import triage
+
+    claude([RuntimeError("down")] * 10)
+    monkeypatch.setenv("PLANNER_ENABLED", "1")
+    called = []
+
+    async def fake_plan(text, candidates):
+        called.append(text)
+
+    monkeypatch.setattr(triage, "plan", fake_plan)
+    client.post("/webhooks/whatsapp", json=wa("My shower is cold"))
+    assert not called and last_ids(client)[0] == "diag:q_scope:only_shower"
+
+
+# ---------------------------------------------------------------- extraction guards
+def test_no_but_yes_in_one_reply_is_clarified(svc, monkeypatch):
+    from app.agent import diagnosis, state
+
+    conv = state.conversation("c_202")
+    diagnosis.start(conv, "sink drains slowly", "blocked_drain")
+    conv.diagnosis["asked"].append("dr_backup")
+
+    async def fake(text, qs):
+        return {"dr_backup": "yes"}
+
+    monkeypatch.setattr(diagnosis, "_classify_answers", fake)
+    asyncio.run(diagnosis.extract_answers(conv, "No, only the sink. Although when I flush, dirty water comes up in the shower."))
+    d = conv.diagnosis
+    assert d["answers"]["dr_backup"] == "no" and d["conflicts"] == {"dr_backup": "yes"}
+
+
+def test_ask_only_question_is_never_inferred_from_the_first_message(svc, monkeypatch):
+    from app.agent import diagnosis, state
+
+    conv = state.conversation("c_202")
+    diagnosis.start(conv, "my smoke alarm is going off", "other")
+    seen = []
+
+    async def fake(text, qs):
+        seen.extend(q["id"] for q in qs)
+        return {}
+
+    monkeypatch.setattr(diagnosis, "_classify_answers", fake)
+    asyncio.run(diagnosis.extract_answers(conv, "my smoke alarm is going off and won't stop"))
+    assert "ot_alarm" not in seen
