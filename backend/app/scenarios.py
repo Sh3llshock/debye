@@ -209,9 +209,12 @@ def s4_scheduled_electrical() -> str:
     slot = _free_slot("tech_marco", "elektro-klein", _slot(1, 10, 12))
     _schedule(c.id, "elektro-klein", "tech_marco", [slot, _slot(2, 8, 10)], pick=1, confirm=True)
     label = (services.get_case(c.id).data or {}).get("proposed_slots", [{}])[0].get("label", "tomorrow")
+    from app.agent import flow  # the reminder is real (sent at 18:00 the day before / on skip-to-tomorrow)
+
+    reminded = flow.schedule_reminder(c.id, slot, ["c_205"], who="Marco Klein from Elektro Klein")
     _chat("c_205", c.id, [("in", label),
-                          ("out", f"Perfect, Mateusz! Marco Klein from Elektro Klein will come on {label}. "
-                                  "I'll remind you the evening before 👍")])
+                          ("out", f"Perfect, Mateusz! Marco Klein from Elektro Klein will come on {label}."
+                                  + (" I'll remind you the evening before 👍" if reminded else " 👍"))])
     return c.id
 
 

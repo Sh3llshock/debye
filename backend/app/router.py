@@ -43,6 +43,7 @@ async def handle_inbound(msg: InboundMessage) -> None:
         return
     cid = be.attr(contact, "id")
     conv = st.conversation(cid)
+    conv.channel = "web" if msg.channel in ("web", "webchat") else (msg.channel or "whatsapp")
 
     # ---- media: download, transcribe voice, keep photos
     text = msg.text
@@ -301,5 +302,6 @@ async def handle_button(contact, button_id: str) -> bool:
     except Exception:
         log.exception("button %s failed", button_id)
         if outbound.sent_count == sent_before:  # only if the resident got no reply yet
-            await outbound.text(contact, case_id, "Thanks. I'm on it and will get back to you shortly.")
+            be.record_event(case_id, "system", "staff.attention", f"Button {button_id} failed: staff follow up", {})
+            await outbound.text(contact, case_id, "Thanks. I've flagged this for your property management; they'll pick it up and get in touch.")
     return True

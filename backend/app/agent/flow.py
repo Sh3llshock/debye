@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import re
 import time
 from pathlib import Path
@@ -181,6 +182,61 @@ async def on_cold(contact, case_id: str, all_cold: bool) -> None:
     await request_consent(contact, case_id)
 
 
+# How each consent field is named in the question (en, de).
+CONSENT_FIELD_TEXT = {
+    "name": ("name", "deinen Namen"),
+    "phone": ("phone number", "deine Telefonnummer"),
+    "email": ("email address", "deine E-Mail-Adresse"),
+    "address": ("address", "deine Adresse"),
+    "unit_floor": ("floor", "dein Stockwerk"),
+    "photos": ("the photos", "die Fotos"),
+}
+DEFAULT_CONSENT_FIELDS = ["name", "phone", "address", "photos"]  # company not chosen yet (staff pick)
+
+
+def consent_scope(case_id: str, conv) -> tuple[list[str], str]:
+    """(fields, purpose) the tenant is asked to agree to, which is also what the consent record stores:
+    the chosen partner's manifest fields that need consent (photos only if the tenant sent any), and a
+    purpose taken from the case itself."""
+    from app.rules import norm_field
+
+    cs = st.case_state(case_id)
+    manifest = None
+    if cs.partner_id:
+        try:
+            manifest = be._call("get_partner_manifest", cs.partner_id)
+        except Exception:
+            log.exception("get_partner_manifest failed")
+    raw = list(manifest.consent_fields) if manifest is not None else DEFAULT_CONSENT_FIELDS
+    fields: list[str] = []
+    for f in map(norm_field, raw):
+        if (f != "photos" or conv.photos) and f not in fields:
+            fields.append(f)
+    case = None
+    try:
+        case = be._call("get_case", case_id)
+    except Exception:
+        log.exception("get_case failed")
+    trade = (be.attr(case, "data") or {}).get("trade") if case is not None else None
+    what = (be.attr(case, "title") or be.attr(case, "type")) if case is not None else None
+    purpose = "On-site repair visit" + (f" ({trade})" if trade else "") + (f": {what}" if what else "")
+    return fields, purpose
+
+
+def consent_question(who: str, fields: list[str], lang: str) -> str:
+    """The consent question naming exactly the fields that will be recorded."""
+    de = lang == "de"
+    names = [CONSENT_FIELD_TEXT.get(f, (f.replace("_", " "),) * 2)[1 if de else 0] for f in fields]
+    if not de and names and not names[0].startswith("the "):
+        names[0] = "your " + names[0]
+    if not names:
+        names = ["deine Kontaktdaten" if de else "your contact details"]
+    joined = names[0] if len(names) == 1 else ", ".join(names[:-1]) + (" und " if de else " and ") + names[-1]
+    if de:
+        return f"Ich würde {who} schicken. Ist es okay, wenn ich {joined} weitergebe?"
+    return f"I'd like to send {who} over. Is it okay if I share {joined} with them?"
+
+
 async def request_consent(contact, case_id: str) -> None:
     cs = st.case_state(case_id)
     conv = st.conversation(be.attr(contact, "id"))
@@ -188,14 +244,11 @@ async def request_consent(contact, case_id: str) -> None:
     conv.asked_at[st.CONSENT] = time.monotonic()
     who = ("einen Techniker" if conv.lang == "de" else "a technician") if cs.trade_unknown \
         else cs.partner_name or ("eine Heizungsfirma" if conv.lang == "de" else "a heating company")
+    cs.consent_fields, cs.consent_purpose = consent_scope(case_id, conv)
     await out.buttons(
         contact,
         case_id,
-        (f"Ich würde {who} schicken. Ist es okay, wenn ich deinen Namen, deine Telefonnummer, Adresse"
-         + (", dein Stockwerk und die Fotos weitergebe?" if conv.photos else " und dein Stockwerk weitergebe?"))
-        if conv.lang == "de" else
-        (f"I'd like to send {who} over. Is it okay if I share your name, phone number, address"
-         + (", floor and the photos with them?" if conv.photos else " and floor with them?")),
+        consent_question(who, cs.consent_fields, conv.lang),
         [Option(f"consent_yes:{case_id}", "Ja, gerne" if conv.lang == "de" else "Yes, go ahead"),
          Option(f"consent_no:{case_id}", "Nein" if conv.lang == "de" else "No")],
     )
@@ -229,11 +282,15 @@ async def on_consent(contact, case_id: str, yes: bool) -> None:
         except Exception:
             log.exception("rank_partners failed")
     if not cs.partner_id:
-        await out.text(contact, case_id, "Thanks. I'm finding the right company and will get back to you shortly.")
+        be.record_event(case_id, "system", "staff.attention", "No matching company found: staff pick one", {})
+        await out.text(contact, case_id, "Thanks. I've passed this to your property management; they'll pick the "
+                       "company and I'll update you when they do.")
         return
     be.add_tenant_input(case_id, "tap: consent")
+    if not cs.consent_fields:  # state lost since the question (e.g. restart): rebuild it the same way
+        cs.consent_fields, cs.consent_purpose = consent_scope(case_id, conv)
     be.record_consent(
-        be.attr(contact, "id"), cs.partner_id, case_id, cs.consent_fields, cs.consent_purpose, "whatsapp"
+        be.attr(contact, "id"), cs.partner_id, case_id, cs.consent_fields, cs.consent_purpose, conv.channel
     )
     try:
         be.dispatch_job(case_id, cs.partner_id)
@@ -244,7 +301,8 @@ async def on_consent(contact, case_id: str, yes: bool) -> None:
             await tell_approval_pending(case_id, [contact])
             return
         log.exception("dispatch_job failed")
-        await out.text(contact, case_id, "Thanks. I'm on it and will get back to you shortly.")
+        be.record_event(case_id, "system", "staff.attention", "Sending the job failed: staff follow up", {})
+        await out.text(contact, case_id, "Thanks. I've flagged this for your property management; they'll pick it up and get in touch.")
         return
     conv.step = st.DISPATCHED
     await out.text(
@@ -325,9 +383,11 @@ async def on_slot(contact, case_id: str, n: int) -> None:
             contact, case_id, f"Thanks. I've asked {cs.technician_name} to confirm and will let you know shortly."
         )
         return
+    reminded = schedule_reminder(case_id, cs.chosen_slot, [be.attr(contact, "id")])
     await out.text(
         contact, case_id,
-        f"{partner_label(case_id)} will come {natural_when(label)}. I'll remind you the evening before."
+        f"{partner_label(case_id)} will come {natural_when(label)}."
+        + (" I'll remind you the evening before." if reminded else "")
     )
     await _tell_neighbours(contact, case_id,
                            f"Update: a technician is coming {natural_when(label)} for the building's heating.")
@@ -347,6 +407,8 @@ async def on_technician_confirmed(case_id: str, technician_name: str | None, slo
     cs.technician_name = tech
     when = natural_when(slot or cs.chosen_slot or {})
     reporters = tenant_contacts(case_id, reporter_only=True)
+    reminded = schedule_reminder(case_id, slot or cs.chosen_slot, [be.attr(c, "id") for c in reporters],
+                                 who=f"{tech} from {partner_label(case_id)}")
     for c in reporters:
         name = first_name(c)
         st.conversation(be.attr(c, "id")).step = st.SCHEDULED
@@ -354,7 +416,7 @@ async def on_technician_confirmed(case_id: str, technician_name: str | None, slo
             c,
             case_id,
             f"{name + ', ' if name else ''}{tech} from {partner_label(case_id)} will come to your apartment "
-            f"{when}. I'll remind you the evening before.",
+            f"{when}." + (" I'll remind you the evening before." if reminded else ""),
         )
     await _tell_neighbours(reporters[0] if reporters else None, case_id,
                            f"Update: {tech} from {partner_label(case_id)} is coming {when} for the "
@@ -552,3 +614,104 @@ async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[st
         await ask_fixed(cid)
     else:
         await out.text(contact, cid, "Thanks. I'm on it and will let you know as soon as there's news.")
+
+
+# ---------------------------------------------------------------- visit reminders
+# "I'll remind you the evening before" is only said when a reminder is really scheduled here: 18:00 the
+# day before the visit, on the (demo-aware) clock app.config.now(). A small loop checks every 30 s, and
+# /demo/skip-to-tomorrow checks at once. In memory, like the self-help follow-up.
+REMINDER_HOUR = 18
+_reminders: dict[str, dict] = {}  # case_id -> {at, start, end, contact_ids, who, sent}
+_reminder_task = None
+
+
+def clear_reminders() -> None:
+    _reminders.clear()
+
+
+def _parse_dt(v):
+    from datetime import datetime
+
+    from app.config import TZ
+
+    if not v:
+        return None
+    try:
+        d = datetime.fromisoformat(str(v))
+    except ValueError:
+        return None
+    return d if d.tzinfo else d.replace(tzinfo=TZ)
+
+
+def schedule_reminder(case_id: str, slot: dict | None, contact_ids: list[str], who: str | None = None) -> bool:
+    """True if a reminder for the evening before this slot is scheduled (so the text may promise it)."""
+    from datetime import timedelta
+
+    from app.config import now
+
+    start = _parse_dt((slot or {}).get("start"))
+    if start is None or not contact_ids:
+        return False
+    at = (start - timedelta(days=1)).replace(hour=REMINDER_HOUR, minute=0, second=0, microsecond=0)
+    if at <= now():  # the evening before has already passed (visit today or tomorrow morning)
+        return False
+    _reminders[case_id] = {"at": at, "start": start, "end": _parse_dt((slot or {}).get("end")),
+                           "contact_ids": list(dict.fromkeys(contact_ids)), "who": who, "sent": False}
+    be.record_event(case_id, "system", "reminder.scheduled", f"Visit reminder scheduled for {at:%a %d %b %H:%M}",
+                    {"at": at.isoformat(), "visit": start.isoformat()})
+    _ensure_reminder_loop()
+    return True
+
+
+def _ensure_reminder_loop() -> None:
+    global _reminder_task
+    import asyncio
+
+    if _reminder_task is not None and not _reminder_task.done():
+        return
+    try:
+        _reminder_task = asyncio.get_running_loop().create_task(_reminder_loop())
+    except RuntimeError:  # no loop (seed scripts): /demo/skip-to-tomorrow or the next loop start sends it
+        _reminder_task = None
+
+
+async def _reminder_loop() -> None:
+    import asyncio
+
+    while any(not r["sent"] for r in _reminders.values()):
+        await asyncio.sleep(float(os.getenv("REMINDER_CHECK_SECONDS", "30")))
+        try:
+            await send_due_reminders()
+        except Exception:
+            log.exception("reminders failed")
+
+
+def _hour(d) -> str:
+    return f"{d.hour}" if d.minute == 0 else f"{d.hour}:{d.minute:02d}"
+
+
+async def send_due_reminders() -> int:
+    """Sends every reminder whose time has come (demo clock aware). Returns how many were sent."""
+    from app.config import now
+
+    sent = 0
+    t = now()
+    for case_id, r in list(_reminders.items()):
+        if r["sent"] or r["at"] > t:
+            continue
+        r["sent"] = True
+        if r["start"] <= t:  # the visit itself is already over: no point reminding
+            continue
+        span = f"between {_hour(r['start'])} and {_hour(r['end'])}" if r.get("end") else f"at {_hour(r['start'])}"
+        day = "tomorrow" if (r["start"].date() - t.date()).days == 1 else f"on {r['start']:%a %d %b}"
+        who = r.get("who") or partner_label(case_id)
+        for cid in r["contact_ids"]:
+            contact = be.get_contact(cid)
+            if contact is None:
+                continue
+            name = first_name(contact)
+            await out.text(contact, case_id, f"{'Hi ' + name + ', a' if name else 'A'} quick reminder: {who} "
+                           f"is coming {day} {span}. Reply here if that no longer works.")
+            sent += 1
+        be.record_event(case_id, "system", "reminder.sent", "Visit reminder sent to the tenant", {})
+    return sent

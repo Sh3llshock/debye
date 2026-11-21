@@ -48,7 +48,8 @@ def _reset_agent_state() -> None:
     import importlib
     import logging
     for mod_name, fn_name in (("app.agent.state", "reset_all"),
-                              ("app.channels.whatsapp", "clear_outbox")):
+                              ("app.channels.whatsapp", "clear_outbox"),
+                              ("app.agent.flow", "clear_reminders")):
         try:
             fn = getattr(importlib.import_module(mod_name), fn_name, None)
         except ImportError:
@@ -115,7 +116,10 @@ async def skip_to_tomorrow() -> dict:
     _require_demo()
     advance_clock(timedelta(days=1))
     record_event(None, "system", "clock.skipped", "Demo clock moved to tomorrow", {"now": now_iso()})
-    return {"ok": True, "now": now_iso()}
+    from app.agent import flow
+
+    reminders = await flow.send_due_reminders()  # "I'll remind you the evening before" comes due
+    return {"ok": True, "now": now_iso(), "reminders_sent": reminders}
 
 
 @router.post("/sim-media")
