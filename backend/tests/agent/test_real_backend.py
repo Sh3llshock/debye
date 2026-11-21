@@ -154,3 +154,27 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
     for f, word in words.items():
         assert (word in consent) == (f in rec.data_shared), (f, consent, rec.data_shared)
     assert "unit_floor" not in rec.data_shared  # not consent-required in heizung-schmidt's manifest
+
+
+def test_one_room_cold_tip_then_caretaker_no_installer(real, claude):
+    """'Just one room' is the radiator, not the boiler: valve/bleeding tip, then the caretaker. No consent
+    question, no partner, no job."""
+    claude([
+        [tool_use("open_case", summary="Heizung kalt im Schlafzimmer", symptoms="ein Raum kalt", error_code=None, priority="normal")],
+        [tool_use("ask_buttons", text="Sind alle Heizkörper kalt oder nur einer?",
+                  options=[{"id": "cold_all:case_0001", "title": "All cold"},
+                           {"id": "cold_some:case_0001", "title": "Just one room"}])],
+        [text("ok")],
+    ] + [RuntimeError("down")] * 4)
+    real.post("/webhooks/whatsapp", json=wa(LUKA, type="text", text={"body": "the bedroom radiator is cold"}))
+    real.post("/webhooks/whatsapp", json=tap(LUKA, "cold_some:case_0001", "Just one room"))
+    p = last(real, LUKA)
+    assert ids(p) == ["oneroom_ok:case_0001", "oneroom_no:case_0001"]
+    assert "thermostat" in p["interactive"]["body"]["text"].lower() or "Thermostat" in p["interactive"]["body"]["text"]
+    real.post("/webhooks/whatsapp", json=tap(LUKA, "oneroom_no:case_0001", "Still cold"))
+    body = last(real, LUKA)["text"]["body"]
+    assert "caretaker" in body or "Hausmeister" in body
+    detail = real.get("/api/staff/cases/case_0001").json()
+    kinds = [e["kind"] for e in detail.get("events", [])]
+    assert "caretaker.notified" in kinds and "job.sent" not in kinds and "consent.recorded" not in kinds
+    assert not detail.get("partner_id")

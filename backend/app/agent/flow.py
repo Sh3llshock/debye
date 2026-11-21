@@ -171,6 +171,9 @@ async def on_cold(contact, case_id: str, all_cold: bool) -> None:
         "All radiators cold" if all_cold else "Only one room cold",
         {"all_radiators_cold": all_cold},
     )
+    if not all_cold:  # one room: the radiator itself, not the boiler (KB: self-help → caretaker)
+        await one_room_tip(contact, case_id)
+        return
     try:
         ranking = be.rank_partners(case_id)
     except Exception:
@@ -237,6 +240,57 @@ def consent_question(who: str, fields: list[str], lang: str) -> str:
     if de:
         return f"Ich würde {who} schicken. Ist es okay, wenn ich {joined} weitergebe?"
     return f"I'd like to send {who} over. Is it okay if I share {joined} with them?"
+
+
+async def one_room_tip(contact, case_id: str) -> None:
+    conv = st.conversation(be.attr(contact, "id"))
+    conv.step = st.SELF_HELP
+    de = conv.lang == "de"
+    await out.buttons(
+        contact, case_id,
+        "Wenn nur ein Raum kalt ist, liegt es meist am Heizkörper selbst, nicht an der Heizung. Dreh das "
+        "Thermostat an dem Heizkörper ganz auf (Stufe 5) und warte 15 Minuten. Bleibt er oben kalt oder "
+        "gluckert er, ist Luft drin; dann muss er entlüftet werden. Ist er jetzt warm?"
+        if de else
+        "When only one room is cold, it's usually that radiator, not the heating. Turn its thermostat valve "
+        "fully open (to 5) and give it 15 minutes. If it stays cold at the top or gurgles, there's air in it "
+        "and it needs bleeding. Is it warm now?",
+        [Option(f"oneroom_ok:{case_id}", "Ja, warm" if de else "Yes, warm"),
+         Option(f"oneroom_no:{case_id}", "Noch kalt" if de else "Still cold")],
+    )
+
+
+async def on_one_room(contact, case_id: str, warm: bool) -> None:
+    """After the radiator tip: warm → close as self-help; still cold → the caretaker (bleeding, valve),
+    no installer."""
+    conv = st.conversation(be.attr(contact, "id"))
+    de = conv.lang == "de"
+    be.add_tenant_input(case_id, "tap: radiator warm" if warm else "tap: radiator still cold")
+    if warm:
+        conv.step = st.CLOSED
+        try:
+            be.close_self_help(case_id, "One room cold: opening the thermostat valve fixed it")
+        except Exception:
+            log.exception("close_self_help failed")
+        await out.text(contact, case_id, "Super, dann ist alles gut. Melde dich, falls er wieder kalt wird."
+                       if de else "Great, then it's sorted. Message me if it goes cold again.")
+        return
+    conv.step = st.WAITING_APPROVAL
+    try:
+        be.notify_caretaker(case_id, "One radiator stays cold: bleed it / check the thermostat valve")
+        told = True
+    except Exception:
+        log.exception("notify_caretaker failed")
+        be.record_event(case_id, "system", "staff.attention", "One radiator cold; caretaker could not be notified", {})
+        told = False
+    await out.text(
+        contact, case_id,
+        ("Dann schaut sich unser Hausmeister den Heizkörper an (entlüften, Ventil prüfen). Ich habe ihm "
+         "Bescheid gegeben." if told else
+         "Dann schaut sich die Hausverwaltung den Heizkörper an; ich habe es weitergegeben.")
+        if de else
+        ("Then our caretaker will look at the radiator (bleeding it, checking the valve). I've let them know." if told else
+         "Then your property management will have the radiator looked at; I've passed it on."))
 
 
 async def request_consent(contact, case_id: str) -> None:

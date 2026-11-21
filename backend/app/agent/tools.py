@@ -238,7 +238,8 @@ async def _record_triage(ctx: TurnContext, case_id: str, all_radiators_cold: boo
     case_id = ctx.conv.case_id or case_id
     await flow.on_cold(ctx.contact, case_id, all_radiators_cold)
     ctx.sent += 1
-    return {"ok": True, "note": "Consent question was sent to the resident. Do not send another message."}
+    sent = "Consent question" if all_radiators_cold else "Radiator tip (thermostat valve, bleeding) with buttons"
+    return {"ok": True, "note": f"{sent} was sent to the resident. Do not send another message."}
 
 
 async def _ask_question(ctx: TurnContext, question_id: str, lead_in: str | None = None,
