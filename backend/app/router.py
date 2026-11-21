@@ -148,6 +148,8 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
     cid = be.attr(contact, "id")
     conv = st.conversation(cid)
     diagnosis.update_lang(conv, text)
+    if conv.diagnosis:
+        conv.diagnosis["turn"] = conv.diagnosis.get("turn", 0) + 1  # one batch of tenant messages = one turn
     # Gas smell / hissing mentioned anywhere → emergency path at once (never asked proactively)
     if text and diagnosis.safety_from_text(text) == "yes" and conv.step != st.CLOSED:
         if not conv.diagnosis or conv.diagnosis.get("concluded"):
@@ -209,6 +211,8 @@ async def process_text(contact, text: str | None, images: list[str]) -> bool:
     # A free-text answer to the open question ("sure", "just the shower", "Saturday works") is handled
     # exactly like the tap, so consent/slots are really recorded before anything is confirmed.
     in_diagnosis = diagnosis.active(conv)
+    if in_diagnosis and conv.diagnosis.get("conflict_open"):
+        diagnosis.resolve_conflict_reply(conv, text)  # "no", "everything": resolved or moved on, never looped
     if in_diagnosis and text:
         await diagnosis.extract_answers(conv, text)  # evidence first; the agent then asks/concludes
     if in_diagnosis:

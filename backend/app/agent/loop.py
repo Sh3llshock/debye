@@ -174,6 +174,8 @@ async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | No
 
         if diagnosis.active(conv):
             open_q = diagnosis.open_question(conv.diagnosis)
+            if not diagnosis.question_slot_free(conv.diagnosis) or "clarify" in ctx.calls:
+                return False  # a question went out this turn: wait for the answer
             if not open_q:  # the model only chatted: keep the diagnosis moving (next question or conclusion)
                 log.info("diagnosis: no open question after the turn; code continues")
                 await flow.diagnosis_fallback(contact, conv)

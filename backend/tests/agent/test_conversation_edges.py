@@ -146,12 +146,26 @@ def test_correction_replaces_earlier_answer():
 
     conv = state.Conversation(contact_id="x")
     diagnosis.start(conv, "cold")
-    diagnosis.record(conv, "q_scope", "only_shower")
-    diagnosis.record(conv, "q_scope", "everywhere")  # "sorry, actually the kitchen is cold too"
-    assert conv.diagnosis["answers"]["q_scope"] == "only_shower"  # held as a conflict, clarified first
+    conv.diagnosis["asked"] = ["q_scope"]
+    diagnosis.record(conv, "q_scope", "only_shower")  # explicit: the answer to the open question
+    diagnosis.record(conv, "q_scope", "everywhere")  # inferred later from another message
+    assert conv.diagnosis["answers"]["q_scope"] == "only_shower"  # held as a conflict, clarified once
     assert conv.diagnosis["conflicts"] == {"q_scope": "everywhere"}
-    diagnosis.record(conv, "q_scope", "everywhere")  # said again (or tapped): it's a correction
+    conv.diagnosis["conflict_open"] = "q_scope"
+    diagnosis.record(conv, "q_scope", "everywhere")  # the reply to "just to check": explicit, wins
     assert conv.diagnosis["answers"]["q_scope"] == "everywhere" and not conv.diagnosis["conflicts"]
+
+
+def test_inferred_answer_is_simply_replaced():
+    from app.agent import diagnosis, state
+
+    conv = state.Conversation(contact_id="x")
+    diagnosis.start(conv, "my shower is cold")
+    diagnosis.record(conv, "q_scope", "only_shower")  # inferred (no question was open)
+    conv.diagnosis["asked"] = ["q_scope"]
+    del conv.diagnosis["answers"]["q_scope"]  # (asked now)
+    diagnosis.record(conv, "q_scope", "everywhere")
+    assert conv.diagnosis["answers"]["q_scope"] == "everywhere" and not conv.diagnosis.get("conflicts")
 
 
 # ---------------------------------------------------------------- it works / still cold / frustrated
@@ -422,3 +436,80 @@ def test_questions_are_single_topic():
     qs = diagnosis.questions()
     assert "certain times" not in qs["q_wait_result"]["text"] and "turn normally" not in qs["q_shower_handle"]["text"]
     assert all(q["text"].count("?") == 1 for q in qs.values())
+
+
+LUKA_CHAT = ["my shower is cold", "sinks too", "no", "everything", "as I was cooking just now"]
+
+
+def _luka_replay(client, monkeypatch):
+    """Luka's real chat (PR 106 review). The fake extractor makes the mistakes the live model made:
+    'my shower is cold' → only_shower, 'as I was cooking' → same_time."""
+    from app.agent import diagnosis
+
+    async def fake(text, open_qs):
+        t = text.lower()
+        guess = {"my shower is cold": {"q_scope": "only_shower"}, "sinks too": {"q_scope": "everywhere"},
+                 "as i was cooking just now": {"q_hot_water_use": "same_time"}}.get(t, {})
+        return {q["id"]: guess.get(q["id"], "unknown") for q in open_qs}
+
+    monkeypatch.setattr(diagnosis, "_classify_answers", fake)
+    turns = []
+    for msg in LUKA_CHAT:
+        n = len(outbox(client))
+        client.post("/webhooks/whatsapp", json=wa(msg))
+        turns.append([m["payload"] for m in outbox(client)[n:]])
+    return turns
+
+
+def _body(p):
+    return p["text"]["body"] if p["type"] == "text" else p["interactive"]["body"]["text"]
+
+
+def test_luka_replay_model_down(client, svc, claude, monkeypatch):
+    claude([RuntimeError("down")] * 30)
+    turns = _luka_replay(client, monkeypatch)
+    first = turns[0]
+    assert len(first) == 1 and "only the shower" in _body(first[0])  # scope first: nothing inferred
+    bodies = [_body(p) for t in turns for p in t]
+    assert all(a != b for a, b in zip(bodies, bodies[1:]))  # never the same message twice in a row
+    assert sum("Just to check" in b for b in bodies) <= 1
+    for t in turns:  # at most one question per turn
+        assert sum(p["type"] == "interactive" and "diag:" in str(p) for p in t) <= 1
+    from app.agent import state
+
+    d = state.conversation("c_202").diagnosis or {}
+    assert d.get("answers", {}).get("q_scope") == "everywhere"  # the explicit "sinks too" wins
+    assert len(d.get("asked", [])) <= 3
+
+
+def test_luka_replay_with_model(client, svc, gpt, monkeypatch):
+    """Same chat with a model that keeps re-asking: the system still never repeats or doubles a question."""
+    script = []
+    for _ in LUKA_CHAT:
+        script += [[oa_call("ask_question", question_id="q_hot_water_use", lead_in=None, translation=None)], ""]
+    gpt(script)
+    turns = _luka_replay(client, monkeypatch)
+    bodies = [_body(p) for t in turns for p in t]
+    assert all(a != b for a, b in zip(bodies, bodies[1:]))
+    for t in turns:
+        assert sum(p["type"] == "interactive" for p in t) <= 1
+    assert sum("Just to check" in b for b in bodies) <= 1
+
+
+def test_extracted_answer_to_open_question_is_explicit(monkeypatch):
+    from app.agent import diagnosis, state
+
+    async def fake(text, open_qs):
+        k = {"no": "no", "as i was cooking just now": "same_time"}[text.lower()]
+        return {q["id"]: (k if q["id"] == "q_hot_water_use" else "unknown") for q in open_qs}
+
+    monkeypatch.setattr(diagnosis, "_classify_answers", fake)
+    conv = state.Conversation(contact_id="x")
+    diagnosis.start(conv, "my shower is cold")
+    conv.diagnosis["asked"] = ["q_hot_water_use"]
+    asyncio.run(diagnosis.extract_answers(conv, "no"))
+    conv.diagnosis["asked"].append("q_radiators")
+    asyncio.run(diagnosis.extract_answers(conv, "as I was cooking just now"))
+    d = conv.diagnosis
+    assert d["answers"]["q_hot_water_use"] == "no" and d["conflicts"] == {"q_hot_water_use": "same_time"}
+    assert diagnosis.decisive_self_help(d) is None

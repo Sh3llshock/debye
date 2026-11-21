@@ -72,7 +72,7 @@ def active(conv: st.Conversation) -> bool:
 # ------------------------------------------------------------------ state helpers
 def start(conv: st.Conversation, complaint: str | None) -> dict:
     conv.diagnosis = {"answers": {}, "asked": [], "safety_done": False, "concluded": None,
-                      "complaint": complaint, "started": time.time(), "facts": []}
+                      "complaint": complaint, "started": time.time(), "facts": [], "turn": 1}
     return conv.diagnosis
 
 
@@ -81,17 +81,22 @@ def record(conv: st.Conversation, qid: str, key: str, authoritative: bool = Fals
     until the resident confirms it: a tap, or the same answer again); never silently overwritten."""
     d = conv.diagnosis
     conflicts = d.setdefault("conflicts", {})
-    if not authoritative and qid in d["answers"] and key in (questions().get(qid) or {}).get("answers", {}):
-        if key == d["answers"][qid]:
-            conflicts.pop(qid, None)  # confirmed the earlier answer
+    explicit = d.setdefault("explicit", [])
+    # explicit = a tap, or the answer to the question that was open (or just re-asked)
+    now_explicit = authoritative or open_question(d) == qid or d.get("conflict_open") == qid
+    valid = key in (questions().get(qid) or {}).get("answers", {})
+    if valid and qid in d["answers"] and key != d["answers"][qid]:
+        if qid in explicit and not now_explicit:
+            # an explicit earlier answer vs. something inferred later: clarify once, else keep the earlier one
+            if qid not in d.setdefault("conflict_asked", []):
+                conflicts[qid] = key
+                log.info("conflict on %s: %s (explicit) vs %s (inferred)", qid, d["answers"][qid], key)
             return d
-        if conflicts.get(qid) != key:
-            conflicts[qid] = key
-            log.info("conflict on %s: %s vs %s", qid, d["answers"][qid], key)
-            return d
-        conflicts.pop(qid, None)  # said it twice: it's a correction
-    if authoritative:
+        conflicts.pop(qid, None)  # the later explicit answer (or one replacing an inferred one) wins
+    elif valid and qid in d["answers"]:
         conflicts.pop(qid, None)
+    if valid and now_explicit and qid not in explicit:
+        explicit.append(qid)
     if key in ("unknown", "dont_know", "cant_check") and qid in questions() \
             and key not in questions()[qid]["answers"]:
         d.setdefault("dont_know", [])
@@ -383,7 +388,7 @@ def _options(qid: str, lang: str = "en") -> list[Option]:
     short = {"only_shower": "Only the shower", "everywhere": "Everywhere", "yes": "Yes", "no": "No",
              "code": "Shows a code", "normal": "Looks normal", "dark": "It's dark", "none": "No gas stove",
              "low": "Below 1 bar", "ok": "1 bar or more",
-             "before": "Yes, just before", "same_time": "Yes, at the same time",
+             "before": "Yes, just before", "same_time": "Yes, same time",
              "found_off": "Something was off", "all_on": "All on", "cant_check": "Can't check",
              "not_tried": "Haven't tried", "warms_slowly": "Warms up slowly", "stays_cold": "Stays cold",
              "set_wrong": "Stops at 38°C"}
@@ -444,6 +449,11 @@ async def ask_conflict(contact, conv: st.Conversation) -> None:
     d = conv.diagnosis
     qid, new = next(iter(d["conflicts"].items()))
     q, old = questions()[qid], d["answers"][qid]
+    if qid in d.setdefault("conflict_asked", []) or not question_slot_free(d):
+        return
+    d["conflict_asked"].append(qid)
+    d["conflict_open"] = qid
+    d["q_turn"] = d.get("turn")
     d["clarifications"] = d.get("clarifications", 0) + 1
     if conv.lang == "de":
         body = "Nur zur Sicherheit, was stimmt?"
@@ -453,8 +463,42 @@ async def ask_conflict(contact, conv: st.Conversation) -> None:
     await out.buttons(contact, conv.case_id, body, opts)
 
 
+def question_slot_free(d: dict) -> bool:
+    """At most one question per turn (a turn = one batch of tenant messages)."""
+    return d.get("q_turn") is None or d.get("q_turn") != d.get("turn")
+
+
+def resolve_conflict_reply(conv: st.Conversation, text: str | None) -> None:
+    """Any reply to 'just to check' resolves it: a clear pick wins, anything else keeps the earlier
+    (explicit) answer and the diagnosis moves on. Never asked again."""
+    d = conv.diagnosis
+    qid = d.pop("conflict_open", None)
+    if not qid:
+        return
+    new = (d.get("conflicts") or {}).pop(qid, None)
+    if not new or not text:
+        return
+    from . import choice
+
+    opt = choice.fast_match(text, [o for o in _options(qid, conv.lang) if o.id.split(":")[2] in (new, d["answers"][qid])])
+    if opt is not None:
+        d["answers"][qid] = opt.id.split(":")[2]
+
+
 async def ask(contact, conv: st.Conversation, qid: str, lead: str | None = None, text: str | None = None) -> None:
     d = conv.diagnosis
+    if not question_slot_free(d):
+        log.info("diagnosis: a question was already sent this turn; %s not sent", qid)
+        return
+    if open_question(d) == qid and qid in d.setdefault("reasked", []):
+        # asked twice already: treat as unknown and move on instead of repeating it again
+        d.setdefault("dont_know", []).append(qid)
+        action, ident, conf = next_step(conv)
+        if action == "ask" and ident != qid:
+            return await ask(contact, conv, ident)
+        return await conclude(contact, conv, ident if action == "conclude" else
+                              likeliest_technician(d, conv.error_code)[0], conf or 0.5,
+                              "Moved on after the question was asked twice.", force=True)
     reask = open_question(d) == qid  # repeating the open question ("hello?") doesn't count as a new one
     if not reask and len(d["asked"]) >= MAX_QUESTIONS:
         raise ValueError("max questions reached; conclude now")
@@ -470,6 +514,9 @@ async def ask(contact, conv: st.Conversation, qid: str, lead: str | None = None,
         lead = None  # a lead-in in the other language: use the default one
     if not reask:
         d["asked"].append(qid)
+    else:
+        d.setdefault("reasked", []).append(qid)
+    d["q_turn"] = d.get("turn")
     if lead is None:  # a few words of lead-in, never filler
         leads = LEAD_INS_DE if conv.lang == "de" else LEAD_INS
         lead = ("Danke." if de else "Thanks.") if reask else \
@@ -651,7 +698,9 @@ async def _classify_answers(text: str, open_qs: list[dict]) -> dict:
                  "'the kitchen is fine' → q_scope=only_shower; 'the heating is off too' / 'the flat is freezing' → "
                  "q_radiators=yes; 'the radiators are warm' → q_radiators=no; 'can't check' / 'idk' → unknown; "
                  "'I switched the heater back on' → "
-                 "q_switch_check=found_off). Ambiguous words ('everything', 'kinda', 'idk', 'both?') are 'unknown'. "
+                 "q_switch_check=found_off). Ambiguous words ('everything', 'kinda', 'idk', 'both?') are 'unknown'. 'my shower is cold' or 'no hot "
+                 "water in the shower' says NOTHING about the sinks: q_scope only when the text explicitly says only "
+                 "the shower / the sink is hot (only_shower) or the sinks/all taps are cold too (everywhere). "
                  "If the tenant corrects an earlier statement, use the corrected one. Never guess."},
                 {"role": "user", "content": text},
             ],
@@ -668,21 +717,47 @@ async def _classify_answers(text: str, open_qs: list[dict]) -> dict:
         return {}
 
 
+_ONLY_SHOWER_RE = re.compile(
+    r"\b((only|just) (in )?(the |my |our )?shower|shower only|sinks? (is|are|'s)? ?(still )?(hot|warm|fine|ok|okay)|"
+    r"kitchen( tap)? (is|'s)? ?(still )?(hot|warm|fine|ok|okay)|(other|rest of the) taps (are )?(fine|hot|ok)|"
+    r"(the )?rest is fine|nur (in )?(die |der )?dusche|waschbecken (ist |sind )?(noch )?(warm|heiß|ok)|"
+    r"küche (ist )?(warm|heiß|ok))", re.IGNORECASE)
+_EVERYWHERE_RE = re.compile(
+    r"\b(everywhere|every tap|all (the |of the )?taps|all of them|sinks? too|kitchen too|(the )?sinks? (are|is) "
+    r"(also |too )?cold|also (the )?(sinks?|kitchen)|(and|plus) (the )?(sinks?|kitchen)|whole (flat|apartment)|"
+    r"kitchen and (the )?(bath(room)?|shower)|(kitchen|sinks?)\b[^.!?]{0,25}\bcold|cold (at|in) (the )?(sinks?|kitchen)|"
+    r"(shower|kitchen) and (the )?(sinks?|kitchen|shower)|überall|alle hähne|auch (die |das |in der )?(waschbecken|küche))",
+    re.IGNORECASE)
+
+
+def explicit_enough(qid: str, key: str, text: str | None) -> bool:
+    """q_scope only from explicit words: 'my shower is cold' says nothing about the sinks."""
+    if qid != "q_scope":
+        return True
+    t = text or ""
+    return bool(_ONLY_SHOWER_RE.search(t)) if key == "only_shower" else bool(_EVERYWHERE_RE.search(t))
+
+
 async def extract_answers(conv: st.Conversation, text: str | None) -> dict:
     """Records what a free-text message already answers (only questions not answered yet)."""
     d = conv.diagnosis
     if not text or not d:
         return {}
+    d["last_text"] = text
     open_qs = [q for q in kb()["questions"] if q["id"] not in d["answers"] or q["id"] in ("q_hot_water_use", "q_scope")]
     if not open_qs:
         return {}
     found = await _classify_answers(text, open_qs)
+    found = {q: k for q, k in found.items() if explicit_enough(q, k, text)}
     valid = {qid: key for qid, key in found.items()
              if qid in questions() and key in questions()[qid]["answers"] and qid not in d["answers"]}
     for qid, key in found.items():  # a definite answer that contradicts an earlier one: clarify, don't overwrite
         if qid in d["answers"] and key in (questions().get(qid) or {}).get("answers", {}) and key != d["answers"][qid]:
             record(conv, qid, key)
+    open_q = open_question(d)
     d["answers"].update(valid)
+    if open_q in valid:  # the answer to the open question is explicit (a later inference can't flip it)
+        d.setdefault("explicit", []).append(open_q)
     if valid:
         log.info("extracted from free text: %s", valid)
     return valid
@@ -696,6 +771,7 @@ async def on_answer(contact, qid: str, key: str) -> None:
     if not conv.diagnosis:
         start(conv, None)
     d = conv.diagnosis
+    d["turn"] = d.get("turn", 0) + 1  # a tap is a new turn
     if qid == SAFETY_QID:
         d["safety_done"] = True
         if key == "yes":
@@ -821,6 +897,8 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         if contra and cause_id not in {r["id"] for r in score(d, conv.error_code)}:
             raise ValueError(f"{cause_id} contradicts the answers ({', '.join(contra)}); pick another cause "
                              "or ask a question")
+    if message is None and cause_id != "gas_smell" and missing_core(d, cause_id):
+        message = ""  # never explain a cause whose required answers are missing (e.g. 'radiators are warm')
     d["concluded"] = cause_id
     if message is not None:  # escalation without enough answers: no explanation of a cause we can't support
         translation = message or say(conv, NEUTRAL_TECH, NEUTRAL_TECH_DE)
@@ -973,6 +1051,7 @@ async def on_follow_up(contact, cause_id: str, fixed: bool) -> None:
     # still cold after the self-help tip: what the failure tells us is an answer; keep diagnosing
     conv.diagnosis = conv.diagnosis or start(conv, None)
     d = conv.diagnosis
+    d["turn"] = d.get("turn", 0) + 1
     d["concluded"] = None
     d["facts"].append("self_help_failed")
     d.setdefault("failed_tips", []).append(cause_id)

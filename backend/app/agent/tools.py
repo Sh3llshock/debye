@@ -289,6 +289,11 @@ async def _record_answer(ctx: TurnContext, question_id: str, answer_key: str) ->
 
     if not diagnosis.active(ctx.conv):
         raise ValueError("no diagnosis running")
+    d = ctx.conv.diagnosis
+    if diagnosis.open_question(d) != question_id and \
+            not diagnosis.explicit_enough(question_id, answer_key, d.get("last_text") or d.get("complaint")):
+        raise ValueError(f"The resident didn't say that explicitly ('{(d.get('last_text') or '')[:60]}'); "
+                         f"don't record {question_id} from it")
     diagnosis.record(ctx.conv, question_id, answer_key)
     action, ident, conf = diagnosis.next_step(ctx.conv)
     return {"ok": True, "answers_so_far": ctx.conv.diagnosis["answers"],
@@ -301,6 +306,8 @@ async def _conclude(ctx: TurnContext, cause_id: str, confidence: float, reasonin
 
     if not diagnosis.active(ctx.conv):
         raise ValueError("no diagnosis running")
+    if not diagnosis.question_slot_free(ctx.conv.diagnosis):
+        raise ValueError("A question was sent this turn: wait for the answer before concluding.")
     res = await diagnosis.conclude(ctx.contact, ctx.conv, cause_id, max(0.0, min(1.0, confidence)), reasoning,
                                    translation=translation)
     ctx.sent += 1
