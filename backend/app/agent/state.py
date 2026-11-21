@@ -36,6 +36,8 @@ class Conversation:
     pending_question: str | None = None
     asked_at: dict = field(default_factory=dict)  # step -> time.monotonic() of the last question
     pending_inputs: list[str] = field(default_factory=list)  # zero-forms labels before the case exists
+    lang: str = "en"  # resident's language for code-written texts (diagnosis.update_lang)
+    photos: int = 0  # photos the resident sent in this conversation (consent mentions them only if any)
 
 
 @dataclass

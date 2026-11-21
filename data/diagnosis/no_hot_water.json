@@ -32,7 +32,39 @@
       "answers": {
         "only_shower": "only the shower is cold, sinks are hot",
         "everywhere": "cold or lukewarm everywhere"
-      }
+      },
+      "text_de": "Ist es nur die Dusche, oder ist das Wasser auch an den Waschbecken kalt?"
+    },
+    {
+      "id": "q_hot_water_use",
+      "text": "Did anyone use hot water just before or at the same time, like another shower, the dishwasher or the kitchen tap?",
+      "answers": {
+        "before": "someone used a lot of hot water just before",
+        "same_time": "something else was using hot water at the same time",
+        "no": "nobody used hot water"
+      },
+      "text_de": "Hat jemand kurz vorher oder gleichzeitig warmes Wasser benutzt, zum Beispiel eine andere Dusche, die Spülmaschine oder den Küchenhahn?"
+    },
+    {
+      "id": "q_switch_check",
+      "text": "Quick check: is anything switched off, like the water heater's switch or fuse, the boiler's hot-water mode, a holiday or timer mode, or a valve under the sink?",
+      "answers": {
+        "found_off": "something was off or closed and is back on now",
+        "all_on": "everything is on and open",
+        "cant_check": "can't check right now"
+      },
+      "text_de": "Kurzer Check: Ist etwas ausgeschaltet, etwa der Schalter oder die Sicherung des Warmwasserbereiters, der Warmwasser-Modus der Heizung, ein Urlaubs- oder Timer-Modus oder ein Ventil unter dem Waschbecken?"
+    },
+    {
+      "id": "q_wait_result",
+      "text": "If you let the hot tap run for two minutes, does it warm up slowly, stay cold, or is it only cold at certain times of day?",
+      "answers": {
+        "not_tried": "hasn't let it run that long yet",
+        "warms_slowly": "gets warm only slowly or stays lukewarm",
+        "stays_cold": "stays cold even after running",
+        "certain_times": "only cold or lukewarm at certain times of day"
+      },
+      "text_de": "Wenn du den Warmwasserhahn zwei Minuten laufen lässt: Wird es langsam warm, bleibt es kalt, oder ist es nur zu bestimmten Tageszeiten kalt?"
     },
     {
       "id": "q_radiators",
@@ -40,23 +72,18 @@
       "answers": {
         "yes": "radiators cold too",
         "no": "radiators are warm"
-      }
+      },
+      "text_de": "Sind die Heizkörper auch kalt?"
     },
     {
-      "id": "q_recent_use",
-      "text": "Did someone else shower or use a lot of hot water just before you?",
+      "id": "q_shower_handle",
+      "text": "Is the shower knob turned fully to hot (some stop at 38°C until you press a small button), and does it turn normally?",
       "answers": {
-        "yes": "others used hot water just before",
-        "no": "nobody used much hot water"
-      }
-    },
-    {
-      "id": "q_waited",
-      "text": "Did you let the hot water run for one or two minutes?",
-      "answers": {
-        "yes": "ran it 1–2 minutes",
-        "no": "only briefly"
-      }
+        "set_wrong": "it stops at 38°C (the limiter button) or wasn't turned fully to hot",
+        "stops_early": "the knob slips, spins freely or is stuck",
+        "normal": "fully on hot and it turns normally"
+      },
+      "text_de": "Steht der Duschregler ganz auf heiß (manche stoppen bei 38 °C, bis man einen kleinen Knopf drückt), und lässt er sich normal drehen?"
     },
     {
       "id": "q_display",
@@ -65,7 +92,8 @@
         "code": "display shows an error code (read from photo)",
         "normal": "display looks normal",
         "dark": "display is dark / off"
-      }
+      },
+      "text_de": "Kannst du ein Foto vom Display des Heizkessels schicken? Bei einer Störung zeigt es meist einen Fehlercode."
     },
     {
       "id": "q_power",
@@ -73,7 +101,17 @@
       "answers": {
         "yes": "power is on",
         "no": "power is off"
-      }
+      },
+      "text_de": "Funktionieren das Licht und der übrige Strom in deiner Wohnung?"
+    },
+    {
+      "id": "q_pressure",
+      "text": "On the boiler there's a small pressure gauge. Is the needle below 1 bar?",
+      "answers": {
+        "low": "pressure below 1 bar",
+        "ok": "pressure 1–2 bar"
+      },
+      "text_de": "Am Kessel gibt es ein kleines Manometer. Steht die Nadel unter 1 bar?"
     },
     {
       "id": "q_gas_stove",
@@ -82,47 +120,18 @@
         "yes": "gas stove works",
         "no": "gas stove doesn't light",
         "none": "no gas stove"
-      }
-    },
-    {
-      "id": "q_knob",
-      "text": "Could you check the shower's temperature knob: is it turned fully to warm, and is there a safety button at 38°C you need to press to go hotter?",
-      "answers": {
-        "was_wrong": "knob was set too cold / limiter",
-        "correct": "knob is fully on warm"
-      }
-    },
-    {
-      "id": "q_pressure",
-      "text": "On the boiler there's a small pressure gauge. Is the needle below 1 bar?",
-      "answers": {
-        "low": "pressure below 1 bar",
-        "ok": "pressure 1–2 bar"
-      }
-    },
-    {
-      "id": "q_timing",
-      "text": "Does the water eventually get warm if you wait longer, or does it stay cold?",
-      "answers": {
-        "slow": "gets lukewarm after a long wait",
-        "stays_cold": "stays cold"
-      }
+      },
+      "text_de": "Falls du einen Gasherd hast: Zündet er normal?",
+      "ask": false
     },
     {
       "id": "q_weather_pipe",
-      "text": "Is it just this one tap, with very weak flow, maybe on an outside wall?",
+      "text": "Is the flow from the shower very weak, and is it on an outside wall?",
       "answers": {
         "yes": "one tap, weak flow, outside wall",
         "no": "flow is normal"
-      }
-    },
-    {
-      "id": "q_other_tap",
-      "text": "Was another shower, the dishwasher or a hot tap running at the same time?",
-      "answers": {
-        "yes": "another hot tap or appliance was running",
-        "no": "nothing else was running"
-      }
+      },
+      "text_de": "Kommt aus der Dusche nur sehr wenig Wasser, und liegt sie an einer Außenwand?"
     },
     {
       "id": "q_recent_work",
@@ -130,15 +139,8 @@
       "answers": {
         "yes": "plumbing work happened recently",
         "no": "no recent work"
-      }
-    },
-    {
-      "id": "q_handle_feel",
-      "text": "When you turn the shower handle towards hot, does it feel normal, or does it slip or hit a hard stop early?",
-      "answers": {
-        "slips_or_stops": "handle slips or stops early",
-        "normal": "handle turns normally"
-      }
+      },
+      "text_de": "Hat in letzter Zeit ein Installateur oder jemand anderes im Bad oder an den Leitungen gearbeitet?"
     },
     {
       "id": "q_heater_type",
@@ -146,7 +148,8 @@
       "answers": {
         "yes": "electric instantaneous heater in the flat",
         "no": "no heater box"
-      }
+      },
+      "text_de": "Hängt in Bad oder Küche ein kleiner elektrischer Durchlauferhitzer an der Wand?"
     }
   ],
   "causes": [
@@ -154,73 +157,101 @@
       "id": "hot_water_used_up",
       "label": "Hot water tank used up (others showered just before)",
       "signals": [
-        "q_recent_use=yes",
+        "q_hot_water_use=before",
         "q_radiators=no",
         "q_scope=everywhere"
       ],
       "ask_order": [
-        "q_recent_use",
+        "q_hot_water_use",
         "q_scope"
       ],
       "outcome": "self_help",
       "trade": null,
       "technician_needed": false,
-      "tenant_message": "That's probably just the hot water tank being empty after the others showered. It reheats in about 30–45 minutes. I'll check back with you in an hour, and if it's still cold I'll send someone.",
-      "follow_up_minutes": 60
+      "tenant_message": "Then the hot water tank is probably just empty. It reheats in about 30 to 45 minutes; try again then and tell me if it works.",
+      "follow_up_minutes": 60,
+      "requires": [
+        "q_hot_water_use"
+      ],
+      "decisive": true,
+      "if_fails": {
+        "q_hot_water_use": "no"
+      },
+      "tenant_message_de": "Dann ist der Warmwasserspeicher wahrscheinlich einfach leer. Er heizt in etwa 30 bis 45 Minuten wieder auf; probier es dann noch einmal und sag mir, ob es klappt."
     },
     {
       "id": "not_run_long_enough",
       "label": "Hot water not run long enough (long pipe to the shower)",
       "signals": [
-        "q_waited=no",
+        "q_wait_result=not_tried",
         "q_radiators=no"
       ],
       "ask_order": [
-        "q_waited"
+        "q_wait_result"
       ],
       "outcome": "self_help",
       "trade": null,
       "technician_needed": false,
-      "tenant_message": "In older buildings the hot water takes a moment to reach the shower. Could you let it run for about two minutes and tell me if it gets warm?"
+      "tenant_message": "Hot water can take a moment to reach the tap. Let it run for about two minutes and tell me if it gets warm.",
+      "requires": [
+        "q_wait_result"
+      ],
+      "decisive": true,
+      "if_fails": {
+        "q_wait_result": "stays_cold"
+      },
+      "tenant_message_de": "Warmes Wasser braucht manchmal einen Moment bis zum Hahn. Lass es etwa zwei Minuten laufen und sag mir, ob es warm wird."
     },
     {
       "id": "shower_knob_or_limiter",
       "label": "Shower thermostat set too cold, scald limiter engaged, or handle slipping / limit stop set too low",
       "signals": [
         "q_scope=only_shower",
-        "q_knob=was_wrong",
-        "q_handle_feel=slips_or_stops"
+        "q_shower_handle=set_wrong"
       ],
       "ask_order": [
         "q_scope",
-        "q_knob"
+        "q_shower_handle"
       ],
       "outcome": "self_help",
       "trade": null,
       "technician_needed": false,
-      "tenant_message": "Most shower thermostats stop at 38°C: press the small button on the knob and turn further to go hotter. Let me know if that does it!",
-      "note": "If the limiter button doesn't help or the handle slips, escalate to plumbing (stripped handle / limit stop adjustment)."
+      "tenant_message": "Most shower thermostats stop at 38°C: press the small button on the knob and turn further to go hotter. Try that and tell me if it works.",
+      "note": "If the limiter button doesn't help or the handle slips, escalate to plumbing (stripped handle / limit stop adjustment).",
+      "requires": [
+        "q_shower_handle"
+      ],
+      "decisive": true,
+      "if_fails": {
+        "q_shower_handle": "normal"
+      },
+      "tenant_message_de": "Die meisten Duschthermostate stoppen bei 38 °C: Drück den kleinen Knopf am Regler und dreh weiter, dann wird es heißer. Probier das und sag mir, ob es klappt."
     },
     {
       "id": "shower_mixer_faulty",
       "label": "Shower mixer cartridge stuck, thermostat out of calibration, or debris in the hot inlet filter",
       "signals": [
         "q_scope=only_shower",
-        "q_knob=correct",
-        "q_waited=yes",
-        "q_handle_feel=normal",
+        "q_shower_handle=normal",
+        "q_recent_work=no",
+        "q_weather_pipe=no",
         "spray weaker towards hot"
       ],
       "ask_order": [
         "q_scope",
-        "q_knob",
-        "q_waited"
+        "q_shower_handle",
+        "q_recent_work"
       ],
       "outcome": "technician",
       "trade": "plumbing",
       "technician_needed": true,
       "estimated_cost_eur": 180,
-      "tenant_message": "Since the sinks are hot and only the shower stays cold, it's most likely the shower's mixer cartridge. That's a quick job for a plumber. I'll arrange one for you."
+      "tenant_message": "Since only the shower stays cold, it's most likely the shower's mixer cartridge. That's a quick job for a plumber.",
+      "requires": [
+        "q_scope",
+        "q_shower_handle"
+      ],
+      "tenant_message_de": "Da nur die Dusche kalt bleibt, ist es höchstwahrscheinlich die Mischkartusche der Dusche. Das ist eine kurze Arbeit für einen Installateur."
     },
     {
       "id": "boiler_fault",
@@ -239,7 +270,9 @@
       "brand_required": "asset.make",
       "technician_needed": true,
       "estimated_cost_eur": 263,
-      "tenant_message": "The boiler reports a fault, so it's not something you can fix yourself. I'll get a certified heating technician out to you."
+      "tenant_message": "Since the heating and the hot water are both off, it's most likely a fault in the boiler. That needs a heating technician.",
+      "requires": [],
+      "tenant_message_de": "Da Heizung und Warmwasser beide aus sind, ist es höchstwahrscheinlich eine Störung am Kessel. Das muss sich ein Heizungstechniker ansehen."
     },
     {
       "id": "low_system_pressure",
@@ -259,45 +292,58 @@
       "escalate_to": "heating",
       "escalate_if": "pressure drops again within 48 h",
       "estimated_cost_eur": 0,
-      "tenant_message": "The system pressure is a bit low. Our caretaker can top it up in a few minutes, so no technician needed for now. I'll let them know."
+      "tenant_message": "Then our caretaker can top up the pressure in a few minutes, so no technician is needed for now. I've let them know.",
+      "requires": [
+        "q_pressure"
+      ],
+      "decisive": true,
+      "tenant_message_de": "Dann kann unser Hausmeister den Druck in ein paar Minuten auffüllen, ein Techniker ist vorerst nicht nötig. Ich habe ihm Bescheid gegeben."
     },
     {
       "id": "circulation_pump_faulty",
       "label": "Hot water circulation pump faulty",
       "signals": [
         "q_scope=everywhere",
-        "q_timing=slow",
+        "q_wait_result=warms_slowly",
         "q_radiators=no"
       ],
       "ask_order": [
         "q_scope",
-        "q_timing"
+        "q_wait_result"
       ],
       "outcome": "technician",
       "trade": "heating",
       "technician_needed": true,
       "estimated_cost_eur": 320,
-      "tenant_message": "If the water only gets lukewarm after a long wait everywhere, the hot water circulation pump is probably failing. I'll send a heating technician to check it."
+      "tenant_message": "If the water only gets lukewarm after a long wait everywhere, the hot water circulation pump is probably failing. That needs a heating technician.",
+      "requires": [
+        "q_wait_result"
+      ],
+      "tenant_message_de": "Wenn das Wasser überall erst nach langer Zeit lauwarm wird, fällt wahrscheinlich die Zirkulationspumpe aus. Das muss sich ein Heizungstechniker ansehen."
     },
     {
       "id": "tank_thermostat_or_scale",
       "label": "Hot water tank thermostat or scale build-up",
       "signals": [
         "q_scope=everywhere",
-        "q_timing=stays_cold",
+        "q_wait_result=stays_cold",
         "q_radiators=no",
         "q_display=normal"
       ],
       "ask_order": [
         "q_scope",
         "q_radiators",
-        "q_display"
+        "q_wait_result"
       ],
       "outcome": "technician",
       "trade": "heating",
       "technician_needed": true,
       "estimated_cost_eur": 240,
-      "tenant_message": "The heating works but the hot water doesn't, so it's likely the hot water tank's thermostat or limescale. I'll arrange a heating technician."
+      "tenant_message": "The heating works but the hot water doesn't, so it's likely the hot water tank's thermostat or limescale. That needs a heating technician.",
+      "requires": [
+        "q_radiators"
+      ],
+      "tenant_message_de": "Die Heizung funktioniert, das Warmwasser aber nicht, also ist es wahrscheinlich der Thermostat des Speichers oder Kalk. Das muss sich ein Heizungstechniker ansehen."
     },
     {
       "id": "no_power_to_boiler",
@@ -315,7 +361,12 @@
       "technician_needed": false,
       "escalate_to": "electrical",
       "escalate_if": "fuse trips again or caretaker can't restore power",
-      "tenant_message": "The boiler seems to have no power. Our caretaker will check the fuse box first. If that's not it, I'll send an electrician."
+      "tenant_message": "Then the boiler seems to have no power. Our caretaker will check the fuse box first, and if that's not it, an electrician will.",
+      "requires": [
+        "q_power"
+      ],
+      "decisive": true,
+      "tenant_message_de": "Dann hat der Kessel wohl keinen Strom. Unser Hausmeister prüft zuerst den Sicherungskasten, und falls es das nicht ist, ein Elektriker."
     },
     {
       "id": "gas_supply_interrupted",
@@ -330,7 +381,12 @@
       "outcome": "utility",
       "trade": "gas_utility",
       "technician_needed": false,
-      "tenant_message": "It looks like the gas supply itself is interrupted. Your property manager is contacting the gas supplier now. I'll keep you posted."
+      "tenant_message": "Then the gas supply itself is probably interrupted. Your property manager is contacting the gas supplier now, and I'll keep you posted.",
+      "requires": [
+        "q_gas_stove"
+      ],
+      "decisive": true,
+      "tenant_message_de": "Dann ist wahrscheinlich die Gasversorgung selbst unterbrochen. Deine Hausverwaltung kontaktiert jetzt den Gasversorger, ich halte dich auf dem Laufenden."
     },
     {
       "id": "planned_maintenance",
@@ -342,7 +398,9 @@
       "outcome": "self_help",
       "trade": null,
       "technician_needed": false,
-      "tenant_message": "There's planned maintenance in your building today; hot water should be back by the time in the notice. Sorry for the hassle!"
+      "tenant_message": "There's planned maintenance in your building today; hot water should be back by the time in the notice.",
+      "requires": [],
+      "tenant_message_de": "Heute gibt es geplante Wartungsarbeiten in deinem Haus; das warme Wasser sollte bis zur Uhrzeit in der Ankündigung wieder da sein."
     },
     {
       "id": "frozen_or_damaged_pipe",
@@ -352,29 +410,43 @@
         "q_scope=only_shower"
       ],
       "ask_order": [
+        "q_scope",
         "q_weather_pipe"
       ],
       "outcome": "technician",
       "trade": "plumbing",
       "technician_needed": true,
       "estimated_cost_eur": 220,
-      "tenant_message": "Weak flow at just one tap on an outside wall sounds like a frozen or damaged pipe. Please don't try to heat it with an open flame. I'm sending a plumber."
+      "tenant_message": "Weak flow at just one tap on an outside wall sounds like a frozen or damaged pipe. Please don't try to heat it with an open flame; it needs a plumber.",
+      "requires": [
+        "q_weather_pipe"
+      ],
+      "decisive": true,
+      "tenant_message_de": "Sehr schwacher Durchfluss an einer Stelle an einer Außenwand klingt nach einer eingefrorenen oder beschädigten Leitung. Bitte nicht mit offener Flamme erwärmen; das muss ein Installateur ansehen."
     },
     {
       "id": "simultaneous_use",
       "label": "Another hot tap or appliance running at the same time",
       "signals": [
-        "q_other_tap=yes",
+        "q_hot_water_use=same_time",
         "q_radiators=no"
       ],
       "ask_order": [
-        "q_other_tap"
+        "q_hot_water_use"
       ],
       "outcome": "self_help",
       "trade": null,
       "technician_needed": false,
       "tenant_message": "That's likely just the hot water being shared: if the dishwasher or another shower runs at the same time, there's less for you. Try again once it's off, and tell me if it stays cold.",
-      "follow_up_minutes": 30
+      "follow_up_minutes": 30,
+      "requires": [
+        "q_hot_water_use"
+      ],
+      "decisive": true,
+      "if_fails": {
+        "q_hot_water_use": "no"
+      },
+      "tenant_message_de": "Dann wird das warme Wasser wahrscheinlich nur geteilt: Wenn die Spülmaschine oder eine andere Dusche gleichzeitig läuft, bleibt für dich weniger. Probier es noch einmal, wenn sie aus ist, und sag mir, ob es kalt bleibt."
     },
     {
       "id": "diverter_valve_stuck",
@@ -382,6 +454,7 @@
       "signals": [
         "q_radiators=no",
         "q_scope=everywhere",
+        "q_display=normal",
         "radiators warm but taps cold"
       ],
       "ask_order": [
@@ -393,7 +466,11 @@
       "brand_required": "asset.make",
       "technician_needed": true,
       "estimated_cost_eur": 290,
-      "tenant_message": "Since the radiators are warm but all the taps are cold, the boiler's switch between heating and hot water is probably stuck. That needs a heating technician. I'll arrange one."
+      "tenant_message": "Since the radiators are warm but all the taps are cold, the boiler's switch between heating and hot water is probably stuck. That needs a heating technician.",
+      "requires": [
+        "q_radiators"
+      ],
+      "tenant_message_de": "Da die Heizkörper warm sind, aber alle Hähne kalt, hängt wahrscheinlich das Umschaltventil des Kessels zwischen Heizung und Warmwasser. Das muss sich ein Heizungstechniker ansehen."
     },
     {
       "id": "supply_valve_closed_after_work",
@@ -411,57 +488,99 @@
       "trade": "plumbing",
       "technician_needed": true,
       "estimated_cost_eur": 95,
-      "tenant_message": "Because it started right after the recent plumbing work, a hot-water valve was probably left closed. Quick fix: I'll ask a plumber to come and reopen and test it."
+      "tenant_message": "Since it started right after the recent plumbing work, a hot-water valve was probably left closed. A plumber needs to reopen and test it.",
+      "requires": [
+        "q_recent_work"
+      ],
+      "decisive": true,
+      "tenant_message_de": "Da es direkt nach den Installationsarbeiten angefangen hat, wurde wahrscheinlich ein Warmwasserventil nicht wieder geöffnet. Ein Installateur muss es öffnen und prüfen."
     },
     {
       "id": "boiler_schedule_or_settings",
       "label": "Boiler hot-water timer, holiday mode or temperature set too low",
       "signals": [
         "q_scope=everywhere",
+        "q_wait_result=certain_times",
         "q_display=normal",
-        "lukewarm everywhere at certain times",
         "centrix: building recently vacant/maintenance"
       ],
       "ask_order": [
         "q_scope",
-        "q_timing"
+        "q_wait_result"
       ],
       "outcome": "caretaker",
       "trade": "caretaker",
       "technician_needed": false,
       "escalate_to": "heating",
       "escalate_if": "settings are correct but still lukewarm",
-      "tenant_message": "It sounds like the boiler's hot-water schedule or temperature is set wrong. Our caretaker can fix that in a few minutes, so no technician needed. I've let them know."
+      "tenant_message": "It sounds like the boiler's hot-water schedule or temperature is set wrong. Our caretaker can fix that in a few minutes, so no technician needed. I've let them know.",
+      "requires": [
+        "q_wait_result"
+      ],
+      "tenant_message_de": "Es klingt, als wären der Warmwasser-Zeitplan oder die Temperatur am Kessel falsch eingestellt. Unser Hausmeister kann das in ein paar Minuten beheben, ein Techniker ist nicht nötig. Ich habe ihm Bescheid gegeben."
     },
     {
       "id": "electric_instant_heater",
       "label": "Electric instantaneous water heater in the flat (circuit tripped, low-power mode or element failed)",
       "applies_if": "unit has an electric instantaneous heater (centrix asset) or q_heater_type=yes",
       "signals": [
-        "q_heater_type=yes"
+        "q_heater_type=yes",
+        "q_switch_check=all_on"
       ],
       "ask_order": [
         "q_heater_type",
-        "q_power"
+        "q_switch_check"
       ],
       "outcome": "technician",
       "trade": "electrical",
       "technician_needed": true,
       "estimated_cost_eur": 160,
-      "tenant_message": "Your flat's hot water comes from the small electric heater. First check its fuse in the fuse box; if it's not that, the heater needs an electrician, and I'll arrange one."
+      "tenant_message": "Your flat's hot water comes from the small electric heater, and since it's switched on, the heater itself most likely needs an electrician.",
+      "requires": [
+        "q_heater_type"
+      ],
+      "tenant_message_de": "Dein Warmwasser kommt aus dem kleinen elektrischen Durchlauferhitzer, und da er eingeschaltet ist, braucht er wahrscheinlich einen Elektriker."
+    },
+    {
+      "id": "switched_off_or_valve_closed",
+      "label": "Something was switched off or closed (heater switch or fuse, hot-water mode, holiday/timer mode, valve)",
+      "signals": [
+        "q_switch_check=found_off"
+      ],
+      "ask_order": [
+        "q_switch_check"
+      ],
+      "outcome": "self_help",
+      "trade": null,
+      "technician_needed": false,
+      "tenant_message": "That was probably it. Give it 10 to 15 minutes to heat up, then tell me if the water is warm again.",
+      "follow_up_minutes": 30,
+      "requires": [
+        "q_switch_check"
+      ],
+      "decisive": true,
+      "if_fails": {
+        "q_switch_check": "all_on"
+      },
+      "tenant_message_de": "Das war es wahrscheinlich. Gib ihm 10 bis 15 Minuten zum Aufheizen und sag mir dann, ob das Wasser wieder warm ist."
     }
   ],
   "strategy": [
     "Safety: react to a gas smell only if the tenant mentions it (emergency path). Never ask about gas proactively.",
     "Use centrix context first, without asking: a neighbour's open case on the same central boiler → boiler_fault; an active building notice → planned_maintenance; the unit's hot water source decides electric_instant_heater.",
     "Take everything the first message already says (e.g. 'only the shower', 'roommate just showered').",
-    "Ask the ONE question that best splits the most likely remaining causes (follow likelihood_order): usually q_scope first, then q_recent_use or q_radiators.",
-    "Ask at most 3 questions in total, one per message, and combine where natural ('Is it only the shower, or the sinks too, and did anyone shower just before you?').",
+    "Ask the ONE question that best splits the most likely remaining causes (follow likelihood_order): usually q_scope first, then q_hot_water_use or q_radiators.",
+    "Ask at most 3 diagnostic questions in total, one per message. Questions are already combined where natural (q_hot_water_use = just before OR at the same time; q_wait_result = slow / stays cold / only at certain times; q_shower_handle = setting + feel). A clarifying question about an unclear answer does not count.",
+    "Cheap self-help checks come early: hot water used just before or at the same time, something switched off or closed (q_switch_check), not run long enough, the shower knob. Give a simple 'try this' and ask the tenant to tell you if it works; no technician if it does.",
     "Stop as soon as one cause is clearly most likely; if still unclear after 3 questions, pick the most likely technician outcome and let staff approve.",
     "Self-help outcomes: give the tip, schedule a follow-up check, do NOT dispatch anyone.",
     "Technician outcomes: partners by the cause's trade (brand if required), then consent and staff approval.",
     "Tone: short, friendly, matter-of-fact. No filler empathy ('a cold shower is the worst'), no exclamations, no emojis in diagnosis questions. Max 2 short sentences per message.",
-    "Always tell the tenant the likely cause in plain words and record the diagnosis with its reasoning on the case."
+    "Always tell the tenant the likely cause in plain words and record the diagnosis with its reasoning on the case.",
+    "Never state a fact the tenant didn't give: explanations may only use answers_so_far and centrix facts. If a cause needs an answer you don't have (e.g. q_radiators for diverter_valve_stuck), ask it first.",
+    "Ambiguous answers ('everything', 'idk', 'kinda'): ask one short clarifying question instead of guessing; 'I don't know' / 'can't check' moves on to the next best question.",
+    "If a self-help tip didn't work, the diagnosis continues (the failed tip is an answer), with the questions left; then the likeliest technician cause.",
+    "Heating off too (q_radiators=yes): ask q_display first. F.22 → q_pressure; any other code → boiler_fault (heating technician); a dark display → q_power. Never ask about the gas stove: gas_supply_interrupted only if the tenant says the stove won't light either. Back from holiday or an electric heater in the flat: q_switch_check first."
   ],
   "sources": [
     "Team troubleshooting sheet (33 situations, adapted from hotel to rental-flat context)",
@@ -471,20 +590,21 @@
   "likelihood_order": [
     "hot_water_used_up",
     "simultaneous_use",
+    "switched_off_or_valve_closed",
     "not_run_long_enough",
     "shower_knob_or_limiter",
-    "shower_mixer_faulty",
     "boiler_fault",
     "low_system_pressure",
+    "supply_valve_closed_after_work",
+    "frozen_or_damaged_pipe",
+    "shower_mixer_faulty",
     "boiler_schedule_or_settings",
-    "diverter_valve_stuck",
     "tank_thermostat_or_scale",
+    "diverter_valve_stuck",
     "circulation_pump_faulty",
     "no_power_to_boiler",
     "electric_instant_heater",
-    "supply_valve_closed_after_work",
     "planned_maintenance",
-    "gas_supply_interrupted",
-    "frozen_or_damaged_pipe"
+    "gas_supply_interrupted"
   ]
 }

@@ -53,7 +53,7 @@ def test_openai_triage_turn(client, svc, gpt):
     n = len(stub.requests)
     client.post("/webhooks/whatsapp", json=button("cold_all:case_0001", "All cold"))
     assert len(stub.requests) == n
-    assert "share your name" in outbox(client)[-1]["payload"]["interactive"]["body"]["text"]
+    assert any(s in outbox(client)[-1]["payload"]["interactive"]["body"]["text"] for s in ("share your name", "deinen Namen"))  # German tenant: German consent
 
 
 def test_openai_history_carries_over(client, svc, gpt):

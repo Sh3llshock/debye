@@ -57,7 +57,7 @@ then the code. Never start with the code yourself.
 Hot water (cold shower, no warm water)
 Ask these one at a time, in your own short words, and skip any the caller already answered. No tool call in between:
 {hot_water_questions}
-Then call report_issue ONCE with issue_type "hot_water", the caller's words as symptoms, and answers like "q_safety=no; q_scope=only_shower; q_recent_use=no; q_waited=yes" (only the keys listed above). If the caller smells gas: call report_issue right away with answers "q_safety=yes" and priority "emergency", then read its "say" calmly and end the call. Otherwise read the "say" sentence from the result.
+Then call report_issue ONCE with issue_type "hot_water", the caller's words as symptoms, and answers like "q_safety=no; q_scope=only_shower; q_hot_water_use=no; q_wait_result=stays_cold" (only the keys listed above). If the caller smells gas: call report_issue right away with answers "q_safety=yes" and priority "emergency", then read its "say" calmly and end the call. Otherwise read the "say" sentence from the result.
 
 Ending
 - Do NOT ask for consent to share data on the phone; that happens afterwards on WhatsApp. Say the WhatsApp \
@@ -85,7 +85,7 @@ CALLER_PROPS = {
 }
 
 KB = Path(__file__).resolve().parents[1] / "data" / "diagnosis" / "no_hot_water.json"
-PHONE_QUESTIONS = ("q_scope", "q_recent_use", "q_waited")  # same list as backend/app/voice/calls.py
+PHONE_QUESTIONS = ("q_scope", "q_hot_water_use", "q_wait_result")  # same list as backend/app/voice/calls.py
 
 
 def hot_water_questions() -> str:

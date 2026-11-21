@@ -323,7 +323,7 @@ def _next_phone_step(contact, call: Call | None, conv: st.Conversation) -> dict:
     return {"ok": True, "diagnosis": True, "ask": _question_payload(ident)}
 
 
-PHONE_QUESTIONS = ("q_scope", "q_recent_use", "q_waited")  # asked on the phone (agent prompt lists them)
+PHONE_QUESTIONS = ("q_scope", "q_hot_water_use", "q_wait_result")  # asked on the phone (agent prompt lists them)
 
 
 def parse_answers(answers) -> list[tuple[str, str]]:
@@ -440,7 +440,8 @@ async def _continue_diagnosis_on_whatsapp(contact, call: Call, hello: str) -> No
     if action == "ask":
         await diagnosis.ask(contact, conv, ident)
     else:
-        await diagnosis.conclude(contact, conv, ident, conf, "From the answers given on the phone call.")
+        await diagnosis.conclude(contact, conv, ident, conf, "From the answers given on the phone call.",
+                                  force=True)
 
 
 # ---------------------------------------------------------------- end of call

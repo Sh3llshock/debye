@@ -2,7 +2,8 @@
 
 Button and list ids (interfaces §3.6) are handled in code. Free text, voice
 notes and photos go to the agent. Messages from one contact that arrive close
-together (voice note + photo) are batched into one agent turn.
+together (a burst of texts, voice note + photo) are batched into one turn; a message
+that arrives while the model is still thinking re-plans that turn.
 """
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ from app.channels.base import InboundMessage, channel_for, get_channel
 
 log = logging.getLogger("debye.router")
 
-DEBOUNCE_SECONDS = float(os.getenv("ROUTER_DEBOUNCE", "1.5"))
+DEBOUNCE_SECONDS = float(os.getenv("ROUTER_DEBOUNCE", "2.5"))  # a burst of short messages = one turn
 
 _locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 _buffers: dict[str, list[tuple[str | None, list[str], bool]]] = defaultdict(list)
@@ -71,6 +72,7 @@ async def handle_inbound(msg: InboundMessage) -> None:
                 text = text.strip()
         elif m.kind == "image":
             images.append(path)
+            conv.photos += 1
             flow.tenant_input(contact, "photo")
 
     shown = text if not msg.button_id else (msg.button_title or msg.button_id)
@@ -97,21 +99,106 @@ async def handle_inbound(msg: InboundMessage) -> None:
     if not text and not images:
         return
 
+    # Everything typed/spoken goes through a short buffer: a burst of messages ("hi" / "my shower" /
+    # "is cold") becomes ONE turn, and a message that arrives while the model is still thinking
+    # makes the turn re-plan with all of them (never a reply to a fragment).
+    _buffers[cid].append((text, images, any(m.kind == "audio" for m in msg.media)))
+    if cid in _draining:
+        return  # the running drain picks this message up
+    _draining.add(cid)
+    try:
+        await _drain(contact)
+    finally:
+        _draining.discard(cid)
+
+
+def has_pending(cid: str | None) -> bool:
+    """New tenant messages are waiting (the running turn should not send; it is re-planned)."""
+    return bool(cid and _buffers.get(cid))
+
+
+async def _drain(contact) -> None:
+    cid = be.attr(contact, "id")
+    carry = None
+    while _buffers[cid] or carry:
+        if DEBOUNCE_SECONDS > 0:
+            await asyncio.sleep(DEBOUNCE_SECONDS)
+        batch, _buffers[cid] = _buffers[cid], []
+        if carry:
+            batch = [carry] + batch
+            carry = None
+        text = "\n".join(t for t, _, _ in batch if t) or None
+        images = [p for _, imgs, _ in batch for p in imgs]
+        had_voice = any(v for _, _, v in batch)
+        async with _locks[cid]:
+            interrupted = await process_text(contact, text, images)
+        if interrupted:
+            log.info("newer messages from %s: re-planning the turn with all of them", cid)
+            carry = (text, images, had_voice)
+            continue
+        if had_voice:
+            async with _locks[cid]:
+                await flow.maybe_voice_reply(contact)
+
+
+async def process_text(contact, text: str | None, images: list[str]) -> bool:
+    """One merged batch of tenant text/photos. Returns True if the turn was interrupted by newer messages."""
     from app.agent import diagnosis
 
+    cid = be.attr(contact, "id")
+    conv = st.conversation(cid)
+    diagnosis.update_lang(conv, text)
     # Gas smell / hissing mentioned anywhere → emergency path at once (never asked proactively)
     if text and diagnosis.safety_from_text(text) == "yes" and conv.step != st.CLOSED:
-        async with _locks[cid]:
-            if not conv.diagnosis or conv.diagnosis.get("concluded"):
-                diagnosis.start(conv, text)
-            await diagnosis.conclude(contact, conv, "gas_smell", 1.0, f"Tenant mentions a gas smell: \"{text[:120]}\"")
-        return
+        if not conv.diagnosis or conv.diagnosis.get("concluded"):
+            diagnosis.start(conv, text)
+        await diagnosis.conclude(contact, conv, "gas_smell", 1.0, f"Tenant mentions a gas smell: \"{text[:120]}\"")
+        return False
     # "My shower is cold": start the diagnosis (no gas question; centrix first, then max 3 questions)
-    if (text and not conv.case_id and not conv.diagnosis and conv.step == st.NEW and diagnosis.applies(text)):
+    if text and not conv.case_id and not conv.diagnosis and conv.step == st.NEW and diagnosis.applies(text):
         conv.tenant_texts.append(text)
-        async with _locks[cid]:
-            await diagnosis.begin(contact, conv, text)
-        return
+        if diagnosis.FRUSTRATED_RE.search(text):  # "no hot water, just send someone"
+            diagnosis.start(conv, text)
+            diagnosis.facts_from_centrix(contact, conv)
+            await diagnosis.extract_answers(conv, text)
+            await diagnosis.escalate_now(contact, conv, text)
+            return False
+        return bool(await diagnosis.begin(contact, conv, text, images))
+    # After a self-help tip: "it worked" closes, "didn't work" sends a technician
+    d = conv.diagnosis or {}
+    fixed = diagnosis.fixed_from_text(text)
+    if conv.step == st.SELF_HELP and d.get("concluded") and not images:
+        if fixed is not None:
+            conv.pending_options = []
+            await diagnosis.on_follow_up(contact, d["concluded"], fixed)
+            return False
+        if text and fixed is None and not diagnosis.ACK_RE.fullmatch(text.strip()) and "?" not in text:
+            from app.agent import choice
+            from app.channels.base import Option
+
+            cause = d["concluded"]
+            opt = await choice.match(text, [Option(f"diagfu_yes:{cause}", "Yes, it's warm again"),
+                                            Option(f"diagfu_no:{cause}", "No, still cold")],
+                                     "Did the tip work, is the hot water back?")
+            if opt is not None:
+                conv.pending_options = []
+                await diagnosis.on_follow_up(contact, cause, opt.id.startswith("diagfu_yes"))
+                return False
+        if text and diagnosis.ACK_RE.fullmatch(text.strip()) and not d.get("acked"):
+            d["acked"] = True  # "ok, will try later": nothing to diagnose, just keep the door open
+            from app.agent import outbound
+
+            await outbound.text(contact, conv.case_id, diagnosis.say(conv, "Sounds good. Tell me how it goes.",
+                                                                     "Gut. Sag mir, wie es läuft."))
+            return False
+    if diagnosis.active(conv) and text:
+        if fixed is True:  # "it works again" in the middle of the questions
+            await diagnosis.resolved_by_tenant(contact, conv, text)
+            return False
+        if diagnosis.FRUSTRATED_RE.search(text):
+            await diagnosis.extract_answers(conv, text)
+            await diagnosis.escalate_now(contact, conv, text)
+            return False
     # a photo of the display (or a code typed in the text) during the diagnosis answers q_display
     if (images or text) and diagnosis.active(conv) and "q_display" not in conv.diagnosis["answers"]:
         code, _src = flow.detect_error_code([text or ""], images)
@@ -124,41 +211,23 @@ async def handle_inbound(msg: InboundMessage) -> None:
     in_diagnosis = diagnosis.active(conv)
     if in_diagnosis and text:
         await diagnosis.extract_answers(conv, text)  # evidence first; the agent then asks/concludes
+    if in_diagnosis:
+        settled = diagnosis.decisive_self_help(conv.diagnosis, conv.error_code)
+        if settled:
+            await diagnosis.conclude(contact, conv, settled, 0.85, "Decisive answer: "
+                                     + ", ".join(f"{q}={k}" for q, k in conv.diagnosis["answers"].items()),
+                                     force=True)
+            return False
     if text and not images and conv.pending_options and not in_diagnosis:
-        # (during a diagnosis the model reads the whole message and records every answer in it;
-        #  only the safety question is mapped here, by code)
+        # (during a diagnosis the model reads the whole message and records every answer in it)
         from app.agent import choice
 
         opt = await choice.match(text, conv.pending_options, conv.pending_question)
         if opt is not None:
             log.info("free text %r understood as %s", text[:40], opt.id)
-            async with _locks[cid]:
-                if await handle_button(contact, opt.id):
-                    return
-
-    _buffers[cid].append((text, images, any(m.kind == "audio" for m in msg.media)))
-    if cid in _draining:
-        return  # the running drain picks this message up
-    _draining.add(cid)
-    try:
-        await _drain(contact)
-    finally:
-        _draining.discard(cid)
-
-
-async def _drain(contact) -> None:
-    cid = be.attr(contact, "id")
-    while _buffers[cid]:
-        if DEBOUNCE_SECONDS > 0:
-            await asyncio.sleep(DEBOUNCE_SECONDS)
-        batch, _buffers[cid] = _buffers[cid], []
-        text = "\n".join(t for t, _, _ in batch if t) or None
-        images = [p for _, imgs, _ in batch for p in imgs]
-        had_voice = any(v for _, _, v in batch)
-        async with _locks[cid]:
-            await loop.run_tenant_turn(contact, text, images)
-            if had_voice:
-                await flow.maybe_voice_reply(contact)
+            if await handle_button(contact, opt.id):
+                return False
+    return bool(await loop.run_tenant_turn(contact, text, images))
 
 
 def _attach(case_id: str, kind: str, path: str, mime: str, filename: str | None = None) -> str | None:

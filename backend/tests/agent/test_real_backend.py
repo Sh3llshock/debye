@@ -135,6 +135,7 @@ def test_golden_path_real_backend(real, claude, monkeypatch):
     assert not any("on it and I'll get back to you shortly" in t for t in texts), texts  # no filler after taps
     bodies = [m["payload"]["interactive"]["body"]["text"] for m in outbox if m["payload"]["type"] == "interactive"]
     assert all(len(b) <= 1024 for b in bodies)
-    consent = next(b for b in bodies if "share your name" in b)
-    for word in ("name", "phone number", "address", "floor", "photos"):
+    consent = next(b for b in bodies if "share your name" in b or "deinen Namen" in b)
+    words = ("Namen", "Telefonnummer", "Adresse", "Stockwerk", "Fotos") if "deinen Namen" in consent         else ("name", "phone number", "address", "floor", "photos")  # German tenant: German consent
+    for word in words:
         assert word in consent

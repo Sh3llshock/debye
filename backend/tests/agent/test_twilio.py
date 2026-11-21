@@ -89,7 +89,7 @@ def test_numbered_buttons_roundtrip(client, svc, claude, tw):
     post_twilio(client, Body="1")  # → cold_all:case_0001 in code
     assert any(c[0] == "open_case" for c in svc.calls)
     consent = tw.posts[-1]["data"]["Body"]
-    assert "share your name" in consent and "1 =" not in consent
+    assert ("share your name" in consent or "deinen Namen" in consent) and "1 =" not in consent
 
     post_twilio(client, Body="yes, go ahead")  # option text also works
     assert any(c[0] == "consent" for c in svc.calls)

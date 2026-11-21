@@ -22,7 +22,7 @@ from . import openai_loop
 from . import state as st
 from .errors import NoCredentials, RefusalError
 from .prompts import FALLBACK_HANDOFF, TENANT_SYSTEM
-from .tools import SCHEMAS, TurnContext, execute
+from .tools import SCHEMAS, NewerMessages, TurnContext, execute
 
 log = logging.getLogger("debye.agent")
 
@@ -86,9 +86,10 @@ def build_user_content(contact, conv: st.Conversation, text: str | None, image_p
 
     if diagnosis.active(conv):
         status["mode"] = "diagnosis"
-        last = conv.diagnosis["asked"][-1] if conv.diagnosis["asked"] else None
-        if last and last not in conv.diagnosis["answers"]:
-            status["waiting_for"] = f"answer to diagnosis question {last} (already asked, do not repeat)"
+        last = diagnosis.open_question(conv.diagnosis)
+        if last:
+            status["waiting_for"] = (f"answer to diagnosis question {last} (already asked; repeat it only with "
+                                     "ask_question if the resident's message didn't answer it)")
     content: list[dict] = []
     for p in image_paths:
         blk = _image_block(p)
@@ -137,8 +138,11 @@ async def _run_loop(messages: list, ctx: TurnContext) -> list:
     return messages
 
 
-async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | None = None) -> None:
-    """One Debye turn for a tenant message (text/transcript and/or photos)."""
+async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | None = None) -> bool:
+    """One Debye turn for a tenant message (text/transcript and/or photos).
+
+    Returns True if the turn was dropped because newer tenant messages arrived before anything was
+    sent (the router re-plans with all of them); nothing is sent or stored in that case."""
     global last_turn_fallback
     last_turn_fallback = False
     conv = st.conversation(be.attr(contact, "id"))
@@ -169,17 +173,30 @@ async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | No
         from . import diagnosis
 
         if diagnosis.active(conv):
-            d = conv.diagnosis
-            open_q = d["asked"] and d["asked"][-1] not in d["answers"]
+            open_q = diagnosis.open_question(conv.diagnosis)
             if not open_q:  # the model only chatted: keep the diagnosis moving (next question or conclusion)
                 log.info("diagnosis: no open question after the turn; code continues")
                 await flow.diagnosis_fallback(contact, conv)
-                return
+                return False
+            settled = diagnosis.decisive_self_help(conv.diagnosis, conv.error_code)
+            if settled:
+                await diagnosis.conclude(contact, conv, settled, 0.85, "Decisive answer.", force=True)
+                return False
+            if not ctx.sent or not {"ask_question", "clarify", "conclude_diagnosis"} & set(ctx.calls):
+                # side question / "thanks" / "lol" answered (or nothing sent): keep the open question visible
+                log.info("diagnosis: %s still open; repeating it", open_q)
+                await diagnosis.ask(contact, conv, open_q, lead="" if ctx.sent else None)
+                return False
         if ctx.sent == 0:
             log.warning("agent turn sent nothing; using scripted fallback")
             last_turn_fallback = True
             await flow.scripted_fallback(contact, conv, image_paths)
-        return
+        return False
+    except NewerMessages:
+        if text and conv.tenant_texts and conv.tenant_texts[-1] == text:
+            conv.tenant_texts.pop()  # the merged batch adds it again
+        log.info("turn dropped: newer messages arrived (%.2fs)", time.perf_counter() - t0)
+        return True
     except RefusalError:
         last_turn_fallback = True
         if ctx.sent == 0:
@@ -203,3 +220,4 @@ async def run_tenant_turn(contact, text: str | None, image_paths: list[str] | No
             {"role": "user", "content": only_text},
             {"role": "assistant", "content": [{"type": "text", "text": "(scripted reply sent)"}]},
         ]
+    return False

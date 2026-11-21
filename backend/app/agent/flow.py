@@ -190,9 +190,13 @@ async def request_consent(contact, case_id: str) -> None:
     await out.buttons(
         contact,
         case_id,
-        f"I'd like to send {who} over. Is it okay if I share your name, phone number, address, floor "
-        "and the photos with them?",
-        [Option(f"consent_yes:{case_id}", "Yes, go ahead"), Option(f"consent_no:{case_id}", "No")],
+        (f"Ich würde {who} schicken. Ist es okay, wenn ich deinen Namen, deine Telefonnummer, Adresse"
+         + (", dein Stockwerk und die Fotos weitergebe?" if conv.photos else " und dein Stockwerk weitergebe?"))
+        if conv.lang == "de" else
+        (f"I'd like to send {who} over. Is it okay if I share your name, phone number, address"
+         + (", floor and the photos with them?" if conv.photos else " and floor with them?")),
+        [Option(f"consent_yes:{case_id}", "Ja, gerne" if conv.lang == "de" else "Yes, go ahead"),
+         Option(f"consent_no:{case_id}", "Nein" if conv.lang == "de" else "No")],
     )
 
 
@@ -440,12 +444,12 @@ async def diagnosis_fallback(contact, conv: st.Conversation) -> None:
     from . import choice
 
     d = conv.diagnosis
-    last = d["asked"][-1] if d["asked"] else None
-    if last and last not in d["answers"] and conv.pending_options and conv.tenant_texts:
+    last = diagnosis.open_question(d)
+    if last and conv.pending_options and conv.tenant_texts:
         opt = choice.fast_match(conv.tenant_texts[-1], conv.pending_options)  # model down: map the plain answer
         if opt is not None and opt.id.startswith("diag:"):
             diagnosis.record(conv, last, opt.id.split(":")[2])
-    if last and last not in d["answers"] and _asked_recently(conv, st.DIAGNOSIS, 60):
+    if diagnosis.open_question(d) and _asked_recently(conv, st.DIAGNOSIS, 60):
         return  # question still open; wait for the answer
     action, ident, conf = diagnosis.next_step(conv)
     if action == "ask":

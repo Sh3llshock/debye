@@ -41,7 +41,7 @@ GAS_NO_RE = re.compile(
     r"(do )?not smell(ing)? (any )?gas|kein gasgeruch|kein gas|riecht nicht( nach gas)?)\b", re.IGNORECASE)
 HOT_WATER_RE = re.compile(
     r"(hot water|warm water|shower|lukewarm|no hot|cold water|tap|boiler|warmwasser|warmes wasser|dusche|"
-    r"lauwarm|kein warm)", re.IGNORECASE)
+    r"lauwarm|kein warm|sho?we?r|shwr|ho?t ?wa?te?r|duschen?|hw is|no hw)", re.IGNORECASE)
 
 
 @lru_cache(maxsize=1)
@@ -78,6 +78,12 @@ def start(conv: st.Conversation, complaint: str | None) -> dict:
 
 def record(conv: st.Conversation, qid: str, key: str) -> dict:
     d = conv.diagnosis
+    if key in ("unknown", "dont_know", "cant_check") and qid in questions() \
+            and key not in questions()[qid]["answers"]:
+        d.setdefault("dont_know", [])
+        if qid not in d["dont_know"]:
+            d["dont_know"].append(qid)  # don't ask it again; the signal stays unknown
+        return d
     q = questions().get(qid)
     if qid != SAFETY_QID and (q is None or key not in q["answers"]):
         raise ValueError(f"unknown answer {qid}={key}")
@@ -129,7 +135,8 @@ def _next_question(d: dict, cause_id: str) -> str | None:
     cause = causes()[cause_id]
     order = list(cause.get("ask_order") or []) + [s.split("=")[0] for s in cause["signals"] if "=" in s]
     for qid in dict.fromkeys(order):
-        if qid in questions() and qid not in d["answers"] and qid not in d["asked"]:
+        if qid in questions() and qid not in d["answers"] and qid not in d["asked"] \
+                and qid not in d.get("dont_know", []) and qid not in NEVER_ASK:
             return qid
     return None
 
@@ -153,6 +160,39 @@ def question_candidates(conv: st.Conversation) -> list[str]:
     return out
 
 
+# words that show a fact about a question; used to catch explanations that state unasked facts
+FACT_WORDS = {
+    "q_radiators": ("radiator", "heizkörper", "heating is on", "heating works", "heating is warm"),
+    "q_display": ("display", "error code", "shows a code"),
+    "q_pressure": ("pressure", "bar"),
+    "q_gas_stove": ("stove", "herd"),
+    "q_shower_handle": ("knob", "handle", "38"),
+    "q_weather_pipe": ("outside wall", "frozen", "frost"),
+    "q_recent_work": ("plumber", "work done", "recent work"),
+    "q_power": ("power", "lights", "fuse"),
+}
+
+
+def missing_core(d: dict, cause_id: str) -> list[str]:
+    """Questions the cause's explanation relies on (KB 'requires') that have no answer yet."""
+    cause = causes().get(cause_id) or {}
+    return [q for q in cause.get("requires") or []
+            if q in questions() and q not in d["answers"] and q not in d.get("dont_know", [])]
+
+
+def invented_facts(d: dict, reasoning: str | None) -> list[str]:
+    text = (reasoning or "").lower()
+    first = (d.get("complaint") or "").lower()
+    out = []
+    for qid, words in FACT_WORDS.items():
+        if qid in d["answers"] or qid in d.get("dont_know", []):
+            continue
+        hit = next((w for w in words if re.search(r"\b" + re.escape(w), text) and w not in first), None)
+        if hit:
+            out.append(f"'{hit}' ({qid} not answered)")
+    return out
+
+
 def contradictions(d: dict, cause_id: str, error_code: str | None = None) -> list[str]:
     out = []
     for s in causes()[cause_id].get("signals", []):
@@ -162,11 +202,87 @@ def contradictions(d: dict, cause_id: str, error_code: str | None = None) -> lis
     return out
 
 
+HOLIDAY_RE = re.compile(r"(holiday|vacation|been away|back from|came back|got back|urlaub|verreist|zurück)",
+                        re.IGNORECASE)
+
+
+NEVER_ASK = {q for q in ("q_gas_stove",)}  # recorded only when the tenant volunteers it
+
+
+def code_settles(d: dict, error_code: str | None) -> str | None:
+    """A display code decides it: F.22 + gauge below 1 bar → caretaker (via q_pressure), F.22 with normal
+    pressure or any other code → boiler technician (gas supply only if the stove won't light either)."""
+    code = (error_code or "").upper().replace(" ", "")
+    if not code:
+        return None
+    a = d["answers"]
+    if a.get("q_gas_stove") == "no":
+        return "gas_supply_interrupted"
+    if code in ("F.22", "F22"):
+        if a.get("q_pressure") == "low":
+            return "low_system_pressure"
+        if a.get("q_pressure") == "ok" or "q_pressure" in d.get("dont_know", []):
+            return "boiler_fault"
+        return None
+    return "boiler_fault"
+
+
+def forced_question(conv: st.Conversation) -> str | None:
+    """Questions the gold conversations always ask first in a situation (the model may not pick another)."""
+    d = conv.diagnosis
+    a = d["answers"]
+    skip = set(a) | set(d.get("dont_know", [])) | set(d["asked"])
+
+    def open_(q):
+        return q not in skip and q in questions()
+
+    if a.get("q_radiators") == "yes" or conv.error_code or a.get("q_display") in ("code", "dark"):
+        if open_("q_display") and not conv.error_code:
+            return "q_display"
+        code = (conv.error_code or "").upper().replace(" ", "")
+        if code in ("F.22", "F22") and open_("q_pressure"):
+            return "q_pressure"
+        if a.get("q_display") == "dark" and open_("q_power"):
+            return "q_power"
+    if (a.get("q_heater_type") == "yes" or HOLIDAY_RE.search(d.get("complaint") or "")) and open_("q_switch_check"):
+        return "q_switch_check"
+    return None
+
+
+def decisive_self_help(d: dict, error_code: str | None = None) -> str | None:
+    """A decisive cause whose required answers are given and match (e.g. q_hot_water_use=before,
+    q_gas_stove=no) and that nothing contradicts: conclude at once."""
+    boiler_problem = error_code or d["answers"].get("q_display") in ("code", "dark") \
+        or d["answers"].get("q_radiators") == "yes"
+    failed = set(d.get("failed_tips", []))
+    by_code = code_settles(d, error_code)
+    if by_code:
+        return by_code
+    for cid in kb().get("likelihood_order", []):
+        c = causes().get(cid) or {}
+        req = c.get("requires") or []
+        if not c.get("decisive") or not req or cid in failed:
+            continue
+        if c.get("outcome") == "self_help" and boiler_problem:
+            continue  # the boiler itself reports a problem: no "try this" tip
+        if cid == "gas_supply_interrupted" and d["answers"].get("q_gas_stove") != "no":
+            continue
+        if all(f"{q}={d['answers'].get(q)}" in c.get("signals", []) for q in req)                 and not contradictions(d, cid, error_code):
+            return cid
+    return None
+
+
 def next_step(conv: st.Conversation) -> tuple[str, str, float]:
     """Deterministic policy (fallback + guard): ("ask", qid, 0) or ("conclude", cause_id, confidence)."""
     d = conv.diagnosis
     ranked = score(d, conv.error_code)
     out_of_questions = len(d["asked"]) >= MAX_QUESTIONS
+    decisive = decisive_self_help(d, conv.error_code)
+    if decisive:  # cheap "try this" first; if it doesn't help, the follow-up sends a technician
+        return "conclude", decisive, 0.8
+    forced = forced_question(conv) if not out_of_questions else None
+    if forced:
+        return "ask", forced, 0.0
     if ranked:
         best = ranked[0]
         confidence = round(min(0.95, max(0.4, best["score"])), 2)
@@ -189,8 +305,8 @@ def next_step(conv: st.Conversation) -> tuple[str, str, float]:
         cands = question_candidates(conv)
         if cands:
             return "ask", cands[0], 0.0
-    for qid in ("q_scope", "q_radiators", "q_recent_use", "q_waited", "q_timing", "q_display"):
-        if qid not in d["answers"] and qid not in d["asked"]:
+    for qid in ("q_scope", "q_hot_water_use", "q_switch_check", "q_wait_result", "q_radiators", "q_display"):
+        if qid not in d["answers"] and qid not in d["asked"] and qid not in d.get("dont_know", []):
             return "ask", qid, 0.0
     return "conclude", (ranked[0]["id"] if ranked else "boiler_fault"), 0.4
 
@@ -208,6 +324,9 @@ def context_block(conv: st.Conversation) -> dict:
                     "trade": c.get("trade"), **({"applies_if": c["applies_if"]} if c.get("applies_if") else {})}
                    for c in kb()["causes"]],
         "answers_so_far": d["answers"],
+        "tenant_doesnt_know": d.get("dont_know", []),
+        "open_question": open_question(d),
+        "clarifications_left": max(0, 2 - d.get("clarifications", 0)),
         "questions_asked": len(d["asked"]),
         "max_questions": MAX_QUESTIONS,
         "facts": d.get("facts", []),
@@ -217,24 +336,105 @@ def context_block(conv: st.Conversation) -> dict:
 
 
 # ------------------------------------------------------------------ asking
-def _options(qid: str) -> list[Option]:
+_SHORT_DE = {"only_shower": "Nur die Dusche", "everywhere": "Überall", "yes": "Ja", "no": "Nein",
+             "code": "Zeigt einen Code", "normal": "Sieht normal aus", "dark": "Es ist dunkel", "none": "Kein Gasherd",
+             "low": "Unter 1 bar", "ok": "1 bar oder mehr", "before": "Ja, kurz vorher", "same_time": "Ja, gleichzeitig",
+             "found_off": "Etwas war aus", "all_on": "Alles an", "cant_check": "Kann ich nicht sehen",
+             "not_tried": "Noch nicht probiert", "warms_slowly": "Wird langsam warm", "stays_cold": "Bleibt kalt",
+             "certain_times": "Nur zu bestimmten Zeiten", "set_wrong": "Stoppt bei 38 °C", "stops_early": "Rutscht/klemmt"}
+
+
+def code_sentence(conv: st.Conversation) -> str:
+    from . import error_codes
+
+    if conv.lang == "de":
+        de = {"F.22": "der Wasserdruck der Heizung ist zu niedrig, deshalb schaltet sie sich zur Sicherheit ab",
+              "F.28": "die Zündung des Kessels ist fehlgeschlagen, deshalb startet die Heizung nicht",
+              "F.29": "die Flamme ist im Betrieb ausgegangen, deshalb fällt die Heizung immer wieder aus"}
+        what = de.get(conv.error_code, "es liegt eine Störung am Kessel vor")
+        return f"Danke, das heißt: {what} (Fehlercode {conv.error_code})."
+    return error_codes.resident_sentence(conv.error_code, "text")
+
+
+def _options(qid: str, lang: str = "en") -> list[Option]:
     q = questions()[qid]
+    if lang == "de":
+        return [Option(f"diag:{qid}:{k}", _SHORT_DE.get(k, k)[:20]) for k in q["answers"]]
     short = {"only_shower": "Only the shower", "everywhere": "Everywhere", "yes": "Yes", "no": "No",
              "code": "Shows a code", "normal": "Looks normal", "dark": "It's dark", "none": "No gas stove",
-             "was_wrong": "That was it", "correct": "Knob is fine", "low": "Below 1 bar", "ok": "1 bar or more",
-             "slow": "Warms up slowly", "stays_cold": "Stays cold"}
+             "low": "Below 1 bar", "ok": "1 bar or more",
+             "before": "Yes, just before", "same_time": "Yes, at the same time",
+             "found_off": "Something was off", "all_on": "All on", "cant_check": "Can't check",
+             "not_tried": "Haven't tried", "warms_slowly": "Warms up slowly", "stays_cold": "Stays cold",
+             "certain_times": "At certain times", "set_wrong": "Stops at 38°C", "stops_early": "Slips or stuck"}
+    if qid == "q_shower_handle":
+        short = {**short, "normal": "Fully hot, normal"}
     return [Option(f"diag:{qid}:{k}", short.get(k, k.replace("_", " ").capitalize())[:20]) for k in q["answers"]]
 
 
-async def ask(contact, conv: st.Conversation, qid: str, lead: str | None = None) -> None:
+LEAD_INS = ("Let's fix it.", "Ok.", "Got it.")
+LEAD_INS_DE = ("Schauen wir mal.", "Okay.", "Verstanden.")
+_DE_WORDS = re.compile(r"\b(ich|nicht|kein|keine|ist|und|bei|mir|das|die|der|ja|nein|danke|bitte|wasser|heizung|"
+                       r"dusche|kalt|warm|geht|immer|noch|schon|auch|nur|habe|hat|wieder|deutsch|weiß|heiß)\b",
+                       re.IGNORECASE)
+_EN_WORDS = re.compile(r"\b(the|is|and|my|it|not|no|yes|water|shower|cold|hot|have|has|only|too|just|thanks)\b",
+                       re.IGNORECASE)
+
+
+def update_lang(conv: st.Conversation, text: str | None) -> str:
+    """The resident's language from their latest message (a clear switch wins); English by default."""
+    if text:
+        de, en = len(_DE_WORDS.findall(text)), len(_EN_WORDS.findall(text))
+        if de >= 2 and de > en:
+            conv.lang = "de"
+        elif en >= 2 and en > de:
+            conv.lang = "en"
+    return conv.lang
+
+
+def say(conv: st.Conversation, en: str, de: str) -> str:
+    return de if getattr(conv, "lang", "en") == "de" else en
+
+
+def open_question(d: dict) -> str | None:
+    """The diagnosis question that is still waiting for an answer (None if none)."""
+    if not d or not d.get("asked"):
+        return None
+    last = d["asked"][-1]
+    return None if last in d["answers"] or last in d.get("dont_know", []) else last
+
+
+async def ask(contact, conv: st.Conversation, qid: str, lead: str | None = None, text: str | None = None) -> None:
     d = conv.diagnosis
-    if len(d["asked"]) >= MAX_QUESTIONS:
+    reask = open_question(d) == qid  # repeating the open question ("hello?") doesn't count as a new one
+    if not reask and len(d["asked"]) >= MAX_QUESTIONS:
         raise ValueError("max questions reached; conclude now")
-    text, opts = questions()[qid]["text"], _options(qid)
-    d["asked"].append(qid)
+    q = questions()[qid]
+    text = (text or "").strip() or (q.get("text_de") if conv.lang == "de" else None) or q["text"]
+    opts = _options(qid, conv.lang)
+    if not reask:
+        d["asked"].append(qid)
+    if lead is None:  # a few words of lead-in, never filler
+        leads = LEAD_INS_DE if conv.lang == "de" else LEAD_INS
+        lead = leads[0] if len(d["asked"]) == 1 and not reask else leads[1 + len(d["asked"]) % 2]
+    lead = (lead or "").strip()
+    q_words = set(questions()[qid]["text"].lower().split())
+    if lead and len(set(lead.lower().split()) & q_words) >= 6:
+        lead = LEAD_INS[1]  # the model pasted the question into the lead-in
+    if conv.error_code and not d.get("code_explained") and qid in ("q_pressure", "q_gas_stove") and not reask:
+        from . import error_codes
+
+        d["code_explained"] = True
+        lead = code_sentence(conv) if conv.lang == "de" else "Thanks, " + \
+            error_codes.resident_sentence(conv.error_code, "text")[0].lower() + \
+            error_codes.resident_sentence(conv.error_code, "text")[1:]
     conv.step = st.DIAGNOSIS
     conv.asked_at[st.DIAGNOSIS] = time.monotonic()
-    await out.buttons(contact, conv.case_id, f"{lead} {text}" if lead else text, opts)
+    body = f"{lead} {text}" if lead else text
+    if len(opts) > 3:
+        await out.list_(contact, conv.case_id, body, "Choose", opts)
+    else:
+        await out.buttons(contact, conv.case_id, body, opts)
 
 
 ELECTRIC_HEATER_TYPES = ("electric_instant_heater", "instant_water_heater", "instantaneous_heater",
@@ -258,7 +458,7 @@ def facts_from_centrix(contact, conv: st.Conversation) -> None:
         conv.diagnosis["facts"].append("centrix: hot water from the central gas boiler")
 
 
-async def begin(contact, conv: st.Conversation, complaint: str | None) -> None:
+async def begin(contact, conv: st.Conversation, complaint: str | None, images: list[str] | None = None) -> bool:
     """Start (KB PR 90): no proactive gas question. centrix context first, then the model takes
     everything the first message says and asks the one best question (max 3)."""
     from . import loop
@@ -268,14 +468,14 @@ async def begin(contact, conv: st.Conversation, complaint: str | None) -> None:
     facts_from_centrix(contact, conv)
     from . import flow
 
-    code, _src = flow.detect_error_code([complaint or ""], [])
-    if code:  # "the display shows F.28" in the first message answers q_display
+    code, _src = flow.detect_error_code([complaint or ""], images or [])
+    if code:  # "the display shows F.28" in the first message (or a photo of it) answers q_display
         conv.error_code = conv.error_code or code
         conv.diagnosis["answers"]["q_display"] = "code"
     await extract_answers(conv, complaint)
     if await apply_centrix_shortcuts(contact, conv):
-        return
-    await loop.run_tenant_turn(
+        return False
+    return await loop.run_tenant_turn(
         contact,
         f"[New hot-water report: \"{complaint}\". Record every answer this message already gives, then ask the one "
         "question that best splits the likeliest causes, or conclude if it's already clear.]")
@@ -290,6 +490,76 @@ def safety_from_text(text: str | None) -> str | None:
     if GAS_YES_RE.search(text):
         return "yes"
     return None
+
+
+FIXED_RE = re.compile(r"\b((it'?s|is|water'?s?|shower'?s?|shower is) (hot|warm)( again| now)|(hot|warm) now|"
+                      r"that was it|that did it|that worked|it worked|that fixed it|"
+                      r"it works (again|now)|works (again|now)|working (again|now)|(it'?s|is|water'?s?) (warm|hot) "
+                      r"again|(warm|hot) water is back|it'?s back|fixed( now)?|solved|all good now|"
+                      r"geht wieder|funktioniert wieder|wieder warm|wieder heiß)\b", re.IGNORECASE)
+STILL_COLD_RE = re.compile(r"\b(still (ice[- ]?|freezing |)cold|still freezing|still (not|isn'?t) (working|warm|hot)|didn'?t (work|help)|doesn'?t work|not working|"
+                           r"no change|immer noch kalt|geht nicht|hat nicht geholfen)\b", re.IGNORECASE)
+FRUSTRATED_RE = re.compile(r"\b(useless|just send (someone|somebody|a technician|a plumber)|send (a|the) technician|"
+                           r"stop asking|so many questions|schick( einfach)? (jemand|einen techniker)|nutzlos)\b",
+                           re.IGNORECASE)
+
+
+ACK_RE = re.compile(r"(ok(ay)?|k|thanks?( you)?|thx|danke|will do|will try( it)?( later| now)?|i'?ll try( it)?( later| now)?|"
+                    r"sure|alright|cool|got it|perfect|great|👍|🙏|ok,? (thanks|will try( later)?|i'?ll try( later)?))[.! ]*",
+                    re.IGNORECASE)
+_BUT_RE = re.compile(r"\b(but|aber|cold|kalt|lukewarm|only|nur)\b", re.IGNORECASE)
+
+
+def fixed_from_text(text: str | None) -> bool | None:
+    """True: 'it works again'; False: 'still cold'; None: neither or mixed ('works, but only in the kitchen')."""
+    if not text:
+        return None
+    if STILL_COLD_RE.search(text):
+        return False
+    if FIXED_RE.search(text) and not _BUT_RE.search(text):
+        return True
+    if re.fullmatch(r"\s*(yes,?\s*)?(it )?(works|worked|that worked|that was it)[.! ]*", text, re.IGNORECASE):
+        return True
+    return None
+
+
+async def resolved_by_tenant(contact, conv: st.Conversation, text: str) -> None:
+    """'It works again' during a diagnosis: close nicely, no technician."""
+    d = conv.diagnosis
+    if d:
+        d["concluded"] = "resolved_by_tenant"
+    if conv.case_id and be.has("close_self_help"):
+        try:
+            be.close_self_help(conv.case_id, f"Tenant reports it works again: \"{text[:100]}\"")
+        except Exception:
+            log.exception("close_self_help failed")
+    await out.text(contact, conv.case_id, say(conv, "Good to hear. Message me any time if it goes cold again.", "Schön. Melde dich jederzeit, wenn es wieder kalt wird."))
+    st.reset_conversation(be.attr(contact, "id"))
+
+
+def likeliest_technician(d: dict, error_code: str | None = None) -> tuple[str, bool]:
+    """(cause, supported): the likeliest technician cause whose required answers are all given; else
+    boiler_fault as a neutral 'heating technician' case (supported=False: don't explain a cause)."""
+    for r in score(d, error_code):
+        c = causes()[r["id"]]
+        if c["outcome"] == "technician" and r["bad"] == 0 and not missing_core(d, r["id"]) and r["ok"]:
+            return r["id"], True
+    return "boiler_fault", d["answers"].get("q_radiators") == "yes" or bool(error_code)
+
+
+NEUTRAL_TECH = "A heating technician needs to look at it."
+NEUTRAL_TECH_DE = "Das sollte sich ein Heizungstechniker ansehen."
+NEUTRAL_TECHS = (NEUTRAL_TECH, NEUTRAL_TECH_DE)
+
+
+async def escalate_now(contact, conv: st.Conversation, text: str) -> None:
+    """Frustrated tenant: no more questions, send the likeliest technician (staff approve)."""
+    d = conv.diagnosis
+    tech, supported = likeliest_technician(d, conv.error_code)
+    await out.text(contact, conv.case_id, say(conv, "Understood. I'll get a technician to look at it.", "Verstanden. Ich schicke einen Techniker vorbei."))
+    await conclude(contact, conv, tech, 0.5, f"Tenant asked for a technician instead of more questions: "
+                   f"\"{text[:100]}\". Best guess from the answers so far.", force=True,
+                   message=None if supported else "")
 
 
 # ------------------------------------------------------------------ evidence extraction (free text → answers)
@@ -319,8 +589,13 @@ async def _classify_answers(text: str, open_qs: list[dict]) -> dict:
                 {"role": "system", "content": "A tenant describes a hot-water problem. For each question, give the "
                  "answer key ONLY if the tenant's message clearly states it (paraphrases count: 'the display is dark' "
                  "→ q_display=dark; 'my stove won't light' → q_gas_stove=no; 'stays cold no matter how long I wait' "
-                 "→ q_timing=stays_cold and q_waited=yes; 'the plumber was here yesterday' → q_recent_work=yes; "
-                 "'the kitchen is fine' → q_scope=only_shower). Otherwise 'unknown'. Never guess."},
+                 "→ q_wait_result=stays_cold; 'my flatmate just showered' → q_hot_water_use=before; 'the dishwasher was "
+                 "running' → q_hot_water_use=same_time; 'the plumber was here yesterday' → q_recent_work=yes; "
+                 "'the kitchen is fine' → q_scope=only_shower; 'the heating is off too' / 'the flat is freezing' → "
+                 "q_radiators=yes; 'the radiators are warm' → q_radiators=no; 'can't check' / 'idk' → unknown; "
+                 "'I switched the heater back on' → "
+                 "q_switch_check=found_off). Ambiguous words ('everything', 'kinda', 'idk', 'both?') are 'unknown'. "
+                 "If the tenant corrects an earlier statement, use the corrected one. Never guess."},
                 {"role": "user", "content": text},
             ],
             response_format={"type": "json_schema", "json_schema": {"name": "answers", "strict": True,
@@ -366,8 +641,7 @@ async def on_answer(contact, qid: str, key: str) -> None:
         if key == "yes":
             await conclude(contact, conv, "gas_smell", 1.0, "Resident reports a gas smell (safety question).")
             return
-        last = d["asked"][-1] if d["asked"] else None
-        if last and last not in d["answers"]:  # a late "no gas" while another question is open: keep it open
+        if open_question(d):  # a late "no gas" while another question is open: keep it open
             await out.text(contact, conv.case_id, "Thanks, noted.")
             return
         if await apply_centrix_shortcuts(contact, conv):
@@ -392,7 +666,7 @@ async def apply_centrix_shortcuts(contact, conv: st.Conversation) -> bool:
     notices = ctx.get("notices") or (ctx.get("property") or {}).get("notices") or []
     if any(be.attr(n, "active", True) for n in notices):
         conv.diagnosis["facts"].append("building_notice_today")
-        await conclude(contact, conv, "planned_maintenance", 0.9, "Building notice for today in centrix.")
+        await conclude(contact, conv, "planned_maintenance", 0.9, "Building notice for today in centrix.", force=True)
         return True
     asset_id = flow.heating_asset_id(ctx)
     existing = None
@@ -404,7 +678,7 @@ async def apply_centrix_shortcuts(contact, conv: st.Conversation) -> bool:
     if existing is not None and be.attr(existing, "reporter_contact_id") != be.attr(contact, "id"):
         conv.diagnosis["facts"].append("neighbour_reported")
         await conclude(contact, conv, "boiler_fault", 0.9,
-                       "A neighbour already reported the central boiler (open case in centrix).")
+                       "A neighbour already reported the central boiler (open case in centrix).", force=True)
         return True
     return False
 
@@ -429,8 +703,24 @@ def diagnosis_record(conv: st.Conversation, cause_id: str, confidence: float, re
             "answers": d.get("answers", {}), "facts": d.get("facts", [])}
 
 
+def conclusion_text(conv: st.Conversation, c: dict, translation: str | None = None) -> str:
+    """The cause's tenant message (or the model's translation of it), with the error code's meaning first
+    if the resident hasn't heard it yet."""
+    from . import error_codes
+
+    own = c.get("tenant_message_de") if conv.lang == "de" else None
+    text = (translation or "").strip() or own or c["tenant_message"]
+    d = conv.diagnosis or {}
+    if conv.error_code and not d.get("code_explained") and (not translation or translation in NEUTRAL_TECHS) \
+            and c.get("outcome") != "self_help":
+        d["code_explained"] = True
+        text = (code_sentence(conv) if conv.lang == "de" else error_codes.resident_sentence(conv.error_code, "text")) \
+            + " " + text
+    return text
+
+
 async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: float, reasoning: str,
-                   force: bool = False) -> dict:
+                   force: bool = False, translation: str | None = None, message: str | None = None) -> dict:
     from . import flow
 
     d = conv.diagnosis or start(conv, None)
@@ -438,6 +728,18 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         return {"ok": True, "note": "already concluded"}
     if cause_id != "gas_smell" and cause_id not in causes():
         raise ValueError(f"unknown cause {cause_id}")
+    if cause_id != "gas_smell" and not force:
+        settled = decisive_self_help(d, conv.error_code)
+        if settled and settled != cause_id:
+            raise ValueError(f"The answers settle it: conclude with {settled}")
+        missing = missing_core(d, cause_id)
+        if missing:
+            raise ValueError(f"{cause_id} needs answers you don't have yet ({', '.join(missing)}); ask "
+                             f"{missing[0]} first (or pick a cause the answers support)")
+        invented = invented_facts(d, reasoning)
+        if invented:
+            raise ValueError(f"Your reasoning mentions things the tenant never said ({', '.join(invented)}). "
+                             "Only use answers_so_far and centrix facts.")
     if cause_id != "gas_smell" and d.get("answers") and not force:
         ranked = score(d, conv.error_code)
         mine = next((r for r in ranked if r["id"] == cause_id), None)
@@ -454,6 +756,8 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
             raise ValueError(f"{cause_id} contradicts the answers ({', '.join(contra)}); pick another cause "
                              "or ask a question")
     d["concluded"] = cause_id
+    if message is not None:  # escalation without enough answers: no explanation of a cause we can't support
+        translation = message or say(conv, NEUTRAL_TECH, NEUTRAL_TECH_DE)
     rec = diagnosis_record(conv, cause_id, confidence, reasoning)
     complaint = d.get("complaint") or "No hot water"
 
@@ -479,7 +783,7 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
             if not res.get("duplicate"):
                 _store(res["case_id"], None, rec, opened=not res.get("already_open"))
             conv.step = st.SELF_HELP
-        await out.text(contact, conv.case_id, c["tenant_message"])
+        await out.text(contact, conv.case_id, conclusion_text(conv, c, translation))
         minutes = 2 if _demo_mode() else (c.get("follow_up_minutes") or 60)
         schedule_follow_up(contact, cause_id, minutes)
         return {"ok": True, "outcome": "self_help", "follow_up_minutes": minutes,
@@ -495,7 +799,7 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         if res.get("duplicate"):
             await flow.send_duplicate_notice(contact, cid)
             return {"ok": True, "outcome": "technician", "case_id": cid, "duplicate": True}
-        await out.text(contact, cid, c["tenant_message"])
+        await out.text(contact, cid, conclusion_text(conv, c, translation))
         cs = st.case_state(cid)
         try:
             ranking = be.rank_partners(cid)  # backend-core ranks by the case's trade
@@ -526,7 +830,7 @@ async def conclude(contact, conv: st.Conversation, cause_id: str, confidence: fl
         be.record_event(cid, "debye", "staff.utility_contact", f"Staff to contact the gas supplier: {c['label']}",
                         {"cause_id": cause_id})
     conv.step = st.DISPATCHED
-    await out.text(contact, cid, c["tenant_message"])
+    await out.text(contact, cid, conclusion_text(conv, c, translation))
     return {"ok": True, "outcome": outcome, "case_id": cid, "note": "Message sent. Do not send another message."}
 
 
@@ -597,13 +901,24 @@ async def on_follow_up(contact, cause_id: str, fixed: bool) -> None:
                 be.close_self_help(conv.case_id, f"Tenant confirmed the hot water is back ({_label(cause_id)}).")
             except Exception:
                 log.exception("close_self_help failed")
-        await out.text(contact, conv.case_id, "Good to hear. I'll close this then.")
+        await out.text(contact, conv.case_id, say(conv, "Good to hear. I'll close this then.", "Schön, dann schließe ich das hier."))
         st.reset_conversation(be.attr(contact, "id"))
         return
-    # still cold after the self-help tip → send a heating technician
+    # still cold after the self-help tip: what the failure tells us is an answer; keep diagnosing
     conv.diagnosis = conv.diagnosis or start(conv, None)
-    conv.diagnosis["concluded"] = None
-    conv.diagnosis["facts"].append("self_help_failed")
-    await out.text(contact, conv.case_id, "Thanks for letting me know, then I'll get a technician to look at it.")
-    await conclude(contact, conv, "tank_thermostat_or_scale", 0.6,
-                   f"Still cold after the self-help tip for '{_label(cause_id)}'.", force=True)
+    d = conv.diagnosis
+    d["concluded"] = None
+    d["facts"].append("self_help_failed")
+    d.setdefault("failed_tips", []).append(cause_id)
+    for qid, key in ((causes().get(cause_id) or {}).get("if_fails") or {}).items():
+        d["answers"][qid] = key
+    conv.step = st.DIAGNOSIS
+    action, ident, conf = next_step(conv)
+    if action == "ask" and len(d["asked"]) < MAX_QUESTIONS:
+        await ask(contact, conv, ident, lead=say(conv, "Thanks for checking.", "Danke fürs Nachsehen."))
+        return
+    tech, supported = (ident, True) if action == "conclude" and causes().get(ident, {}).get("outcome") != "self_help" \
+        and not missing_core(d, ident) else likeliest_technician(d, conv.error_code)
+    await out.text(contact, conv.case_id, say(conv, "Thanks for letting me know, then I'll get a technician to look at it.", "Danke für die Rückmeldung, dann schicke ich einen Techniker."))
+    await conclude(contact, conv, tech, 0.6, f"Still cold after the self-help tip for '{_label(cause_id)}'.",
+                   force=True, message=None if supported else "")
