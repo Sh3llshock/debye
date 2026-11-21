@@ -95,7 +95,7 @@ SECOND_PROBLEM_RE = re.compile(
     r"außerdem|zusätzlich|und auch|noch (was|etwas)|ein anderes problem|ein weiteres problem)\b", re.I)
 _GAS_APPLIANCE_RE = re.compile(r"\b(gas )?(stove|hob|cooker|herd|gasherd)\b", re.I)  # a hot-water clue, not a 2nd problem
 PROBLEM_RE = re.compile(
-    r"\b(broken|not working|doesn'?t work|does not work|won'?t|can'?t|stopped|problem|issue|help|repair|fix|damaged|"
+    r"\b(broken|not working|isn'?t working|is not working|doesn'?t work|does not work|won'?t|can'?t|stopped|problem|issue|help|repair|fix|damaged|"
     r"faulty|stuck|leak|kaputt|funktioniert nicht|geht nicht|defekt|reparatur|problem|hilfe|beschädigt)", re.I)
 MENU_AREAS = ("water_leak", "blocked_drain", "electrics", "windows_doors", "appliances", "mold_damp", "management",
               "other")  # plus hot water and heating: 10 rows, the WhatsApp list maximum
@@ -194,11 +194,13 @@ async def classify_llm(text: str) -> tuple[str | None, str | None] | None:
     choices = {HOT_WATER: "No hot water or lukewarm water (shower, taps, boiler display).",
                HEATING: "Radiators or the heating are cold or not working."}
     choices.update({a: dg.load_kb(a)["router"]["description"] for a in kb_areas()})
-    enum = [*choices, "none"]
+    enum = [*choices, "unclear", "none"]
     schema = {"type": "object", "additionalProperties": False, "required": ["primary", "second"],
               "properties": {"primary": {"type": "string", "enum": enum,
-                                         "description": "Area of the problem the tenant reports first; 'none' if "
-                                                        "the message reports no problem at all (a greeting, thanks)."},
+                                         "description": "Area of the problem the tenant reports first; 'unclear' "
+                                                        "if it is a problem but the message does not say what is "
+                                                        "affected ('something is broken', 'I have a problem'); "
+                                                        "'none' if it reports no problem (a greeting, thanks)."},
                              "second": {"type": "string", "enum": enum,
                                         "description": "Area of a SECOND, separate problem in the same message; "
                                                        "'none' if there is only one problem."}}}
@@ -223,8 +225,8 @@ async def classify_llm(text: str) -> tuple[str | None, str | None] | None:
         if getattr(msg, "refusal", None) or not msg.content:
             return None
         res = json.loads(msg.content)
-        primary = None if res.get("primary") == "none" else res.get("primary")
-        second = None if res.get("second") in ("none", primary) else res.get("second")
+        primary = None if res.get("primary") in ("none", "unclear") else res.get("primary")
+        second = None if res.get("second") in ("none", "unclear", primary) else res.get("second")
         return primary, second
     except Exception:
         log.exception("triage classification failed")
