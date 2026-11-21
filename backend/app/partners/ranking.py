@@ -15,14 +15,39 @@ WEIGHTS = {
     "history": 0.10,
 }
 
-# Last known availability per partner (the demo's stand-in for asking each partner).
-# hours_until_free is relative to "now"; label is shown in the ranking reasons.
-KNOWN_AVAILABILITY = {
-    "heizung-schmidt": {"days": 1, "label": "free tomorrow 8–10"},
-    "heiztechnik-gruen": {"days": 1, "label": "free tomorrow afternoon"},
-    "waerme-wagner": {"days": 6, "label": "fully booked, next slot in 6 days"},
-}
-DEFAULT_AVAILABILITY = {"days": 3, "label": "availability unknown"}
+# Availability comes from data, not from partner ids: the earliest free slot in the partner's
+# technician calendars (partners.technicians.free_slots, next 3 days), else the manifest's
+# availability block ({"next_free_days": n} or {"mode": ...}). See availability_for().
+DEFAULT_AVAILABILITY = {"days": 3, "label": "availability asked on dispatch"}
+EN_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def availability_for(manifest: Manifest, tech_busy: list[list[dict]] | None) -> dict:
+    """{"days": int, "label": str} for one partner.
+    tech_busy: each technician's busy list (None/[] = the partner has no technicians in Debye)."""
+    from datetime import datetime
+
+    from ..config import TZ
+    from .technicians import DAYS_AHEAD, free_slots
+    if tech_busy:
+        slots = sorted({sl["start"]: sl for b in tech_busy for sl in free_slots(b)}.values(),
+                       key=lambda sl: sl["start"])
+        if not slots:
+            return {"days": DAYS_AHEAD + 3, "label": f"fully booked for the next {DAYS_AHEAD} days"}
+        st = datetime.fromisoformat(slots[0]["start"]).astimezone(TZ)
+        en = datetime.fromisoformat(slots[0]["end"]).astimezone(TZ)
+        days = (st.date() - now().date()).days
+        day = "today" if days == 0 else "tomorrow" if days == 1 else EN_DAYS[st.weekday()]
+        return {"days": days, "label": f"free {day} {st.hour}–{en.hour}"}
+    av = manifest.availability or {}
+    if isinstance(av.get("next_free_days"), (int, float)):
+        d = int(av["next_free_days"])
+        return {"days": d, "label": f"next free slot in {d} days"}
+    mode = av.get("mode")
+    if mode == "api":
+        return {"days": 2, "label": "availability from the partner's API"}
+    return dict(DEFAULT_AVAILABILITY)
+
 
 # Partners that worked on a property before (from centrix maintenance history).
 PROPERTY_HISTORY = {
@@ -37,7 +62,7 @@ def _availability_score(days: int) -> float:
 
 def rank(case_type: str, ctx: dict, manifests: list[Manifest],
          framework_partner_ids: set[str], property_id: str | None,
-         trade: str | None = None) -> list[dict]:
+         trade: str | None = None, availability: dict[str, dict] | None = None) -> list[dict]:
     """ctx: nested dict with property/unit/asset/tenant keys. Returns all candidates, sorted;
     each {partner_id, name, score, reasons, eligible, breakdown, next_free}.
     With a trade (from the diagnosis), partners are filtered by capabilities.trades instead of the
@@ -70,13 +95,18 @@ def rank(case_type: str, ctx: dict, manifests: list[Manifest],
             breakdown["brand_certified"] = WEIGHTS["brand_certified"]
             reasons.append(f"{trade} trade")
 
-        av = KNOWN_AVAILABILITY.get(m.partner_id, DEFAULT_AVAILABILITY)
+        av = (availability or {}).get(m.partner_id) or availability_for(m, None)
         breakdown["availability"] = WEIGHTS["availability"] * _availability_score(av["days"])
         reasons.append(av["label"])
 
         fw = m.partner_id in framework_partner_ids
         breakdown["framework"] = WEIGHTS["framework"] * (1.0 if fw else 0.0)
         reasons.append("framework agreement with reltix" if fw else "no framework agreement")
+        pr = m.pricing or {}
+        if pr.get("callout_fee_eur") is not None and pr.get("hourly_eur") is not None:
+            reasons.append(f"€{float(pr['callout_fee_eur']):.0f} callout, €{float(pr['hourly_eur']):.0f}/h")
+        elif pr.get("model") == "quote":
+            reasons.append("prices by quote")
 
         rating = float(m.rating or 0)
         breakdown["rating"] = WEIGHTS["rating"] * (rating / 5.0)

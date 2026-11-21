@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from sqlmodel import Session, select
 
-from .models import Case, Consent, Contract
+from .models import Case, Consent, Contract, Partner
 
 
 class RuleViolation(Exception):
@@ -94,14 +94,32 @@ def check_dispatch(session: Session, case: Case, partner_id: str) -> dict:
     return approval
 
 
+def partner_prices(session: Session, partner_id: str | None) -> dict | None:
+    """{callout_fee_eur, hourly_eur, auto_approve_limit_eur, source}: the framework contract if there is one,
+    else the partner's manifest pricing (so a partner onboarded via the form gets a price check too)."""
+    if not partner_id:
+        return None
+    fw = framework_contract(session, partner_id)
+    if fw:
+        return {"callout_fee_eur": float(fw.data.get("callout_fee_eur", 0)),
+                "hourly_eur": float(fw.data.get("hourly_eur", 0)),
+                "auto_approve_limit_eur": float(fw.data.get("auto_approve_limit_eur", 0)),
+                "source": "framework"}
+    p = session.get(Partner, partner_id)
+    pr = ((p.manifest or {}).get("pricing") or {}) if p else {}
+    if pr.get("callout_fee_eur") is None and pr.get("hourly_eur") is None:
+        return None
+    return {"callout_fee_eur": float(pr.get("callout_fee_eur") or 0), "hourly_eur": float(pr.get("hourly_eur") or 0),
+            "auto_approve_limit_eur": 0.0, "source": "manifest"}
+
+
 def estimate_cost(session: Session, error_code: str | None, partner_id: str | None = None) -> float:
-    """Heuristic pre-visit estimate from the error code and framework prices."""
+    """Heuristic pre-visit estimate from the error code and the partner's prices."""
     callout, hourly = 89.0, 72.0
-    if partner_id:
-        fw = framework_contract(session, partner_id)
-        if fw:
-            callout = float(fw.data.get("callout_fee_eur", callout))
-            hourly = float(fw.data.get("hourly_eur", hourly))
+    prices = partner_prices(session, partner_id)
+    if prices:
+        callout = prices["callout_fee_eur"] or callout
+        hourly = prices["hourly_eur"] or hourly
     hours, parts = {
         "F.22": (1.0, 20.0),
         "F.28": (1.5, 50.0),
@@ -110,15 +128,38 @@ def estimate_cost(session: Session, error_code: str | None, partner_id: str | No
     return round(callout + hours * hourly + parts, 2)
 
 
-def price_check(session: Session, partner_id: str, invoice: dict) -> dict:
-    """Compare an extracted invoice against the framework price list; flag lines >10% above."""
-    fw = framework_contract(session, partner_id)
+def approved_cap(case: Case | None) -> tuple[float | None, str]:
+    """The amount staff (or the auto-approve rule) agreed to: an approved quote wins, else the
+    case's cost cap / estimate (estimated_cost_eur). (None, "") without a case."""
+    if case is None:
+        return None, ""
+    data = case.data or {}
+    quote = data.get("quote") or {}
+    if quote.get("amount_eur") is not None and quote.get("status") in ("accepted", "approved"):
+        return float(quote["amount_eur"]), "approved quote"
+    if case.estimated_cost_eur is not None:
+        granted = (data.get("approval") or {}).get("granted")
+        return float(case.estimated_cost_eur), "approved estimate" if granted else "cost cap"
+    return None, ""
+
+
+def price_check(session: Session, partner_id: str, invoice: dict, case: Case | None = None) -> dict:
+    """Compare an extracted invoice against the partner's prices (framework contract, else manifest
+    pricing; lines >10% above are flagged) and against the approved cap (approved quote, else the
+    approved estimate): a total above it is flagged for staff."""
+    prices = partner_prices(session, partner_id)
     flags: list[str] = []
-    if fw is None:
-        return {"result": "no_framework", "flags": ["no framework price list for this partner"]}
-    callout = float(fw.data.get("callout_fee_eur", 0))
-    hourly = float(fw.data.get("hourly_eur", 0))
-    limit = float(fw.data.get("auto_approve_limit_eur", 0))
+    gross = float(invoice.get("gross_eur") or 0)
+    cap, cap_source = approved_cap(case)
+    over_cap = bool(cap) and gross > cap
+    if over_cap:
+        flags.append(f"total €{gross:.2f} above the {cap_source} of €{cap:.2f} (+€{gross - cap:.2f})")
+    if prices is None:
+        return {"result": "flagged" if flags else "no_framework",
+                "flags": flags + ["no price list for this partner"],
+                "cap": {"amount_eur": cap, "source": cap_source, "exceeded": over_cap},
+                "needs_staff_review": over_cap}
+    callout, hourly, limit = prices["callout_fee_eur"], prices["hourly_eur"], prices["auto_approve_limit_eur"]
     for li in invoice.get("line_items") or []:
         desc = (li.get("desc") or "").lower()
         price = float(li.get("unit_price") or 0)
@@ -128,10 +169,11 @@ def price_check(session: Session, partner_id: str, invoice: dict) -> dict:
         elif any(k in desc for k in ("arbeitszeit", "stunde", "labour", "labor", "lohn")):
             ref = hourly
         if ref and price > ref * 1.10:
-            flags.append(f"{li.get('desc')}: €{price:.2f} > framework €{ref:.2f} (+10%)")
-    gross = float(invoice.get("gross_eur") or 0)
-    if limit and gross > limit:
+            flags.append(f"{li.get('desc')}: €{price:.2f} > {'framework' if prices['source'] == 'framework' else 'listed'} €{ref:.2f} (+10%)")
+    if limit and gross > limit and not over_cap:
         flags.append(f"total €{gross:.2f} above auto-approve limit €{limit:.0f}")
     return {"result": "flagged" if flags else "ok", "flags": flags,
             "framework": {"callout_fee_eur": callout, "hourly_eur": hourly,
-                          "auto_approve_limit_eur": limit}}
+                          "auto_approve_limit_eur": limit, "source": prices["source"]},
+            "cap": {"amount_eur": cap, "source": cap_source, "exceeded": over_cap},
+            "needs_staff_review": bool(flags)}

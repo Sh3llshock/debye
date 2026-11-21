@@ -158,7 +158,7 @@ async def record_invoice(case_id: str, partner_id: str, invoice: tuple[str, str,
     if not extracted:
         extracted = await media.extract_invoice(str(p))
     with get_session() as s:
-        check = rules.price_check(s, partner_id, extracted)
+        check = rules.price_check(s, partner_id, extracted, s.get(Case, case_id))
     doc = services.attach_document(case_id, "invoice", p.name, mime or "application/pdf", str(p),
                                    {**extracted, "price_check": check})
     with get_session() as s:

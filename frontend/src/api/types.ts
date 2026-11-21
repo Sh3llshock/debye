@@ -31,6 +31,8 @@ export interface PartnerRef {
 }
 
 export interface CaseSummary {
+  /** the invoice is above the approved amount or the price list */
+  price_flagged?: boolean
   case_id: string
   type: string
   title: string

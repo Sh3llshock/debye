@@ -636,7 +636,10 @@ def test_demo_scenarios(client):
     assert s4["technician"]["tech_id"] == "tech_marco" and s4["partner"]["partner_id"] == "elektro-klein"
     s5 = client.get(f"/api/staff/cases/{by['s5_closed_invoiced']['case_id']}").json()
     inv = next(d for d in s5["documents"] if d["kind"] == "invoice")
-    assert inv["extracted"]["gross_eur"] == 498.61 and inv["extracted"]["price_check"]["result"] == "ok"
+    # €320 approved, €498.61 invoiced: flagged for staff (judges' finding)
+    pc = inv["extracted"]["price_check"]
+    assert inv["extracted"]["gross_eur"] == 498.61 and pc["result"] == "flagged"
+    assert pc["cap"]["exceeded"] and pc["needs_staff_review"]
     assert client.get(inv["url"]).content.startswith(b"%PDF-1.4")
     unit = client.get("/api/staff/units/unit_41_3").json()
     assert {"invoice", "report"} <= {d["kind"] for d in unit["documents"]}

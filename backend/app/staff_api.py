@@ -31,6 +31,8 @@ def case_summary(s, c: Case) -> dict:
         "trade": services.case_trade(c),
         "resolution": (c.data or {}).get("resolution"),
         "saving_eur": (c.data or {}).get("saving_eur"),
+        # invoice above the approved amount (or prices above the list): staff should look
+        "price_flagged": ((c.data or {}).get("price_check") or {}).get("result") == "flagged",
         "technician": ({"tech_id": c.data["technician"]["tech_id"], "name": c.data["technician"]["name"]}
                        if (c.data or {}).get("technician") else None),
         "address": prop.address if prop else None,

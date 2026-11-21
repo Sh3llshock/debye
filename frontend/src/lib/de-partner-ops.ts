@@ -50,4 +50,5 @@ export const DE_PARTNER_OPS: Record<string, string> = {
   'Asking tenant for next partner': 'Mieter wird für nächsten Partner gefragt',
   'No partner left · needs you': 'Kein Partner frei · braucht Sie',
   'Take over →': 'Übernehmen →',
+  'Invoice above approved amount': 'Rechnung über freigegebenem Betrag',
 }
