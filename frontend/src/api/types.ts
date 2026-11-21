@@ -16,6 +16,8 @@ export type CaseStatus =
   | 'declined'
   | 'slots_proposed'
   | 'partner_declined'
+  | 'awaiting_consent'
+  | 'needs_staff'
   | 'reopened'
   | 'awaiting_technician'
   | (string & {})

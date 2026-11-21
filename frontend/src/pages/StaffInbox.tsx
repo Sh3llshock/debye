@@ -108,7 +108,7 @@ export default function StaffInbox() {
               <div className="flex items-center gap-2">
                 <StagePill c={c} />
                 <Link className={needsMe(c) ? 'btn-primary' : 'btn-secondary'} to={`/staff/cases/${c.case_id}`}>
-                  {needsMe(c) ? t('Approve partner →') : t('Open case →')}
+                  {c.status === 'needs_staff' ? t('Take over →') : needsMe(c) ? t('Approve partner →') : t('Open case →')}
                 </Link>
               </div>
             </div>

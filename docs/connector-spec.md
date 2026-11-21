@@ -135,3 +135,18 @@ or dispatched until reltix staff approve it. Partner states: `pending_review | a
   `partner_not_active` otherwise).
 - Expiry: `/demo/skip-to-tomorrow` and a daily background check suspend active partners whose insurance or
   gas registration has expired (`partner.suspended` event).
+
+## 11. Decline or no response → next partner (built)
+
+`services.partner_decline` now calls `redispatch(case_id, reason)`. It ranks again without the partners in
+`case.data.declined_by` and without non-active partners, then:
+- the new partner needs consent the tenant hasn't given → status `awaiting_consent`; the agent sends one message
+  ("Heizung Schmidt can't take it. I'm asking Wärme Wagner instead.") with consent buttons;
+- consent is already there (or nothing personal is shared) → staff approval (`rules.approval_status`) and
+  `dispatch_job`; an earlier staff approval was for the previous partner, so it is asked again;
+- nobody is left → status `needs_staff` ("Needs you" in the staff inbox), and the tenant is told the
+  property manager takes over.
+SLA: `dispatch_job` stores `case.data.sla = {hours, sent_at, due_at}` from the manifest's
+`sla.urgent_response_hours` / `standard_response_hours` (by case priority). A job still `requested` after
+`due_at` counts as a decline with reason "no response within X h". This is checked on `/demo/skip-to-tomorrow`
+and by a 60 s background loop. The declined job leaves the partner's inbox.

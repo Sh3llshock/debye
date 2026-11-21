@@ -46,4 +46,8 @@ export const DE_PARTNER_OPS: Record<string, string> = {
     'reltix prüft zuerst Ihre Unterlagen. Sobald eine Verwalterin Sie freigibt, bekommen Sie Aufträge.',
   'These checks run automatically. A reltix property manager then reviews your documents.':
     'Diese Prüfungen laufen automatisch. Danach prüft eine Verwalterin von reltix Ihre Unterlagen.',
+  // feature 2: redispatch
+  'Asking tenant for next partner': 'Mieter wird für nächsten Partner gefragt',
+  'No partner left · needs you': 'Kein Partner frei · braucht Sie',
+  'Take over →': 'Übernehmen →',
 }

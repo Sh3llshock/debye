@@ -39,7 +39,10 @@ async def _periodic_checks(interval_s: float = 60.0) -> None:
     while True:
         await asyncio.sleep(interval_s)
         try:
-            await asyncio.to_thread(services.periodic_checks)
+            result = await asyncio.to_thread(services.periodic_checks)
+            from . import notify
+            for r in result.get("redispatched") or []:  # SLA ran out → tell the tenant
+                await notify.notify_tenant(r["case_id"], "partner_declined", r)
         except Exception:  # never let the loop die
             log.exception("periodic checks failed")
 

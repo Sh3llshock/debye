@@ -181,7 +181,7 @@ async def on_cold(contact, case_id: str, all_cold: bool) -> None:
     await request_consent(contact, case_id)
 
 
-async def request_consent(contact, case_id: str) -> None:
+async def request_consent(contact, case_id: str, prefix: str = "") -> None:
     cs = st.case_state(case_id)
     conv = st.conversation(be.attr(contact, "id"))
     conv.step = st.CONSENT
@@ -191,11 +191,17 @@ async def request_consent(contact, case_id: str) -> None:
     await out.buttons(
         contact,
         case_id,
-        (f"Ich würde {who} schicken. Ist es okay, wenn ich deinen Namen, deine Telefonnummer, Adresse"
-         + (", dein Stockwerk und die Fotos weitergebe?" if conv.photos else " und dein Stockwerk weitergebe?"))
-        if conv.lang == "de" else
-        (f"I'd like to send {who} over. Is it okay if I share your name, phone number, address"
-         + (", floor and the photos with them?" if conv.photos else " and floor with them?")),
+        prefix + ((("Ist es okay, wenn ich deinen Namen, deine Telefonnummer, Adresse"
+                    + (", dein Stockwerk und die Fotos weitergebe?" if conv.photos else " und dein Stockwerk weitergebe?"))
+                   if conv.lang == "de" else
+                   ("Is it okay if I share your name, phone number, address"
+                    + (", floor and the photos with them?" if conv.photos else " and floor with them?")))
+                  if prefix else
+                  (f"Ich würde {who} schicken. Ist es okay, wenn ich deinen Namen, deine Telefonnummer, Adresse"
+                   + (", dein Stockwerk und die Fotos weitergebe?" if conv.photos else " und dein Stockwerk weitergebe?"))
+                  if conv.lang == "de" else
+                  (f"I'd like to send {who} over. Is it okay if I share your name, phone number, address"
+                   + (", floor and the photos with them?" if conv.photos else " and floor with them?"))),
         [Option(f"consent_yes:{case_id}", "Ja, gerne" if conv.lang == "de" else "Yes, go ahead"),
          Option(f"consent_no:{case_id}", "Nein" if conv.lang == "de" else "No")],
     )
@@ -552,3 +558,41 @@ async def scripted_fallback(contact, conv: st.Conversation, image_paths: list[st
         await ask_fixed(cid)
     else:
         await out.text(contact, cid, "Thanks. I'm on it and will let you know as soon as there's news.")
+
+
+async def on_redispatch(case_id: str, info: dict) -> None:
+    """Feature 2: the partner declined or didn't answer in time. One message to the tenant:
+    the next company (asking for consent first if that company needs it), or the property manager
+    takes over when nobody is left."""
+    info = info or {}
+    cs = st.case_state(case_id)
+    old = info.get("declined_partner_name") or cs.partner_name
+    nxt, nxt_id = info.get("next_partner_name"), info.get("next_partner_id")
+    outcome = info.get("outcome")
+    for c in tenant_contacts(case_id, reporter_only=True):
+        conv = st.conversation(be.attr(c, "id"))
+        de = conv.lang == "de"
+        first = (f"{old} kann den Auftrag nicht übernehmen. " if de else f"{old} can't take it. ") if old else \
+            ("Die Firma kann den Auftrag nicht übernehmen. " if de else "The company can't take the job. ")
+        if outcome == "needs_staff" or not nxt:
+            conv.step = st.WAITING_APPROVAL
+            await out.text(c, case_id, first + ("Keine andere Firma ist frei, deine Hausverwaltung übernimmt "
+                                                "und meldet sich bei dir." if de else
+                                                "No other company is free, so your property manager takes "
+                                                "over and will get in touch."))
+            continue
+        cs.partner_id, cs.partner_name = nxt_id, nxt
+        if outcome == "needs_consent":
+            await request_consent(c, case_id, prefix=first + (f"Ich frage stattdessen {nxt}. " if de
+                                                              else f"I'm asking {nxt} instead. "))
+            continue
+        if outcome == "approval_pending":
+            conv.step = st.WAITING_APPROVAL
+            cs.approval_notice_sent = True
+            await out.text(c, case_id, first + (f"Ich frage stattdessen {nxt}; deine Hausverwaltung bestätigt "
+                                                "das kurz." if de else
+                                                f"I'm asking {nxt} instead; your property manager confirms "
+                                                "it shortly."))
+            continue
+        conv.step = st.DISPATCHED
+        await out.text(c, case_id, first + (f"Ich frage stattdessen {nxt}." if de else f"I'm asking {nxt} instead."))
