@@ -1,11 +1,10 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { JobSummary, PartnerProfile, Technician } from '../api/types'
 import { tradeLabel } from '../components/case/Diagnosis'
 import { useCrumbs } from '../components/Layout'
-import { Icon } from '../components/icons'
-import { Chip, ErrorBox, Loading } from '../components/ui'
-import { initials } from '../lib/format'
+import { Pill, StagePill } from '../components/staff/StaffBits'
+import { ErrorBox, Loading } from '../components/ui'
 import { t } from '../lib/i18n'
 import { useStream } from '../lib/stream'
 import { useDebounced, useResource } from '../lib/useResource'
@@ -18,111 +17,227 @@ function trades(p: PartnerProfile): string[] {
   const cat = p.category?.split('.').pop()
   return cat ? [cat] : []
 }
+const str = (v: unknown) => (typeof v === 'string' || typeof v === 'number' ? String(v) : null)
 
-function PartnerCard({ p }: { p: PartnerProfile }) {
-  const techs = useResource(() => api.technicians(p.partner_id).catch(() => [] as Technician[]), [p.partner_id])
+function Row({ p }: { p: PartnerProfile }) {
   const jobs = useResource(() => api.jobs(p.partner_id).catch(() => [] as JobSummary[]), [p.partner_id])
-  const refetch = useDebounced(() => {
-    jobs.reload()
-    techs.reload()
-  }, 400)
+  const refetch = useDebounced(jobs.reload, 400)
   useStream(() => refetch())
-  const open = p.open_jobs ?? jobs.data?.filter((j) => !DONE.has(j.status)).length
-  const postcodes = p.service_area?.postcodes ?? []
-  const brands = p.capabilities?.brands_certified ?? []
-
+  const nav = useNavigate()
+  const active = p.open_jobs ?? jobs.data?.filter((j) => !DONE.has(j.status)).length ?? 0
+  const city = str((p as Record<string, unknown>).city) ?? p.service_area?.base_postcode ?? ''
   return (
-    <section className="panel flex flex-col overflow-hidden">
-      <header className="flex items-start gap-3 border-b border-line px-5 py-4">
-        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded bg-sub text-label font-semibold text-ink">{initials(p.name)}</span>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-panel leading-tight">{p.name}</h2>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            {trades(p).map((tr) => (
-              <Chip key={tr} tone="action">
-                {tradeLabel(tr)}
-              </Chip>
-            ))}
-            {p.rating != null && <span className="text-label text-secondary">★ {p.rating.toFixed(1)}</span>}
-          </div>
-        </div>
-      </header>
-      <dl className="grid grid-cols-[112px_minmax(0,1fr)] gap-x-3 gap-y-1.5 px-5 py-3 text-body-sm">
-        <dt className="text-muted">{t('Service area')}</dt>
-        <dd>
-          {postcodes.length
-            ? postcodes.join(', ')
-            : p.service_area?.radius_km
-              ? t('{km} km around {pc}', { km: p.service_area.radius_km, pc: p.service_area.base_postcode })
-              : '—'}
-        </dd>
-        {brands.length > 0 && (
-          <>
-            <dt className="text-muted">{t('Certified')}</dt>
-            <dd>{brands.join(', ')}</dd>
-          </>
-        )}
-        <dt className="text-muted">{t('Open jobs')}</dt>
-        <dd className="font-semibold">{open ?? '…'}</dd>
-      </dl>
-      <div className="border-t border-line px-5 py-3">
-        <div className="text-label text-muted">{t('Technicians')}</div>
-        {techs.data === null ? (
-          <div className="py-2 text-body-sm text-muted">{t('Loading')}…</div>
-        ) : techs.data.length === 0 ? (
-          <div className="py-2 text-body-sm text-muted">{t('No technicians listed')}</div>
-        ) : (
-          <ul className="mt-1 divide-y divide-line">
-            {techs.data.map((x) => (
-              <li key={x.tech_id} className="flex flex-wrap items-center gap-2 py-2">
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium">{x.name}</span>
-                  <span className="block text-meta text-muted">
-                    {x.skills.join(' · ')}
-                    {x.free_slots ? ` · ${t('{n} free slots in the next days', { n: x.free_slots.length })}` : ''}
-                  </span>
-                </span>
-                <Link to={`/tech/${x.tech_id}`} className="text-label font-semibold text-action hover:underline">
-                  {t('Open as {name}', { name: x.name.split(' ')[0] })} →
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      <div className="mt-auto border-t border-line px-5 py-3">
-        <Link to={`/partner/${p.partner_id}`} className="btn-secondary w-full">
-          <Icon name="jobs" className="h-4 w-4" /> {t('Open partner portal')}
-        </Link>
-      </div>
-    </section>
+    <tr className="click" onClick={() => nav(`/staff/partners/${p.partner_id}`)}>
+      <td>
+        <b>{p.name}</b>
+        <br />
+        <span className="text-muted">{[city, str((p as Record<string, unknown>).email)].filter(Boolean).join(' · ')}</span>
+      </td>
+      <td>{trades(p).map((x) => tradeLabel(x)).join(', ')}</td>
+      <td>{(p.capabilities?.brands_certified ?? []).join(', ') || <span className="text-muted">–</span>}</td>
+      <td className="text-right">{p.rating != null ? p.rating.toFixed(1) : '–'}</td>
+      <td className="text-right">{jobs.data?.length ?? '…'}</td>
+      <td>{active ? <Pill tone="hot">{t('{n} active', { n: active })}</Pill> : <span className="text-muted">–</span>}</td>
+      <td>{p.active === false ? <Pill>{t('Paused')}</Pill> : <Pill tone="ok">{t('Verified')}</Pill>}</td>
+    </tr>
   )
 }
 
-/** /staff/partners: every partner with trades, rating, area, open jobs and technicians, linking to their portals. */
+/** /staff/partners: verified partner companies (they register in the partner portal). */
 export default function StaffPartners() {
   useCrumbs([{ label: t('Partners') }])
   const { data, error, reload } = useResource(() => api.partners(), [])
   return (
-    <div className="flex flex-col gap-work">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <>
+      <div className="mb-[18px] flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-page">{t('Partners')}</h1>
-          <p className="mt-1 text-body text-secondary">{t('Framework partners Debye can send jobs to. Open their portal or a technician view to see what they see.')}</p>
+          <h1 className="text-page font-bold">{t('Partners')}</h1>
+          <p className="mt-1 text-secondary">{t('Companies register themselves in the partner portal and appear here once verified.')}</p>
         </div>
-        <Link to="/partners/join" className="btn-primary">
-          + {t('Onboard a partner')}
+        <Link to="/partners/join" className="btn-ghost">
+          {t('Partner sign-up page')}
         </Link>
       </div>
       {error && !data && <ErrorBox error={error} onRetry={reload} />}
       {!data && !error && <Loading what={t('Loading partners')} />}
       {data && (
-        <div className="grid grid-cols-1 gap-work md:grid-cols-2 xl:grid-cols-3">
-          {data.map((p) => (
-            <PartnerCard key={p.partner_id} p={p} />
-          ))}
+        <div className="card overflow-x-auto p-2">
+          <table className="t min-w-[820px]">
+            <thead>
+              <tr>
+                <th>{t('Partner')}</th>
+                <th>{t('Services')}</th>
+                <th>{t('Brands')}</th>
+                <th className="text-right">{t('Rating')}</th>
+                <th className="text-right">{t('Jobs')}</th>
+                <th>{t('Now')}</th>
+                <th>{t('Status')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((p) => (
+                <Row key={p.partner_id} p={p} />
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
-    </div>
+    </>
+  )
+}
+
+/** /staff/partners/:pid: one partner with services, area, team (open as technician) and jobs for us. */
+export function StaffPartner() {
+  const { partnerId = '' } = useParams()
+  const { data: p, error, reload } = useResource(() => api.partner(partnerId), [partnerId])
+  const techs = useResource(() => api.technicians(partnerId).catch(() => [] as Technician[]), [partnerId])
+  const jobs = useResource(() => api.jobs(partnerId).catch(() => [] as JobSummary[]), [partnerId])
+  const refetch = useDebounced(() => {
+    jobs.reload()
+    techs.reload()
+  }, 400)
+  useStream(() => refetch())
+  const nav = useNavigate()
+  useCrumbs([{ label: t('Partners'), to: '/staff/partners' }, { label: p?.name ?? partnerId }])
+  if (error && !p) return <ErrorBox error={error} onRetry={reload} />
+  if (!p) return <Loading what={t('Loading partners')} />
+  const x = p as Record<string, unknown>
+  const contact = (x.contact ?? {}) as Record<string, unknown>
+  const pricing = (x.pricing ?? {}) as Record<string, unknown>
+  const done = jobs.data?.filter((j) => DONE.has(j.status)).length ?? 0
+  const area = p.service_area?.postcodes?.length ? p.service_area.postcodes.join(', ') : p.service_area?.radius_km ? t('{km} km around {pc}', { km: p.service_area.radius_km, pc: p.service_area.base_postcode }) : '–'
+  const kv = (rows: [string, React.ReactNode][]) => (
+    <dl className="kv">
+      {rows
+        .filter(([, v]) => v != null && v !== '')
+        .map(([k, v]) => (
+          <div key={k} className="contents">
+            <dt>{k}</dt>
+            <dd>{v}</dd>
+          </div>
+        ))}
+    </dl>
+  )
+  return (
+    <>
+      <div className="mb-[18px] flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-page font-bold">{p.name}</h1>
+          <p className="mt-1 text-secondary">{[trades(p).map((y) => tradeLabel(y)).join(', '), area].filter(Boolean).join(' · ')}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Pill tone="ok">✓ {t('Verified')}</Pill>
+          <Link className="btn-ghost" to={`/partner/${p.partner_id}`}>
+            {t('Open partner portal')}
+          </Link>
+        </div>
+      </div>
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        {[
+          [p.rating != null ? p.rating.toFixed(1) : '–', t('Rating')],
+          [String(jobs.data?.length ?? '…'), t('Jobs for us')],
+          [String(done), t('Done')],
+          [String(techs.data?.length ?? '…'), t('Technicians')],
+        ].map(([b, s]) => (
+          <div key={s} className="rounded-tile bg-surface px-4 py-3.5 shadow-ring">
+            <b className="block text-stat font-bold">{b}</b>
+            <span className="text-label text-muted">{s}</span>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+        <section className="card">
+          <h3 className="mb-3 text-panel">{t('Company & contact')}</h3>
+          {kv([
+            [t('Contact'), str(contact.name) ?? p.staff?.[0]?.name],
+            [t('Email'), str(contact.email) ?? str(x.email)],
+            [t('Phone'), str(contact.phone) ?? str(x.phone)],
+            [t('Pricing'), pricing.model ? (pricing.model === 'framework_agreement' ? t('Framework agreement') : String(pricing.model).replace(/_/g, ' ')) : null],
+            [t('Callout'), pricing.callout_fee_eur != null ? `€${pricing.callout_fee_eur}` : null],
+            [t('Hourly'), pricing.hourly_eur != null ? `€${pricing.hourly_eur}` : null],
+            [t('Partner ID'), p.partner_id],
+          ])}
+        </section>
+        <section className="card">
+          <h3 className="mb-3 text-panel">{t('Services & area')}</h3>
+          <div className="mb-2 text-label text-muted">{t('Services')}</div>
+          <div className="flex flex-wrap gap-1.5">
+            {trades(p).map((y) => (
+              <span key={y} className="rounded-full bg-beige px-2.5 py-1 text-label">
+                {tradeLabel(y)}
+              </span>
+            ))}
+          </div>
+          {(p.capabilities?.brands_certified ?? []).length > 0 && (
+            <>
+              <div className="mb-2 mt-3.5 text-label text-muted">{t('Certified brands')}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {p.capabilities!.brands_certified!.map((b) => (
+                  <span key={b} className="rounded-full bg-beige px-2.5 py-1 text-label">
+                    {b}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+          <div className="mt-3.5">{kv([[t('Area'), area]])}</div>
+        </section>
+        <section className="card">
+          <h3 className="mb-3 text-panel">{t('Team')}</h3>
+          {techs.data === null ? (
+            <Loading />
+          ) : techs.data.length === 0 ? (
+            <span className="text-muted">{t('No technicians listed')}</span>
+          ) : (
+            <table className="t">
+              <tbody>
+                {techs.data.map((tc) => (
+                  <tr key={tc.tech_id}>
+                    <td>
+                      <b>{tc.name}</b>
+                      <br />
+                      <span className="text-muted">
+                        {tc.skills.join(' · ')}
+                        {tc.free_slots ? ` · ${t('{n} free slots in the next days', { n: tc.free_slots.length })}` : ''}
+                      </span>
+                    </td>
+                    <td className="text-right">
+                      <Link to={`/tech/${tc.tech_id}`} className="text-label font-semibold text-wine no-underline hover:underline">
+                        {t('Open as {name}', { name: tc.name.split(' ')[0] })} →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+        <section className="card">
+          <h3 className="mb-3 text-panel">{t('Jobs with us')}</h3>
+          {!jobs.data?.length ? (
+            <span className="text-muted">{t('No jobs yet')}</span>
+          ) : (
+            <table className="t">
+              <tbody>
+                {jobs.data.map((j) => (
+                  <tr key={j.case_id} className="click" onClick={() => nav(`/staff/cases/${j.case_id}`)}>
+                    <td>
+                      <b>{j.title}</b>
+                      <br />
+                      <span className="text-muted">
+                        {j.case_id.replace(/^case_0*/, '')} · {(j.address ?? '').split(',')[0]}
+                      </span>
+                    </td>
+                    <td className="text-right">
+                      <StagePill c={{ ...j, unit_id: '', partner: null, type: j.type ?? '', address: j.address ?? '' }} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      </div>
+    </>
   )
 }
