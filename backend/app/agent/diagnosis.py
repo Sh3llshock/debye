@@ -265,6 +265,8 @@ def forced_question(conv: st.Conversation) -> str | None:
             return "q_power"
     if (a.get("q_heater_type") == "yes" or HOLIDAY_RE.search(d.get("complaint") or "")) and open_("q_switch_check"):
         return "q_switch_check"
+    if a.get("q_scope") == "everywhere" and a.get("q_hot_water_use") == "no" and open_("q_radiators"):
+        return "q_radiators"  # whole flat cold, nobody used it: heating on or off splits boiler vs. hot-water side
     return None
 
 
