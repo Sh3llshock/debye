@@ -92,7 +92,8 @@ WEAK_WORDS = {"broken", "loose", "kaputt", "locker", "pay", "bill", "floor", "bo
               "window", "fenster", "tür", "water", "wasser", "noise", "loud", "laut", "shower", "dusche", "toilet"}
 SECOND_PROBLEM_RE = re.compile(
     r"\b(and also|also|plus|another (thing|problem|issue)|on top of that|as well as|separately|other thing|"
-    r"außerdem|zusätzlich|und auch|noch (was|etwas)|ein anderes problem)\b|\band\b|\bund\b|[.;!?]\s+\S", re.I)
+    r"außerdem|zusätzlich|und auch|noch (was|etwas)|ein anderes problem|ein weiteres problem)\b", re.I)
+_GAS_APPLIANCE_RE = re.compile(r"\b(gas )?(stove|hob|cooker|herd|gasherd)\b", re.I)  # a hot-water clue, not a 2nd problem
 PROBLEM_RE = re.compile(
     r"\b(broken|not working|doesn'?t work|does not work|won'?t|can'?t|stopped|problem|issue|help|repair|fix|damaged|"
     r"faulty|stuck|leak|kaputt|funktioniert nicht|geht nicht|defekt|reparatur|problem|hilfe|beschädigt)", re.I)
@@ -167,6 +168,11 @@ def classify_keywords(text: str | None) -> tuple[str | None, str | None, bool]:
     ranked = list(s)
     if len(ranked) == 1:
         return ranked[0], None, False
+    if HOT_WATER in s and "appliances" in s and _GAS_APPLIANCE_RE.search(t) and not SECOND_PROBLEM_RE.search(t):
+        s.pop("appliances")  # "no hot water and the gas stove won't light either": the gas supply (hot-water KB)
+        ranked = list(s)
+        if len(ranked) == 1:
+            return ranked[0], None, False
     a, b = ranked[0], ranked[1]
     if SECOND_PROBLEM_RE.search(t) and s[b] >= 1:
         first, second = sorted((a, b), key=lambda x: _first_pos(x, t))

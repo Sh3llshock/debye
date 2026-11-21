@@ -503,7 +503,8 @@ def test_diagnosis_stored_and_shown(client):
 def test_plumbing_ranks_by_trade_and_preselects_ali(client):
     luka, case = _open_with("shower_mixer_faulty")
     ranking = services.rank_partners(case.id)
-    assert [r["partner_id"] for r in ranking] == ["heizung-schmidt"]  # only partner with the plumbing trade
+    # heizung-schmidt (framework contract, plumber Ali) first; the plumbing-only partner is eligible too
+    assert [r["partner_id"] for r in ranking] == ["heizung-schmidt", "sanitaer-esser"]
     assert "plumbing trade" in ranking[0]["reasons"]
     assert not any("certified" in r for r in ranking[0]["reasons"])  # no brand bonus for plumbing
     services.record_consent(luka.id, "heizung-schmidt", case.id, ["name", "address"], "repair", "whatsapp")

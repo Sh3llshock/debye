@@ -55,7 +55,8 @@ def test_schema_and_live_validation(client):
 
 def test_onboarded_plumber_is_ranked_without_code_change(client, partners_dir):
     case = _open_plumbing_case()
-    assert [r["partner_id"] for r in services.rank_partners(case.id)] == ["heizung-schmidt"]
+    before = [r["partner_id"] for r in services.rank_partners(case.id)]
+    assert "sanitaer-becker" not in before and before[0] == "heizung-schmidt"
 
     r = client.post("/api/partners/onboard", json={
         "manifest": _plumber(),

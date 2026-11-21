@@ -17,8 +17,7 @@
   },
   "capabilities": {
     "trades": [
-      "drain_cleaning",
-      "plumbing"
+      "drain_cleaning"
     ]
   },
   "eligibility": [
