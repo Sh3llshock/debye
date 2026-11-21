@@ -40,7 +40,6 @@ export default function TechPage() {
   const refetch = useDebounced(reload, 250)
   useStream(() => refetch())
   const isNew = useNewKeys(jobs ? jobs.map((j) => j.case_id + j.status) : null)
-  const first = me?.name.split(' ')[0]
 
   return (
     <TechLayout techId={techId} name={me?.name} partnerName={me?.partner_name}>
@@ -56,7 +55,7 @@ export default function TechPage() {
           <>
             <div className="mb-[18px] flex items-center gap-4">
               <div>
-                <h1 className="text-page font-medium">{first ? t('Hi {name}', { name: first }) : t('My jobs')}</h1>
+                <h1 className="text-page font-medium">{t('Your jobs')}</h1>
                 <p className="text-body-sm text-secondary">{t('Jobs your dispatcher assigned to you. Debye keeps the resident informed.')}</p>
               </div>
             </div>

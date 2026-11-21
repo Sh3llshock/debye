@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { t } from '../lib/i18n'
+import { Icon } from '../components/icons'
 import { ApiError, api, type TCaseDetail, type THistory, type THome, type TMessage, type TOption } from './api'
 import { MiniBar } from './Home'
 import { fmtDay, fmtSlot, fmtTime, isClosed, isEmergency, stageLabel, steps, solvedWithoutTech } from './progress'
@@ -211,7 +212,7 @@ export default function Chat() {
               {askPhoto && (
                 <div className="actions">
                   <button className="chip solid" onClick={() => photoInput.current?.click()}>
-                    📷 {t('Upload photo')}
+                    <Icon name="camera" className="h-4 w-4" /> {t('Upload photo')}
                   </button>
                 </div>
               )}
@@ -262,7 +263,7 @@ export default function Chat() {
               )}
               <div className="cin">
                 <label className="att" title={t('Add a photo')}>
-                  📎
+                  <Icon name="camera" className="h-[18px] w-[18px]" />
                   <input
                     type="file"
                     accept="image/*"
@@ -291,7 +292,7 @@ export default function Chat() {
                   }}
                 />
                 <button className="sendc" type="submit" aria-label={t('Send')} disabled={!draft.trim() && !file}>
-                  ➤
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>
                 </button>
               </div>
               <div className="cnote">{t('Same conversation as your WhatsApp with Debye. Answer wherever is easier.')}</div>
@@ -315,7 +316,7 @@ function Bubble({ m }: { m: TMessage }) {
                   <img key={d.document_id} src={d.url} alt={t('Photo')} />
                 ) : (
                   <a key={d.document_id} href={d.url} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>
-                    📎 {d.kind === 'voice_note' ? t('Voice note') : t('File')}
+                    <Icon name={d.kind === 'voice_note' ? 'mic' : 'file'} className="inline h-4 w-4 align-[-3px]" /> {d.kind === 'voice_note' ? t('Voice note') : t('File')}
                   </a>
                 ),
               )}

@@ -97,19 +97,21 @@ def staff_case_url(case_id: str, token: str | None = None) -> str:
 # --------------------------------------------------------------------------- pages
 
 _CSS = """
-body{margin:0;background:#FAF8F5;color:#2B1018;font:16px/1.5 -apple-system,'Segoe UI',Roboto,Arial,sans-serif}
-.wrap{max-width:480px;margin:0 auto;padding:48px 16px}
-.card{background:#FDFCFA;border:1px solid rgba(74,20,36,.10);border-radius:14px;padding:28px 24px}
-.brand{color:#6B1F33;font-weight:700;letter-spacing:.02em;margin-bottom:20px}
-h1{font-size:22px;line-height:1.3;margin:0 0 10px}
-p{color:#5A4744;margin:0 0 14px}
-.ok{color:#2F7D4F}.warn{color:#B04A12}
-a.btn,button{display:inline-block;border:0;border-radius:10px;padding:12px 18px;font:600 15px/1 inherit;
-  cursor:pointer;text-decoration:none;background:#6B1F33;color:#fff}
-a.sec{background:#EFE8DF;color:#2B1018}
-textarea{width:100%;box-sizing:border-box;min-height:90px;border:1px solid #E2D8CB;border-radius:10px;
-  padding:10px;font:inherit;margin:4px 0 14px;background:#fff}
-label{font-weight:600;font-size:14px}
+body{margin:0;background:#F2EDE6;color:#2B1018;font:400 16px/1.5 Lexend,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:520px;margin:0 auto;padding:56px 16px}
+.card{background:#fff;box-shadow:0 0 0 1px rgba(74,20,36,.16);border-radius:4px;padding:32px 28px}
+.brand{color:#6B1F33;font-weight:500;margin-bottom:24px}
+h1{font-size:26px;line-height:1.25;font-weight:500;letter-spacing:-.01em;margin:0 0 12px}
+p{color:#4A3A37;margin:0 0 16px}
+.ok{color:#2F7D4F}.warn{color:#A8460F}
+a.btn,button{display:inline-block;border:0;border-radius:3px;padding:14px 20px;font:500 15px/1 inherit;
+  cursor:pointer;text-decoration:none;background:#6B1F33;color:#FDFAF7;box-shadow:inset 0 -2px 0 rgba(0,0,0,.3)}
+a.btn:active,button:active{transform:translateY(1px)}
+a.sec{background:#fff;color:#2B1018;box-shadow:inset 0 0 0 1px rgba(43,16,24,.34)}
+textarea{width:100%;box-sizing:border-box;min-height:96px;border:0;box-shadow:inset 0 0 0 1px rgba(74,20,36,.16);border-radius:3px;
+  padding:12px;font:inherit;margin:6px 0 16px;background:#fff;caret-color:#6B1F33}
+:focus-visible{outline:2px solid #6B1F33;outline-offset:2px}
+label{font-weight:500;font-size:14px}
 """
 
 
@@ -117,7 +119,9 @@ def _page(title: str, body: str, status: int = 200) -> HTMLResponse:
     return HTMLResponse(
         f"<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         f"<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        f"<title>{html.escape(title)} · Debye</title><style>{_CSS}</style></head>"
+        f"<title>{html.escape(title)} · Debye</title>"
+        f"<link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Lexend:wght@400;500&display=swap'>"
+        f"<style>{_CSS}</style></head>"
         f"<body><div class='wrap'><div class='card'><div class='brand'>Debye · reltix</div>"
         f"{body}</div></div></body></html>", status_code=status)
 

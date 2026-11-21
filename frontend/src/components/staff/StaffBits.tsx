@@ -107,7 +107,7 @@ export function lastMessage(d?: CaseDetail): ThreadMessage | null {
 }
 export function messagePreview(m: ThreadMessage | null) {
   if (!m) return ''
-  if (!m.text && m.media?.length) return `📷 ${t('Photo')}`
+  if (!m.text && m.media?.length) return t('Photo')
   return m.text ? splitButtons(m.text).body : ''
 }
 
@@ -125,7 +125,7 @@ export function Chat({ c, maxH = 'max-h-[520px]' }: { c: CaseDetail; maxH?: stri
       {c.messages.map((m) => {
         const tenant = m.direction === 'in'
         const { body, buttons } = !tenant && m.text ? splitButtons(m.text) : { body: m.text ?? '', buttons: [] as string[] }
-        const media = m.media?.length ? m.media.map((x) => (x.kind === 'audio' || x.kind === 'voice_note' ? `🎤 ${t('Voice note')}` : `📷 ${t('Photo')}`)).join(' ') : ''
+        const media = m.media?.length ? m.media.map((x) => (x.kind === 'audio' || x.kind === 'voice_note' ? `[${t('Voice note')}]` : `[${t('Photo')}]`)).join(' ') : ''
         return (
           <div key={messageKey(m)} className={`max-w-[78%] rounded-[12px] px-3 py-2 text-body leading-[1.45] shadow-bubble ${tenant ? 'self-end bg-chat-out' : 'self-start bg-surface'} ${isNew(messageKey(m)) ? 'animate-rise' : ''}`}>
             {media && <div className="text-secondary">{media}</div>}
