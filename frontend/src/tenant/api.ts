@@ -27,16 +27,6 @@ export interface THome {
   city: string | null
   landlord: string | null
   assets: TAsset[]
-  /** contracts set up through Debye (e.g. internet at move-in), reltix service_contract shape */
-  services?: TService[]
-}
-export interface TService {
-  partner: string
-  category: string
-  product: string
-  status: string
-  start: string
-  monthly_price_eur: number | null
 }
 export interface TOption {
   id: string

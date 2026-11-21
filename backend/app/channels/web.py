@@ -270,13 +270,7 @@ def _home_view(s, c) -> dict | None:
         "landlord": owner,
         "assets": [{"asset_id": a.id, "type": a.type, "make": a.make, "model": a.model, "installed": a.installed,
                     "last_service": a.last_service, "central": a.unit_id is None} for a in assets],
-        "services": [sc["service_contract"] for sc in _service_contracts(s, u.id)],
     }
-
-
-def _service_contracts(s, unit_id: str) -> list[dict]:
-    from app.triggers import unit_service_contracts
-    return unit_service_contracts(s, unit_id)
 
 
 def _pending(contact_id: str) -> dict | None:

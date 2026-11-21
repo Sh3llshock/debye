@@ -75,12 +75,6 @@ The onboarded manifest is saved as `partners/heizung-mueller.json` and survives 
 3. Anna approves on the staff page → the signed order goes to `:8100` ("Order … sent via API"). Within ~6 s the timeline shows "Heiztechnik API GmbH accepted" and two proposed slots, posted back through the signed events webhook.
 4. Luka picks a slot (`/demo/trigger/pick_slot`), then press "Complete + invoice" on `http://localhost:8100`: the case goes to invoiced with the price check, same as a portal partner.
 
-### Extra beat: internet at move-in (second partner type, about 1 minute)
-
-1. Start `python scripts/fake_fibre.py --port 8101 --debye http://localhost:8000` (`FIBRE_SECRET` in `.env`).
-2. Staff page → Properties → Musterstraße 12 · 2nd floor → **Tenant moves in (centrix event)**.
-3. Luka gets "Fibre 250 / Fibre 500 / No thanks", picks one and taps the consent. About 10 s later the unit page shows the active service contract and the tenant portal lists it under "Your services". Point out that it is the same manifest spec, transport and webhook as the heating partner: no fibre code.
-
 ### Variant: Luka calls instead of sending a voice note (step 1)
 Luka **calls** Debye (phone number, or the `/call` page as "Luka"): "Meine Heizung ist seit heute Morgen kalt … alle Heizkörper … auf dem Display steht F 28." Debye greets Luka by name and doesn't ask for address or boiler. It explains "die Zündung ist fehlgeschlagen (Fehlercode F.28)", opens the case and hangs up. Within about 10 s:
 - staff page: case opened, timeline line **"Call with Luka (0:47): heating cold, all radiators cold, ignition failed (F.28). Case opened, consent asked on WhatsApp."**

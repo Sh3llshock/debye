@@ -171,8 +171,6 @@ def unit_detail(s, u: Unit) -> dict:
         "documents": [doc_view(d) for d in sorted(docs, key=lambda d: d.created_at or "", reverse=True)],
         "cases": [case_summary(s, c) for c in cases],
     })
-    from .triggers import unit_service_contracts  # sell partners' results (reltix shape)
-    out["service_contracts"] = unit_service_contracts(s, u.id)
     return out
 
 

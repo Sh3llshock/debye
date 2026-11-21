@@ -21,7 +21,7 @@
     { "key": "move_in_date", "source": "tenant.move_in", "pii": true, "consent_required": true }
   ],
   "availability": { "mode": "static", "hours": "activation on any working day" },
-  "transport": { "type": "api", "base_url": "http://localhost:8101", "auth": { "type": "hmac", "secret_env": "FIBRE_SECRET" } },
+  "transport": { "type": "api", "base_url": "http://localhost:8100", "auth": { "type": "hmac", "secret_env": "FIBRE_SECRET" } },
   "status_events": ["accepted", "signed", "active", "declined"],
   "documents_returned": ["contract", "confirmation"],
   "sla": { "urgent_response_hours": 24, "standard_response_hours": 72 },

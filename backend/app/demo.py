@@ -322,17 +322,7 @@ async def t_maintenance_notice(body: dict) -> dict:
     return out
 
 
-async def t_move_in(body: dict) -> dict:
-    """centrix tenant.move_in → sell partners (example-fibre) offer to the tenant.
-    Body: unit_id (default unit_4b), contact_id (default the unit's tenant), move_in_date."""
-    from . import triggers
-    return await triggers.fire_and_offer("tenant.move_in", {"unit_id": body.get("unit_id", "unit_4b"),
-                                                            "contact_id": body.get("contact_id"),
-                                                            "move_in_date": body.get("move_in_date")})
-
-
 TRIGGERS = {
-    "move_in": t_move_in,
     "tenant_report": t_tenant_report,
     "neighbour_report": t_neighbour_report,
     "neighbour": t_neighbour_report,  # alias: Jonas (unit 2a) reports the same boiler
