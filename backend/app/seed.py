@@ -42,6 +42,10 @@ def load_seed_data() -> dict:
             else:
                 data[key] = value
         log.info("applied seed.local.json override")
+    from .try_api import load_signups  # /tryDebye sign-ups survive resets
+    signups = load_signups()
+    if signups:
+        data["contacts"] = _merge_lists(data.get("contacts", []), signups)
     return data
 
 
