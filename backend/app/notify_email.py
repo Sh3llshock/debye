@@ -53,7 +53,12 @@ def _clean_report(text: str) -> str | None:
     return t
 
 
+SUPPRESS = False  # set while demo scenarios are loaded, so a reset doesn't email staff
+
+
 def enabled() -> bool:
+    if SUPPRESS:
+        return False
     if settings.approval_email_enabled is not None:
         return bool(settings.approval_email_enabled)
     return bool(settings.agentmail_api_key)
