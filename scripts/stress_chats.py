@@ -107,7 +107,7 @@ CHATS: dict[str, tuple[str, str, str, str, tuple[str, ...]]] = {
     "vague": ("something isnt working", "It's the bathroom sink, it drains slowly, plunger didn't help.",
               "vague first, then answer", "blocked_drain", ("technician", "self_help")),
     "none_of_these": ("water on my floor", "It comes from under the fridge.", "reject the first options "
-                      "('none of these')", "appliances", ("technician", "self_help", "management")),
+                      "('none of these')", ("appliances", "water_leak"), ("technician", "self_help", "management")),
 }
 
 SIM = """You play a tenant texting Debye, the WhatsApp assistant of the property manager. You are difficult on

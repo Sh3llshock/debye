@@ -497,6 +497,7 @@ async def begin_area(contact, conv: st.Conversation, area: str, complaint: str |
     if complaint and complaint not in conv.tenant_texts:
         conv.tenant_texts.append(complaint)
     if dg.model_first(d):  # Luna leads with the KBs as reference; code keeps the hard guards only
+        d["free_q"] = _t(conv).pop("carry_free_q", None) or []
         if complaint and dg.FRUSTRATED_RE.search(complaint):
             await dg.escalate_now(contact, conv, complaint)
             return False
@@ -652,6 +653,7 @@ async def maybe_reroute(contact, conv: st.Conversation, text: str | None, force:
             await loop.run_tenant_turn(contact, f"[The resident's problem is the heating: \"{merged}\".]")
         return True
     lead = "Verstanden." if conv.lang == "de" else "Got it, sorry."
+    t["carry_free_q"] = list(d.get("free_q") or [])  # model_first: never ask the same question again after a switch
     await begin_area(contact, conv, new, merged, lead=lead)
     return True
 
