@@ -550,7 +550,13 @@ def rank_partners(case_id: str) -> list[dict]:
                      if (p.status or "active") == "active"]
         fw_ids = {c.partner_id for c in s.exec(select(Contract).where(Contract.type == "framework")).all()}
         declined = set((case.data or {}).get("declined_by", []))
-        full = [r for r in rank(case.type, ctx, manifests, fw_ids, case.property_id, trade=case_trade(case))
+        from .partners.ranking import availability_for
+        avail = {}
+        for m in manifests:
+            techs = s.exec(select(Technician).where(Technician.partner_id == m.partner_id)).all()
+            avail[m.partner_id] = availability_for(m, [t.busy or [] for t in techs])
+        full = [r for r in rank(case.type, ctx, manifests, fw_ids, case.property_id, trade=case_trade(case),
+                                availability=avail)
                 if r["partner_id"] not in declined]
         top = [r for r in full if r["eligible"]][:3]
         _patch_data(case, ranking=top)
@@ -1162,7 +1168,7 @@ async def record_completion(case_id: str, partner_id: str, notes: str,
         if extracted is None:  # demo scenarios pass known numbers instead of calling the model
             extracted = await media.extract_invoice(str(p))
         with get_session() as s:
-            check = rules.price_check(s, partner_id, extracted)
+            check = rules.price_check(s, partner_id, extracted, s.get(Case, case_id))
         doc = attach_document(case_id, "invoice", p.name, mime or "application/pdf", str(p),
                               {**extracted, "price_check": check})
         out["invoice"] = doc.id
