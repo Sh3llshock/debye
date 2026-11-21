@@ -176,12 +176,12 @@
     {
       "id": "c_203",
       "role": "tenant",
-      "name": "Jonas Weber",
+      "name": "Jona Weber",
       "phone_e164": "+490000000002",
-      "email": "jonas@example.com",
+      "email": "jona.weber@example.com",
       "language": "en",
       "unit_id": "unit_2a",
-      "move_in": "2021-04-01",
+      "move_in": "2025-09-01",
       "whatsapp_opt_in": true
     },
     {
@@ -294,8 +294,8 @@
       "unit_id": "unit_2a",
       "contact_id": "c_203",
       "data": {
-        "rent_cold_eur": 610,
-        "start": "2021-04-01"
+        "rent_cold_eur": 520,
+        "start": "2025-09-01"
       }
     },
     {

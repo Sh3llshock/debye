@@ -615,12 +615,14 @@ def test_demo_scenarios(client):
     expect = {"s1_approval_pending": "approval_pending", "s2_requested": "requested",
               "s3_awaiting_technician": "awaiting_technician", "s4_scheduled_electrical": "scheduled",
               "s5_closed_invoiced": "closed", "s6_self_help": "closed", "s7_caretaker": "new",
-              "s8_wagner_closed": "closed", "s9_gruen_requested": "requested"}
+              "s8_wagner_closed": "closed", "s9_gruen_requested": "requested",
+              "s10_jona_radiator": "closed", "s11_jona_fuse": "closed"}
     assert {k: v["status"] for k, v in by.items()} == expect
 
     # live demo units stay empty, and nothing open on Musterstraße's central boiler
     assert client.get("/api/staff/units/unit_4b").json()["cases"] == []
-    assert client.get("/api/staff/units/unit_2a").json()["cases"] == []
+    # Jona (2A) only has closed history, nothing open
+    assert all(c["status"] == "closed" for c in client.get("/api/staff/units/unit_2a").json()["cases"])
     assert services.find_open_case_for_asset("asset_boiler_1") is None
 
     # every partner portal has a job
@@ -662,7 +664,7 @@ def test_demo_scenarios(client):
     assert s5["created_at"] < s1["created_at"]
 
     # reset with scenarios works too, and a plain reset empties everything
-    assert len(client.post("/demo/reset?scenarios=1").json()["cases"]) == 9
+    assert len(client.post("/demo/reset?scenarios=1").json()["cases"]) == 11
     client.post("/demo/reset")
     assert client.get("/api/staff/cases").json() == []
 
@@ -704,8 +706,8 @@ def test_demo_scenarios_never_half_loaded(client, monkeypatch):
     monkeypatch.setattr(sc, "SCENARIOS", [flaky if f is original else f for f in sc.SCENARIOS])
     r = client.post("/demo/scenarios")
     assert r.status_code == 200, r.text
-    assert r.json()["attempts"] == 2 and len(r.json()["cases"]) == 9
-    assert len(client.get("/api/staff/cases").json()) == 9  # no leftovers from the failed attempt
+    assert r.json()["attempts"] == 2 and len(r.json()["cases"]) == 11
+    assert len(client.get("/api/staff/cases").json()) == 11  # no leftovers from the failed attempt
     assert abs((clock_now() - _dt.now(clock_now().tzinfo)).total_seconds()) < 5  # clock not left shifted
 
     # fails every time → 503 and a clean, empty seed (not 3 stray cases)

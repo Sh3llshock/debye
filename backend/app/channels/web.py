@@ -532,7 +532,9 @@ async def send(
         from app.agent import state as st
         # "Something else wrong at home?": a new problem starts a fresh conversation and its own case;
         # the earlier case keeps its chat and its updates.
+        from app.config import now_iso
         st.reset_conversation(c.id)
+        _fresh_since[c.id] = now_iso()  # the new chat shows only messages from now on
     _restore_case_from_button(c.id, msg.button_id)
 
     async def run() -> None:

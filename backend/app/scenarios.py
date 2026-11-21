@@ -1,7 +1,7 @@
 """Demo scenarios: realistic cases built through the real services (POST /demo/scenarios).
 
-So the staff dashboard and the partner pages look alive while Luka's unit 4b and Jonas' unit 2a
-stay empty for the live WhatsApp demo. No case is left open on Musterstraße's central boiler
+So the staff dashboard and the partner pages look alive while Luka's unit 4b stays empty for the
+live WhatsApp demo; Jona (unit 2a, student) has two closed self-help cases as history. No case is left open on Musterstraße's central boiler
 (asset_boiler_1), so Luka's live report is never treated as a duplicate.
 
 Older steps run with the demo clock shifted back (`_ago`), so timelines show realistic times.
@@ -347,7 +347,55 @@ def s9_gruen_requested() -> str:
     return c.id
 
 
-SCENARIOS = [s8_wagner_closed, s5_closed_invoiced, s4_scheduled_electrical, s6_self_help,
+def s10_jona_radiator() -> str:
+    """Jona, Musterstraße 12 2A (student): bedroom radiator cold at the top → bled it himself, fixed."""
+    with _ago(days=24, hours=5):
+        c = services.open_case(
+            "c_203", "repair.radiator", "normal", "Bedroom radiator only warm at the bottom",
+            "Radiator in the bedroom stays cold at the top, gurgling noise", None, None,
+            diagnosis={"cause_id": "air_in_radiator", "confidence": 0.85,
+                       "label": "Air in the radiator",
+                       "reasoning": "Only one radiator, warm at the bottom and cold at the top with a gurgling noise: "
+                                    "air trapped in the radiator. Bleeding it fixes this; no technician needed.",
+                       "questions_asked": [{"question": "Is it only this radiator?", "answer": "Yes, only the bedroom"},
+                                           {"question": "Warm at the bottom and cold at the top?", "answer": "Yes, and it gurgles"}]})
+        _chat("c_203", c.id, [
+            ("in", "Hi, my bedroom radiator is only warm at the bottom and it gurgles"),
+            ("out", "Let's fix it. Is it only this radiator, or are the others cold too?"),
+            ("in", "only the bedroom one"),
+            ("out", "Then there's air in it. Turn the heating off for the radiator, hold a cup under the small valve at "
+                    "the top and open it a quarter turn with a radiator key until water comes out. Tell me if it works."),
+        ])
+    with _ago(days=24, hours=4):
+        _chat("c_203", c.id, [("in", "done, it's warm everywhere now!"), ("out", "Great, glad it's warm again.")])
+        services.close_self_help(c.id, "Jona bled the radiator; warm again")
+    return c.id
+
+
+def s11_jona_fuse() -> str:
+    """Jona, 2A: no power in the kitchen → tripped fuse (kettle + toaster), reset, fixed."""
+    with _ago(days=9, hours=3):
+        c = services.open_case(
+            "c_203", "repair.electrical", "normal", "No power in the kitchen",
+            "Kitchen sockets dead after using the kettle and the toaster together", None, None,
+            diagnosis={"cause_id": "tripped_breaker", "confidence": 0.9,
+                       "label": "Tripped fuse",
+                       "reasoning": "Only the kitchen sockets, right after running the kettle and toaster together: "
+                                    "an overloaded circuit tripped its fuse. Switching it back on fixes it.",
+                       "questions_asked": [{"question": "Is one switch in the fuse box flipped down?", "answer": "Yes, one"}]})
+        _chat("c_203", c.id, [
+            ("in", "kitchen has no power, the rest of the flat is fine"),
+            ("out", "Let's check. Have a look at the fuse box next to your front door: is one switch flipped down?"),
+            ("in", "yes one is down"),
+            ("out", "Switch it back up. Kettle and toaster at the same time can overload the circuit, so best use them "
+                    "one after the other. Does the kitchen have power again?"),
+            ("in", "yes works again, thanks"),
+        ])
+        services.close_self_help(c.id, "Fuse reset by Jona; kitchen power back")
+    return c.id
+
+
+SCENARIOS = [s10_jona_radiator, s8_wagner_closed, s11_jona_fuse, s5_closed_invoiced, s4_scheduled_electrical, s6_self_help,
              s3_awaiting_technician, s9_gruen_requested, s2_requested, s7_caretaker, s1_approval_pending]
 
 

@@ -51,7 +51,7 @@ def test_identify_caller_by_phone_and_by_contact_id(app_client):
     assert d["known"] and d["first_name"] == "Luka" and d["contact_id"] == "c_202"
     assert d["heating"]["make"]
     d2 = c.post("/api/voice/tools/identify_caller", headers=H, json={"contact_id": "c_203", "caller_id": ""}).json()
-    assert d2["first_name"] == "Jonas"
+    assert d2["first_name"] == "Jona"
     d3 = c.post("/api/voice/tools/identify_caller", headers=H, json={"caller_id": "+4915100000000"}).json()
     assert d3["known"] is False
 
