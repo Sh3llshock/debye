@@ -411,4 +411,8 @@ export const DE_PARTNER: Record<string, string> = {
   Name: 'Name',
   Email: 'E-Mail',
   Back: 'Zurück',
+  'Approved budget': 'Freigegebenes Budget',
+  'No photos yet. Photos the tenant sends on WhatsApp appear here.': 'Noch keine Fotos. Fotos, die der Mieter per WhatsApp schickt, erscheinen hier.',
+  'What the display shows': 'Was das Display zeigt',
+  'Repair jobs from reltix’s rented homes. No sales, no paperwork.': 'Reparaturaufträge aus den Mietwohnungen von reltix. Kein Vertrieb, kein Papierkram.',
 }

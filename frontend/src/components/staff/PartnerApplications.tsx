@@ -25,7 +25,7 @@ export function NewPartnersBanner() {
   const { data } = usePartnerApplications()
   if (!data?.length) return null
   return (
-    <Link to="/staff/partners" className="mx-[18px] mb-2.5 flex items-center justify-between gap-2 rounded-tile bg-wine-tint px-3 py-2 text-label font-semibold text-wine no-underline hover:underline">
+    <Link to="/staff/partners" className="mx-[18px] mb-2.5 flex items-center justify-between gap-2 rounded-tile bg-wine-tint px-3 py-2 text-label font-medium text-wine no-underline hover:underline">
       <span>{data.length === 1 ? t('1 new partner to review') : t('{n} new partners to review', { n: data.length })}</span>
       <span aria-hidden>→</span>
     </Link>
@@ -39,7 +39,7 @@ function CheckRow({ c }: { c: PrecheckRow }) {
   return (
     <li className="flex flex-wrap items-start justify-between gap-2 border-t border-line py-2 first:border-t-0">
       <span className="min-w-0">
-        <b className="font-semibold">{t(c.label)}</b>
+        <b className="font-medium">{t(c.label)}</b>
         <span className="block text-label text-muted [overflow-wrap:anywhere]">{c.detail}</span>
       </span>
       <Pill tone={TONE[c.status]}>
@@ -113,7 +113,7 @@ function ApplicationCard({ a, onDone }: { a: PartnerApplication; onDone: () => v
             <ul className="m-0 list-none p-0">
               {a.documents.map((d) => (
                 <li key={d.document_id} className="py-1">
-                  <a href={d.url} target="_blank" rel="noreferrer" className="font-semibold text-wine no-underline hover:underline">
+                  <a href={d.url} target="_blank" rel="noreferrer" className="font-medium text-wine no-underline hover:underline">
                     {t(d.label)}
                   </a>
                   <span className="text-label text-muted">
@@ -165,9 +165,9 @@ export function NewPartnersSection({ onChange }: { onChange?: () => void }) {
   if (!data?.length) return null
   return (
     <section className="mb-5">
-      <h2 className="mb-2.5 flex items-center gap-2 text-head font-semibold">
+      <h2 className="mb-2.5 flex items-center gap-2 text-head font-medium">
         {t('New partners')}
-        <span className="rounded-full bg-wine px-2 py-px text-meta font-bold" style={{ color: '#fff' }}>{data.length}</span>
+        <span className="rounded-full bg-wine px-2 py-px text-meta font-medium" style={{ color: '#fff' }}>{data.length}</span>
       </h2>
       <div className="grid grid-cols-1 gap-3.5">
         {data.map((a) => (

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Debye v4 polish</title>
+<link rel="stylesheet" href="polish.css">
+<style>
+  main { max-width: 1440px; margin: 0 auto; padding: 32px 32px 64px; }
+  .intro { max-width: 80ch; }
+  .dir { margin-top: 24px; padding: 20px 24px; max-width: 880px; }
+  .dir dl { display: grid; grid-template-columns: 120px 1fr; gap: 8px 16px; margin: 12px 0 0; }
+  .dir dt { color: var(--muted); } .dir dd { margin: 0; }
+  section { margin-top: 64px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 16px; }
+  .pair figure { margin: 0; min-width: 0; }
+  .pair img { width: 100%; border-radius: var(--r-panel); box-shadow: var(--card); display: block; }
+  .pair figcaption { font-size: 13px; color: var(--muted); margin-bottom: 8px; font-weight: 500; }
+  .stack { display: grid; gap: 12px; }
+  .phones { display: flex; gap: 12px; align-items: flex-start; }
+  .phones img { width: 240px; }
+  ul.ch { margin: 12px 0 0; padding-left: 20px; color: var(--body); max-width: 90ch; }
+  ul.ch li { margin: 4px 0; font-weight: 300; }
+  @media (max-width: 800px) { .pair { grid-template-columns: 1fr; } main { padding: 16px; } .dir dl { grid-template-columns: 1fr; gap: 2px; } .dir dd { margin-bottom: 8px; } }
+</style></head>
+<body><main>
+  <h1 class="h1">Debye v4 polish: before and after</h1>
+  <p class="body intro" style="margin-bottom:16px"><a class="btn p" href="rules.html">The rules: AI usually does this, Debye does this</a></p>
+  <p class="body intro">Round 4. An independent agent critiqued the screens with impeccable's rubric. I fixed what it found, then a second agent, which had seen none of the earlier reasoning, re-scored them, and I fixed its top six too.</p>
+  <table style="margin-top:16px;border-collapse:collapse;font-size:14px;max-width:720px;width:100%">
+    <tr style="color:var(--muted);font-size:12px;text-align:left"><th style="padding:8px 0;font-weight:400">Independent score</th><th style="font-weight:400">Round 3</th><th style="font-weight:400">Round 4</th></tr>
+    <tr style="border-top:1px solid var(--line)"><td style="padding:10px 0">Cognitive-load failures (lower is better)</td><td>4 of 8, high</td><td><b style="font-weight:500">2 of 8, moderate</b></td></tr>
+    <tr style="border-top:1px solid var(--line)"><td style="padding:10px 0">Aesthetic and minimalist design (0–4)</td><td>2</td><td><b style="font-weight:500">3</b></td></tr>
+    <tr style="border-top:1px solid var(--line)"><td style="padding:10px 0">Match with the real world (0–4)</td><td>2</td><td><b style="font-weight:500">3</b></td></tr>
+    <tr style="border-top:1px solid var(--line)"><td style="padding:10px 0">Staff case: could another SaaS use it?</td><td>About 60% generic</td><td><b style="font-weight:500">No, the strongest screen</b></td></tr>
+    <tr style="border-top:1px solid var(--line);border-bottom:1px solid var(--line)"><td style="padding:10px 0">Usual AI tells</td><td>Several</td><td><b style="font-weight:500">None found</b></td></tr>
+  </table>
+
+  <div class="panel dir">
+    <h2 class="h2">Direction</h2>
+    <dl>
+      <dt>Product</dt><dd>Turns a tenant's WhatsApp message into a diagnosed, approved repair job for reltix staff and partner trades</dd>
+      <dt>Character</dt><dd>Calm, exact, on the tenant's side</dd>
+      <dt>World</dt><dd>The property manager's case file and the tradesperson's job sheet</dd>
+      <dt>Moments</dt><dd>The approval card for staff, the job sheet with its budget for partners, the composer for tenants</dd>
+      <dt>Signature</dt><dd>The case track: eight short segments, one per station of a case, with the current station in wine. It appears wherever a case appears.</dd>
+    </dl>
+  </div>
+
+  <section>
+    <h2 class="h2">1. Staff case, approval</h2>
+    <ul class="ch">
+      <li>The recommended partner is the page's one bright element: a single card with who they are, why Debye picked them, the price and Approve. The two alternatives sit underneath as a quiet table showing the deciding reason.</li>
+      <li>No card inside a card. The approval sits on the page itself, and the WhatsApp thread fills its panel edge to edge.</li>
+      <li>One status line plus the case track in the header, instead of three pills. Cause and confidence appear once. One time format (08–10). Consent is now its own step in Progress.</li>
+    </ul>
+    <div class="pair">
+      <figure><figcaption>Before</figcaption><div class="stack"><img src="before/staff-case-1-top.jpg" alt="Staff case before"><img src="before/staff-case-2-mid.jpg" alt=""></div></figure>
+      <figure><figcaption>After · <a class="lnk" href="staff-case.html">open mockup</a></figcaption><div class="stack"><img src="after/staff-case-1-top.jpg" alt="Staff case after"><img src="after/staff-case-2-lower.jpg" alt=""></div></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="h2">2. Staff inbox</h2>
+    <ul class="ch">
+      <li>Every row has the same three lines: name, case track and time; problem; status dot and last message. Rows are all one height.</li>
+      <li>The summary gives three facts and one sentence about where Debye is. One primary action. A loading skeleton replaces the blank pane (see States).</li>
+    </ul>
+    <div class="pair">
+      <figure><figcaption>Before</figcaption><img src="before/staff-inbox.jpg" alt="Inbox before"></figure>
+      <figure><figcaption>After · <a class="lnk" href="staff-inbox.html">open mockup</a></figcaption><img src="after/staff-inbox.jpg" alt="Inbox after"></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="h2">3. Partner, new job</h2>
+    <ul class="ch">
+      <li>The grey 3D sphere is gone. "No photos yet" is a plain line, not a box inside the card.</li>
+      <li>The title comes first and the details follow, with no kicker above. Then the real pressure, "1 h 42 min left to accept", and the case track. The budget is shown once, as the one large figure.</li>
+      <li>Accept is wine, not green. Time slots are check chips.</li>
+    </ul>
+    <div class="pair">
+      <figure><figcaption>Before</figcaption><img src="before/partner-new-job.jpg" alt="New job before"></figure>
+      <figure><figcaption>After · <a class="lnk" href="partner-new-job.html">open mockup</a></figcaption><img src="after/partner-new-job.jpg" alt="New job after"></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="h2">4. Tenant home</h2>
+    <ul class="ch">
+      <li>The ask sits on the left with the cases list beside it, stacked on phones. The logo appears once. The composer is the bright element and gets a wine ring when focused.</li>
+      <li>"Good morning, Luka." becomes "What's wrong at home, Luka?". The ➤ glyph becomes a line arrow, and WhatsApp and phone are quiet links.</li>
+    </ul>
+    <div class="pair">
+      <figure><figcaption>Before</figcaption><div class="stack"><img src="before/tenant-home-desktop.jpg" alt="Tenant home before"><div class="phones"><img src="before/tenant-home-375.jpg" alt=""></div></div></figure>
+      <figure><figcaption>After · <a class="lnk" href="tenant-home.html">open mockup</a></figcaption><div class="stack"><img src="after/tenant-home-desktop.jpg" alt="Tenant home after"><div class="phones"><img src="after/tenant-home-375.jpg" alt=""></div></div></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="h2">5. Partner welcome</h2>
+    <ul class="ch">
+      <li>One headline, from the client's own copy minus the unverified "thousands of rented homes". Line icons replace 🔧📸💶.</li>
+      <li>The empty "Welcome" side now shows a real job sheet: cause, boiler, slot, what Debye asked and the approved budget.</li>
+    </ul>
+    <div class="pair">
+      <figure><figcaption>Before</figcaption><img src="before/partner-landing.jpg" alt="Partner welcome before"></figure>
+      <figure><figcaption>After · <a class="lnk" href="partner-welcome.html">open mockup</a></figcaption><img src="after/partner-welcome.jpg" alt="Partner welcome after"></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="h2">6. States and phone layouts</h2>
+    <ul class="ch">
+      <li>New: a loading skeleton in the shape of real rows, empty states that say what will appear and why, and a not-found page that keeps the top bar.</li>
+      <li>Staff case and partner job now collapse to one column at phone width, with no sideways scroll at 375 px.</li>
+    </ul>
+    <div class="pair">
+      <figure><figcaption>States · <a class="lnk" href="states.html">open mockup</a></figcaption><img src="after/states.jpg" alt="States"></figure>
+      <figure><figcaption>375 px</figcaption><div class="phones"><img src="after/staff-case-375.jpg" alt="Staff case on a phone"><img src="after/partner-new-job-375.jpg" alt="Partner job on a phone"></div></figure>
+    </div>
+  </section>
+</main></body></html>

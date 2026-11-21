@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Debye design rules</title>
+<link rel="stylesheet" href="polish.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+<style>
+  main { max-width: 1120px; margin: 0 auto; padding: 40px 32px 80px; }
+  .intro { max-width: 70ch; margin: 8px 0 0; }
+  .rules { margin-top: 40px; border-top: 1px solid var(--line); }
+  .rule { display: grid; grid-template-columns: 240px 1fr 1fr; gap: 32px; padding: 24px 0; border-bottom: 1px solid var(--line); align-items: start; }
+  .rule h2 { font-size: 15px; line-height: 22px; font-weight: 500; margin: 0; }
+  .rule .why { margin-top: 4px; font-size: 13px; line-height: 20px; color: var(--muted); font-weight: 300; }
+  .col .lbl { font-size: 12px; line-height: 16px; color: var(--muted); margin-bottom: 8px; }
+  .col p { margin: 8px 0 0; font-size: 13px; line-height: 20px; color: var(--body); font-weight: 300; }
+  .demo { min-height: 72px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px; border-radius: var(--r-panel); box-shadow: var(--card); background: var(--surface); }
+  .col.ai .demo { background: #F9FAFB; }
+
+  /* the AI default, drawn on purpose: Inter, indigo, 12-16px corners, pills, soft shadows, gradients */
+  .ai .x { font-family: Inter, system-ui, sans-serif; }
+  .x-card { font-family: Inter, sans-serif; background: #fff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,.08); padding: 12px 16px; font-size: 13px; }
+  .x-pill { font-family: Inter, sans-serif; background: linear-gradient(90deg,#6366F1,#8B5CF6); color: #fff; border-radius: 999px; padding: 8px 18px; font-weight: 600; font-size: 13px; box-shadow: 0 4px 14px rgba(99,102,241,.35); }
+  .x-badge { font-family: Inter, sans-serif; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+  .x-av { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#6366F1,#EC4899); color: #fff; display: grid; place-items: center; font: 600 12px Inter; }
+  .x-eyebrow { font: 600 11px Inter; letter-spacing: .12em; text-transform: uppercase; color: #6366F1; }
+  .x-h { font: 700 20px/1.2 Inter; background: linear-gradient(90deg,#6366F1,#EC4899); -webkit-background-clip: text; color: transparent; }
+  .x-ic { width: 36px; height: 36px; border-radius: 10px; background: #EEF2FF; display: grid; place-items: center; font-size: 18px; }
+  .x-nav { font: 500 13px Inter; padding: 6px 14px; border-radius: 999px; }
+  .x-nav.on { background: #EEF2FF; color: #4F46E5; }
+  .x-focus { font: 500 13px Inter; padding: 8px 14px; border-radius: 10px; background: #fff; box-shadow: 0 0 0 4px rgba(99,102,241,.35); }
+  .x-spark { width: 80px; height: 28px; }
+  .x-type span { font-family: Inter, sans-serif; display: inline-block; margin-right: 8px; }
+
+  .src { margin-top: 48px; font-size: 13px; color: var(--muted); }
+  .src ul { margin: 8px 0 0; padding-left: 20px; } .src li { margin: 4px 0; }
+  .src a { text-decoration: underline; text-underline-offset: 3px; }
+  @media (max-width: 860px) { main { padding: 24px 16px 64px; } .rule { grid-template-columns: 1fr; gap: 12px; } }
+</style></head>
+<body><main>
+  <h1 class="h1">AI usually does this, Debye does this</h1>
+  <p class="body intro">Each row shows the default that AI tools ship and the rule the Debye screens follow instead, both drawn live on this page. The left column is the generic look on purpose. The rules apply to every page in the mockups and to the build in step 4.</p>
+
+  <div class="rules">
+    <div class="rule">
+      <div><h2>Typeface</h2><div class="why">v0, Lovable and Claude Code all start from Inter, so it reads as "default"</div></div>
+      <div class="col ai"><div class="lbl">AI default</div><div class="demo x-type"><span style="font:400 15px Inter">Inter or Geist on everything</span></div></div>
+      <div class="col"><div class="lbl">Debye</div><div class="demo"><span style="font:400 15px Lexend">Lexend, everywhere</span></div>
+        <p>Lexend was designed to be easier to read, with wider letters and open spacing. That suits tenants writing in a second language, typing on a phone at night. Sizes sit one step smaller because it runs wide.</p></div>
+    </div>
+
+    <div class="rule">
+      <div><h2>Corners</h2><div class="why">"Rounded corners on everything" is the most-cited tell</div></div>
+      <div class="col ai"><div class="lbl">AI default</div><div class="demo"><div class="x-card">12–16 px on every card, input and image</div></div></div>
+      <div class="col"><div class="lbl">Debye</div><div class="demo"><div class="panel" style="padding:12px 16px;font-size:13px">2 px tags, 3 px controls, 4 px panels</div></div>
+        <p>Square-ish, like a case file and a job sheet. The one exception is WhatsApp bubbles (6 px), which stay recognisable as WhatsApp.</p></div>
+    </div>
+
+    <div class="rule">
+      <div><h2>Buttons</h2><div class="why">Gradient pills with a glow, or rounded-lg with an icon and a "→"</div></div>
+      <div class="col ai"><div class="lbl">AI default</div><div class="demo"><span class="x-pill">Get started →</span></div></div>
+      <div class="col"><div class="lbl">Debye</div><div class="demo"><button class="btn p">Approve partner</button><button class="btn s">Decline</button><a class="lnk" href="#">Handle it myself</a></div>
+        <p>Rectangles with a key edge. The primary is solid wine with a darker 2 px bottom edge and moves down 1 px when pressed. The secondary is an ink outline, and the third level is an underlined link. Labels name the action, with no arrows.</p></div>
+    </div>
+
+    <div class="rule">
+      <div><h2>Depth</h2><div class="why">The same soft grey shadow under every card</div></div>
+      <div class="col ai"><div class="lbl">AI default</div><div class="demo"><div class="x-card">shadow-md</div><div class="x-card">shadow-md</div></div></div>
+      <div class="col"><div class="lbl">Debye</div><div class="demo"><div class="panel" style="padding:10px 14px;font-size:13px">hairline</div><div class="panel" style="padding:10px 14px;font-size:13px;box-shadow:var(--float)">the one that floats</div></div>
+        <p>Surfaces are flat and ruled with hairlines. Only one element per screen casts a shadow: the thing you act on.</p></div>
+    </div>
+
+    <div class="rule">
+      <div><h2>Status</h2><div class="why">Coloured pills, several per row</div></div>
+      <div class="col ai"><div class="lbl">AI default</div><div class="demo"><span class="x-badge" style="background:#DCFCE7;color:#166534">Booked</span><span class="x-badge" style="background:#FEF3C7;color:#92400E">Pending</span><span class="x-badge" style="background:#EEF2FF;color:#4338CA">WhatsApp</span></div></div>
+      <div class="col"><div class="lbl">Debye</div><div class="demo"><span class="st ok">Booked</span><span class="st warn">Technician confirming</span><span class="st wine you">Needs you</span></div>
+        <p>A 6 px square marker and plain text. The channel is plain meta text, not a badge.</p></div>
+    </div>
+
+    <div class="rule">
+      <div><h2>Progress</h2><div class="why">Spinners, sparklines and progress rings as decoration</div></div>
+      <div class="col ai"><div class="lbl">AI default</div><div class="demo"><svg class="x-spark" viewBox="0 0 80 28"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#6366F1"/><stop offset="1" stop-color="#EC4899"/></linearGradient></defs><path d="M2 22 L14 16 L26 19 L38 9 L50 13 L62 5 L78 8" fill="none" stroke="url(#g)" stroke-width="2.5" stroke-linecap="round"/></svg><span class="x" style="font-size:13px">+12% ↑</span></div></div>
+      <div class="col"><div class="lbl">Debye</div><div class="demo" style="display:block"><div class="track" style="max-width:240px"><i class="d"></i><i class="d"></i><i class="d"></i><i class="n"></i><i></i><i></i><i></i><i></i></div><div class="small" style="margin-top:8px">Station 4 of 8: waiting for your approval</div></div>
+        <p>The case track, Debye's signature: one segment per station of a case, with the current one in wine. It appears wherever a case appears and nowhere else.</p></div>
+    </div>
+
+    <div class="rule">
+      <div><h2>Avatars</h2><div class="why">Gradient circles with initials</div></div>
+      <div class="col ai"><div class="lbl">AI default</div><div class="demo"><span class="x-av">SR</span><span class="x-av">GO</span></div></div>
+      <div class="col"><div class="lbl">Debye</div><div class="demo"><span class="av">SR</span><span class="av n">GO</span></div>
+        <p>Square initial tiles. Wine marks the person who needs you, beige marks everyone else.</p></div>
+    </div>
+
+    <div class="rule">
+      <div><h2>Navigation</h2><div class="why">A filled pill behind the active tab</div></div>
+      <div class="col ai"><div class="lbl">AI default</div><div class="demo"><span class="x-nav on">Inbox</span><span class="x-nav">Cases</span><span class="x-nav">Partners</span></div></div>
+      <div class="col"><div class="lbl">Debye</div><div class="demo" style="padding:0 16px;min-height:56px"><nav class="nav" style="height:56px"><a class="on">Inbox <span class="c">2</span></a><a>Cases</a><a>Partners</a></nav></div>
+        <p>A 2 px wine rule under the current page, like a tab in a file folder.</p></div>
+    </div>
+
+    <div class="rule">
+      <div><h2>Headings</h2><div class="why">A tracked uppercase eyebrow, then a bold gradient headline</div></div>
+      <div class="col ai"><div class="lbl">AI default</div><div class="demo" style="display:block"><div class="x-eyebrow">✨ Smart triage</div><div class="x-h">Supercharge your repairs</div></div></div>
+      <div class="col"><div class="lbl">Debye</div><div class="demo" style="display:block"><div class="h2">Approve the partner</div><div class="meta">Nobody is contacted until you approve</div></div>
+        <p>No label above the heading. Weight 500, sentence case, one colour. The heading says what to do here.</p></div>
+    </div>
+
+    <div class="rule">
+      <div><h2>Feature lists</h2><div class="why">Emoji in a tinted rounded square, a bold title and a vague line</div></div>
+      <div class="col ai"><div class="lbl">AI default</div><div class="demo"><span class="x-ic">🔧</span><span class="x" style="font-size:13px"><b>Jobs that fit you</b></span></div></div>
+      <div class="col"><div class="lbl">Debye</div><div class="demo"><svg class="i" viewBox="0 0 24 24" style="color:var(--wine)"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span style="font-size:13px"><b style="font-weight:500">Only jobs that fit</b> <span class="body">Your trades, brands and area</span></span></div>
+        <p>A bare line icon (1.5 stroke, square caps) in the text column. No boxes around icons.</p></div>
+    </div>
+
+    <div class="rule">
+      <div><h2>Type scale</h2><div class="why">Tailwind's 12 / 14 / 16 / 18 / 24 / 30 / 36 steps</div></div>
+      <div class="col ai"><div class="lbl">AI default</div><div class="demo x-type"><span style="font-size:12px">12</span><span style="font-size:14px">14</span><span style="font-size:16px">16</span><span style="font-size:18px">18</span><span style="font-size:24px">24</span><span style="font-size:30px">30</span></div></div>
+      <div class="col"><div class="lbl">Debye</div><div class="demo"><span style="font-size:12px">12</span><span style="font-size:13px">13</span><span style="font-size:14px">14</span><span style="font-size:17px">17</span><span style="font-size:21px">21</span><span style="font-size:26px">26</span></div>
+        <p>A modular scale with a ratio of about 1.22, weights 300 / 400 / 500. The one large figure per screen (the price) is 32.</p></div>
+    </div>
+
+    <div class="rule">
+      <div><h2>Focus and hover</h2><div class="why">A blurry indigo glow ring, and cards that lift and grow on hover</div></div>
+      <div class="col ai"><div class="lbl">AI default</div><div class="demo"><span class="x-focus">Focused</span></div></div>
+      <div class="col"><div class="lbl">Debye</div><div class="demo"><span class="btn s" style="outline:2px solid var(--wine);outline-offset:2px">Focused</span></div>
+        <p>A crisp 2 px square outline in wine. Hover changes colour only, and press moves the button 1 px down. Nothing scales or floats.</p></div>
+    </div>
+
+    <div class="rule">
+      <div><h2>Colour</h2><div class="why">Indigo or violet primary, gradient washes</div></div>
+      <div class="col ai"><div class="lbl">AI default</div><div class="demo"><span style="width:28px;height:28px;border-radius:8px;background:#6366F1"></span><span style="width:28px;height:28px;border-radius:8px;background:#8B5CF6"></span><span style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#6366F1,#EC4899)"></span></div></div>
+      <div class="col"><div class="lbl">Debye</div><div class="demo"><span style="width:28px;height:28px;background:var(--wine)"></span><span style="width:28px;height:28px;background:var(--bg);box-shadow:var(--card)"></span><span style="width:28px;height:28px;background:var(--beige)"></span><span style="width:28px;height:28px;background:var(--ink)"></span></div>
+        <p>The client's wine as the only action colour, on warm paper. Green, orange and blue only mark state, as small markers.</p></div>
+    </div>
+
+    <div class="rule">
+      <div><h2>Copy</h2><div class="why">"Welcome back! 👋", exclamation marks, "A · B · C" meta strings</div></div>
+      <div class="col ai"><div class="lbl">AI default</div><div class="demo x" style="font-size:13px">Good morning, Luka! 👋 · 3 cases · 2 new</div></div>
+      <div class="col"><div class="lbl">Debye</div><div class="demo" style="font-size:13px">What's wrong at home, Luka?</div>
+        <p>The heading names the task. Meta facts are separated by space, not dots. No emoji and no exclamation marks.</p></div>
+    </div>
+  </div>
+
+  <div class="src">Research (community guides and skill rule sets, not measured studies; sources disagree on details):
+    <ul>
+      <li><a href="https://uxdesign.cc/ai-design-isnt-ugly-it-s-fluent-and-that-s-the-problem-131b2f4eb78c">UX Collective: AI design isn't ugly, it's fluent</a> (Inter, shadcn and Lucide as shipped defaults)</li>
+      <li><a href="https://dev.to/olehvolos/users-can-tell-when-your-ui-was-ai-generated-and-they-dont-like-it-33kn">DEV: users can tell when your UI was AI-generated</a> (primary colour, radius and font as the fastest fixes)</li>
+      <li><a href="https://github.com/Laith0003/ux-skill/wiki/How-to-detect-AI-slop-in-your-design">ux-skill wiki: how to detect AI slop</a> (Inter, the Tailwind type scale)</li>
+      <li><a href="https://claudecodehq.com/playbooks/unslop-ui">Unslop UI playbook</a> (rounded corners on everything, indigo primaries, gradient text)</li>
+      <li><a href="https://www.mintlify.com/pbakaus/impeccable/concepts/anti-patterns">impeccable anti-patterns</a> (eyebrows, side stripes, cards in cards, glyphs as icons)</li>
+      <li><a href="https://fonts.google.com/specimen/Lexend/about">Google Fonts: about Lexend</a> (made by Bonnie Shaver-Troup and Thomas Jockin to reduce visual stress when reading; the published evidence is small, so we choose it for character and openness, not as a proven reading aid)</li>
+    </ul>
+  </div>
+</main></body></html>

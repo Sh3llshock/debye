@@ -1,7 +1,8 @@
 /**
  * Single source of truth for every design value (colours, fonts, sizes, radii, spacing).
- * Mapped from the client's final v3 mockups (docs/design/v3/*.html): wine palette on a warm
- * off-white ground, Inter, pill buttons and chips, 16px cards with a 1px hairline ring.
+ * v4 (docs/design/v4-polish): the v3 wine palette on a clearly darker paper ground with white sheets,
+ * Lexend, square-ish corners (2/3/4px), keyed rectangular buttons, flat hairline surfaces, a 36/20/15/12 type scale.
+ * docs/design/v4-polish/rules.html lists the "AI usually does this, Debye does this" rules.
  * Wired into Tailwind in tailwind.config.ts. Components use classes built from these names.
  *
  * The old token names (action, positive, sub, …) are kept and now carry the v3 values, so every
@@ -9,21 +10,21 @@
  * new code; the CSS variables in index.css carry the same values for the tenant portal.
  */
 const v3 = {
-  bg: '#FAF8F5',
-  surface: '#FDFCFA',
+  bg: '#F2EDE6',
+  surface: '#FFFFFF',
   ink: '#2B1018',
-  secondary: '#5A4744', // the mockups' --body (named secondary: text-body is a font size)
-  muted: '#8E807A',
-  line: 'rgba(74,20,36,.10)',
+  secondary: '#4A3A37', // the mockups' --body (named secondary: text-body is a font size)
+  muted: '#6A5B53', // 5.6:1 on bg
+  line: 'rgba(74,20,36,.16)',
   wine: '#6B1F33',
   'wine-d': '#571828',
-  'wine-tint': '#F5EBED',
-  beige: '#EFE8DF',
-  'beige-d': '#E2D8CB',
+  'wine-tint': '#F3E4E8',
+  beige: '#E8E0D5',
+  'beige-d': '#D9CEC0',
   ok: '#2F7D4F',
   'ok-tint': '#E7F3EB',
   'ok-line': '#BFDCC9',
-  warn: '#B04A12',
+  warn: '#A8460F',
   'warn-tint': '#FBEDE3',
   red: '#C0262D',
   'red-tint': '#FCE9EA',
@@ -31,7 +32,7 @@ const v3 = {
   'blue-tint': '#E9EEF8',
   cream: '#FDFAF7', // text on wine
   // WhatsApp-style chat in the staff inbox
-  'chat-bg': '#EFEAE2',
+  'chat-bg': '#E9E3D9',
   'chat-out': '#D9FDD3',
   'wa-tint': '#E6F4EA',
   'wa-text': '#1E7A35',
@@ -66,41 +67,48 @@ export const theme = {
     'life-upcoming': v3['beige-d'],
     'life-track': v3['beige-d'],
     // demo-only photo placeholder
-    'photo-bg': '#2B1018',
-    'photo-display': '#A9C49A',
+    'photo-bg': '#1E2420',
+    'photo-display': '#B8F5C8',
+    // the boiler display (error code) drawn as an LCD
+    lcd: '#1E2420',
+    'lcd-ink': '#B8F5C8',
   },
   fonts: {
-    sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Helvetica Neue"', 'Arial', 'sans-serif'],
-    mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+    sans: ['Lexend', '-apple-system', 'BlinkMacSystemFont', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+    mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
   },
-  // v3 scale: page 30/700, card title 16, body 14, meta 12–13 (rem in tailwind.config.ts so ?stage scales text).
+  // v4 scale: page 36/500, section 20, body 15, meta 12–13; weights 400/500 (rem in tailwind.config.ts so ?stage scales text).
   fontSize: {
-    page: ['30px', { lineHeight: '36px', letterSpacing: '-0.02em' }],
-    stat: ['26px', { lineHeight: '32px', letterSpacing: '-0.02em' }],
-    title: ['24px', { lineHeight: '30px', letterSpacing: '-0.02em' }],
-    head: ['20px', { lineHeight: '26px', letterSpacing: '-0.02em' }],
-    panel: ['16px', { lineHeight: '22px', letterSpacing: '-0.01em' }],
-    body: ['14px', { lineHeight: '21px' }],
-    'body-sm': ['13.5px', { lineHeight: '20px' }],
-    label: ['13px', { lineHeight: '19px' }],
-    meta: ['12px', { lineHeight: '17px' }],
+    page: ['36px', { lineHeight: '42px', letterSpacing: '-0.02em' }],
+    stat: ['44px', { lineHeight: '48px', letterSpacing: '-0.03em' }],
+    title: ['28px', { lineHeight: '34px', letterSpacing: '-0.02em' }],
+    head: ['20px', { lineHeight: '28px', letterSpacing: '-0.01em' }],
+    panel: ['17px', { lineHeight: '24px', letterSpacing: '-0.01em' }],
+    body: ['15px', { lineHeight: '24px' }],
+    'body-sm': ['14px', { lineHeight: '22px' }],
+    label: ['13px', { lineHeight: '20px' }],
+    meta: ['12px', { lineHeight: '16px' }],
     tiny: ['11px', { lineHeight: '15px' }],
   } as Record<string, [string, { lineHeight: string; letterSpacing?: string }]>,
   radius: {
     none: '0px',
-    chip: '980px', // pills
-    sm: '6px',
-    DEFAULT: '10px', // inputs, small tiles
-    tile: '14px',
-    panel: '16px',
-    full: '9999px',
+    // square-ish: no pills anywhere. full is 2px on purpose (avatars, markers, chips are squares)
+    chip: '3px',
+    sm: '2px',
+    DEFAULT: '3px', // inputs, buttons
+    tile: '4px',
+    panel: '4px',
+    bubble: '6px', // WhatsApp bubbles stay recognisable
+    full: '2px',
   },
   shadow: {
     none: 'none',
-    card: '0 0 0 1px rgba(74,20,36,.10), 0 1px 3px rgba(43,16,24,.03)',
-    ring: '0 0 0 1px rgba(74,20,36,.10)',
-    lift: '0 0 0 1px rgba(74,20,36,.10), 0 8px 28px rgba(107,31,51,.08)',
-    rec: '0 0 0 2px #6B1F33, 0 6px 18px rgba(107,31,51,.10)',
+    // flat and ruled: one floating shadow (lift) per screen at most
+    card: '0 0 0 1px rgba(74,20,36,.16)',
+    ring: '0 0 0 1px rgba(74,20,36,.16)',
+    lift: '0 0 0 1px rgba(74,20,36,.16), 0 16px 40px rgba(43,16,24,.12)',
+    rec: '0 0 0 1px rgba(74,20,36,.16)',
+    key: 'inset 0 -2px 0 rgba(0,0,0,.30)', // the primary button's key edge
     bubble: '0 1px .5px rgba(0,0,0,.1)',
     pop: '0 8px 24px rgba(43,16,24,.16)', // floating demo panel
   },
@@ -113,7 +121,7 @@ export const theme = {
     row: '64px',
   },
   motion: {
-    easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
     hover: '140ms',
   },
 }

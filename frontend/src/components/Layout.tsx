@@ -35,7 +35,7 @@ export function Logo({ className = 'h-7 w-7' }: { className?: string }) {
 /** Logo + "Debye" + small role label, as in the v3 top bar. */
 export function Brand({ to, sub }: { to: string; sub?: string }) {
   return (
-    <Link to={to} className="flex min-w-0 items-center gap-[9px] text-[19px] font-semibold tracking-[-0.02em] text-ink no-underline">
+    <Link to={to} className="flex min-w-0 items-center gap-[9px] text-[19px] font-medium tracking-[-0.02em] text-ink no-underline">
       <Logo />
       Debye
       {sub && <small className="ml-0.5 hidden truncate text-meta font-medium tracking-normal text-muted sm:inline">{sub}</small>}
@@ -64,7 +64,7 @@ export function LangToggle() {
           key={l}
           onClick={() => setLang(l)}
           aria-pressed={lang === l}
-          className={`rounded-full px-2.5 py-0.5 text-meta font-semibold uppercase transition-colors ${lang === l ? 'bg-wine text-cream' : 'text-secondary hover:bg-beige'}`}
+          className={`rounded-full px-2.5 py-0.5 text-meta font-medium uppercase transition-colors ${lang === l ? 'bg-wine text-cream' : 'text-secondary hover:bg-beige'}`}
         >
           {l}
         </button>
@@ -304,7 +304,7 @@ export function PartnerLayout({
           <Link to={`${base}/profile`} className="flex items-center gap-[9px] whitespace-nowrap" title={name}>
             <span className="uav">{name.charAt(0).toUpperCase()}</span>
             <span className="hidden leading-tight lg:block">
-              <b className="block text-label font-semibold text-ink">{name}</b>
+              <b className="block text-label font-medium text-ink">{name}</b>
               {contact && <span className="text-meta text-muted">{contact.split(' ')[0]}</span>}
             </span>
           </Link>

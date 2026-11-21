@@ -2,18 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
-/* v3 tokens as CSS variables (same values as src/theme.ts), for plain-CSS use, e.g. the tenant portal. */
+/* v4 tokens as CSS variables (same values as src/theme.ts), for plain-CSS use, e.g. the tenant portal. */
 :root {
-  --bg: #FAF8F5; --surface: #FDFCFA; --ink: #2B1018; --body: #5A4744; --muted: #8E807A; --line: rgba(74,20,36,.10);
-  --wine: #6B1F33; --wine-d: #571828; --wine-tint: #F5EBED; --beige: #EFE8DF; --beige-d: #E2D8CB;
-  --ok: #2F7D4F; --ok-tint: #E7F3EB; --ok-line: #BFDCC9; --warn: #B04A12; --warn-tint: #FBEDE3;
+  --bg: #F2EDE6; --surface: #FFFFFF; --ink: #2B1018; --body: #4A3A37; --muted: #6A5B53; --line: rgba(74,20,36,.16);
+  --wine: #6B1F33; --wine-d: #571828; --wine-tint: #F3E4E8; --beige: #E8E0D5; --beige-d: #D9CEC0;
+  --ok: #2F7D4F; --ok-tint: #E7F3EB; --ok-line: #BFDCC9; --warn: #A8460F; --warn-tint: #FBEADF;
+  --edge: rgba(43,16,24,.34); --lcd: #1E2420; --lcd-ink: #B8F5C8;
+  --font: Lexend, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
   --red: #C0262D; --red-tint: #FCE9EA; --blue: #34508C; --blue-tint: #E9EEF8; --cream: #FDFAF7;
 }
 
 @layer base {
-  html { -webkit-text-size-adjust: 100%; }
+  html { -webkit-text-size-adjust: 100%; scrollbar-color: #D9CEC0 transparent; }
+  ::selection { background: #F3E4E8; color: #571828; }
+  input, textarea { caret-color: #6B1F33; }
   body { @apply bg-bg font-sans text-body text-ink antialiased; font-variant-numeric: tabular-nums; }
-  h1, h2, h3, h4 { @apply font-semibold text-ink; letter-spacing: -0.02em; }
+  h1, h2, h3, h4 { @apply font-medium text-ink; letter-spacing: -0.01em; text-wrap: balance; }
   a:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible, label:focus-within {
     outline: 2px solid theme('colors.wine');
     outline-offset: 2px;
@@ -24,27 +29,37 @@
 }
 
 @layer components {
-  /* Pill buttons: beige by default, wine primary, ghost = hairline ring. */
-  .btn { @apply inline-flex min-h-[38px] items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 py-[9px] text-body font-medium text-ink transition-colors disabled:cursor-not-allowed disabled:opacity-50; transition-duration: 140ms; }
-  .btn-primary { @apply btn bg-wine text-cream hover:bg-wine-d; }
-  .btn-secondary { @apply btn bg-beige hover:bg-beige-d; }
-  .btn-ghost { @apply btn bg-transparent shadow-ring hover:bg-beige; }
+  /* Keyed rectangles, not pills: primary is solid wine with a darker 2px bottom edge and moves 1px when
+     pressed; secondary and ghost are an ink outline; links are underlined text. */
+  .btn { @apply inline-flex min-h-[44px] items-center justify-center gap-2 whitespace-nowrap rounded px-5 py-[10px] text-body font-medium text-ink transition-[background-color,transform,box-shadow] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50; transition-duration: 120ms; }
+  .btn-primary { @apply btn bg-wine text-cream shadow-key hover:bg-wine-d; }
+  .btn-secondary { @apply btn bg-surface shadow-[inset_0_0_0_1px_rgba(43,16,24,.34)] hover:bg-beige; }
+  .btn-ghost { @apply btn bg-surface shadow-[inset_0_0_0_1px_rgba(43,16,24,.34)] hover:bg-beige; }
   .btn-success { @apply btn-primary; }
   .btn-inverse { @apply btn bg-cream text-wine hover:bg-beige; }
   .btn-danger { @apply btn bg-red-tint text-red hover:bg-red hover:text-cream; }
-  .link-btn { @apply text-label text-muted underline hover:text-wine; }
+  .link-btn { @apply text-label text-secondary underline decoration-[rgba(43,16,24,.34)] underline-offset-4 hover:text-wine hover:decoration-current; }
   .label { @apply text-meta font-medium text-muted; }
   .field { @apply w-full rounded bg-surface px-3 py-2.5 text-body text-ink shadow-ring outline-none placeholder:text-muted focus:shadow-[0_0_0_2px_#6B1F33]; }
-  /* A card: surface, 16px radius, hairline ring, no border. */
+  /* A sheet: white on the paper ground, 4px corners, hairline ring, no shadow. */
   .panel { @apply rounded-panel bg-surface shadow-card; }
   .panel-head { @apply flex items-center justify-between gap-4 border-b border-line px-5 py-4; }
   .card { @apply rounded-panel bg-surface p-5 shadow-card; }
-  .pill { @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-beige px-2.5 py-[3px] text-meta font-semibold text-secondary; }
-  .tab { @apply flex items-center gap-[7px] whitespace-nowrap rounded-full px-3.5 py-[7px] text-body font-medium text-secondary transition-colors hover:bg-beige; }
-  .tab-on { @apply bg-wine-tint text-wine hover:bg-wine-tint; }
-  .cnt { @apply rounded-full bg-wine px-[7px] py-px text-tiny font-bold text-cream; }
-  .cnt-soft { @apply bg-beige-d text-secondary; }
-  .uav { @apply grid h-8 w-8 flex-none place-items-center rounded-full bg-wine text-label font-semibold text-cream; }
+  .pill { @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm bg-beige px-2 py-[2px] text-meta font-medium text-secondary; }
+  /* nav tabs: the current one is ink with a wine underline, not a filled pill */
+  .tab { @apply flex items-center gap-[7px] whitespace-nowrap px-1.5 py-[7px] text-body text-secondary shadow-[inset_0_-2px_0_transparent] transition-colors hover:text-ink; }
+  .tab-on { @apply font-medium text-ink shadow-[inset_0_-2px_0_#6B1F33]; }
+  .cnt { @apply rounded-sm bg-transparent px-0.5 py-px text-meta font-medium text-wine; }
+  .cnt-soft { @apply text-muted; }
+  .uav { @apply grid h-8 w-8 flex-none place-items-center rounded bg-wine text-meta font-medium text-cream; }
+  /* the boiler's display, drawn: the one object from the product's world */
+  .lcd { @apply inline-flex items-center gap-2.5 rounded bg-lcd px-3 py-1.5 text-lcd-ink; }
+  .lcd b { font: 500 22px/28px var(--mono); letter-spacing: .04em; text-shadow: 0 0 8px rgba(184,245,200,.35); }
+  .lcd span { font: 500 11px/14px var(--mono); color: rgba(184,245,200,.7); }
+  /* the key state, under a title, in colour, at reading size */
+  .state { @apply mt-3 inline-flex items-center gap-2.5 text-body font-medium text-wine; }
+  .state::before { content: ""; width: 8px; height: 8px; background: currentColor; flex: none; }
+  .state-warn { @apply text-warn; }
   .crumb { @apply mb-1.5 text-label text-muted; }
   .crumb a { @apply no-underline hover:text-wine; }
   table.t { @apply w-full border-collapse; }
@@ -54,7 +69,7 @@
   table.t tr.click { @apply cursor-pointer; }
   table.t tr.click:hover td { background: rgba(107,31,51,.035); }
   dl.kv { @apply m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3.5 gap-y-2; }
-  dl.kv dt { @apply text-muted; }
+  dl.kv dt { @apply text-label text-muted; }
   dl.kv dd { @apply m-0 text-right font-medium [overflow-wrap:anywhere]; }
 }
 

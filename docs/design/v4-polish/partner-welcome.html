@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Partner welcome: polish</title>
+<link rel="stylesheet" href="polish.css">
+<style>
+  body { min-height: 100vh; display: grid; grid-template-columns: minmax(420px, 520px) 1fr; overflow-x: hidden; }
+  .side { background: var(--surface); padding: 32px 48px 40px; display: flex; flex-direction: column; gap: 40px; border-right: 1px solid var(--line); }
+  .side h1 { font-size: 40px; line-height: 46px; font-weight: 500; letter-spacing: -0.025em; margin: 0; text-wrap: balance; }
+  .feat { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+  .feat li { display: grid; grid-template-columns: 22px 1fr; gap: 14px; }
+  .feat svg { color: var(--wine); margin-top: 3px; }
+  .feat b { font-weight: 500; }
+  .feat span { color: var(--body); }
+  .acts { display: flex; gap: 20px; align-items: center; }
+  .side .foot { margin-top: auto; }
+
+  /* the job sheet at full size, running off the edge: what a partner actually receives */
+  .stage { position: relative; background: var(--sunk); overflow: hidden; }
+  .stage .lang { position: absolute; top: 28px; right: 32px; }
+  .sheet2 { position: absolute; left: 64px; top: 50%; transform: translateY(-50%); width: min(800px, calc(100% - 96px)); background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--float); }
+  .sheet2 .hd { padding: 32px 36px 24px; display: grid; grid-template-columns: 1fr auto; gap: 32px; border-bottom: 1px solid var(--line); }
+  .sheet2 .hd .meta { font-size: 14px; }
+  .sheet2 .hd .h1 { font-size: 30px; line-height: 36px; margin-top: 4px; }
+  .sheet2 .hd .state { font-size: 14px; }
+  .sheet2 .bd { padding: 28px 36px; display: grid; grid-template-columns: auto 1fr; gap: 32px; align-items: start; }
+  .sheet2 .ft { padding: 0 36px 32px; display: flex; gap: 12px; }
+  .cap { position: absolute; left: 64px; top: calc(50% - 196px); font-size: 13px; color: var(--muted); }
+
+  @media (max-width: 1000px) {
+    body { grid-template-columns: 1fr; }
+    .side { padding: 24px 16px 32px; border-right: 0; border-bottom: 1px solid var(--line); }
+    .side h1 { font-size: 30px; line-height: 36px; }
+    .stage { min-height: 560px; } .stage .lang { display: none; }
+    .sheet2 { left: 16px; top: 52px; transform: none; width: 640px; }
+    .cap { left: 16px; top: 20px; }
+    .acts .btn { flex: 1; }
+  }
+</style></head>
+<body>
+<aside class="side">
+  <div class="brand"><img src="logo.png" alt="">Debye<small>Partners</small></div>
+  <h1>Repair jobs from reltix's rented homes. No sales, no paperwork.</h1>
+  <ul class="feat">
+    <li><svg class="i" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><div><b>Only jobs that fit.</b> <span>Your trades, your brands, your area.</span></div></li>
+    <li><svg class="i" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><div><b>Diagnosed before you drive.</b> <span>Error code, photos, access and an approved budget.</span></div></li>
+    <li><svg class="i" viewBox="0 0 24 24"><path d="M17 6.5A6.5 6.5 0 1 0 17 17.5M4 10h9M4 14h9"/></svg><div><b>Paid within 14 days.</b> <span>Send a photo of the invoice.</span></div></li>
+  </ul>
+  <div class="acts"><button class="btn p lg">Register your company</button><a class="lnk" href="#">Log in</a></div>
+  <div class="foot small">We check your VAT ID and trade register automatically</div>
+</aside>
+
+<div class="stage" aria-label="Example of a job as a partner receives it">
+  <span class="lang"><span class="on">EN</span><span>DE</span></span>
+  <div class="cap">A job as it reaches you</div>
+  <div class="sheet2">
+    <div class="hd">
+      <div>
+        <div class="meta">Heating<span class="sep"></span>Lothringerstr. 41, Aachen</div>
+        <div class="h1">No heating, central boiler</div>
+        <div class="state warn">1 h 58 min left to accept</div>
+      </div>
+      <div style="text-align:right"><div class="label">Approved budget</div><div class="fig">€263</div></div>
+    </div>
+    <div class="bd">
+      <span class="lcd"><b>F4</b><span>VITODENS<br>200-W</span></span>
+      <dl class="facts">
+        <dt>Likely cause</dt><dd>Ignition fault, no flame signal</dd>
+        <dt>Checked</dt><dd>All radiators cold, gas stove works</dd>
+        <dt>Boiler</dt><dd>Viessmann Vitodens 200-W, 2017</dd>
+        <dt>Tenant is free</dt><dd>Tomorrow 08–10</dd>
+      </dl>
+    </div>
+    <div class="ft"><span class="btn p">Accept job</span><span class="btn s">Decline</span></div>
+  </div>
+</div>
+</body></html>

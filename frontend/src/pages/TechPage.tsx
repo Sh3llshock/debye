@@ -56,7 +56,7 @@ export default function TechPage() {
           <>
             <div className="mb-[18px] flex items-center gap-4">
               <div>
-                <h1 className="text-page font-bold">{first ? t('Hi {name}', { name: first }) : t('My jobs')}</h1>
+                <h1 className="text-page font-medium">{first ? t('Hi {name}', { name: first }) : t('My jobs')}</h1>
                 <p className="text-body-sm text-secondary">{t('Jobs your dispatcher assigned to you. Debye keeps the resident informed.')}</p>
               </div>
             </div>
@@ -71,7 +71,7 @@ export default function TechPage() {
                     <li key={j.case_id} className="border-b border-line last:border-b-0">
                       <Link to={`/tech/${techId}/jobs/${j.case_id}`} className={`block px-5 py-4 hover:bg-[rgba(107,31,51,.035)] ${isNew(j.case_id + j.status) ? 'animate-enter' : ''}`}>
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-semibold">{jobTitle(j.title, j.error_code, j.error_label)}</span>
+                          <span className="font-medium">{jobTitle(j.title, j.error_code, j.error_label)}</span>
                           {j.priority === 'urgent' && <Chip tone="negative">{t('Urgent')}</Chip>}
                         </div>
                         <div className="text-body-sm text-secondary">{[(j.address ?? '').split(',')[0], j.floor != null ? floorLabel(j.floor) : null].filter(Boolean).join(' · ')}</div>
@@ -80,7 +80,7 @@ export default function TechPage() {
                             <Icon name="calendar" className="h-4 w-4 text-secondary" /> {fmtSlot(j.slot)}
                           </div>
                         )}
-                        <div className={`mt-1 text-label ${step.mine ? 'font-semibold text-action' : 'text-muted'}`}>{step.text}</div>
+                        <div className={`mt-1 text-label ${step.mine ? 'font-medium text-action' : 'text-muted'}`}>{step.text}</div>
                       </Link>
                     </li>
                   )
@@ -146,7 +146,7 @@ function ConfirmBlock({ techId, job, onChange }: { techId: string; job: JobDetai
   return (
     <div>
       <div className="text-label text-muted">{t('Visit')}</div>
-      <div className="mt-1 flex items-center gap-2 text-panel font-semibold">
+      <div className="mt-1 flex items-center gap-2 text-panel font-medium">
         <Icon name="calendar" className="h-5 w-5 text-action" /> {slot ? fmtSlot(slot) : '—'}
       </div>
       {job.status === 'awaiting_technician' ? (

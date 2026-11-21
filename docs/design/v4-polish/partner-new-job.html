@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Partner new job: polish</title>
+<link rel="stylesheet" href="polish.css">
+<style>
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 28px 40px 80px; }
+  .who2 { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  .pg { display: flex; align-items: baseline; gap: 16px; }
+  .pg .meta { font-size: 14px; }
+  .job { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 48px; margin-top: 24px; align-items: start; }
+  .head .meta { font-size: 14px; margin-bottom: 8px; }
+  .addr { margin-top: 16px; font-size: 20px; line-height: 28px; font-weight: 500; }
+  .addr span { display: block; font-size: 15px; font-weight: 400; color: var(--body); }
+  .tel { color: var(--wine); font-weight: 500; }
+  .body2 { margin-top: 32px; display: grid; gap: 32px; }
+  .said { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 17px; line-height: 26px; }
+  .nophoto { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); font-size: 14px; }
+  .nophoto svg { width: 16px; height: 16px; margin-top: 4px; }
+
+  .decide { position: sticky; top: 24px; background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--float); }
+  .decide .top2 { padding: 24px; border-bottom: 1px solid var(--line); }
+  .decide .top2 .meta { margin-top: 4px; }
+  .decide .mid { padding: 20px 24px; display: grid; gap: 12px; }
+  .sel { height: 44px; border-radius: var(--r-ctl); box-shadow: var(--ring); background: var(--surface); padding: 0 14px; display: flex; align-items: center; justify-content: space-between; font-weight: 500; }
+  .slots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .slots .chip { justify-content: flex-start; }
+  .slots .chip b { font-weight: 500; }
+  .decide .bot { padding: 0 24px 24px; display: grid; gap: 8px; }
+
+  @media (max-width: 960px) {
+    .wrap { padding: 20px 16px 48px; }
+    .top { gap: 16px; padding: 0 16px; } .nav, .brand small, .who2 span:last-child { display: none; }
+    .job { grid-template-columns: 1fr; gap: 32px; }
+    .h1 { font-size: 28px; line-height: 34px; }
+    .decide { position: static; }
+    .wrap { padding-bottom: 120px; }
+    .sticky { display: flex; position: fixed; left: 0; right: 0; bottom: 0; gap: 16px; align-items: center; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--surface); box-shadow: 0 -1px 0 var(--line), 0 -8px 24px rgba(43,16,24,.08); }
+    .sticky .btn { flex: 1; }
+    .sticky .t { font-size: 13px; line-height: 18px; color: var(--warn); font-weight: 500; }
+  }
+  @media (min-width: 961px) { .sticky { display: none; } }
+</style></head>
+<body>
+<header class="top">
+  <div class="brand"><img src="logo.png" alt="">Debye<small>Partners</small></div>
+  <nav class="nav"><a>Overview</a><a class="on">New jobs <span class="c">1</span></a><a>In progress <span class="c">1</span></a><a>Availability</a><a>Done and invoices</a></nav>
+  <div class="right">
+    <span class="who2"><span class="av">HS</span><span>Heizung Schmidt GmbH</span></span>
+    <span class="lang"><span class="on">EN</span><span>DE</span></span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="pg"><h1 class="h2">New jobs</h1><span class="meta">1 waiting for you</span></div>
+
+  <div class="job">
+    <article>
+      <div class="head">
+        <div class="meta">Plumbing<span class="sep"></span>Case 7<span class="sep"></span>Received 23:51</div>
+        <h2 class="h1">Water leaking under the kitchen sink</h2>
+        <div class="state warn">1 h 42 min left to accept, then it goes to the next partner</div>
+        <div class="addr">Musterstraße 12, 52062 Aachen<span>Ground floor, Aylin Demir, <a class="tel" href="tel:+492415592118">+49 241 559 2118</a></span></div>
+      </div>
+
+      <div class="body2">
+        <section class="sec">
+          <h3 class="h2">What Aylin told Debye</h3>
+          <ul class="said">
+            <li>“Water leaking under the kitchen sink.”</li>
+            <li>“Steady drip from a pipe joint, the cabinet floor is wet.”</li>
+          </ul>
+        </section>
+        <section class="sec">
+          <h3 class="h2">What Debye checked</h3>
+          <dl class="facts">
+            <dt>Where from?</dt><dd>The pipe joint, not the tap</dd>
+            <dt>Tap off?</dt><dd>Still dripping</dd>
+            <dt>Photos</dt><dd><span class="nophoto"><svg class="i" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>None yet, they appear here when Aylin sends them</span></dd>
+          </dl>
+          <a class="lnk" href="#" style="display:inline-block;margin-top:16px">Full conversation</a>
+        </section>
+      </div>
+    </article>
+
+    <aside class="decide">
+      <div class="top2">
+        <div class="label">Approved budget</div>
+        <div class="fig">€240</div>
+        <div class="meta">incl. VAT, approved by Anna Becker at reltix</div>
+      </div>
+      <div class="mid">
+        <div class="label">Technician</div>
+        <div class="sel">Ali Yilmaz <svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="m6 9 6 6 6-6"/></svg></div>
+        <div class="label" style="margin-top:8px">Times to offer Aylin</div>
+        <div class="slots">
+          <span class="chip on"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="m5 12 5 5 9-10"/></svg><b>Sun</b> 10–12</span>
+          <span class="chip on"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="m5 12 5 5 9-10"/></svg><b>Mon</b> 08–10</span>
+          <span class="chip"><b>Mon</b> 14–16</span>
+          <span class="chip"><b>Tue</b> 10–12</span>
+        </div>
+      </div>
+      <div class="bot">
+        <button class="btn p lg block">Accept job</button>
+        <button class="btn s block">Decline</button>
+      </div>
+    </aside>
+  </div>
+</main>
+<div class="sticky"><span class="t">1 h 42 min<br>left</span><button class="btn p">Accept job</button></div>
+</body></html>

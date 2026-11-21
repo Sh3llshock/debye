@@ -7,7 +7,7 @@ import { needsApproval } from '../../lib/lifecycle'
 import { t } from '../../lib/i18n'
 import { diagnosisOutcome, isNoTechnician } from '../case/Diagnosis'
 import { priceCheckInfo } from '../case/CasePanels'
-import { channelOf, firstName, Pill, tenantOf } from './StaffBits'
+import { channelOf, firstName, tenantOf } from './StaffBits'
 
 const REJECT_REASONS = ['Tenant must pay this', 'Too expensive, get a second quote', 'Not urgent, wait for the annual service', 'Duplicate of another case']
 
@@ -36,57 +36,83 @@ export function ApprovalChoice({ c, onApprove, onReject }: { c: CaseDetail; onAp
       setBusy(null)
     }
   }
+  const rec = ranked[0]
+  const others = ranked.slice(1)
+  const short = (n: string) => n.replace(/ GmbH$| KG$/, '')
+  // the reason a partner was ranked: positive reasons for the recommendation, the deciding gap for the others
+  const pos = (r: (typeof ranked)[number]) => r.reasons.filter((w) => !/^not |^no /i.test(w))
+  const neg = (r: (typeof ranked)[number]) => r.reasons.filter((w) => /^not |^no /i.test(w))
+  const sentence = (ws: string[]) => (ws.length ? ws[0].charAt(0).toUpperCase() + ws[0].slice(1) + (ws[1] ? `, ${ws[1]}` : '') : '')
   return (
-    <section className="animate-rise mb-[18px] rounded-panel bg-surface p-5 shadow-lift" aria-live="polite">
-      <h3 className="mb-3 flex items-center justify-between gap-2 text-panel">
-        {t('Diagnosed. Approve the partner')}
-        <Pill tone="hot">{t('Needs you')}</Pill>
-      </h3>
-      <div className="leading-normal text-secondary">{t('Debye ranked the partners who are qualified, free soon and nearby. The partner sees nothing until you approve.')}</div>
-      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
-        {ranked.map((r, i) => {
-          const rec = i === 0
-          return (
-            <div key={r.partner_id} className={`flex flex-col gap-2 rounded-tile p-3.5 ${rec ? 'bg-surface shadow-rec' : 'bg-bg shadow-ring'}`}>
-              {rec ? <span className="self-start rounded-full bg-wine px-[9px] py-0.5 text-tiny font-bold text-cream">{t('Recommended')}</span> : <span className="h-[19px]" />}
-              <b className="text-[15px]">{r.name}</b>
-              {rec && amount != null && <div className="text-[22px] font-semibold tracking-[-0.02em]">{fmtEur(amount)}</div>}
-              <span className="text-meta text-muted">
-                {t('Match score {n}', { n: Math.round(r.score * 100) })}
-                {rec && tech ? ` · ${tech.name}` : ''}
-                {rec && slot ? ` · ${fmtSlotShort(slot)}` : ''}
-              </span>
-              {r.reasons.length > 0 && (
-                <ul className="m-0 pl-4 text-label leading-normal text-secondary">
-                  {r.reasons.map((w) => (
-                    <li key={w} className="list-disc">
-                      {w}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {rec ? (
-                <button className="btn-primary mt-auto justify-center" disabled={!!busy} onClick={() => run('approve', onApprove)}>
-                  {busy === 'approve' ? t('Approving…') : t('Approve & send to {partner}', { partner: r.name.replace(/ GmbH$| KG$/, '') })}
-                </button>
-              ) : (
-                <span className="mt-auto text-meta text-muted">{t('{name} agreed to share data with {partner} only.', { name: who, partner: recName.replace(/ GmbH$| KG$/, '') })}</span>
-              )}
+    <section className="mb-14" aria-live="polite">
+      <h2 className="text-head">{t('Approve the partner')}</h2>
+      {rec && (
+        <div className="mt-4 grid overflow-hidden rounded-panel bg-surface shadow-card lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="bg-wine-tint p-6 lg:px-8 lg:py-7">
+            <div className="flex flex-wrap items-center gap-3">
+              <h3 className="text-head">{rec.name}</h3>
+              <span className="rounded-sm bg-surface px-2 py-0.5 text-meta font-medium text-wine">{t('Recommended')}</span>
             </div>
-          )
-        })}
-      </div>
-      <div className="mt-2.5 text-label text-warn">{t('Every job needs your approval before the partner is contacted.')}</div>
-      {!rejecting ? (
-        <button className="link-btn mt-2.5" onClick={() => setRejecting(true)}>
-          {t('I’ll handle this myself')}
-        </button>
-      ) : (
-        <div className="mt-4 border-t border-line pt-4">
+            {pos(rec).length > 0 && <p className="mt-2 max-w-[60ch] text-secondary">{sentence(pos(rec))}.</p>}
+            <dl className="mt-5 grid grid-cols-[120px_1fr] gap-x-5 gap-y-2.5">
+              {tech && (
+                <>
+                  <dt className="text-label leading-6 text-muted">{t('Technician')}</dt>
+                  <dd className="m-0">{tech.name}</dd>
+                </>
+              )}
+              {slot && (
+                <>
+                  <dt className="text-label leading-6 text-muted">{t('Visit')}</dt>
+                  <dd className="m-0">{fmtSlot(slot)}</dd>
+                </>
+              )}
+              <dt className="text-label leading-6 text-muted">{t('Match')}</dt>
+              <dd className="m-0">{t('{n} of 100', { n: Math.round(rec.score * 100) })}</dd>
+            </dl>
+          </div>
+          <div className="flex flex-col gap-5 border-t border-line p-6 lg:border-l lg:border-t-0 lg:px-8 lg:py-7">
+            {amount != null && (
+              <div>
+                <div className="text-meta text-muted">{t('Expected cost')}</div>
+                <div className="text-stat font-medium">{fmtEur(amount)}</div>
+                <div className="text-label text-muted">{t('incl. VAT')}</div>
+              </div>
+            )}
+            <button className="btn-primary min-h-[52px] w-full text-[16px]" disabled={!!busy} onClick={() => run('approve', onApprove)}>
+              {busy === 'approve' ? t('Approving…') : t('Approve partner')}
+            </button>
+            {!rejecting && (
+              <button className="link-btn self-start" onClick={() => setRejecting(true)}>
+                {t('I’ll handle this myself')}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {others.length > 0 && (
+        <div className="overflow-x-auto rounded-b-panel bg-surface shadow-card">
+          <div className="hidden grid-cols-[240px_1fr_120px] gap-6 px-8 pb-2 pt-3 text-meta text-muted md:grid">
+            <span>{t('Other qualified partners')}</span>
+            <span>{t('Why not first')}</span>
+            <span>{t('Match')}</span>
+          </div>
+          {others.map((r) => (
+            <div key={r.partner_id} className="grid grid-cols-1 gap-x-6 gap-y-0.5 border-t border-line px-6 py-3.5 text-body-sm md:grid-cols-[240px_1fr_120px] md:px-8">
+              <b className="font-medium">{r.name}</b>
+              <span className={neg(r).length ? 'text-warn' : 'text-secondary'}>{sentence(neg(r).length ? neg(r) : r.reasons)}</span>
+              <span className="text-muted">{t('{n} of 100', { n: Math.round(r.score * 100) })}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="mt-3.5 text-body-sm text-secondary">{t('{name} agreed to share details with {partner} only. Another partner means asking again.', { name: who, partner: short(recName) })}</p>
+      {rejecting && (
+        <div className="mt-4 rounded-panel bg-surface p-5 shadow-card">
           <div className="text-label font-medium">{t('Why are you rejecting? Debye tells the resident.')}</div>
           <div className="mt-2 flex flex-wrap gap-2">
             {REJECT_REASONS.map((r) => (
-              <button key={r} type="button" onClick={() => setReason(t(r))} className={`rounded-full px-3 py-1 text-label ${reason === t(r) ? 'bg-wine-tint font-semibold text-wine' : 'bg-beige hover:bg-beige-d'}`}>
+              <button key={r} type="button" onClick={() => setReason(t(r))} className={`rounded px-3 py-1.5 text-label shadow-ring ${reason === t(r) ? 'bg-wine-tint font-medium text-wine' : 'bg-surface hover:bg-beige'}`}>
                 {t(r)}
               </button>
             ))}
@@ -103,6 +129,15 @@ export function ApprovalChoice({ c, onApprove, onReject }: { c: CaseDetail; onAp
         </div>
       )}
       {err && <div className="mt-2 rounded bg-red-tint p-2 text-red">{err}</div>}
+      {/* phone: the decision stays in reach */}
+      {rec && (
+        <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-4 bg-surface px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 shadow-[0_-1px_0_rgba(74,20,36,.16),0_-8px_24px_rgba(43,16,24,.08)] lg:hidden">
+          {amount != null && <b className="text-[22px] font-medium">{fmtEur(amount)}</b>}
+          <button className="btn-primary flex-1" disabled={!!busy} onClick={() => run('approve', onApprove)}>
+            {busy === 'approve' ? t('Approving…') : t('Approve partner')}
+          </button>
+        </div>
+      )}
     </section>
   )
 }
@@ -170,7 +205,7 @@ export function caseSteps(c: CaseDetail): Step[] {
           <ul className="mt-2.5 grid grid-cols-1 gap-x-[18px] gap-y-1.5 sm:grid-cols-2">
             {qs.map((x, i) => (
               <li key={i} className="grid grid-cols-[20px_minmax(0,1fr)] gap-2 leading-snug">
-                <span className="mt-px grid h-[18px] w-[18px] place-items-center rounded-full bg-ok text-[10px] font-bold text-white">✓</span>
+                <span className="mt-px grid h-[18px] w-[18px] place-items-center rounded-full bg-ok text-[10px] font-medium text-white">✓</span>
                 <span>
                   {x.q}
                   {x.a && <span className="font-medium"> → {x.a}</span>}
@@ -289,7 +324,7 @@ export function CaseProgress({ c }: { c: CaseDetail }) {
           <li key={n} className={`relative grid grid-cols-[28px_minmax(0,1fr)] gap-3.5 ${last ? '' : 'pb-[22px]'}`}>
             {!last && <span className={`absolute bottom-0.5 left-[13px] top-[30px] w-0.5 rounded-sm ${x.s === 'done' ? 'bg-ok-line' : 'bg-beige-d'}`} />}
             <span
-              className={`relative z-[1] grid h-7 w-7 place-items-center rounded-full border-[1.5px] text-meta font-bold ${
+              className={`relative z-[1] grid h-7 w-7 place-items-center rounded-full border-[1.5px] text-meta font-medium ${
                 x.s === 'done' ? 'border-ok bg-ok text-white' : x.s === 'now' ? 'animate-station border-wine bg-wine text-white shadow-[0_0_0_5px_#F5EBED]' : 'border-beige-d bg-bg text-muted'
               }`}
             >
@@ -298,7 +333,7 @@ export function CaseProgress({ c }: { c: CaseDetail }) {
             <div className="min-w-0">
               <div className="flex justify-between gap-3 pt-1">
                 <span>
-                  <b className={`text-[15px] ${x.s === 'pending' ? 'font-medium text-muted' : 'font-semibold'}`}>{x.title}</b>
+                  <b className={`text-[15px] ${x.s === 'pending' ? 'font-medium text-muted' : 'font-medium'}`}>{x.title}</b>
                   <span className="ml-2 text-tiny text-muted">{x.mod}</span>
                 </span>
                 <time className="whitespace-nowrap text-meta text-muted">{x.time}</time>

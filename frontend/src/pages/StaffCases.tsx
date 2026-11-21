@@ -35,7 +35,7 @@ export default function StaffCases() {
     <>
       <div className="mb-[18px] flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-page font-bold">{t('Cases')}</h1>
+          <h1 className="text-page font-medium">{t('Cases')}</h1>
           <p className="mt-1 text-secondary">
             {t('{n} running', { n: running.length })} · {t(need === 1 ? '{n} needs you' : '{n} need you', { n: need })}
             {q && (
@@ -77,7 +77,7 @@ export default function StaffCases() {
                     <b>{shortId(c.case_id)}</b>
                   </td>
                   <td>
-                    <Link to={`/staff/cases/${c.case_id}`} className="font-semibold text-ink no-underline" onClick={(e) => e.stopPropagation()}>
+                    <Link to={`/staff/cases/${c.case_id}`} className="font-medium text-ink no-underline" onClick={(e) => e.stopPropagation()}>
                       {c.title}
                     </Link>
                     <br />

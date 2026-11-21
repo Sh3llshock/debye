@@ -17,11 +17,6 @@ export function MiniBar({ c }: { c: TCase }) {
   )
 }
 
-const greet = () => {
-  const h = new Date().getHours()
-  return h < 12 ? t('Good morning') : h < 18 ? t('Good afternoon') : t('Good evening')
-}
-
 let DRAFT = '' // survives navigating away and back, like the mockup
 
 export default function Home() {
@@ -64,50 +59,7 @@ export default function Home() {
     }
   }
 
-  return (
-    <div className="shell">
-      <TopBar sel={null} />
-      <div className="app">
-        <main>
-          <div className="homewrap">
-            <div className="hello">
-              <div className="logo" />
-              <h1>
-                {greet()}, {me.contact.first_name}.
-              </h1>
-              <p>{t('I’m Debye. What problem do you have at home?')}</p>
-            </div>
-            <div className="bigin">
-              <textarea
-                ref={ta}
-                value={text}
-                placeholder={t('Please enter your problem, e.g. “My shower only runs cold.”')}
-                onChange={(e) => {
-                  setText(e.target.value)
-                  DRAFT = e.target.value
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    start(text)
-                  }
-                }}
-              />
-              <div className="binrow">
-                <span className="hint">{t('I already know your address and your appliances.')}</span>
-                <button className="sendc" aria-label={t('Send')} disabled={busy} onClick={() => start(text)}>
-                  ➤
-                </button>
-              </div>
-            </div>
-            {err && <div className="err">{err}</div>}
-            <div className="sugg">
-              {SUGG.map(([label, said]) => (
-                <button key={label} disabled={busy} onClick={() => start(said)}>
-                  {label}
-                </button>
-              ))}
-            </div>
+  const caseList = (
             <div className="opencases">
               <h3>{t('Open cases')}</h3>
               {open.length ? (
@@ -141,6 +93,54 @@ export default function Home() {
                 </div>
               )}
             </div>
+  )
+
+  return (
+    <div className="shell">
+      <TopBar sel={null} />
+      <div className="app">
+        <main>
+          <div className="homewrap">
+            {open.length > 0 && caseList}
+            <div className="hello">
+              <div className="logo" />
+              <h1>{open.length ? t('Something else wrong at home, {name}?', { name: me.contact.first_name }) : t('What’s wrong at home, {name}?', { name: me.contact.first_name })}</h1>
+              <p>{t('Describe what you see in your own words. Debye already knows your flat and its appliances.')}</p>
+            </div>
+            <div className="bigin">
+              <textarea
+                ref={ta}
+                value={text}
+                placeholder={t('For example: the shower only runs cold')}
+                onChange={(e) => {
+                  setText(e.target.value)
+                  DRAFT = e.target.value
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    start(text)
+                  }
+                }}
+              />
+              <div className="binrow">
+                <span className="hint">{t('Debye already knows your flat and its appliances')}</span>
+                <button className="sendc" aria-label={t('Send')} disabled={busy} onClick={() => start(text)}>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" aria-hidden>
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            {err && <div className="err">{err}</div>}
+            <div className="sugg">
+              {SUGG.map(([label, said]) => (
+                <button key={label} disabled={busy} onClick={() => start(said)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {open.length === 0 && caseList}
           </div>
         </main>
       </div>

@@ -62,7 +62,7 @@ export default function StaffPartners() {
     <>
       <div className="mb-[18px] flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-page font-bold">{t('Partners')}</h1>
+          <h1 className="text-page font-medium">{t('Partners')}</h1>
           <p className="mt-1 text-secondary">{t('Companies register themselves in the partner portal and appear here once verified.')}</p>
         </div>
         <Link to="/partners/join" className="btn-ghost">
@@ -134,7 +134,7 @@ export function StaffPartner() {
     <>
       <div className="mb-[18px] flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-page font-bold">{p.name}</h1>
+          <h1 className="text-page font-medium">{p.name}</h1>
           <p className="mt-1 text-secondary">{[trades(p).map((y) => tradeLabel(y)).join(', '), area].filter(Boolean).join(' · ')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -152,7 +152,7 @@ export function StaffPartner() {
           [String(techs.data?.length ?? '…'), t('Technicians')],
         ].map(([b, s]) => (
           <div key={s} className="rounded-tile bg-surface px-4 py-3.5 shadow-ring">
-            <b className="block text-stat font-bold">{b}</b>
+            <b className="block text-stat font-medium">{b}</b>
             <span className="text-label text-muted">{s}</span>
           </div>
         ))}
@@ -214,7 +214,7 @@ export function StaffPartner() {
                       </span>
                     </td>
                     <td className="text-right">
-                      <Link to={`/tech/${tc.tech_id}`} className="text-label font-semibold text-wine no-underline hover:underline">
+                      <Link to={`/tech/${tc.tech_id}`} className="text-label font-medium text-wine no-underline hover:underline">
                         {t('Open as {name}', { name: tc.name.split(' ')[0] })} →
                       </Link>
                     </td>

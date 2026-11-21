@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import type { CaseSummary } from '../api/types'
 import { LiveDot, useFullBleed } from '../components/Layout'
 import { NewPartnersBanner } from '../components/staff/PartnerApplications'
-import { ChannelTag, Chat, channelOf, firstName, isOpen, lastMessage, messagePreview, needsMe, StagePill, SummaryCard, tenantOf } from '../components/staff/StaffBits'
+import { Chat, channelOf, firstName, isOpen, lastMessage, messagePreview, needsMe, StagePill, stageOf, SummaryCard, tenantOf } from '../components/staff/StaffBits'
 import { ErrorBox, Loading } from '../components/ui'
 import { fmtRelative, fmtTime, placeLabel } from '../lib/format'
 import { t } from '../lib/i18n'
@@ -36,13 +36,13 @@ export default function StaffInbox() {
     <div className="grid h-full grid-cols-1 md:grid-cols-[380px_minmax(0,1fr)]">
       <div className={`overflow-y-auto border-line bg-bg md:border-r ${reading ? 'hidden md:block' : ''}`}>
         <div className="flex items-center justify-between px-[18px] pb-2.5 pt-[18px]">
-          <h2 className="text-head font-semibold">{t('Inbox')}</h2>
+          <h2 className="text-head font-medium">{t('Inbox')}</h2>
           <span className="flex items-center gap-3 text-muted">
             <LiveDot />
             {list.length}
           </span>
         </div>
-        <div className="flex gap-1.5 px-[18px] pb-2.5">
+        <div className="mx-[18px] mb-1 flex gap-5 border-b border-line">
           {(
             [
               ['all', 'All'],
@@ -50,7 +50,7 @@ export default function StaffInbox() {
               ['open', 'Open'],
             ] as [Filter, string][]
           ).map(([k, l]) => (
-            <button key={k} onClick={() => setFilter(k)} className={`rounded-full px-[11px] py-[5px] text-label ${filter === k ? 'bg-wine-tint font-semibold text-wine' : 'text-secondary hover:bg-beige'}`}>
+            <button key={k} onClick={() => setFilter(k)} className={`pb-2.5 pt-1 text-body-sm ${filter === k ? 'font-medium text-ink shadow-[inset_0_-2px_0_#6B1F33]' : 'text-muted hover:text-ink'}`}>
               {t(l)}
             </button>
           ))}
@@ -70,20 +70,18 @@ export default function StaffInbox() {
                 setSel(x.case_id)
                 setReading(true)
               }}
-              className={`relative grid w-full grid-cols-[36px_minmax(0,1fr)_auto] gap-2.5 border-t border-line px-[18px] py-3 text-left ${on ? 'bg-wine-tint' : 'hover:bg-[rgba(107,31,51,.035)]'} ${isNew(x.case_id + x.status) ? 'animate-enter' : ''}`}
+              className={`relative grid w-full grid-cols-[36px_minmax(0,1fr)_auto] gap-3 border-t border-line px-[18px] py-3.5 text-left ${on ? 'bg-surface shadow-[inset_0_0_0_2px_#6B1F33]' : needsMe(x) ? 'bg-wine-tint' : 'hover:bg-surface'} ${isNew(x.case_id + x.status) ? 'animate-enter' : ''}`}
             >
-              {needsMe(x) && <span className="absolute left-1.5 top-[22px] h-[7px] w-[7px] rounded-full bg-wine" aria-label={t('Needs you')} />}
-              <span className={`uav ${needsMe(x) ? '' : 'bg-[#B9AAA4]'}`}>{name.charAt(0)}</span>
+              <span className={`uav h-9 w-9 ${needsMe(x) ? '' : 'bg-beige text-secondary'}`}>{name.charAt(0)}</span>
               <span className="min-w-0">
-                <span className="flex flex-wrap items-center gap-1.5 text-body font-semibold">
-                  {name} <ChannelTag ch={channelOf(d)} />
+                <span className="block truncate text-body font-medium">{name}</span>
+                <span className={`block truncate text-body-sm ${needsMe(x) ? 'font-medium text-ink' : 'text-secondary'}`}>{x.title}</span>
+                <span className="mt-1 block truncate">
+                  <StagePill c={x} inbox />
                 </span>
-                <span className="mt-px block truncate text-body-sm">{x.title}</span>
-                <span className="mt-0.5 block truncate text-label text-muted">{messagePreview(m)}</span>
               </span>
-              <span className="flex flex-col items-end gap-1.5 text-right text-meta text-muted">
+              <span className={`text-right text-meta ${needsMe(x) ? 'font-medium text-wine' : 'text-muted'}`} title={messagePreview(m)}>
                 {m ? fmtRelative(m.ts) : fmtRelative(x.updated_at)}
-                <StagePill c={x} inbox />
               </span>
             </button>
           )
@@ -100,20 +98,20 @@ export default function StaffInbox() {
           <>
             <div className="mb-[18px] flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
-                <h2 className="text-title font-semibold">{c.title}</h2>
-                <p className="mt-1 text-muted">
+                <h2 className="text-title font-medium">{c.title}</h2>
+                <p className="mt-2 text-body-sm text-muted">
                   {[tenantOf(c), placeLabel(c.address, c.unit_id), t('case {id}', { id: c.case_id.replace(/^case_0*/, '') }), t('via {ch} at {time}', { ch: channelOf(c) === 'Website' ? t('Website') : channelOf(c) === 'Phone' ? t('Phone') : 'WhatsApp', time: fmtTime(c.created_at) })].filter(Boolean).join(' · ')}
                 </p>
+                <div className={`state ${needsMe(c) ? '' : 'text-secondary'}`}>{needsMe(c) ? t('Needs your approval') : stageOf(c)[0]}</div>
               </div>
               <div className="flex items-center gap-2">
-                <StagePill c={c} />
                 <Link className={needsMe(c) ? 'btn-primary' : 'btn-secondary'} to={`/staff/cases/${c.case_id}`}>
-                  {c.status === 'needs_staff' ? t('Take over →') : needsMe(c) ? t('Approve partner →') : t('Open case →')}
+                  {c.status === 'needs_staff' ? t('Take over') : needsMe(c) ? t('Approve partner') : t('Open case')}
                 </Link>
               </div>
             </div>
-            <SummaryCard c={c} className="mb-[18px]" />
-            <h4 className="mb-2 text-meta font-semibold tracking-normal text-muted">{t('Conversation with Debye')}</h4>
+            <SummaryCard c={c} className="mb-8" />
+            <h3 className="mb-3 text-head">{t('Conversation')}</h3>
             <Chat c={c} />
             {needsMe(c) && (
               <p className="mt-3 text-label text-muted">
